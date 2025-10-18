@@ -1,0 +1,49 @@
+---
+title: "Boarding Arkade"
+description: "How to board Arkade with a UTXO via the Intent System"
+icon: "circle-up"
+---
+
+### What is Boarding?
+
+**Boarding** enables users to bring external Bitcoin UTXOs into Arkade's execution environment and receive programmable Virtual Transaction Outputs (VTXOs) in return. This operation is coordinated between clients and Arkade through the [Intent System](/arkd/components/intent-system) and settles atomically within Arkade's [standard batch processing flow](/arkd/txs/onchain-settlement#client-workflow%3A-participating-in-a-batch-swap).
+
+### Client API Overview
+
+Clients interact with boarding functionality primarily through the [`ArkService`](/arkd/core-services/ark-service) gRPC interface. The service provides both gRPC and REST endpoints for all boarding operations.
+
+### Getting Boarding Configuration
+
+Clients first need to understand the boarding parameters by calling `GetInfo()` which returns [`GetInfoResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L127-L142) server configuration parameters like network settings, amount limits, timeouts (e.g. expiry, exit delays), the operator’s signer key, and the current protocol version.
+
+### Boarding Address Generation
+
+Clients then generate a boarding address with two script paths:
+
+- User \+ Server (collaborative)
+- User \+ CSV (unilateral exit after timeout)
+
+and send Bitcoin to said address. 
+
+<Card title="Ramps: Boarding Arkade" icon="circle-up" href="/wallets/ramps#boarding" horizontal>
+  How to use a ramp for boarding Arkade
+</Card>
+
+### Intent Registration and Batch Processing Participation
+
+After funding the boarding address, clients participate in the [standard batch processing flow](/arkd/txs/onchain-settlement#client-workflow%3A-participating-in-a-batch-swap):
+
+1. **Registration**: Client registers an intent through `RegisterIntent()` with boarding inputs and a `BIP322` signature.
+2. **Confirmation**: Client confirms participation via `ConfirmRegistration()`
+3. **Tree Signing**: Client submits nonces and signatures for the Musig2 protocol
+4. **Forfeit Transaction Submission**: Client submits signed [forfeit transactions](/learn/pillars/batch-swaps#forfeit-transactions)
+5. **Commitment Transaction Signing**: Client signs [commitment transaction](/learn/pillars/batch-swaps#commitment-transactions) for boarding inputs
+
+The server validates boarding inputs during commitment transaction creation via [`validateBoardingInput`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application/service.go#L2211-L2284)
+
+### Event Stream Monitoring
+
+Clients can monitor the boarding progress through `GetEventStream()` , which returns [`GetEventStreamResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L191-L202) and provides real-time updates about batch processing phases and transaction confirmations.
+
+
+<Tip>From the client perspective, boarding is seamlessly integrated into the standard Arkade transaction flow. No special boarding APIs are needed; clients include their Bitcoin UTXOs as inputs in their intents and follow the existing batch processing protocol. The system handles boarding validation and processing transparently during the batch lifecycle.</Tip>

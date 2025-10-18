@@ -1,0 +1,425 @@
+# Ark Infrastructure Architecture
+
+## Overview
+
+The Ark infrastructure follows a multi-layered architecture combining AWS cloud services with containerized applications. The design emphasizes security, automation, and operational simplicity through the no-SSH paradigm.
+
+## Infrastructure Layers
+
+### 1. AWS Infrastructure Layer
+
+#### VPC Architecture
+```
+VPC: 10.10.0.0/16 (65,536 IPs)
+├── Public Subnets (Internet-facing)
+│   ├── 10.10.1.0/24 (AZ-a) - NAT Gateway
+│   └── 10.10.2.0/24 (AZ-b) - NAT Gateway (HA)
+└── Private Subnets (Internal only)
+    ├── 10.10.101.0/24 (AZ-a) - EC2, RDS, Redis
+    └── 10.10.102.0/24 (AZ-b) - RDS, Redis (Multi-AZ)
+```
+
+**Design Rationale**:
+- Multi-AZ for high availability
+- Public subnets host only NAT Gateway (no compute)
+- Private subnets host all application resources
+- No public IPs on application instances
+
+#### Compute Resources
+- **EC2 Instance** (private subnet)
+  - Default: t3.large (2 vCPU, 8GB RAM)
+  - Prod recommended: t3.xlarge+ (4+ vCPU, 16GB+ RAM)
+  - Root EBS: 60GB gp3
+  - Additional EBS: Variable (for Bitcoin data)
+  - IAM role with SSM, ECR, Secrets Manager permissions
+
+#### Databases
+- **RDS PostgreSQL 17** (3 instances):
+  - `postgres-projection`: CQRS read model (query-heavy)
+  - `postgres-event`: Event sourcing (write-heavy)
+  - `postgres-nbxplorer`: Blockchain indexer (highest load)
+  - Custom parameter groups with tuning
+  - Automated backups (7-day retention for prod)
+
+#### Cache
+- **ElastiCache Redis 7.0**
+  - Default: cache.t3.micro
+  - Prod recommended: cache.t3.small+ with Multi-AZ
+  - Used for session state, queues, locks
+
+#### Networking Components
+- **NAT Gateway**: Outbound internet access (~$32/mo + data)
+- **Internet Gateway**: Public subnet connectivity
+- **VPC Endpoints** (7 Interface + 1 Gateway):
+  - SSM (ssm, ssmmessages, ec2messages)
+  - ECR (ecr.api, ecr.dkr)
+  - CloudWatch Logs
+  - S3 Gateway (free)
+
+### 2. Network Security Layer
+
+#### Security Groups
+1. **app_sg** (EC2)
+   - Inbound: Self-referential + VPC endpoints (443)
+   - Outbound: All
+
+2. **rds_sg** (PostgreSQL)
+   - Inbound: Port 5432 from app_sg only
+   - Outbound: None
+
+3. **redis_sg** (ElastiCache)
+   - Inbound: Port 6379 from app_sg only
+   - Outbound: None
+
+4. **vpc_endpoints_sg**
+   - Inbound: Port 443 from app_sg only
+   - Outbound: None
+
+#### Route Tables
+**Private Route Table**:
+- `0.0.0.0/0` → NAT Gateway
+- `10.10.0.0/16` → Local (VPC)
+- VPC Endpoints → AWS PrivateLink
+
+**Public Route Table**:
+- `0.0.0.0/0` → Internet Gateway
+- `10.10.0.0/16` → Local (VPC)
+
+### 3. Application Layer
+
+#### Container Architecture
+```
+┌─────────────── Ingress ───────────────┐
+│  cloudflared (Cloudflare Tunnel)      │
+│      ↓                                  │
+│  traefik (Reverse Proxy + SSL)        │
+│      ├──→ /v1/* → arkd:7070 (REST)    │
+│      ├──→ grpc → arkd:7070 (gRPC)     │
+│      └──→ SSE → arkd:7070 (events)    │
+└────────────────────────────────────────┘
+
+┌─────────────── Core Services ─────────┐
+│  arkd (Main Daemon)                    │
+│    - REST API: 7070                     │
+│    - Admin API: 127.0.0.1:7071         │
+│    - Connects to: wallet, redis, dbs   │
+│                                         │
+│  arkd-wallet (Auto-unlocked)           │
+│    - Connects to: nbxplorer, postgres  │
+│                                         │
+│  kms-unlocker (Automation)             │
+│    - Unlocks wallet on startup         │
+│    - Backs up seed to Secrets Manager  │
+│                                         │
+│  nbxplorer (Blockchain Indexer)        │
+│    - Connects to: bitcoind, postgres   │
+│                                         │
+│  bitcoind [PROD ONLY]                  │
+│    - Full Bitcoin mainnet node         │
+│    - Fast sync via AssumeUTXO          │
+└────────────────────────────────────────┘
+
+┌─────────────── Telemetry ─────────────┐
+│  otel-collector → prometheus           │
+│  loki → grafana (127.0.0.1:3333)      │
+│  jaeger, alertmanager, cadvisor        │
+└────────────────────────────────────────┘
+```
+
+### 4. Data Flow Architecture
+
+#### Client Request Flow
+```
+User Request
+  ↓ HTTPS
+Cloudflare CDN (DDoS protection)
+  ↓ Encrypted Tunnel
+cloudflared (EC2 private subnet)
+  ↓ HTTP
+traefik (TLS termination)
+  ↓ HTTP/gRPC
+arkd (business logic)
+  ↓
+arkd-wallet → nbxplorer → bitcoind
+  ↓                ↓
+PostgreSQL (3x)  Redis
+```
+
+#### Telemetry Flow
+```
+Ark Services → otel-collector → prometheus → grafana
+             ↓                          ↓
+           loki (logs)             alertmanager → Slack
+             ↓
+         jaeger (traces)
+```
+
+#### Backup Flow
+```
+kms-unlocker → AWS Secrets Manager (wallet password + seed)
+RDS → Automated Snapshots (7-day retention)
+EBS → Manual/Automated Snapshots (via AWS Backup)
+OpenTofu State → S3 (versioned) + DynamoDB (locking)
+```
+
+## Service Architecture
+
+### arkd (Core Service)
+
+**Purpose**: Main Ark protocol daemon handling rounds, VTXOs, and payments
+
+**Ports**:
+- `7070`: Public API (REST + gRPC via Traefik)
+- `127.0.0.1:7071`: Admin API (SSM access only)
+
+**Dependencies**:
+- arkd-wallet (6060)
+- Redis (ElastiCache)
+- PostgreSQL projection + event (RDS)
+
+**Configuration**:
+- Environment via `.env.ark` (generated by user-data)
+- Round lifecycle: 120s
+- Max participants: 128
+- Min participants: 1
+
+### arkd-wallet (Automatic Sidecar)
+
+**Purpose**: Bitcoin wallet operations and UTXO management
+
+**Auto-unlock**: kms-unlocker fetches password and unlocks on startup
+
+**Dependencies**:
+- NBXplorer (32838) for UTXO tracking
+- PostgreSQL (RDS)
+
+**No manual intervention**: Fully automated lifecycle
+
+### kms-unlocker (Automation Service)
+
+**Purpose**: Automatic wallet unlock and seed backup
+
+**Functions**:
+1. Fetch encrypted password from Secrets Manager
+2. Decrypt using KMS
+3. Create/unlock arkd-wallet
+4. Backup seed to Secrets Manager (if configured)
+5. Monitor and reconnect if needed
+
+**Security**: Double encryption (KMS + Secrets Manager)
+
+### nbxplorer (Blockchain Indexer)
+
+**Purpose**: Bitcoin blockchain indexing for wallet UTXO tracking
+
+**Database**: Dedicated PostgreSQL instance (highest load)
+
+**Auto-configured**: Connects to bitcoind automatically
+
+**Configuration**:
+- Network: mainnet (prod) or regtest
+- Bitcoin RPC: bitcoind:8332
+- P2P endpoint: bitcoind:8333
+
+### bitcoind (Production Only)
+
+**Purpose**: Full Bitcoin mainnet node
+
+**Fast Sync**: AssumeUTXO snapshot (~20 minutes vs 24-48 hours)
+
+**Storage**: EBS volume at /mnt/data
+
+**Ports**:
+- `8333`: P2P network (external via NAT)
+- `8332`: RPC (internal only)
+
+### traefik (Reverse Proxy)
+
+**Purpose**: TLS termination, request routing, SSL certificate management
+
+**Features**:
+- Automatic Let's Encrypt via DNS-01 (Cloudflare)
+- Content-Type based routing (REST vs gRPC)
+- Server-Sent Events (SSE) no-buffering
+- Dashboard: localhost:8080 (SSM access)
+
+**SSL Certificates**:
+- Auto-renewal 30 days before expiry
+- Stored in `/letsencrypt/acme.json`
+- DNS-01 challenge via Cloudflare API
+
+### cloudflared (Ingress Tunnel)
+
+**Purpose**: Secure ingress without public IPs
+
+**Benefits**:
+- DDoS protection at Cloudflare edge
+- Zero Trust tunnel authentication
+- TLS encryption (mutual)
+- No open ports on EC2
+
+**Configuration**: Tunnel token from Cloudflare dashboard
+
+## Multi-Environment Design
+
+### Environment Isolation
+
+**Separation Mechanisms**:
+1. **OpenTofu Workspaces**: Separate state per environment
+2. **S3 Backends**: `ark-{env}-terraform-state` buckets
+3. **AWS Resource Tags**: `Environment: prod|staging|regtest`
+4. **Dedicated Resources**: No sharing between environments
+
+### Environment-Specific Configuration
+
+| Aspect | Regtest | Staging | Production |
+|--------|---------|---------|------------|
+| Bitcoin Node | External (nigiri) | bitcoind mainnet | bitcoind mainnet |
+| EBS Volume | No | Optional | Required (800GB) |
+| RDS Size | t3.micro | t3.small | t3.small/medium |
+| Redis | t3.micro | t3.small | t3.small+ (Multi-AZ) |
+| Fast Sync | N/A | Yes | Yes |
+| Backups | No | Optional | Automated (7-day) |
+| Multi-AZ | No | No | Optional |
+| Cost/Month | ~$150 | ~$400 | ~$800+ |
+
+## Security Architecture
+
+### Defense in Depth
+
+**Layer 1: Network Security**
+- No public IPs on application instances
+- Security groups: least-privilege
+- VPC endpoints for AWS services
+- NAT Gateway for controlled egress
+
+**Layer 2: Access Control**
+- SSM Session Manager only (no SSH)
+- IAM-based authentication + MFA
+- CloudWatch audit logging (30-day retention)
+- Session encryption via TLS
+
+**Layer 3: Application Security**
+- Cloudflared tunnel authentication
+- Traefik TLS-only (no port 80)
+- Basic auth middleware (optional)
+- Localhost-only admin services
+
+**Layer 4: Data Security**
+- KMS encryption for secrets
+- S3 encryption for state files
+- RDS encryption at rest
+- EBS encryption
+
+### No-SSH Design
+
+**Benefits**:
+- No SSH keys to manage
+- No port 22 exposure
+- No bastion host
+- Full audit trail
+- IAM-based access control
+
+**Access Methods**:
+1. **Interactive Session**: `aws ssm start-session`
+2. **Port Forwarding**: For localhost services (7071, 8080, 3333)
+3. **Remote Commands**: Via `send-command` document
+
+## State Management Architecture
+
+### S3 Backend with Versioning
+
+**Components**:
+1. **S3 Bucket** (per environment): `ark-{env}-terraform-state`
+   - Versioning enabled
+   - KMS encryption
+   - Public access blocked
+
+2. **DynamoDB Table** (shared): `terraform-state-lock`
+   - State locking
+   - Pay-per-request billing
+   - Prevents concurrent modifications
+
+3. **KMS Key** (shared): `alias/terraform-state-key`
+   - Encrypts all state files
+   - CloudTrail audit logging
+
+**Benefits**:
+- Zero data loss (every change preserved)
+- Point-in-time recovery
+- Team collaboration (shared state)
+- Automatic backups (S3 versioning)
+
+## Monitoring & Observability
+
+### Metrics Collection
+- **Prometheus**: Time-series metrics storage
+- **otel-collector**: OpenTelemetry metrics ingestion
+- **cadvisor**: Container resource metrics
+- **CloudWatch**: EC2, RDS, Redis metrics
+
+### Visualization
+- **Grafana** (localhost:3333): Custom dashboards
+  - Host metrics (CPU, memory, disk)
+  - Container metrics (resource usage)
+  - Ark metrics (rounds, VTXOs, transactions)
+  - Bitcoin metrics (sync status, peer count)
+
+### Logging
+- **Loki**: Log aggregation
+- **CloudWatch Logs**: SSM session logs
+- **Docker logs**: Container stdout/stderr
+
+### Tracing
+- **Jaeger**: Distributed tracing for request flows
+
+### Alerting
+- **Alertmanager**: Alert routing and grouping
+- **Slack Integration**: Real-time notifications to channels
+
+## Cost Optimization
+
+### Fixed Costs
+- NAT Gateway: ~$32/mo
+- VPC Endpoints: ~$50/mo (7 × $0.01/hr × 730hr)
+- CloudWatch Logs: ~$5/mo
+
+### Variable Costs
+- EC2: Based on instance type (~$60-500/mo)
+- RDS: Based on instance class (~$30-350/mo)
+- Redis: Based on node type (~$15-180/mo)
+- EBS: Based on size (~$64/TB/mo for gp3)
+- Data transfer: ~$0.09/GB out (after 100GB)
+
+### Optimization Strategies
+1. **VPC Endpoints**: Reduce NAT data transfer for AWS services
+2. **Reserved Instances**: 30-60% savings for 1-3 year commitments
+3. **Right-sizing**: Monitor CloudWatch metrics, adjust instance sizes
+4. **EBS Optimization**: Use gp3 instead of io2 unless high IOPS needed
+
+## Future Extensibility
+
+### Horizontal Scaling
+- Multiple EC2 instances with Application Load Balancer
+- RDS read replicas for projection database
+- Redis cluster mode for high availability
+
+### Multi-Region
+- Cross-region S3 replication for state files
+- RDS cross-region read replicas
+- Route53 for DNS failover
+
+### Alternative Orchestrators
+- **ECS**: For managed container orchestration
+- **Nomad**: For multi-cloud deployments
+- **Kubernetes**: For large-scale, complex workloads
+
+## References
+
+For detailed information:
+- **AWS Resources**: See `aws-infrastructure.md`
+- **Networking**: See `networking.md`
+- **Security**: See `security.md`
+- **OpenTofu Details**: See `opentofu-reference.md`
+
+Source: `${ARK_INFRA_REPO}/docker-compose/docs/01-architecture.md`

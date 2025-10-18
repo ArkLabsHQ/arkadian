@@ -1,0 +1,37 @@
+---
+title: "Advanced Security"
+description: "Overview of advanced security mechanisms in Arkade, such as verifiable execution and end-to-end encryption."
+icon: "lock-keyhole"
+---
+
+Rather than asking users to simply trust operators, Arkade implements technical safeguards that transform "trust the operator" into "verify the operator." These mechanisms ensure that misbehavior is cryptographically detectable, honest execution is verifiable, economic incentives are aligned, and communication remains uncensorable. 
+
+## Arkade Signer
+
+The Arkade Signer represents a critical architectural separation that isolates transaction signing authority from operator control. Rather than allowing the Arkade Operator to directly sign user transactions, this responsibility is delegated to a separate module that operates under verifiable constraints.
+
+The Signer generates a single signing key that all Arkade addresses require for VTXO cosigning, but this key is protected within a secure hardware environment (TEE) that prevents access even by the operator. Users communicate directly with the Signer through encrypted channels (e2ee), ensuring that signature requests remain confidential and uncensorable. This architectural decision transforms the trust model from strictly relying on operator honesty to relying on cryptographic and hardware guarantees that can be independently verified.
+
+## Verifiable Execution
+
+To minimize trust assumptions in the preconfirmation state, Arkade isolates the Arkade Signer within Trusted Execution Environments (TEEs). TEEs create isolated hardware environments that can attest to the software they're running and can provide robust guarantees against external tampering.
+
+The Arkade Signer operates within this isolated TEE environment to independently manage the cryptographic keys used for signing transactions. This isolation makes key exfiltration or tampering practically infeasible, with the signing key generated and securely maintained internally, inaccessible even to the Arkade Operator. Signing responsibilities remain strictly segregated from broader operational tasks.
+
+Remote, verifiable attestation based on open-source software and reproducible builds can be used to provide cryptographic evidence that the Arkade Signer is running the expected code.
+
+## End-to-End Encryption
+
+Arkade is designed to support end-to-end encryption (E2EE) between users and the Arkade Signer, improving confidentiality and protecting against censorship attempts by the operator.
+
+The E2EE protocol safeguards signature requests and other messages from interception or manipulation, rendering the Arkade Operator incapable of snooping on or censoring specific transactions. Even when the operator serves as the coordinating infrastructure, they cannot:
+
+- See what specific transactions are being processed
+- Block individual transactions based on their content
+- Analyze user behavior patterns for surveillance purposes
+
+## Slashing
+
+The Arkade Operator can stake Bitcoin collateral onchain, locked to the Arkade Signer's public key, creating economic deterrence against misbehavior. If the Signer double-signs conflicting transactions, users can present proof to the TEE along with an unsigned burn transaction, which the verified TEE software will automatically sign to destroy the collateral.
+
+Since TEEs cannot reliably maintain global state, malicious operators might attempt to induce double-signing by feeding incorrect data to the TEE or performing restart cycles. However, such protocol violations produce cryptographic evidence that triggers slashing. The system ensures that potential attack benefits must outweigh the locked collateral value, making attacks economically irrational for operators.

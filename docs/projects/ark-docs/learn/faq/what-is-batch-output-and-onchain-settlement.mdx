@@ -1,0 +1,14 @@
+---
+icon: "layer-group"
+title: "How does onchain settlement work?"
+description: "Explains batching and settlement in Arkade."
+---
+
+Arkade can [batch](/learn/pillars/batch-outputs) thousands of offchain operations into a single Bitcoin transaction output.
+
+The settlement process is as follows:
+1. Individual VTXOs get organized by the operator into a virtual transaction tree
+2. The virtual transaction tree is anchored via a batch output in a commitment transaction to Bitcoin
+3. An onchain confirmed commitment transaction gives all included VTXOs Bitcoin-level finality
+
+Transaction batching dramatically reduces per-transaction costs while preserving individual control and Bitcoin security guarantees.

@@ -1,0 +1,193 @@
+---
+title: "Glossary"
+description: "Arkade Glossary"
+icon: "book-open"
+---
+
+## A
+
+### arkd
+
+[arkd](/arkd/what-is-arkd) is the server implementation of Arkade, enabling offchain transactions, onchain settlement, and VTXO management. It runs as two processes (`arkd` and `arkd-wallet`) and exposes APIs via ArkService, IndexerService, and AdminService for coordination, querying, and administration.
+
+### ArkService
+
+The [ArkService](/arkd/core-services/ark-service) is the primary gRPC/REST API of arkd, handling the core business logic of the Ark protocol. It manages intents, batch coordination, MuSig2 signing, and offchain VTXO spending, while also providing real-time transaction streams.
+
+### Arkade
+
+A Bitcoin-native virtual execution layer that enables programmable money through offchain coordination while preserving Bitcoin's security guarantees. Arkade virtualizes Bitcoin's transaction layer to enable instant, parallel execution without requiring protocol changes.
+
+### Arkade Operator
+
+The Arkade Operator is the coordinator of Arkade's virtual execution environment who validates transactions, forwards requests to the Arkade Signer, and aggregates operations into onchain commitment transactions. Cannot unilaterally spend user VTXOs due to architectural constraints.
+
+### Arkade Script
+
+[Arkade Script](/contracts/arkade-script) is an enhanced version of Bitcoin Script that enables expressive and stateful transaction flows. It extends Bitcoin's opcodes with additional primitives for introspection, arithmetic, logic, and asset operations, running exclusively in the preconfirmation state.
+
+### Arkade Script Compiler
+
+The [Arkade Script Compiler](/contracts/arkade-compiler) is a development tool that translates high-level contract logic into executable Arkade Script code. Inspired by Bitcoin scripting languages like Ivy and CashScript, it verifies scripts preserve Ark constraints and unilateral exit guarantees.
+
+### Arkade Signer
+
+The Arkade Signer is an independent entity that manages the cryptographic keys used for cosigning user transactions. Operates within a TEE and generates a single key that all Arkade addresses require for VTXO cosigning, isolated from operator control.
+
+### Arkade Transaction
+
+[Arkade Transactions](/learn/pillars/arkade-tx) are the default transaction type within Arkade. They are standard presigned Bitcoin transactions used within Arkade to coordinate offchain execution with unilateral exit option for the user. 
+
+
+### Ark Protocol
+
+The [Ark protocol](https://docs.arklabs.xyz/ark.pdf) is the foundational offchain protocol that Arkade builds upon, designed to address Bitcoin's throughput limitations by aggregating users' offchain interactions and settling them efficiently onchain through Batch Outputs as part of Commitment Transactions.
+
+## B
+
+### Batch Expiry
+
+The [batch expiry](/learn/pillars/batch-expiry) is a timeout mechanism where Batch Outputs can be swept by the Arkade Operator after a predetermined period. Essential for operator liquidity management, as operators must front capital while users transition between VTXOs.
+
+### Batch Output
+
+A [batch output](/learn/pillars/batch-outputs) is a single Bitcoin output that consolidates multiple users' ownership claims through a tree of presigned virtual transactions. Created through Commitment Transactions and locked to a Taproot address with specific spending conditions.
+
+### Batch Swaps
+
+A [batch swap](/learn/pillars/batch-swaps) is the process of aggregating multiple Arkade Transactions into a single onchain Commitment Transaction, allowing many offchain operations to be compressed into one Bitcoin transaction output.
+
+### BIP322
+
+[BIP322](https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki?ref=blog.arklabs.xyz) defines a standard for signing arbitrary messages in Bitcoin using virtual transactions, enabling secure proofs of address ownership for any script type, including multisig and Taproot, which can then be used with intents.
+
+### Bitcoin Finality
+
+The highest level of transaction security achieved when VTXOs are [anchored to the Bitcoin blockchain](/learn/security/transaction-finality#bitcoin-finality) through a Commitment Transaction, inheriting Bitcoin's security guarantees.
+
+## C
+
+### Collaborative Path
+
+[One of two spending paths](/learn/pillars/vtxos#vtxo-structure) of a VTXO that requires both the owner's signature and a cosignature from the Arkade Signer. This is the default path used for Arkade operations, enabling instant offchain transactions.
+
+### Collateral Burn Mechanism
+
+An [economic security](/learn/security/advanced-security#slashing) measure where the Arkade Operator locks Bitcoin collateral onchain. If the Signer double-signs conflicting transactions, such misbehaviour can be cryptographically proven and results in burning of the collateral.
+
+### Commitment Transaction
+
+A [commitment transaction](/learn/pillars/batch-swaps#commitment-transactions) is the onchain Bitcoin transaction that finalizes Batch Outputs as settlements, serving as the anchor for users to enforce their offchain balances onchain using presigned transaction paths.
+
+## D
+
+### DAG (Directed Acyclic Graph)
+
+A [DAG](/learn/pillars/virtual-mempool#dag-architecture) is the data structure used in Arkade's Virtual Mempool where transactions form nodes that explicitly encode dependencies, enabling parallel execution of independent transaction branches.
+
+### Dynamic Settlement
+
+Arkade's [flexible finality model](/learn/security/transaction-finality#dynamic-settlement) that allows users to transition between fast offchain execution (preconfirmed state) and stronger onchain security guarantees (Bitcoin finality) based on their needs.
+
+## E
+
+### End-to-End Encryption (E2EE)
+
+The [e2ee](/learn/security/advanced-security#end-to-end-encryption) is a privacy mechanism ensuring communication between users and the Arkade Signer remains confidential and uncensorable, preventing the operator from intercepting or blocking specific transactions.
+
+### Exit Path
+
+[One of two spending paths](/learn/pillars/vtxos#vtxo-structure) in a VTXO that allows the owner to spend funds unilaterally without operator cooperation, serving as a fail-safe option that guarantees user sovereignty over assets.
+
+## F
+
+### Forfeit Transaction
+
+[Forfeit Transactions]/learn/pillars/batch-swaps#forfeit-transactions are special Arkade transactions that protect operators against user fraud by addressing the double-spending problem in the offchain environment. If a user attempts to redeem an already-spent VTXO onchain, the operator can broadcast the presigned forfeit transaction to reclaim the funds and enforce protocol security.
+
+
+## I
+
+### IndexerService
+
+The [IndexerService](/arkd/core-services/indexer-service) is Arkade’s read-only API for transaction data. It provides gRPC/REST endpoints to query commitment transactions, VTXO trees, forfeit and sweep data, and to subscribe to script-level activity. Builders use it to audit fund lifecycles, trace transaction chains, and monitor batch-level events without running custom indexers.
+
+### Intent
+
+[Intents](/learn/pillars/batch-swaps#intents) in Arkade are offchain, presigned Bitcoin transactions based on BIP322 that prove ownership of inputs and specify outputs, enabling a user to participate in a batch swap or delegate the VTXO renewal in case of a user being offline.
+
+### Intent Delegation
+
+[Intent Delegation](/learn/pillars/batch-expiry#delegation-solutions) is a mechanism that allows users to authorize a delegate to renew their VTXOs on their behalf by submitting a signed intent within a specified time window. Delegates cannot alter outputs or move funds unilaterally, ensuring the user retains full control and unilateral exit capability. This enables seamless renewal while preserving non-custodial security.
+
+## M
+
+### Mass Exit
+
+A [risk scenario](/learn/security/risks-limitations#mass-exit-scenarios) where many users attempt to simultaneously exit the system, potentially creating high costs due to elevated Bitcoin network fees and congestion in unilateral exit paths.
+
+### MuSig2
+
+A Bitcoin signature scheme used in Batch Outputs with an n-of-n internal key where all participants serve as cosigners, providing cryptographic security for the batch structure.
+
+## P
+
+### Parallel Execution
+
+Arkade's ability to process transactions simultaneously across independent VTXO branches without coordination overhead, enabled by the DAG structure of the Virtual Mempool and the UTXO-based architecture.
+
+### Pay-to-Taproot (P2TR)
+
+A Bitcoin address type that enables Ark to batch multiple offchain transactions into a single virtual transaction tree. P2TR allows for compact onchain footprint and privacy by embedding complex spending conditions that are only revealed when exercised.
+
+### Preconfirmation
+
+The [instant transaction confirmation](/learn/security/transaction-finality#preconfirmation) provided when the Arkade Signer cosigns a user's transaction, enabling immediate execution within the Virtual Mempool.
+
+### Programmable Money
+
+[Programmable Money](https://arkadeos.com/vision#programmable) is Bitcoin that can follow predefined financial logic such as rules for spending or timing conditions, enabled by Arkade’s virtual execution layer. This functionality is achieved without changes to the Bitcoin protocol or reliance on custodial intermediaries.
+
+## R
+
+### Remote Attestation
+
+A cryptographic verification mechanism that proves the Arkade Signer is running expected, [tamper-free code within a TEE](/learn/security/advanced-security#verifiable-execution), providing transparency about the software's integrity.
+
+## T
+
+### Taproot
+
+A Bitcoin protocol upgrade that enhances efficiency, privacy, and flexibility by allowing complex spending conditions to be embedded in compact script trees. Arkade uses Taproot to construct Batch Outputs that consolidate many offchain transactions into a single, private virtual transaction tree.
+
+### TEE (Trusted Execution Environment)
+
+[Hardware-backed secure enclaves](/learn/security/advanced-security#verifiable-execution) (like Intel SGX) that provide isolated execution environments with cryptographic attestation capabilities, used to protect Arkade Signer keys and ensure verifiable execution.
+
+## U
+
+### Unilateral Exit
+
+[Unilateral exit](/learn/security/unilateral-exit) is the ability for users to independently move their funds from Arkade to the Bitcoin blockchain at any time without requiring permission or cooperation from the Arkade Operator, enabled through presigned transaction paths.
+
+## V
+
+### Virtual Mempool
+
+Arkade's offchain execution engine, the [virtual mempool](/learn/pillars/virtual-mempool), processes transactions in real-time without block time constraints, organizing them in a DAG structure that enables parallel execution and instant coordination.
+
+### Virtual Transaction Output (VTXO)
+
+The core unit of value in Arkade is a [VTXO](/learn/pillars/vtxos): a programmable, offchain object that mirrors a Bitcoin UTXO but exists in the Virtual Mempool. Each VTXO is backed by a presigned, unbroadcast Bitcoin transaction and includes defined ownership, value, and spending conditions, supporting both collaborative and unilateral exit paths.
+
+### Virtual Transaction Tree
+
+A [virtual transaction tree](/learn/pillars/batch-outputs#batch-output) is the hierarchical organization of virtual transactions that splits Batch Outputs into individual VTXOs at the leaves, enabling selective unrolling where users can exit without affecting other participants.
+
+### Virtualization
+
+[Virtualization](https://arkadeos.com/vision#virtualize) is the core approach of Arkade that abstracts Bitcoin's UTXOs into a programmable execution layer, similar to how computing virtualization separated software from physical hardware constraints.
+
+### VTXO Expiry
+
+[VTXO expiry](/learn/pillars/vtxos#vtxo-expiration) is part of a lifecycle management mechanism where VTXOs require periodic user attention to avoid expiration, creating incentives for users to remain active and settle their preconfirmed positions appropriately.

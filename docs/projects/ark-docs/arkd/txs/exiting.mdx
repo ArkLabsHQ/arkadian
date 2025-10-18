@@ -1,0 +1,61 @@
+---
+title: "Exiting Arkade"
+description: "How to exit Arkade and convert VTXOs to Bitcoin UTXOs"
+icon: "circle-down"
+---
+
+Offboarding enables users to convert their Virtual Transaction Outputs (VTXOs) back into standard Bitcoin UTXOs, allowing them to withdraw funds from Arkade's execution environment to the base layer. Users can choose between two main offboarding mechanisms: collaborative or unilateral exit (force redemption).
+
+### **Client API Overview**
+
+Clients interact with exit functionality primarily through the ([`ArkService`](/arkd/core-services/ark-service)). The service provides both gRPC and REST endpoints for all exit operations.
+
+### **Getting Boarding Configuration**
+
+Clients first need to understand the boarding parameters by calling `GetInfo()` which returns [`GetInfoResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L127-L142) server configuration parameters like network settings, amount limits, timeouts (e.g. expiry, exit delays), the operator’s signer key, and the current protocol version.
+
+### **Collaborative Exit Process**
+
+The preferred offboarding method where the operator cooperates to create an exit transaction:
+
+1. **Offboarding Request**: Client calls [`CollaborativeExit`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-cli/main.go#L412-L420) with onchain destination address and amount
+2. **Tx creation**: The server creates an exit transaction spending selected VTXOs
+3. **Batch Processing**: The exit is processed in the next batch round following the [standard batch processing flow](/arkd/txs/onchain-settlement#client-workflow%3A-participating-in-a-batch-swap)
+4. **Settlement**: The exit transaction is broadcast and confirmed onchain
+
+<Card title="Ramps: Boarding Arkade" icon="circle-down" href="/wallets/ramps#exiting" horizontal>
+  How to use a ramp for offboarding Arkade
+</Card>
+
+### **Unilateral Exit Process**
+
+When a collaborative exit fails or the operator is unresponsive, clients can force exit:
+
+1. **Unroll Initiation**: Client initiates unilateral exit using the [`--force flag`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-cli/main.go#L395-L397)
+2. **Timelock Wait**: Client must wait for the unilateral exit delay period to expire 
+3. **Completion**: After timelock expires, client completes the exit ([`arkSdkClient.CompleteUnroll](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-cli/main.go#L399-L407)
+
+### **Exit Types and CLI Usage**
+
+**Collaborative Exit with Change**:
+
+```
+ark-cli redeem --amount 1000 --address <destination> --password <pwd>
+```
+
+**Collaborative Exit with full Balance**:
+
+```
+ark-cli redeem --amount <full_amount> --address <destination> --password <pwd>
+```
+
+**Unilateral Exit**:
+
+```
+ark-cli redeem --force --password <pwd>  
+ark-cli redeem --complete --address <destination> --password <pwd>
+```
+
+### **Event Stream Monitoring**
+
+Clients can monitor exit progress through `GetEventStream()` , which returns [`GetEventStreamResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L191-L202) and provides real-time updates about batch processing phases and transaction confirmations.

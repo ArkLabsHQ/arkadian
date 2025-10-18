@@ -1,0 +1,17 @@
+---
+icon: "shield"
+title: "What's a TEE and how does Arkade use it?"
+description: "Explains Trusted Execution Environments in Arkade."
+---
+
+A Trusted Execution Environment (TEE) is a secure hardware enclave that provides:
+- Isolated, encrypted execution of sensitive code
+- Cryptographic attestation of software integrity
+- Hardware-backed security guarantees
+
+[Arkade uses TEEs](/learn/security/advanced-security#verifiable-execution) for:
+- Arkade Signer: Protects signing keys from operator access
+- Remote attestation: Proves only authorized code is running
+- Encrypted communication: Enables private user-signer interaction
+
+TEEs transform the “trust the operator” assumption into “verify the operator”.

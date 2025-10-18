@@ -1,0 +1,51 @@
+---
+title: "Offchain Execution"
+description: "Submit Arkade transactions to the Virtual Mempool"
+icon: "play"
+---
+
+When transacting on Arkade, VTXOs don’t need to be settled to Bitcoin with every transfer. Instead, they can remain offchain until the latest recipient decides to anchor them to Bitcoin for finality.
+
+Such offchain transactions are processed in the [virtual mempool](/learn/pillars/virtual-mempool) and receive [preconfirmation status](/learn/security/transaction-finality#preconfirmation) through the Arkade operator cosigning the VTXO transfer.
+
+### Client Workflow: Transacting offchain on Arkade
+
+Users transact offchain on Arkade by submitting a transaction request to the [ArkService](/arkd/core-services/ark-service) which then undergoes several steps consisting of verification and signing procedures. The following describes the workflow and the respective functions in detail.
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/sequenceoffchainlight.png" 
+    alt="Sequence Diagram Offchain Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/sequenceoffchaindark.png" 
+    alt="Sequence Diagram Offchain Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+To spend offchain, the client sends a [`SubmitTxRequest`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L204-L207) with a signed [Arkade transaction](/learn/pillars/arkade-tx) and unsigned [checkpoint transactions](/arkd/server-security/checkpoint-txs). The server verifies them and responds with the fully signed Arkade transaction, its ID, and partially signed checkpoint transactions.
+
+The client adds the missing checkpoint signatures and finalizes the process via [`FinalizeTx`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L214-L217), sending the fully signed checkpoint transactions to the ArkService. Once the server verifies the final signatures, the spend is preconfirmed.
+
+### Workflow Monitoring
+
+The actual offchain execution workflow uses the ArkService. While the [IndexerService](/arkd/core-services/indexer-service) doesn't directly handle offchain execution, it provides several supporting query functions that clients might use:
+
+[VTXO Monitoring](/arkd/core-services/indexer-service#vtxo-management)
+
+- `GetVirtualTxs`: Retrieves virtual transactions in hex format for specified transaction IDs
+- `GetVtxos`: Queries VTXO states by scripts or outpoints
+- `GetVtxoChain`: Traces transaction chains for specific VTXOs
+
+[Script Subscriptions](/arkd/core-services/indexer-service#real-time-monitoring)
+
+- `SubscribeForScripts`: Subscribe to notifications for specific VTXO scripts 
+- `GetSubscription`: Receive real-time notifications about subscribed scripts i
+
+<Tip>The IndexerService serves as a complementary query layer that clients can use to monitor the results of offchain transactions processed through the ArkService, but it's not part of the core offchain execution flow itself.</Tip>

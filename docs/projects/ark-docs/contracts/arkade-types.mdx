@@ -1,0 +1,258 @@
+---
+title: "Arkade Types"
+description: "Data types in the Arkade Script language"
+icon: "cube"
+---
+
+
+
+<Warning>
+  **Experimental Technology**
+  
+  The Arkade Language is experimental technology in active development. All code and examples presented here are for exploration and proof of concept purposes only. Do not use in production environments.
+</Warning>
+
+# Arkade Types
+
+Arkade Script provides a rich set of data types designed specifically for Bitcoin smart contracts. These types help ensure contract correctness and provide clear semantics for working with Bitcoin's UTXO model.
+
+## Primitive Types
+
+### Boolean
+
+The `bool` type represents a boolean value (true or false):
+
+```solidity
+bool isValid = true;
+bool isComplete = false;
+```
+
+Boolean values are used in conditional statements and logical operations.
+
+### Integer
+
+The `int` type represents a signed integer:
+
+```solidity
+int amount = 1000;
+int blockHeight = -10; // Relative block height
+```
+
+Integers in Arkade Script are implemented as 64-bit signed integers, allowing for a range from -2^63 to 2^63-1.
+
+## Cryptographic Types
+
+### Public Key
+
+The `pubkey` type represents a Bitcoin public key:
+
+```solidity
+pubkey user;
+pubkey oracle = 0x03aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899;
+```
+
+Public keys are used for signature verification and address generation.
+
+### Signature
+
+The `signature` type represents a Bitcoin signature:
+
+```solidity
+signature userSig;
+```
+
+Signatures are typically provided as function parameters and used with `checkSig` or `checkMultisig` functions.
+
+## Byte Arrays
+
+### Generic Bytes
+
+The `bytes` type represents an arbitrary byte array:
+
+```solidity
+bytes data = 0x00112233;
+bytes message = "Hello, world!";
+```
+
+Byte arrays can be used for arbitrary data storage and manipulation.
+
+### Fixed-Size Bytes
+
+Fixed-size byte arrays specify the exact number of bytes:
+
+```solidity
+bytes20 hash160Value = hash160(pubkey);
+bytes32 sha256Value = sha256(message);
+```
+
+Common fixed-size types include:
+
+- `bytes20`: Typically used for RIPEMD-160 hashes or Hash160 results
+- `bytes32`: Typically used for SHA-256 hashes
+- `bytes33`: Typically used for compressed public keys
+
+## Asset Types
+
+### Asset
+
+The `asset` type represents an Asset:
+
+```solidity
+asset token;
+```
+
+Asset types are used for working with assets in contracts. They provide identifiers and the terms of the asset, such as supply.
+
+## Complex Types
+
+### Arrays
+
+Arrays can hold multiple values of the same type:
+
+```solidity
+int[] amounts = [100, 200, 300];
+pubkey[] signers = [alice, bob, charlie];
+```
+
+Arrays support indexing and length properties:
+
+```solidity
+int firstAmount = amounts[0];
+int signerCount = signers.length;
+```
+
+### Structs
+
+Structs group related data together:
+
+```solidity
+struct Payment {
+  int amount;
+  pubkey recipient;
+  int timestamp;
+}
+
+Payment payment = Payment(1000, recipientPk, tx.time);
+```
+
+Struct fields are accessed using dot notation:
+
+```solidity
+int paymentAmount = payment.amount;
+```
+
+## Type Conversion
+
+### Explicit Conversion
+
+Explicit type conversion is performed using casting syntax:
+
+```solidity
+bytes32 hash = sha256("data");
+bytes hashBytes = bytes(hash);
+```
+
+### Implicit Conversion
+
+Some types can be implicitly converted:
+
+- Integer literals to `int`
+- String literals to `bytes`
+- Hex literals to `bytes` or fixed-size byte arrays
+
+## Special Types
+
+### Transaction
+
+The `tx` object provides access to transaction data:
+
+```solidity
+int locktime = tx.time;
+int inputCount = tx.inputs.length;
+int outputCount = tx.outputs.length;
+```
+
+### Input
+
+The `input` type represents a transaction input:
+
+```solidity
+int inputValue = tx.inputs[0].value;
+bytes inputScript = tx.inputs[0].scriptPubKey;
+```
+
+The current input being spent can be accessed directly:
+
+```solidity
+int currentValue = tx.input.current.value;
+```
+
+### Output
+
+The `output` type represents a transaction output:
+
+```solidity
+int outputValue = tx.outputs[0].value;
+bytes outputScript = tx.outputs[0].scriptPubKey;
+```
+
+## Type Properties
+
+### Size
+
+The size of a value in bytes can be obtained using the `size` property:
+
+```solidity
+int messageSize = message.size;
+```
+
+### Type Checking
+
+The type of a value can be checked at runtime:
+
+```solidity
+if (typeof(value) == "int") {
+  // Handle integer value
+}
+```
+
+## Null Values
+
+Some types can be null, indicating the absence of a value:
+
+```solidity
+pubkey nullPubkey = null;
+if (nullPubkey == null) {
+  // Handle null case
+}
+```
+
+## Type Safety
+
+Arkade Script is statically typed, meaning type checking is performed at compile time:
+
+```solidity
+int amount = "invalid"; // Compile error: Type mismatch
+```
+
+This helps catch errors before contracts are deployed.
+
+## Memory Layout
+
+Understanding how types are represented in memory can be important for advanced contract development:
+
+- `bool`: 1 byte (0 for false, 1 for true)
+- `int`: 8 bytes (little-endian)
+- `pubkey`: 33 bytes (compressed) or 65 bytes (uncompressed)
+- `signature`: 64 bytes (Schnorr) or 71-73 bytes (ECDSA)
+- `bytes`: Variable length with size prefix
+
+## Conclusion
+
+Arkade Script's type system is designed to provide both safety and expressiveness for Bitcoin smart contract development. By using appropriate types, you can make your contracts more readable and less prone to errors.
+
+For more information on how to use these types with functions, see the [Arkade Functions](/contracts/arkade-functions) page.
+
+---
+
+<NextButton url="/contracts/arkade-functions" text="Arkade Functions" />

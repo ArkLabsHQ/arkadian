@@ -1,0 +1,67 @@
+---
+title: "Welcome to arkd"
+description: "Get familiar with arkd, Arkade transaction workflows and the associated API Layer"
+icon: "hand"
+---
+
+<Warning>
+  `arkd` is currently in alpha stage. It has undergone limited mainnet testing and should be considered experimental.
+</Warning>
+
+<Tip>
+  The content in this tab is specifically aimed at you, if you are..
+
+  1. ...an SDK/Library developer
+  2. ..a developer wanting to build, but an SDK in your favorite language doesn’t exist yet
+  3. ..an avid learner wanting to grok arkd API
+</Tip>
+
+`arkd` is the backbone of an Arkade instance, built on top of the Ark protocol. It facilitates [offchain transaction execution](/arkd/txs/offchain-execution), coordinates [onchain settlement](/arkd/txs/onchain-settlement) and manages VTXOs through the [Intent System](/arkd/components/intent-system).
+
+This section outlines how to integrate with Arkade via `arkd` and its APIs.
+
+**Main API Layer Services**
+
+The `arkd` server is an always-on server and exposes two public gRPC services for Arkade clients:
+
+- [ArkService](/arkd/core-services/ark-service)  - Handles batch processing, intent registration, and multi-party signing
+- [IndexerService](/arkd/core-services/indexer-service) - Provides data queries for VTXOs, transaction history, and real-time subscriptions
+
+To understand how client applications actually interact with arkd, see the [API Layer Overview](/arkd/core-services/overview).
+
+**Core Architecture**
+
+`arkd` consists of two main executable processes:
+
+- [`arkd`](https://github.com/arkade-os/arkd) - The primary server process that hosts all core services, manages the Virtual Mempool and the coordination for onchain settlements
+- [`arkd-wallet`](https://github.com/arkade-os/arkd/tree/master/pkg/arkd-wallet) - A separate wallet service process that provides Bitcoin wallet functionality and liquidity
+
+<Tip>
+  arkd supports multiple Bitcoin networks including regtest, testnet3, signet, mutinynet, and has undergone mainnet testing.
+</Tip>
+
+## Design Principles
+
+The codebase follows a layered architecture with clear separation of concerns:
+
+- **Application Layer** [`internal/core/application/`](https://github.com/arkade-os/arkd/tree/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application): Implements core business logic and service operations
+- **Domain Layer** [`internal/core/domain/`](https://github.com/arkade-os/arkd/tree/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/domain): Contains models, events, and domain rules
+- **Ports Layer** [`internal/core/ports/`](https://github.com/arkade-os/arkd/tree/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/ports): Defines interfaces for external dependencies
+- **Infrastructure Layer** [`internal/infrastructure/`](https://github.com/arkade-os/arkd/tree/4cabf95f33b0196c47518425e92efc089636aa20/internal/infrastructure): Provides concrete implementations of port interfaces
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Arkade Workflows" icon="spinner" href="/arkd/txs">
+    Understand Arkade Workflows from initial boarding, to offchain execution, onchain settlement and exiting Arkade
+  </Card>
+  <Card title="API Layer" icon="plug" href="/arkd/core-services">
+    Learn about the Arkade API Layer, powered by two services, the ArkService and the IndexerService
+  </Card>
+  <Card title="Intent System" icon="envelope-open-text" href="/arkd/components/intent-system">
+    Learn how the Intent System powers Arkade Workflows
+  </Card>
+  <Card title="Server Security" icon="shield-halved" href="/arkd/server-security">
+    Understand the server security measures against potential attack scenarios
+  </Card>
+</CardGroup>

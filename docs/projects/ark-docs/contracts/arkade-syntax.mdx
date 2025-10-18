@@ -1,0 +1,283 @@
+---
+title: "Arkade Syntax"
+description: "Syntax reference for the Arkade Script language"
+icon: "code"
+---
+
+
+
+<Warning>
+  **Experimental Technology**
+  
+  The Arkade Language is experimental technology in active development. All code and examples presented here are for exploration and proof of concept purposes only. Do not use in production environments.
+</Warning>
+
+# Arkade Syntax
+
+Arkade Script uses a familiar syntax inspired by modern programming languages like Solidity, with specific adaptations for Bitcoin's UTXO model. The syntax is designed to be readable and expressive while maintaining a close relationship to the underlying Bitcoin Script.
+
+## Influences
+
+Arkade Script's syntax draws inspiration from several existing Bitcoin smart contracting languages:
+
+- **[CashScript](https://cashscript.org/)**: A high-level language for Bitcoin Cash smart contracts
+- **[Ivy](https://ivylang.org/)**: A smart contract language for Bitcoin
+- **Solidity**: The most widely used smart contract language (for Ethereum)
+
+## Basic Structure
+
+An Arkade Script contract consists of:
+
+```solidity
+// Optional configuration options
+options {
+  server = serverPubkey;
+  exit = 144; // Exit timelock in blocks
+}
+
+// Contract declaration with parameters
+contract MyContract(
+  pubkey user,
+  pubkey server
+) {
+  // Function declarations (spending paths)
+  function spend(signature userSig) {
+    require(checkSig(userSig, user));
+  }
+}
+```
+
+## Comments
+
+Arkade Script supports single-line and multi-line comments:
+
+```solidity
+// This is a single-line comment
+
+/*
+  This is a
+  multi-line comment
+*/
+```
+
+## Options Block
+
+The options block configures contract-wide settings:
+
+```solidity
+options {
+  // Server key parameter from contract parameters
+  server = server;
+  
+  // Renewal timelock: 7 days (1008 blocks)
+  renew = 1008;
+  
+  // Exit timelock: 24 hours (144 blocks)
+  exit = 144;
+}
+```
+
+Available options:
+
+- `server`: Specifies which parameter contains the server public key
+- `renew`: Specifies the renewal timelock in blocks
+- `exit`: Specifies the exit timelock in blocks
+
+## Contract Declaration
+
+Contracts are declared with a name and parameters:
+
+```solidity
+contract MyContract(
+  pubkey user,
+  pubkey server,
+  int timeoutBlocks,
+  bytes32 hashValue
+) {
+  // Contract body
+}
+```
+
+Parameters define the values needed to instantiate the contract and are accessible throughout the contract body.
+
+## Functions
+
+Functions define spending paths for the contract:
+
+```solidity
+function spend(signature userSig) {
+  require(checkSig(userSig, user));
+}
+```
+
+Functions can be marked as `internal` to indicate they are helper functions and not spending paths:
+
+```solidity
+function verifyCondition(bytes preimage, bytes32 hash) internal returns (bool) {
+  return sha256(preimage) == hash;
+}
+```
+
+## Variables and Assignments
+
+Variables can be declared and assigned values:
+
+```solidity
+int amount = 1000;
+bytes message = sha256(timestamp + currentPrice + assetPair);
+bool isValid = checkSig(userSig, user);
+```
+
+## Control Flow
+
+Arkade Script supports if-else statements:
+
+```solidity
+if (amount > threshold) {
+  // Code for amounts above threshold
+} else {
+  // Code for amounts below or equal to threshold
+}
+```
+
+## Expressions
+
+### Arithmetic Operations
+
+```solidity
+int sum = a + b;
+int difference = a - b;
+int product = a * b;
+int quotient = a / b;
+int remainder = a % b;
+```
+
+### Comparison Operations
+
+```solidity
+bool isEqual = a == b;
+bool isNotEqual = a != b;
+bool isGreater = a > b;
+bool isLess = a < b;
+bool isGreaterOrEqual = a >= b;
+bool isLessOrEqual = a <= b;
+```
+
+### Logical Operations
+
+```solidity
+bool andResult = condition1 && condition2;
+bool orResult = condition1 || condition2;
+bool notResult = !condition;
+```
+
+### Bitwise Operations
+
+```solidity
+int andResult = a & b;
+int orResult = a | b;
+int xorResult = a ^ b;
+int notResult = ~a;
+int leftShift = a << b;
+int rightShift = a >> b;
+```
+
+## Require Statements
+
+The `require` statement is used to enforce conditions:
+
+```solidity
+require(amount > 0, "Amount must be positive");
+require(checkSig(userSig, user), "Invalid signature");
+```
+
+If the condition is false, the script execution fails with the provided error message.
+
+## Transaction Introspection
+
+Arkade Script provides access to transaction data:
+
+```solidity
+// Access transaction time
+require(tx.time >= lockTime);
+
+// Access outputs
+require(tx.outputs[0].value == amount);
+require(tx.outputs[0].scriptPubKey == script);
+
+// Access inputs
+require(tx.inputs[0].value == amount);
+require(tx.inputs[0].scriptPubKey == script);
+
+// Access the current input
+require(tx.input.current.value == amount);
+require(tx.input.current.scriptPubKey == script);
+```
+
+## Signature Verification
+
+```solidity
+// Single signature verification
+require(checkSig(userSig, user));
+
+// Multi-signature verification
+require(checkMultisig([user, admin], [userSig, adminSig]));
+
+// Signature verification from stack
+require(checkSigFromStack(oracleSig, oraclePk, message));
+```
+
+## Hash Functions
+
+```solidity
+// SHA-256 hash
+bytes32 hash = sha256(preimage);
+
+// RIPEMD-160 hash
+bytes20 hash = ripemd160(preimage);
+
+// Hash160 (SHA-256 followed by RIPEMD-160)
+bytes20 hash = hash160(preimage);
+
+// Double SHA-256
+bytes32 hash = hash256(preimage);
+```
+
+## Timelock Verification
+
+```solidity
+// Absolute timelock
+require(tx.time >= expirationTime);
+
+// Relative timelock
+require(tx.sequence >= relativeLockTime);
+```
+
+## Script Template
+
+Arkade Script provides a built-in template for deriving the taproot output key:
+
+```solidity
+bytes p2tr = new P2TR(internalKey, scriptTree);
+```
+
+## Error Handling
+
+Arkade Script uses the `require` statement for error handling:
+
+```solidity
+require(condition, "Error message");
+```
+
+If the condition is false, the script execution fails with the provided error message.
+
+## Conclusion
+
+This syntax reference provides an overview of Arkade Script's language features. For more detailed information on specific language elements, refer to the following pages:
+
+- [Arkade Types](/contracts/arkade-types): Detailed information on data types
+- [Arkade Functions](/contracts/arkade-functions): Reference for built-in functions
+
+---
+
+<NextButton url="/contracts/arkade-types" text="Arkade Types" />

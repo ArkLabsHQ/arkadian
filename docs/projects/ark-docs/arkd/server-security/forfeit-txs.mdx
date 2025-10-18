@@ -1,0 +1,69 @@
+---
+title: "Forfeit Transactions"
+description: "How forfeit Transactions prevent against attempted user fraud"
+icon: "hand"
+---
+
+<Info>
+  Once the server detects a double-spend attempt, it reacts in one of two ways, depending on the [transaction state](/learn/pillars/vtxos#vtxo-states):
+  - VTXO settled: broadcast forfeit transaction
+  - VTXO preconfirmed: broadcast [checkpoint transaction](/arkd/server-security/checkpoint-txs)
+</Info>
+
+[Forfeit transactions](/learn/pillars/batch-swaps#forfeit-transactions) are a critical security mechanism for Arkade operators that protect them from fraud attempts by users. When a user attempts to broadcast old pre-signed paths for a VTXO that was already spent in a previous batch swap, the operator broadcasts the corresponding forfeit transaction to claw back the funds.
+
+The attacker burns their own transaction fees attempting this fraud while gaining no economic advantage - the operator immediately publishes the forfeit transaction to reclaim the onchain funds that belong to the server.
+
+Forfeit transactions are created and managed during the [batch processing lifecycle](/arkd/txs/onchain-settlement#client-workflow%3A-participating-in-a-batch-swap). Clients submit signed forfeit transactions via the [`SubmitSignedForfeitTxs`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L71-L79) RPC method as part of the batch finalization process.
+
+### Forfeit Transaction Structure
+
+Forfeit transactions have a specific two-input, two-output structure ([`BuildForfeitTx`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-lib/tree/forfeit_tx.go#L10-L23)) that requires both a VTXO input and a connector input:
+
+- **Two inputs**: One VTXO input and one connector input
+- **Two outputs**: Forfeit output (to operator) and anchor output
+- **Timelock support**: Can include CLTV locks for time-based constraints
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/forfeitlight.png" 
+    alt="Forfeit Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/forfeitdark.png" 
+    alt="Forfeit Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+The system validates this structure during forfeit transaction verification, ensuring the connector input is properly identified and paired with the corresponding VTXO input.
+
+### Fraud Detection and Response
+
+The system monitors for fraud attempts (`reactToFraud`). When a user spends a VTXO offchain and then attempts to redeem the same VTXO onchain (fraud), the operator can broadcast ([`broadcastForfeitTx`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application/fraud.go#L101-L239)) the corresponding forfeit transaction to reclaim the funds:
+
+1. Retrieve the commitment transaction containing the VTXO
+2. Find the correct forfeit transaction and connector outpoint
+3. Broadcast the connector branch ([`broadcastConnectorBranch`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application/fraud.go#L181-L196)) leading to the forfeit transaction
+4. Sign and broadcast the forfeit transaction
+
+<Tip>
+  When fraud is detected, the system must broadcast the entire connector branch leading to the specific connector needed for the forfeit transaction. This process ensures the connector UTXO is available onchain before the forfeit transaction can be broadcast.
+</Tip>
+
+
+### Security Considerations
+
+1. **Timing**: Forfeit transactions must be submitted within the [batch processing window](/learn/pillars/batch-expiry)
+2. **Validation**: All signatures and transaction structures are verified before acceptance
+3. **Connector Management**: Proper connector UTXO locking ([`LockConnectorUtxos`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application/fraud.go#L137-L139)) prevents double-spending
+4. **Fee Bumping**: Forfeit transactions support fee bumping for reliable confirmation ([`bumpAnchorTx`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/internal/core/application/fraud.go#L161-L164))
+
+<Tip>
+  Forfeit transactions are essential for maintaining the security guarantees of the Arkade protocol. They ensure that operators can recover funds in fraud scenarios while maintaining the efficiency of offchain transactions.
+</Tip>

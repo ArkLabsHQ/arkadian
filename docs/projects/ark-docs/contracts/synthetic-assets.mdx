@@ -1,0 +1,234 @@
+---
+title: "Synthetic Assets"
+description: "Creating and managing synthetic assets using Arkade Script"
+icon: "chart-line"
+---
+
+Synthetic assets are tokenized derivatives that mimic the value of other assets without requiring direct ownership of the underlying asset. Using Arkade Script, developers can create sophisticated synthetic assets backed by Bitcoin or other assets in the Arkade ecosystem.
+
+## Overview
+
+Synthetic assets in Arkade enable:
+
+- Price exposure to traditional financial assets (stocks, commodities, forex)
+- Creation of novel financial instruments (options, futures, perpetuals)
+- Collateralized debt positions with programmable liquidation mechanisms
+- Trustless oracle integration for price feeds
+
+## Contract Architecture
+
+A synthetic asset system typically consists of three key components:
+
+1. **Collateral Vault** - Secures the backing assets
+2. **Price Oracle** - Provides trusted price data for the referenced asset
+3. **Issuance/Redemption Logic** - Manages minting and burning of synthetic tokens
+
+## Example Implementation
+
+Here's a simplified implementation of a synthetic asset contract using Arkade Script:
+
+```solidity
+// Contract configuration options
+options {
+  server = treasuryPk;
+  exit = 144;
+}
+
+contract SyntheticAsset(
+  // The collateral asset ID
+  bytes32 collateralAssetId,
+  // The minimum collateralization ratio (e.g., 150% = 15000)
+  int minCollateralRatio,
+  // The liquidation threshold (e.g., 120% = 12000)
+  int liquidationThreshold,
+  // The oracle's public key
+  pubkey oraclePk,
+  // The synthetic asset identifier (e.g., "BTC/USD")
+  bytes assetIdentifier,
+  // The treasury's public key
+  pubkey treasuryPk,
+  // The borrower's public key
+  pubkey borrowerPk
+) {
+  // Helper function to verify the collateralization ratio
+  function verifyCollateralization(int collateralValue, int syntheticValue, int requiredRatio) internal {
+    // Calculate the actual ratio (scaled by 10000 for precision)
+    int actualRatio = (collateralValue * 10000) / syntheticValue;
+    
+    // Verify the ratio meets the requirement
+    require(actualRatio >= requiredRatio, "Insufficient collateralization");
+  }
+
+  // Mint new synthetic tokens
+  function mint(int collateralAmount, int syntheticAmount, int currentPrice, signature oracleSig, signature borrowerSig) {
+    // Verify the oracle signature on the price data
+    bytes message = sha256(assetIdentifier + int2bytes(tx.time));
+    require(checkSigFromStack(oracleSig, oraclePk, message), "Invalid oracle signature");
+    
+    // Calculate the value of synthetic tokens being minted
+    int syntheticValue = syntheticAmount * currentPrice / 10000;
+    
+    // Verify collateralization ratio
+    verifyCollateralization(collateralAmount, syntheticValue, minCollateralRatio);
+    
+    // Verify the collateral input
+    require(tx.inputs[0].asset == collateralAssetId, "Invalid collateral asset");
+    require(tx.inputs[0].value >= collateralAmount, "Insufficient collateral");
+    
+    // Verify the outputs
+    // Output 0: Collateral locked in vault
+    require(tx.outputs[0].asset == collateralAssetId, "Output 0 asset mismatch");
+    require(tx.outputs[0].value == collateralAmount, "Output 0 value mismatch");
+    
+    // Output 1: Synthetic tokens to borrower
+    // Implementation details for synthetic token issuance omitted for brevity
+    
+    // Verify borrower signature
+    require(checkSig(borrowerSig, borrowerPk), "Invalid borrower signature");
+  }
+  
+  // Redeem synthetic tokens for collateral
+  function redeem(int collateralAmount, int syntheticAmount, signature borrowerSig) {
+    // Verify the synthetic token input
+    // Implementation details for synthetic token verification omitted for brevity
+    
+    // Verify the outputs
+    // Output 0: Collateral returned to borrower
+    require(tx.outputs[0].asset == collateralAssetId, "Output 0 asset mismatch");
+    require(tx.outputs[0].value == collateralAmount, "Output 0 value mismatch");
+    bytes borrowerScript = new P2PKH(borrowerPk);
+    require(tx.outputs[0].scriptPubKey == borrowerScript, "Output 0 not spendable by borrower");
+    
+    // Verify borrower signature
+    require(checkSig(borrowerSig, borrowerPk), "Invalid borrower signature");
+  }
+  
+  // Liquidate undercollateralized position
+  function liquidate(int collateralAmount, int syntheticAmount, int currentPrice, signature oracleSig, signature liquidatorSig, pubkey liquidatorPk) {
+    // Verify the oracle signature on the price data
+    bytes message = sha256(assetIdentifier + int2bytes(tx.time));
+    require(checkSigFromStack(oracleSig, oraclePk, message), "Invalid oracle signature");
+    
+    // Calculate the value of synthetic tokens
+    int syntheticValue = syntheticAmount * currentPrice / 10000;
+    
+    // Calculate the actual collateralization ratio
+    int actualRatio = (collateralAmount * 10000) / syntheticValue;
+    
+    // Verify the position is undercollateralized
+    require(actualRatio < liquidationThreshold, "Position not liquidatable");
+    
+    // Verify the synthetic token input
+    // Implementation details for synthetic token verification omitted for brevity
+    
+    // Verify the outputs
+    // Output 0: Collateral to liquidator (with discount incentive)
+    require(tx.outputs[0].asset == collateralAssetId, "Output 0 asset mismatch");
+    
+    // Calculate liquidation bonus (e.g., 5% discount)
+    int liquidationBonus = collateralAmount * 500 / 10000;
+    require(tx.outputs[0].value >= collateralAmount - liquidationBonus, "Output 0 value mismatch");
+    
+    bytes liquidatorScript = new P2PKH(liquidatorPk);
+    require(tx.outputs[0].scriptPubKey == liquidatorScript, "Output 0 not spendable by liquidator");
+    
+    // Verify liquidator signature
+    require(checkSig(liquidatorSig, liquidatorPk), "Invalid liquidator signature");
+  }
+  
+  // Emergency shutdown by treasury
+  function emergencyShutdown(signature treasurySig) {
+    // Verify treasury signature
+    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
+    
+    // Additional emergency shutdown logic omitted for brevity
+  }
+}
+```
+
+## Advanced Features
+
+### Interest Rate Mechanisms
+
+Synthetic assets can incorporate dynamic interest rates to incentivize or discourage certain collateralization levels:
+
+```solidity
+function calculateInterest(int collateralRatio, int baseRate) internal returns (int) {
+  // Lower collateralization ratio = higher interest rate
+  if (collateralRatio < 20000) { // 200%
+    return baseRate + 500; // +5%
+  } else if (collateralRatio < 25000) { // 250%
+    return baseRate + 300; // +3%
+  } else if (collateralRatio < 30000) { // 300%
+    return baseRate + 100; // +1%
+  } else {
+    return baseRate; // Base rate
+  }
+}
+```
+
+### Multi-Collateral Support
+
+Synthetic assets can be backed by multiple collateral types with different risk parameters:
+
+```solidity
+function verifyCollateral(bytes32 assetId, int amount, int riskFactor) internal {
+  if (assetId == stableAssetId) {
+    // Stablecoins have lower risk, so lower collateral requirement
+    require(amount >= requiredAmount * riskFactor / 10000, "Insufficient stable collateral");
+  } else if (assetId == volatileAssetId) {
+    // Volatile assets have higher risk, so higher collateral requirement
+    require(amount >= requiredAmount * (riskFactor + 5000) / 10000, "Insufficient volatile collateral");
+  } else {
+    // Unsupported collateral type
+    require(false, "Unsupported collateral type");
+  }
+}
+```
+
+### Price Feed Aggregation
+
+To improve oracle reliability, multiple price feeds can be aggregated:
+
+```solidity
+function verifyPriceFeeds(int price1, signature oracle1Sig, int price2, signature oracle2Sig, int price3, signature oracle3Sig) internal {
+  // Verify all oracle signatures
+  require(checkSigFromStack(oracle1Sig, oracle1Pk, message), "Invalid oracle1 signature");
+  require(checkSigFromStack(oracle2Sig, oracle2Pk, message), "Invalid oracle2 signature");
+  require(checkSigFromStack(oracle3Sig, oracle3Pk, message), "Invalid oracle3 signature");
+  
+  // Sort prices to find median
+  int[] prices = [price1, price2, price3];
+  // Sorting logic omitted for brevity
+  
+  // Use the median price
+  int medianPrice = prices[1];
+  
+  // Verify the price is within acceptable bounds
+  require(medianPrice > minPrice, "Price too low");
+  require(medianPrice < maxPrice, "Price too high");
+  
+  return medianPrice;
+}
+```
+
+## Security Considerations
+
+When implementing synthetic assets, consider these security aspects:
+
+1. **Oracle Failure** - Implement circuit breakers for oracle failures or extreme price movements
+2. **Liquidation Mechanisms** - Ensure liquidations can execute efficiently during market stress
+3. **Governance Controls** - Include mechanisms for parameter adjustments and emergency interventions
+4. **Economic Incentives** - Design incentives that maintain system solvency in all market conditions
+
+## Future Directions
+
+The Arkade ecosystem is exploring several enhancements to synthetic assets:
+
+- **Automated Risk Management** - Dynamic adjustment of risk parameters based on market conditions
+- **Composable Synthetic Assets** - Building complex derivatives from simpler synthetic building blocks
+- **Cross-Chain Synthetic Assets** - Extending synthetic assets to reference assets on other blockchains
+
+---
+
+<NextButton url="/contracts/automated-market-makers" text="Automated Market Makers" />

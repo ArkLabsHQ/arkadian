@@ -1,0 +1,120 @@
+---
+title: "Arkade Transactions"
+description: "Arkade transaction format and preconfirmation mechanism"
+icon: "share-nodes"
+---
+
+### Transaction Structure
+
+Arkade Transactions are virtual Bitcoin transactions that execute offchain in the virtual mempool while maintaining full compatibility with Bitcoin's transaction model:
+
+```javascript
+Transaction {
+  inputs: [vtxo1, vtxo2, ...],
+  witnesses: [userSig1 + operatorSig1, userSig2 + operatorSig2, ...],
+  outputs: [newVTXO1, newVTXO2, ...]
+}
+```
+
+Each transaction consumes existing VTXOs as inputs and produces new VTXOs as outputs, mirroring Bitcoin's UTXO consumption model, but executing through operator coordination rather than blockchain consensus.
+
+### VTXO Spending Conditions
+
+Every VTXO includes dual spending paths implemented via Taproot scripts:
+
+```javascript
+vtxoLockScript = Taproot(
+  internalKey: UNSPENDABLE,
+  scriptPaths: [
+    // Collaborative path (default)
+    checkSig(userPK) && checkSig(operatorPK),
+    
+    // Unilateral exit path  
+    checkSig(userPK) && relativeTimelock(exitDelay)
+  ]
+)
+```
+
+**Collaborative Path**: Requires both user and operator signatures, enabling instant offchain execution
+
+**Exit Path**: User-only control after timelock, ensuring sovereign ownership regardless of operator status
+
+### Transaction chains
+
+When activity remains in the offchain environment, each transaction’s outputs become immediately spendable, so wallets can submit follow-up transactions that consume those fresh VTXOs without waiting for onchain confirmation. Repeating this process links payments together: every new spend references the latest VTXO(s) from the prior step and produces new ones, forming a chain of transactions. ie., a path through the DAG. As long as each hop is validated and cosigned, the chain can extend arbitrarily, enabling multi-hop operations that execute in near-real time.
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/txchainlight.png" 
+    alt="Transaction Chain"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/txchaindark.png" 
+    alt="Transaction Chain"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+Because these chains live entirely in the [virtual mempool](/learn/pillars/virtual-mempool), they progress at operator/signature latency rather than block times. Dependencies are explicit in the DAG, so invalid or conflicting hops are rejected and any downstream edges depending on them cannot execute. Users and applications can keep chaining until they choose to settle, at which point some or all of the path can be materialized on Bitcoin.
+
+
+### Preconfirmation
+
+Arkade Transactions achieve instant confirmation through operator cosignature. Once both parties sign, the transaction's outputs become immediately spendable without waiting for Bitcoin block confirmation.
+
+This creates a preconfirmed state where users can chain transactions instantly while relying on operator integrity until Bitcoin settlement.
+
+### Trust Boundaries
+
+The preconfirmation mechanism creates specific security properties:
+
+**Instant Usability**: Output VTXOs can be spent immediately without waiting for Bitcoin confirmation
+
+**Double-spend Risk**: Operator could theoretically sign conflicting transactions spending the same VTXO
+
+**Exit Guarantee**: Users retain unilateral control via presigned Bitcoin transactions, enforceable regardless of operator cooperation
+
+### Script Execution Model
+
+Arkade Transactions follow deterministic Bitcoin Script semantics:
+
+```javascript
+// Example: Alice pays Bob 1000 sats
+Transaction {
+  inputs: [
+    {
+      vtxo: aliceVTXO(5000 sats),
+      witness: [aliceSignature, operatorSignature]
+    }
+  ],
+  outputs: [
+    {
+      value: 1000,
+      script: Taproot(UNSPENDABLE, [
+        checkSig(bobPK) && checkSig(operatorPK),
+        checkSig(bobPK) && relativeTimelock(1008) // ~1 week
+      ])
+    },
+    {
+      value: 3950, // change minus fee
+      script: Taproot(UNSPENDABLE, [
+        checkSig(alicePK) && checkSig(operatorPK),
+        checkSig(alicePK) && relativeTimelock(1008)
+      ])
+    }
+  ]
+}
+```
+
+When an Arkade Transaction completes, its output VTXOs immediately become available as inputs for subsequent transactions. This enables unlimited transaction chaining: each new transaction references VTXOs from previous transactions as inputs, and as long as each step is validated and cosigned, the chain can extend indefinitely.
+
+This chaining capability enables complex multi-hop operations and sophisticated financial flows. Users continue chaining transactions until they choose to settle, at which point some or all of the chain anchors to Bitcoin.
+
+**Important Consideration**: Longer transaction chains increase unilateral exit costs, as each VTXO in the chain requires its own Bitcoin transaction for independent exit. Users must balance the convenience of extended offchain operation against the potential cost of emergency exits.
+
+---

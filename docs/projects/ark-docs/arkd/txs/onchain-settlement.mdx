@@ -1,0 +1,102 @@
+---
+title: "Onchain Settlement"
+description: "Finalize Arkade transactions on Bitcoin via the Intent System"
+icon: "anchor"
+---
+
+Offchain Arkade transactions in the [virtual mempool](/learn/pillars/virtual-mempool.mdx) operate under the preconfirmation trust model. If a user wants full [Bitcoin finality](/learn/security/transaction-finality#bitcoin-finality) for their funds, they need to settle them onchain via a [batch swap](/learn/pillars/batch-swaps). 
+
+Users accomplish this by submitting an [intent](/arkd/components/intent-system) that specifies which VTXOs they forfeit and which VTXOs they expect to receive in the upcoming batch. The operator coordinates the settlement process and broadcasts the associated [commitment transaction](learn/pillars/batch-swaps#commitment-transactions) onchain. The following sections detail this workflow and the respective functions involved.
+
+<Tip>
+  Users can safely sign forfeit transactions because the commitment transaction atomically creates both the new VTXOs and the [connector output](learn/pillars/connectors) that enables the operator to claim forfeited funds.
+</Tip>
+
+### Client Workflow: Participating in a Batch Swap 
+
+**Initial Setup and Information Gathering**
+
+To participate in a batch swap, users begin their participation by querying the server through the [`GetInfo`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L10-L13) endpoint to retrieve ([`GetInfoResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L128-L143)) essential network parameters like round intervals, exit delays, and amount limits that clients need for proper operation.
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/sequenceonchainlight.png" 
+    alt="Sequence Diagram Onchain Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/sequenceonchaindark.png" 
+    alt="Sequence Diagram Onchain Transaction"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+#### Client Workflow: Steb by Step 
+
+<Steps>
+  <Step title="Intent Registration" titleSize="h3">
+    - Client creates and registers an intent ([`RegisterIntent`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L145-L148)) as a PSBT signed with `BIP322`, defining inputs and outputs
+    - Server stores it under a unique `intent_id`
+    - Client can revoke an intent via `DeleteIntent`
+  </Step>
+  <Step title="Batch Updates & Confirmation" titleSize="h3">
+    - Once selected for batch participation, client subscribes to [`GetEventStream`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L188-L202) for batch updates
+    - Client confirms participation ([`ConfirmRegistration`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/service.proto#L38-L45)) via the`intent_id`
+  </Step>
+  <Step title="Tree Signing & Multi-Signature Coordination (MuSig2)" titleSize="h3">
+    - Server builds unsigned VTXO tree, [commitment transaction](/learn/pillars/batch-swaps#commitment-transactions) and [connector outputs](/learn/pillars/connectors)
+    - Server sends unsigned VTXO tree and commitment transaction to client
+    - Client verifies data and creates random nonces for every branch transaction
+    - Client submits tree nonces (`SubmitTreeNonces`)
+    - Server verifies tree nonces, aggregates and returns them
+    - Client submits tree signatures (`SubmitTreeSignatures`)
+    - Server verifies, aggregates and finalizes via signing the VTXO tree and connectors and returning them to the client
+    - Client verifies data
+  </Step>
+  <Step title="Forfeit Transaction Handling" titleSize="h3">
+    - Client creates [forfeit transactions](/learn/pillars/batch-swaps#forfeit-transactions) with connector outputs
+    - Client submits signed forfeit transactions (`SubmitSignedForfeitTxs`)
+    - If initial [boarding](/arkd/txs/boarding), users also sign the commitment transaction
+  </Step>
+  <Step title="Onchain broadcast" titleSize="h3">
+    Server broadcasts the signed commitment transaction on the Bitcoin mainchain
+  </Step>
+</Steps>
+
+<Tip>
+  VTXO renewal undergoes the exact same process of participating in a batch swap. The renewal can either be done manually, which implies a [liveness requirement](/learn/security/liveness#user-liveness-vtxo-expiry) of the user. VTXO renewal can also be [delegated](/arkd/components/intent-delegation) to a third party without key handoff.
+</Tip>
+
+### Workflow Monitoring
+
+The actual offchain execution workflow uses the ArkService. While the [IndexerService](/arkd/core-services/indexer-service) doesn't directly handle offchain execution, it provides several supporting query functions that clients might use:
+
+[Commitment Tx Analysis](/arkd/core-services/indexer-service#commitment-data)
+
+- `GetCommitmentTx` returns details of a commitment transaction (`TxId`), including batches, amounts, and timestamps
+- `GetForfeitTxs` returns forfeit transactions linked to a commitment transaction
+- `GetConnectors` returns the connector output tree with positioning details for a commitment transaction
+
+[VTXO Monitoring](/arkd/core-services/indexer-service#vtxo-management)
+
+- `GetVirtualTxs`: Retrieves virtual transactions in hex format for specified transaction IDs
+- `GetVtxos`: Queries VTXO states by scripts or outpoints
+- `GetVtxoChain`: Traces transaction chains for specific VTXOs
+
+[Transaction History](/arkd/core-services/indexer-service#transaction-history)
+
+- `GetVirtualTxs` returns raw virtual transactions for given Arkade transaction IDs
+- `GetVtxoChain` traces the lineage of Arkade transactions from a VTXO leaf spend to a specified VTXO outpoint, enabling full history reconstruction
+
+[Batch Operations](/arkd/core-services/indexer-service#batch-operations)
+
+- `GetBatchSweepTransactions` returns transactions swept from a given batch output, indicating whether the operator claimed it after expiry or a user unrolled the tree
+
+[Script Subscriptions](/arkd/core-services/indexer-service#real-time-monitoring)
+
+- `SubscribeForScripts`: Subscribe to notifications for specific VTXO scripts
+- `GetSubscription`: Receive real-time notifications about subscribed scripts i

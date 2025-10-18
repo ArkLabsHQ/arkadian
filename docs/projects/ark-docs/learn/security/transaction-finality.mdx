@@ -1,0 +1,31 @@
+---
+title: "Transaction Finality"
+description: "Understanding transaction finality in Arkade, including preconfirmation and Bitcoin finality"
+icon: "check-double"
+---
+
+Arkade's architecture introduces two distinct levels of transaction confirmation, a preconfirmation state and full Bitcoin finality. Both states come with different security properties:
+
+## Preconfirmation
+
+All offchain VTXOs in the [virtual mempool](/learn/pillars/virtual-mempool) operate under the preconfirmation trust model. Preconfirmation indicates that the [Arkade Signer](/learn/security/advanced-security#arkade-signer) has processed and co-signed the transaction, enabling the VTXO owner to use the resulting outputs for subsequent transactions. This mechanism allows for rapid and cost-effective execution within the offchain execution environment.
+
+However, preconfirmations rely on the operator's integrity. A malicious operator could double-sign conflicting transactions, creating competing VTXO ownership chains that undermine a user's unilateral control over their assets. Any misbehavior can be cryptographically proven, while [economic incentives](/learn/security/economic-security) and [verifiable execution](/learn/security/advanced-security#verifiable-execution) ensure reliable operation.
+
+## Bitcoin Finality
+
+Transaction finality in Arkade is achieved when users anchor their preconfirmed VTXOs to the Bitcoin blockchain via a [batch swap](/learn/pillars/batch-swaps).
+
+Batch swaps function like atomic swaps, enabling users to safely transfer their preconfirmed VTXOs to the operator in exchange for new VTXOs secured by an onchain Bitcoin transaction (ie. [commitment transaction](/learn/pillars/batch-swaps#commitment-transactions). 
+
+<Tip>Users are encouraged to periodically settle their offchain transactions onchain through batch swaps to fully secure their holdings.</Tip>
+
+Settled VTXOs, while structurally identical to preconfirmed ones, are solely traceable back to batch output transactions, ensuring full Bitcoin-level immutability and censorship resistance.
+
+
+## Dynamic Settlement
+
+<Tip>Arkade enables users to seamlessly shift between preconfirmation and Bitcoin finality, balancing security against convenience by choosing when to settle.</Tip>
+
+Arkade allows users to dynamically transition between preconfirmation and Bitcoin finality. This flexibility enables participants to operate in the fast, low-cost offchain environment when convenience and speed are paramount, and to anchor their state to Bitcoin via participating in a [batch settlement](/learn/pillars/batch-swaps), when stronger guarantees of immutability and censorship resistance are required. Users can choose the optimal point to settle, striking a balance between efficiency and security based on their needs.
+

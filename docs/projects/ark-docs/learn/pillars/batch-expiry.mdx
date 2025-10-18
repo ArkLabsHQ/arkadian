@@ -1,0 +1,42 @@
+---
+title: "Batch Expiry"
+description: "Managing VTXO lifecycle for efficient liquidity recovery"
+icon: "hourglass-end"
+---
+
+Batch outputs expire after a defined timebound window, at which point the operator regains control of the underlying Bitcoin. This forces a liveness requirement on users: they must renew their VTXOs before expiry or lose unilateral exit rights. Renewal happens through participation in a new batch swap, which refreshes the VTXO with a new expiry. 
+If users miss this window, their funds don't vanish but they forfeit the ability to exit unilaterally. The operator typically issues redeemable Arkade Notes as a recovery mechanism, but the user now depends on operator cooperation to access their Bitcoin.
+
+## Liveness Requirements
+
+This expiry creates a [liveness requirement](/learn/security/liveness) for users, as they need to take action during the specified timebound window to maintain unilateral exit rights. They do so by participating in a new batch swap, so VTXOs get renewed with fresh expiry timestamps.
+
+If no action is taken before expiry, users lose unilateral exit rights for their VTXOs. The operator gains control of the underlying Bitcoin but typically issues redeemable Arkade Notes as recovery mechanisms for the expired funds.
+
+## Delegation Solutions
+
+VTXO renewal can be delegated to trusted third parties without relinquishing control over their funds. Through Arkade's Intent system, users can appoint delegates to automatically renew VTXOs on their behalf while maintaining complete unilateral control throughout the process.
+
+### Delegate VTXO Setup
+
+Intent Delegation is implemented at the VTXO level by embedding an additional spending path, the delegate path, into the output script:
+
+- **A\+S (User \+ Server):** Standard cooperative path
+- **A\+CSV (User after timelock):** Unilateral fallback path
+- **A\+B\+S (User \+ Delegate \+ Server):** Delegation path requiring all three parties
+
+<Tip>Find the full intent delegation workflow as part of a batch swap [here](/arkd/components/intent-delegation)</Tip>
+
+**Delegation Options**:
+- **Wallet Providers**: Integrate automatic renewal into application experience
+- **Third-party Services**: Professional renewal services with reliability guarantees  
+- **Self-hosted**: Run your own delegate/watchtower to monitor expiries and submit renewal intents automatically (laptop, home node, or server)
+
+### TL;DR 
+
+The Intent Delegation system offers the following benefits: 
+- **User retains control**: All delegation requires presigned intents; funds remain non-custodial with unilateral exit always possible
+- **Pre-committed inputs and outputs**: Intents define and sign exact inputs and outputs; delegates can't alter those or acces funds, but only hand what has been presigned 
+- **Strict timing constraints**: Intents include time windows, this prevents a delegate to hand in an intent earlier than intended to collect associated fees 
+
+By leveraging intent delegation, application developers can abstract batch expiry handling, delivering user experiences that feel just like existing self-custodial apps.

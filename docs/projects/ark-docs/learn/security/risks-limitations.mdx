@@ -1,0 +1,24 @@
+---
+title: "Risk & Limitations"
+description: "Discussion of potential risks and limitations in the Arkade system, such as mass exit scenarios and Signer compromise."
+icon: "triangle-exclamation"
+---
+
+## Mass Exit Scenarios
+
+Mass exit events occur when large numbers of users simultaneously attempt to exit the system, typically triggered by operator infrastructure failures, concerns about operator behavior, regulatory interventions, or system vulnerabilities. When the Arkade Operator goes offline, users lose the ability to initiate new transactions but retain full control over existing VTXOs through presigned unilateral exit paths.
+
+The critical challenge emerges when high demand for exits coincides with elevated Bitcoin network fees. Exit costs can become prohibitively expensive, particularly for smaller VTXO values where fees may exceed the balance itself. Users with larger holdings can afford immediate exit, while smaller holders must weigh immediate exit costs against waiting for lower Bitcoin fees. The length of VTXO transaction chains directly affects exit costs, as longer chains require more complex Bitcoin transactions to unroll.
+
+Operators face strong incentives to restore service quickly due to lost fee revenue, while the modular architecture may enable rapid migration to alternative infrastructure. Ongoing research and protocol optimization aim to enhance user coordination capabilities and minimize the economic impact of mass exit events.
+
+## Arkade Signer Compromise
+
+Compromise of the Arkade Signer occurs when cryptographic keys are breached, potentially through software vulnerabilities, infrastructure attacks, or other security failures. TEEs provide additional hardware protection, but compromise remains possible through advanced means. 
+
+In this scenario, a malicious actor could use the Signer keys to unroll certain chains of transactions and sign conflicting ownership claims.
+
+Detection occurs through remote attestation failures and cryptographic evidence of conflicting signatures. The Arkade Operator is expected to halt the system immediately, preventing potential abuse. Users should cease creating new VTXOs and prepare for emergency exits if holding potentially affected VTXOs.
+
+TEE compromise represents a critical failure mode where the hardware isolation protecting Arkade Signer keys is breached through vulnerabilities in TEE hardware, side-channel attacks, or software stack compromise. Unlike operator downtime which affects availability, TEE compromise enables double-signing attacks where the same VTXO could be validly assigned to multiple users, creating irreconcilable ownership disputes.
+

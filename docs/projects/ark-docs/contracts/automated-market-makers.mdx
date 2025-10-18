@@ -1,0 +1,334 @@
+---
+title: "Automated Market Makers"
+description: "Building AMMs with recursive covenants in Arkade"
+icon: "chart-simple"
+---
+
+Automated Market Makers (AMMs) are decentralized trading protocols that use mathematical formulas to determine asset prices. In Arkade, AMMs can be implemented using recursive covenants, allowing for self-enforcing market making logic that maintains liquidity across transactions.
+
+## Overview
+
+Recursive covenants in Arkade enable:
+
+- Self-enforcing liquidity pool contracts that maintain invariants
+- Continuous market making without trusted intermediaries
+- Complex pricing functions beyond simple constant product formulas
+- Efficient capital utilization with concentrated liquidity
+
+## Recursive Covenant Mechanism
+
+A recursive covenant is a Bitcoin script that enforces conditions on how its outputs can be spent. In Arkade, this allows AMM contracts to:
+
+1. Verify the state transition from the current UTXO to the next
+2. Ensure the same covenant logic is applied to the next state
+3. Maintain mathematical invariants across transactions
+
+## Basic AMM Implementation
+
+Here's a simplified implementation of a constant product AMM using Arkade Script:
+
+```solidity
+// Contract configuration options
+options {
+  server = server;
+  exit = 144;
+}
+
+contract ConstantProductAMM(
+  // Asset IDs for the trading pair
+  bytes32 assetX,
+  bytes32 assetY,
+  // LP token asset ID
+  bytes32 lpTokenId,
+  // Fee in basis points (e.g., 30 = 0.3%)
+  int feeRate,
+  // Server public key
+  pubkey server
+) {
+  // Helper function to verify the constant product invariant
+  function verifyConstantProduct(int reserveX, int reserveY, int newReserveX, int newReserveY) internal {
+    // Apply the fee adjustment for swaps
+    // K = x * y should remain constant or increase
+    require(newReserveX * newReserveY >= reserveX * reserveY, "Constant product violated");
+  }
+
+  // Add liquidity to the pool
+  function addLiquidity(int amountX, int amountY, int mintLPTokens, signature userSig, pubkey user) {
+    // Get current reserves from the input UTXO
+    int reserveX = tx.input.current.reserveX; // Simplified access
+    int reserveY = tx.input.current.reserveY; // Simplified access
+    int totalLPSupply = tx.input.current.lpSupply; // Simplified access
+    
+    // Calculate new reserves
+    int newReserveX = reserveX + amountX;
+    int newReserveY = reserveY + amountY;
+    
+    // For initial liquidity provision
+    if (totalLPSupply == 0) {
+      // Initial LP tokens = sqrt(amountX * amountY)
+      require(mintLPTokens * mintLPTokens <= amountX * amountY, "Initial LP tokens too high");
+      require(mintLPTokens * mintLPTokens >= amountX * amountY - 100, "Initial LP tokens too low");
+    } else {
+      // Ensure proportional liquidity provision
+      int lpTokensForX = (amountX * totalLPSupply) / reserveX;
+      int lpTokensForY = (amountY * totalLPSupply) / reserveY;
+      
+      // Take the minimum to ensure proportional deposit
+      int expectedLPTokens = lpTokensForX < lpTokensForY ? lpTokensForX : lpTokensForY;
+      require(mintLPTokens <= expectedLPTokens, "LP tokens too high");
+      require(mintLPTokens >= expectedLPTokens - 100, "LP tokens too low"); // Allow for rounding
+    }
+    
+    // Verify the input contains the correct assets
+    require(tx.inputs[1].asset == assetX, "Input 1 asset mismatch");
+    require(tx.inputs[1].value >= amountX, "Input 1 insufficient");
+    require(tx.inputs[2].asset == assetY, "Input 2 asset mismatch");
+    require(tx.inputs[2].value >= amountY, "Input 2 insufficient");
+    
+    // Verify the outputs
+    // Output 0: New AMM state with updated reserves
+    require(tx.outputs[0].scriptPubKey == tx.input.current.scriptPubKey, "Output 0 script mismatch");
+    require(tx.outputs[0].reserveX == newReserveX, "Output 0 reserveX mismatch");
+    require(tx.outputs[0].reserveY == newReserveY, "Output 0 reserveY mismatch");
+    require(tx.outputs[0].lpSupply == totalLPSupply + mintLPTokens, "Output 0 LP supply mismatch");
+    
+    // Output 1: LP tokens to user
+    require(tx.outputs[1].asset == lpTokenId, "Output 1 asset mismatch");
+    require(tx.outputs[1].value == mintLPTokens, "Output 1 value mismatch");
+    bytes userScript = new P2PKH(user);
+    require(tx.outputs[1].scriptPubKey == userScript, "Output 1 not spendable by user");
+    
+    // Verify user signature
+    require(checkSig(userSig, user), "Invalid user signature");
+  }
+  
+  // Remove liquidity from the pool
+  function removeLiquidity(int burnLPTokens, int withdrawX, int withdrawY, signature userSig, pubkey user) {
+    // Get current reserves from the input UTXO
+    int reserveX = tx.input.current.reserveX; // Simplified access
+    int reserveY = tx.input.current.reserveY; // Simplified access
+    int totalLPSupply = tx.input.current.lpSupply; // Simplified access
+    
+    // Calculate proportional withdrawal amounts
+    int expectedWithdrawX = (burnLPTokens * reserveX) / totalLPSupply;
+    int expectedWithdrawY = (burnLPTokens * reserveY) / totalLPSupply;
+    
+    // Verify withdrawal amounts are correct
+    require(withdrawX <= expectedWithdrawX, "Withdraw X too high");
+    require(withdrawX >= expectedWithdrawX - 100, "Withdraw X too low"); // Allow for rounding
+    require(withdrawY <= expectedWithdrawY, "Withdraw Y too high");
+    require(withdrawY >= expectedWithdrawY - 100, "Withdraw Y too low"); // Allow for rounding
+    
+    // Calculate new reserves
+    int newReserveX = reserveX - withdrawX;
+    int newReserveY = reserveY - withdrawY;
+    
+    // Verify the input contains LP tokens
+    require(tx.inputs[1].asset == lpTokenId, "Input 1 asset mismatch");
+    require(tx.inputs[1].value >= burnLPTokens, "Input 1 insufficient");
+    
+    // Verify the outputs
+    // Output 0: New AMM state with updated reserves
+    require(tx.outputs[0].scriptPubKey == tx.input.current.scriptPubKey, "Output 0 script mismatch");
+    require(tx.outputs[0].reserveX == newReserveX, "Output 0 reserveX mismatch");
+    require(tx.outputs[0].reserveY == newReserveY, "Output 0 reserveY mismatch");
+    require(tx.outputs[0].lpSupply == totalLPSupply - burnLPTokens, "Output 0 LP supply mismatch");
+    
+    // Output 1: Asset X to user
+    require(tx.outputs[1].asset == assetX, "Output 1 asset mismatch");
+    require(tx.outputs[1].value == withdrawX, "Output 1 value mismatch");
+    bytes userScript = new P2PKH(user);
+    require(tx.outputs[1].scriptPubKey == userScript, "Output 1 not spendable by user");
+    
+    // Output 2: Asset Y to user
+    require(tx.outputs[2].asset == assetY, "Output 2 asset mismatch");
+    require(tx.outputs[2].value == withdrawY, "Output 2 value mismatch");
+    require(tx.outputs[2].scriptPubKey == userScript, "Output 2 not spendable by user");
+    
+    // Verify user signature
+    require(checkSig(userSig, user), "Invalid user signature");
+  }
+  
+  // Swap asset X for asset Y
+  function swapXforY(int amountX, int minAmountY, signature userSig, pubkey user) {
+    // Get current reserves from the input UTXO
+    int reserveX = tx.input.current.reserveX; // Simplified access
+    int reserveY = tx.input.current.reserveY; // Simplified access
+    int totalLPSupply = tx.input.current.lpSupply; // Simplified access
+    
+    // Calculate the amount out with fee
+    int amountXWithFee = amountX * (10000 - feeRate) / 10000;
+    int numerator = amountXWithFee * reserveY;
+    int denominator = reserveX + amountXWithFee;
+    int amountYOut = numerator / denominator;
+    
+    // Verify minimum output amount
+    require(amountYOut >= minAmountY, "Output amount below minimum");
+    
+    // Calculate new reserves
+    int newReserveX = reserveX + amountX;
+    int newReserveY = reserveY - amountYOut;
+    
+    // Verify the constant product invariant
+    verifyConstantProduct(reserveX, reserveY, newReserveX, newReserveY);
+    
+    // Verify the input contains asset X
+    require(tx.inputs[1].asset == assetX, "Input 1 asset mismatch");
+    require(tx.inputs[1].value >= amountX, "Input 1 insufficient");
+    
+    // Verify the outputs
+    // Output 0: New AMM state with updated reserves
+    require(tx.outputs[0].scriptPubKey == tx.input.current.scriptPubKey, "Output 0 script mismatch");
+    require(tx.outputs[0].reserveX == newReserveX, "Output 0 reserveX mismatch");
+    require(tx.outputs[0].reserveY == newReserveY, "Output 0 reserveY mismatch");
+    require(tx.outputs[0].lpSupply == totalLPSupply, "Output 0 LP supply mismatch");
+    
+    // Output 1: Asset Y to user
+    require(tx.outputs[1].asset == assetY, "Output 1 asset mismatch");
+    require(tx.outputs[1].value == amountYOut, "Output 1 value mismatch");
+    bytes userScript = new P2PKH(user);
+    require(tx.outputs[1].scriptPubKey == userScript, "Output 1 not spendable by user");
+    
+    // Verify user signature
+    require(checkSig(userSig, user), "Invalid user signature");
+  }
+  
+  // Swap asset Y for asset X
+  function swapYforX(int amountY, int minAmountX, signature userSig, pubkey user) {
+    // Implementation similar to swapXforY, with X and Y reversed
+    // Omitted for brevity
+  }
+}
+```
+
+## Advanced AMM Designs
+
+### Concentrated Liquidity
+
+Concentrated liquidity allows liquidity providers to specify price ranges for their capital:
+
+```solidity
+contract ConcentratedLiquidityAMM(
+  // Standard AMM parameters omitted for brevity
+  // ...
+  
+  // Price range parameters
+  int tickSpacing,
+  int minTick,
+  int maxTick
+) {
+  // Add liquidity within a specific price range
+  function addRangeLiquidity(
+    int amountX, 
+    int amountY, 
+    int lowerTick, 
+    int upperTick, 
+    int mintLPTokens, 
+    signature userSig, 
+    pubkey user
+  ) {
+    // Verify ticks are valid
+    require(lowerTick < upperTick, "Invalid tick range");
+    require(lowerTick >= minTick, "Lower tick too small");
+    require(upperTick <= maxTick, "Upper tick too large");
+    require(lowerTick % tickSpacing == 0, "Lower tick not on spacing");
+    require(upperTick % tickSpacing == 0, "Upper tick not on spacing");
+    
+    // Calculate liquidity from amounts and price range
+    // Complex math for calculating liquidity in a range omitted for brevity
+    
+    // Update position for the specific range
+    // Implementation details omitted for brevity
+    
+    // Verify the recursive covenant maintains the invariants
+    // Implementation details omitted for brevity
+  }
+  
+  // Additional functions for range-based liquidity management
+  // Omitted for brevity
+}
+```
+
+### Multi-Asset Pools
+
+AMMs can be extended to support more than two assets:
+
+```solidity
+contract StableSwapAMM(
+  // Array of asset IDs
+  bytes32[] assets,
+  // Amplification coefficient for stable swap formula
+  int amplificationCoefficient,
+  // Other parameters omitted for brevity
+) {
+  // Helper function to verify the stable swap invariant
+  function verifyStableSwapInvariant(int[] oldBalances, int[] newBalances) internal {
+    // StableSwap invariant calculation
+    // D = sum(x_i) + A * n^n * prod(x_i) / (A * n^n + n^(n-1) * sum(x_i))
+    // Implementation details omitted for brevity
+    
+    // Verify new invariant >= old invariant
+    require(newInvariant >= oldInvariant, "Stable swap invariant violated");
+  }
+  
+  // Swap between any two assets in the pool
+  function swap(
+    int inputIndex, 
+    int outputIndex, 
+    int amountIn, 
+    int minAmountOut, 
+    signature userSig, 
+    pubkey user
+  ) {
+    // Verify indices are valid
+    require(inputIndex >= 0 && inputIndex < assets.length, "Invalid input index");
+    require(outputIndex >= 0 && outputIndex < assets.length, "Invalid output index");
+    require(inputIndex != outputIndex, "Input and output indices must differ");
+    
+    // Get current balances
+    int[] balances = getCurrentBalances(); // Simplified access
+    
+    // Calculate output amount using stable swap formula
+    // Implementation details omitted for brevity
+    
+    // Verify minimum output amount
+    require(amountOut >= minAmountOut, "Output amount below minimum");
+    
+    // Update balances
+    balances[inputIndex] += amountIn;
+    balances[outputIndex] -= amountOut;
+    
+    // Verify the stable swap invariant
+    verifyStableSwapInvariant(getCurrentBalances(), balances);
+    
+    // Verify inputs and outputs
+    // Implementation details omitted for brevity
+  }
+  
+  // Additional functions for multi-asset pool management
+  // Omitted for brevity
+}
+```
+
+## Security Considerations
+
+When implementing AMMs with recursive covenants, consider these security aspects:
+
+1. **Numerical Precision** - Carefully handle rounding to prevent exploits through precision loss
+2. **Flash Loan Attacks** - Design mechanisms to prevent price manipulation through flash loans
+3. **Sandwich Attacks** - Consider transaction ordering protections to prevent frontrunning
+4. **Covenant Recursion Depth** - Ensure covenant recursion is bounded to prevent resource exhaustion
+5. **Liquidity Fragmentation** - Balance flexibility with capital efficiency in concentrated liquidity designs
+
+## Future Directions
+
+The Arkade ecosystem is exploring several enhancements to AMM designs:
+
+- **Just-in-Time Liquidity** - Allowing liquidity providers to provide capital only when needed
+- **Customizable Fee Tiers** - Supporting multiple fee levels based on volatility and risk
+- **Cross-Chain AMMs** - Facilitating swaps between assets on different blockchains
+- **MEV Protection** - Building mechanisms to mitigate maximal extractable value
+
+---
+
+<NextButton url="/contracts/prediction-market" text="Prediction Markets" />

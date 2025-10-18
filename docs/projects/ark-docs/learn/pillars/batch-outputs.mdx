@@ -1,0 +1,70 @@
+---
+title: "Batch Outputs"
+description: "Aggregating multiple transactions into coordinated Bitcoin outputs"
+icon: "box-open"
+---
+
+Transaction batching is the foundation of Arkade's efficiency. Rather than each user having their own onchain UTXO, Arkade consolidates multiple users' ownership claims into a single output called a batch output which gets anchored onchain through a commitment transaction.
+## Batch Output
+
+### Virtual Transaction Tree Structure
+
+A batch output encapsulates multiple users’ ownership claims (VTXOs) through a tree of presigned virtual transactions while still allowing, in the worst case, every VTXO holder to exit unilaterally.
+
+The leaves of the virtual transaction tree (A, B, C, D) created by the batch output are the VTXOs, ie. the offchain ownership claims of users. 
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/batchoutputlight.png" 
+    alt="Batch Outputs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/batchoutputdark.png" 
+    alt="Batch Outputs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+The diagram below illustrates a spending template for a batch output. It begins with a single shared output controlled by all participants plus the operator, with a fallback sweep path after expiry. This output can be deterministically unrolled into separate branches (e.g. A+B+S and C+D+S), each further decomposing into individual VTXO paths with unilateral exit options. 
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/conditionslight.png" 
+    alt="Spending Conditions"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/conditionsdark.png" 
+    alt="Spending Conditions"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+The virtual transaction tree balances several competing factors:
+
+**Key Trade-offs:**
+* **Larger trees**: Require more interactive signing sessions during batch creation, as each branch of the tree needs to be signed by its participants
+* **Smaller trees**: Reduce interactivity but could result in larger settlement costs per participants
+
+**Selective Unrolling**: When a user exits unilaterally, they only need to broadcast the transactions along their specific path to their VTXO. This selective unrolling ensures other users' VTXOs remain in the batch, maintaining efficiency for the remaining participants.
+
+### Technical Implementation
+
+A batch output is a transaction output which locked by a taproot script with an n-of-n Musig2 internal key, and all associated VTXO owners as cosigners. A batch output consists of an unspendable key path and exactly two script paths:
+
+1. A **sweep path** that allows the operator to spend the entire output after a timeout, the so-called batch expiry
+2. An **unroll path** that enables to split the single batch output into separate VTXO branches of the virtual transaction tree
+
+MuSig2, an advanced Schnorr multi-signature scheme enables efficient collaborative signing. This allows the virtual transaction tree to appear as a single signature onchain, significantly reducing the footprint when users need to perform unilateral exits.
+

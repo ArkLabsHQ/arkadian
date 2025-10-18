@@ -1,0 +1,36 @@
+---
+title: "Delegation"
+description: "Delegate VTXO renewal using the Intent System"
+icon: "handshake"
+---
+
+### Why delegate?
+
+Arkade's [batch expiry mechanism](/learn/pillars/batch-expiry) plays a key role in liquidity management. Periodic VTXO renewal enables efficient resource allocation, as expired VTXOs can be swept by the operator and the liquidity is redeployed to meet new demand.
+
+However, expiry introduces [liveness requirements](/learn/security/liveness#user-liveness-vtxo-expiry) for users as they need to periodically renew their VTXOs to maintain unilateral exit rights. 
+
+The **liveness requirement can be circumvented by delegating the VTXO renewal to a third party using the [Intent system](/arkd/components/intent-system)**. This ensures seamless renewal and removes the burden of monitoring expiry windows. Importantly, **users maintain full unilateral control over their funds throughout the process**.
+
+Delegates are not exclusively limited to the operator. Wallet providers or other trusted services can also take on this role, offering users flexibility in how they manage liveness. For example, a wallet could automatically handle renewals in the background as part of its service, while more advanced users might choose to appoint a dedicated delegate or even run their own. This variety of options ensures that liveness can be managed according to individual preferences, without compromising unilateral control of funds.
+
+<Tip>Find the full intent delegation workflow as part of a batch swap [here](/arkd/components/intent-delegation)</Tip>
+
+### Delegate VTXO Setup
+
+Intent Delegation is implemented at the VTXO level by embedding an additional spending path, the delegate path, into the output script:
+
+- **A\+S (User \+ Server):** Standard cooperative path
+- **A\+CSV (User after timelock):** Unilateral fallback path
+- **A\+B\+S (User \+ Delegate \+ Server):** Delegation path requiring all three parties
+
+<Tip>The delegate intent together with a submission time window is - as any other intent - signed with BIP322. This design ensures that a delegate (B) cannot move funds unilaterally, submit intents early, alter the outputs, or repurpose the intent.</Tip>
+
+### TL;DR 
+
+The Intent Delegation system offers the following benefits: 
+- **User retains control**: All delegation requires presigned intents; funds remain non-custodial with unilateral exit always possible
+- **Pre-committed inputs and outputs**: Intents define and sign exact inputs and outputs; delegates can't alter those or acces funds, but only hand what has been presigned 
+- **Strict timing constraints**: Intents include time windows, this prevents a delegate to hand in an intent earlier than intended to collect associated fees 
+
+By leveraging intent delegation, application developers can abstract batch expiry handling, delivering user experiences that feel just like existing self-custodial apps.

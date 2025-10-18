@@ -1,0 +1,177 @@
+# Repository Manager
+
+## Overview
+
+The RepoManager provides a unified interface for accessing all data repositories in arkd. It follows the Repository Pattern to abstract persistence concerns from business logic, supporting multiple database backends (PostgreSQL, SQLite, BadgerDB).
+
+## RepoManager Interface
+
+```go
+type RepoManager interface {
+    Events() EventRepository
+    Rounds() RoundRepository
+    Vtxos() VtxoRepository
+    MarketHourRepo() MarketHourRepo
+    OffchainTxs() OffchainTxRepository
+    Close()
+}
+```
+
+## Repository Interfaces
+
+### EventRepository
+Manages immutable event streams for event sourcing.
+
+**Key Methods:**
+- `Save(ctx, topic, id, events)` - Persists events
+- `RegisterEventsHandler(topic, handler)` - Subscribes to event stream
+- `ClearRegisteredHandlers(topics...)` - Removes subscriptions
+- `Close()` - Cleanup
+
+**Implementations:** BadgerDB (in-memory pub/sub), PostgreSQL (Watermill SQL)
+
+### RoundRepository
+Manages round lifecycle and related data (intents, transactions, receivers).
+
+**Key Methods:**
+- `AddOrUpdateRound(ctx, round)` - Creates or updates complete round state
+- `GetRoundWithId(ctx, id)` - Fetches round with all related data
+- `GetRoundWithCommitmentTxid(ctx, txid)` - Queries by commitment transaction
+- `GetSweepableRounds(ctx)` - Returns rounds ready for sweeping
+- `GetRoundVtxoTree(ctx, txid)` - Retrieves VTXO tree structure
+
+**Schema:** Stores rounds, intents, receivers, transactions (commitment, forfeit, connectors, tree) with complex joins.
+
+### VtxoRepository
+Manages Virtual Transaction Outputs and their lifecycle.
+
+**Key Methods:**
+- `AddVtxos(ctx, vtxos)` - Creates new VTXOs
+- `GetAllNonUnrolledVtxos(ctx, pubkey)` - Returns spendable and spent VTXOs for a user
+- `SettleVtxos(ctx, vtxos, settledBy)` - Marks VTXOs as spent in a commitment tx
+- `SpendVtxos(ctx, vtxos, arkTxid)` - Marks VTXOs as spent offchain
+- `SweepVtxos(ctx, vtxos)` - Marks VTXOs as swept
+- `UnrollVtxos(ctx, vtxos)` - Marks VTXOs as force-closed
+
+**State Transitions:** Created ’ Spent (SettleVtxos or SpendVtxos) ’ Swept, or Created ’ Unrolled
+
+### OffchainTxRepository
+Manages offchain (collaborative) transactions and checkpoint transactions.
+
+**Key Methods:**
+- `AddOrUpdateOffchainTx(ctx, offchainTx)` - Creates or updates offchain transaction
+- `GetOffchainTx(ctx, txid)` - Retrieves with all checkpoint transactions
+- `GetAllOffchainTxs(ctx)` - Lists all offchain transactions
+
+**Schema:** Stores offchain transactions with stage progression and checkpoint transaction tree.
+
+### MarketHourRepo
+Manages market operating hours configuration.
+
+**Key Methods:**
+- `Get(ctx)` - Retrieves current configuration
+- `Upsert(ctx, marketHour)` - Creates or updates configuration
+
+**Schema:** Stores start time, end time, period, and round interval for market hours.
+
+## Event Sourcing + CQRS
+
+### Architecture
+- **Event Store:** Immutable event streams (BadgerDB or PostgreSQL)
+- **Projections:** Read-optimized views (Rounds, VTXOs, OffchainTxs)
+- **Event Handlers:** Automatically update projections when events are persisted
+
+### Event Flow
+1. Domain logic generates events
+2. Events persisted to EventRepository
+3. Event handlers triggered automatically
+4. Handlers update projection repositories (Rounds, VTXOs)
+5. Application queries projections for read operations
+
+### Benefits
+- Complete audit trail
+- Time travel debugging (reconstruct state from events)
+- Event replay for testing
+- Separation of write and read models
+
+## Database Factory Pattern
+
+### Service Configuration
+```go
+type ServiceConfig struct {
+    EventStoreType   string          // "badger" | "postgres"
+    DataStoreType    string          // "badger" | "sqlite" | "postgres"
+    EventStoreConfig []interface{}   // DB-specific config
+    DataStoreConfig  []interface{}   // DB-specific config
+}
+```
+
+### Database Selection
+Repositories are instantiated at runtime based on configuration:
+- **Development:** SQLite + BadgerDB for zero external dependencies
+- **Production:** PostgreSQL + PostgreSQL for reliability and performance
+
+### Projection Updates
+The database service acts as an event-driven projection manager, automatically updating read models when domain events are saved.
+
+## Type Conversions
+
+Repositories handle conversion between domain types and database types:
+- **Domain Types:** Business logic representation (e.g., `domain.Vtxo`)
+- **Database Types:** Storage representation (e.g., `queries.VtxoVw`)
+
+**Conversion Patterns:**
+- Numeric conversions: int64 ” uint64, int32 ” uint32
+- Nullable fields: sql.NullString ” string
+- Arrays: comma-separated strings ” []string
+- JSONB: map[uint32]string for tree children
+
+## Best Practices
+
+### Transaction Management
+Always use transactions for multi-step operations with automatic rollback on error.
+
+### Conflict Handling
+Retry on conflicts (important for BadgerDB and SQLite) with exponential backoff.
+
+### Null Handling
+Use sql.NullString for nullable fields, converting empty strings to NULL when writing.
+
+### View-Based Queries
+Prefer querying views over manual joins for complex aggregations (e.g., vtxo_vw aggregates commitment txids).
+
+### Context Propagation
+Always propagate context for cancellation and timeout support.
+
+### Error Handling
+Distinguish between "not found" and actual errors - not found should return nil, not an error.
+
+## Implementation Details
+
+### PostgreSQL
+- Uses sqlc for type-safe query generation
+- Complex views with string_agg for aggregations
+- JSONB for tree structures
+- golang-migrate for schema migrations
+- Watermill for event streaming
+
+### SQLite
+- Uses sqlc with compatible query syntax
+- group_concat instead of string_agg
+- TEXT for JSON storage
+- Single-writer model (SetMaxOpenConns(1))
+- golang-migrate for migrations
+
+### BadgerDB
+- LSM tree-based key-value store
+- Badgerhold wrapper for query support
+- Direct Go struct serialization
+- No schema migrations needed
+- In-memory pub/sub for events
+
+## Cross-References
+
+- [Architecture Overview](./architecture.md) - Hexagonal architecture
+- [Integration Points](./integration_points.md) - Component communication
+- [Application Core](./application_core.md) - Service usage patterns
+- [Configuration](./configuration.md) - Database configuration

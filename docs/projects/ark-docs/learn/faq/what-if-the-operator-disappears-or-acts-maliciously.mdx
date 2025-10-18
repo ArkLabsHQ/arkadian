@@ -1,0 +1,18 @@
+---
+icon: "user-ninja"
+title: "What if the Operator disappears or acts maliciously?"
+description: "Explains Arkade's fail-safe exits and trust assumptions."
+---
+
+Arkade is designed with fail-safe exits and minimal trust assumptions.
+
+If the [Operator goes offline](/learn/security/liveness#operator-liveness):
+- Users can’t perform new transactions on Arkade
+- Users can claim existing VTXOs as onchain funds using their presigned transactions
+
+If the Operator misbehaves:
+- Misconduct like double-signing attempts are cryptographically provable
+- A [slashing mechanism](/learn/security/economic-security#slashing) enforces economic penalties
+- Censorship-attempts of individual transactions are prevented via [E2E encryption](/learn/security/advanced-security#end-to-end-encryption) when those get sent to the Arkade Signer
+
+While a unilateral exit path is always enforceable, [mass exits](/learn/security/risks-limitations#mass-exit-scenarios) may face high onchain transaction cost

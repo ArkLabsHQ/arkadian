@@ -1,0 +1,123 @@
+---
+title: "Arkade Script"
+description: "Tapscript opcodes for Bitcoin smart contracts in the Arkade ecosystem"
+icon: "code"
+---
+
+<Warning>
+  **Experimental Technology**
+
+  The Arkade Script opcodes are experimental technology in active development. All code and examples presented here are for exploration and proof of concept purposes only. Do not use in production environments.
+</Warning>
+
+# Arkade Script
+
+Arkade Script consists of a set of Tapscript opcodes that extend Bitcoin Script's functionality to enable powerful smart contracts. These opcodes are designed to work within the VTXO (Virtual Transaction Output) paradigm.
+
+## The VTXO Paradigm
+
+The VTXO paradigm provides two execution paths for every contract:
+
+1. **Cooperative Path**: Requires the Arkade server's co-signature for immediate execution with instant finality
+2. **Unilateral Path**: A timelock-protected fallback path that can be executed onchain without the server
+
+This dual-path approach ensures that contracts can execute efficiently offchain with server cooperation, while maintaining the security guarantee that users can always execute onchain after a timelock if the server becomes unavailable.
+
+## Tapscript Opcodes
+
+Arkade Script leverages a set of new Tapscript opcodes that extend Bitcoin Script's functionality. These opcodes are implemented using the `OP_SUCCESS` mechanism introduced in Taproot, which allows for cleaner opcode additions than the previous `OP_NOP` approach.
+
+### Resource Limits in Taproot
+
+Taproot already increases many resource limitations compared to previous segwit versions:
+
+- **No script size limit**: The 10,000 byte maximum no longer applies (bounded only by block weight)
+- **No non-push opcode limit**: The 201 non-push opcode limit no longer applies
+- **Per-script sigops budget**: Instead of a block-wide limit, each script has a budget of 50 \+ witness size in bytes
+- **Stack limits**: The 1,000 element stack\+altstack limit remains, now also applying to the initial stack
+- **Stack element size**: The 520 byte maximum per stack element remains during execution
+
+### Streaming Hash Opcodes
+
+These opcodes overcome the 520-byte limitation for hashing operations while maintaining security against resource exhaustion:
+
+- **OP_SHA256INITIALIZE** (`OP_SUCCESS196`): Pops a bytestring and pushes a SHA256 context initialized with that data
+- **OP_SHA256UPDATE** (`OP_SUCCESS197`): Pops a bytestring and a SHA256 context, then pushes an updated context
+- **OP_SHA256FINALIZE** (`OP_SUCCESS198`): Pops a bytestring and a SHA256 context, then pushes the final hash value
+
+### Transaction Introspection Opcodes
+
+These opcodes provide efficient access to transaction data, enabling covenants and complex state transitions:
+
+#### Input Introspection
+
+- **OP_INSPECTINPUTOUTPOINT** (`OP_SUCCESS199`): Examines the outpoint of an input
+- **OP_INSPECTINPUTASSET** (`OP_SUCCESS200`): Examines the asset of an input
+- **OP_INSPECTINPUTVALUE** (`OP_SUCCESS201`): Examines the value of an input
+- **OP_INSPECTINPUTSCRIPTPUBKEY** (`OP_SUCCESS202`): Examines the scriptPubKey of an input
+- **OP_INSPECTINPUTSEQUENCE** (`OP_SUCCESS203`): Examines the sequence number of an input
+- **OP_INSPECTINPUTISSUANCE** (`OP_SUCCESS204`): Examines the issuance information of an input
+- **OP_PUSHCURRENTINPUTINDEX** (`OP_SUCCESS205`): Pushes the current input index
+
+#### Output Introspection
+
+- **OP_INSPECTOUTPUTASSET** (`OP_SUCCESS206`): Examines the asset of an output
+- **OP_INSPECTOUTPUTVALUE** (`OP_SUCCESS207`): Examines the value of an output
+- **OP_INSPECTOUTPUTNONCE** (`OP_SUCCESS208`): Examines the nonce of an output
+- **OP_INSPECTOUTPUTSCRIPTPUBKEY** (`OP_SUCCESS209`): Examines the scriptPubKey of an output
+
+#### Transaction Introspection
+
+- **OP_INSPECTVERSION** (`OP_SUCCESS210`): Examines the version of the transaction
+- **OP_INSPECTLOCKTIME** (`OP_SUCCESS211`): Examines the locktime of the transaction
+- **OP_INSPECTNUMINPUTS** (`OP_SUCCESS212`): Examines the number of inputs in the transaction
+- **OP_INSPECTNUMOUTPUTS** (`OP_SUCCESS213`): Examines the number of outputs in the transaction
+- **OP_TXWEIGHT** (`OP_SUCCESS214`): Examines the weight of the transaction
+
+### 64-bit Arithmetic Opcodes
+
+These opcodes provide signed 64-bit arithmetic operations with overflow detection, overcoming the limitations of the 4-byte `CScriptNum`:
+
+#### Basic Operations
+
+- **OP_ADD64** (`OP_SUCCESS215`): 64-bit addition with overflow detection
+- **OP_SUB64** (`OP_SUCCESS216`): 64-bit subtraction with overflow detection
+- **OP_MUL64** (`OP_SUCCESS217`): 64-bit multiplication with overflow detection
+- **OP_DIV64** (`OP_SUCCESS218`): 64-bit division with overflow detection
+- **OP_NEG64** (`OP_SUCCESS219`): 64-bit negation with overflow detection
+
+#### Comparison Operations
+
+- **OP_LESSTHAN64** (`OP_SUCCESS220`): 64-bit less than comparison
+- **OP_LESSTHANOREQUAL64** (`OP_SUCCESS221`): 64-bit less than or equal comparison
+- **OP_GREATERTHAN64** (`OP_SUCCESS222`): 64-bit greater than comparison
+- **OP_GREATERTHANOREQUAL64** (`OP_SUCCESS223`): 64-bit greater than or equal comparison
+
+### Conversion Opcodes
+
+These opcodes facilitate conversion between different numeric formats:
+
+- **OP_SCRIPTNUMTOLE64** (`OP_SUCCESS224`): Converts a `CScriptNum` to an 8-byte little-endian value
+- **OP_LE64TOSCRIPTNUM** (`OP_SUCCESS225`): Converts an 8-byte little-endian value to a `CScriptNum`
+- **OP_LE32TOLE64** (`OP_SUCCESS226`): Converts a 4-byte unsigned little-endian value to an 8-byte signed little-endian value
+
+### Crypto Opcodes
+
+These opcodes enable more complex cryptographic operations:
+
+- **OP_ECMULSCALARVERIFY** (`OP_SUCCESS227`): Verifies scalar multiplication of EC points (Q = k\*P)
+- **OP_TWEAKVERIFY** (`OP_SUCCESS228`): Verifies Taproot key tweaking (Q = P \+ k\*G)
+
+### Enhanced Existing Opcodes
+
+- **OP_CHECKSIGFROMSTACK** and **OP_CHECKSIGFROMSTACKVERIFY**: Enhanced to follow BIP340 semantics for Schnorr signatures
+
+### Usage Tips
+
+- Use `OP_PUSHCURRENTINPUTINDEX` with the input introspection opcodes to examine the current input
+- The input nonce field cannot be introspected as it's not consistently stored in the UTXO database
+- Use conversion opcodes to convert between `CScriptNum`, 4-byte LE, and 8-byte LE formats for arithmetic operations
+
+---
+
+<NextButton url="/contracts/overview" text="Back to Overview" />

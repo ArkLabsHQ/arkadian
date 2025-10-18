@@ -1,0 +1,79 @@
+---
+title: "VTXOs"
+description: "Self-custodial offchain abstractions of a UTXO"
+icon: "money-bill"
+---
+
+Virtual Transaction Outputs (VTXOs) are Bitcoin's UTXOs reimagined for offchain execution. They are programmable, offchain objects that mirror Bitcoin's UTXO structure but exist within Arkade's [Virtual Mempool](/learn/pillars/virtual-mempool).
+
+Each VTXO is backed by a presigned, unbroadcast Bitcoin transaction. These transactions represent a user's claim to a specific portion of value within a [batch output](/learn/pillars/batch-outputs) and include defined ownership, value, and spending conditions, supporting both collaborative and unilateral exit paths.
+
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/vtxodark.png" 
+    alt="VTXOs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/vtxolight.png" 
+    alt="VTXOs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+In an optimistic scenario, these transactions will never be broadcast, as they are only relied on to provide unilateral exit.
+
+VTXOs enable Bitcoin transactions to occur entirely offchain while preserving the security properties of onchain settlement. This allows users to transfer value instantly without competing for block space or paying mining fees for each individual transaction.
+
+<Tip>
+  A virtual transaction is just a regular Bitcoin transaction that will optimistically never go onchain
+</Tip>
+
+## VTXO Structure
+
+VTXOs are presigned Bitcoin transactions secured by a Taproot script (keypath unspendable) with two distinct spending paths:
+
+1. **Exit Path (Unilateral)** This path is exclusively controlled by the VTXO owner. It allows the user to move their offchain funds onchain at any time without requiring permission or cooperation from the operator.
+2. **Collaborative Path** This path is the default path being used for [Arkade transactions](/learn/pillars/arkade-tx) as well as for standard exits of user funds. An Arkade transaction simply requires a cosignature from the [Arkade Signer](/learn/security/advanced-security#arkade-signer) in addition to the owner's signature. Such design allows for rapid offchain execution within the [virtual mempool](/learn/pillars/virtual-mempool).
+
+<Info>
+  Every VTXO carries a CSV delay that prevents double-spending. Without it, a malicious user could spend their VTXO in a batch swap while simultaneously withdrawing the same funds through an exit - essentially spending the same money twice.
+</Info>
+
+## VTXO States
+
+A VTXO can exist in **multiple states**, depending on its origin, use, and confirmation status:
+
+1. **Preconfirmed State (Unsettled)**: The VTXO was created offchain through an Arkade transaction, has been validated and cosigned by the Arkade Signer, but has not yet been settled onchain via a commitment transaction. It can be used for further offchain activity but requires trust in the operator.
+2. **Unconfirmed State**: These VTXOs have been included in a commitment transaction batch and are awaiting Bitcoin network confirmation.
+3. **Confirmed / Bitcoin Finality (Settled)**: VTXOs anchored onchain through confirmed commitment transactions inherit full Bitcoin security guarantees with complete unilateral exit rights.
+4. **Recoverable**: These VTXOs are valid within Arkade's offchain protocol but cannot be exited unilaterally. They cannot be reused in offchain transactions, but can be included in Arkade [intents](/learn/pillars/batch-swaps#intents). Sub-dust VTXOs, expired VTXOs and [Arkade Notes](/arkd/components/ark-notes) fall in this category.
+5. **Spent**: The VTXO has been used as an input to another Arkade transaction and is no longer active.
+
+## VTXO Expiration
+
+Every VTXO is tied to the [lifetime of the batch output](/learn/pillars/batch-expiry) it originates from. To maintain unilateral exit rights, users must periodically renew their VTXOs before expiry. If that expiration window is missed, the operator regains control of the underlying funds and issues a redeemable [Arkade Note](/arkd/components/ark-notes) in exchange.
+
+<Info>
+This liveness requirement can be managed directly by the user or it appoints a [delegate](/learn/pillars/batch-expiry#delegation-solutions) to automatically renew VTXOs on their behalf it can also be.
+</Info>
+  
+
+## Considerations
+
+- **Deep transaction chains**: VTXOs that are part of a [deep Arkade transaction chain](/learn/pillars/arkade-tx#transaction-chains) increases unilateral exit exit cost as all transactions of the chain would need to be broadcast, which might make a unilateral exit economically burdensome
+- **Preconfirmation status**: VTXOs as part of an offchain transaction chain require honest operator behavior. [Preconfirmed](/learn/security/transaction-finality#preconfirmation) VTXOs can be [batch swapped](/learn/pillars/batch-swaps) at any time which implies inheriting Bitcon finality
+- **Batch Expiry**: If a VTXO is not renewed (manually or via a [delegate](/learn/pillars/batch-expiry#delegation-solutions) before [batch expiry](/learn/pillars/batch-expiry), a user loses unilateral control of their funds
+- **Dust Limits**: Arkade supports sub-dust VTXOs by representing them as OP_RETURN outputs tied to a taproot pubkey. These VTXOs are valid within Arkade’s offchain protocol but cannot be exited unilaterally. They cannot be reused in offchain transactions. Sub-dust VTXOs can be included in BIP322-based Arkade intents
+
+<Info>
+  **VTXO vs. Traditional Account Models**
+
+  Unlike account-based systems that maintain a global state ledger, Arkade's VTXO model requires no global state machine, only local transitions between VTXOs. This enables parallel execution across independent transaction branches without the bottlenecks common in account models, where operations must be serialized to maintain consistent state.
+</Info>

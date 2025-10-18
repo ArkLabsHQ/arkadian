@@ -1,0 +1,14 @@
+---
+icon: "bitcoin"
+title: "Are Arkade transactions real Bitcoin transactions?"
+description: "Explains the nature of Arkade transactions."
+---
+
+Yes - and no.
+
+Every [Arkade transaction](/learn/pillars/arkade-tx):
+- Is structured like a Bitcoin transaction (inputs, outputs, scripts)
+- Produces valid presigned Bitcoin exit paths
+- Can be anchored to Bitcoin via batch outputs
+
+Arkade transactions are executed instantly offchain with preconfirmations, then batch settled onchain whenever convenient for the user. Arkade keeps this tradeoff explicit: users and applications control when to finalize to Bitcoin and reclaim full security guarantees.

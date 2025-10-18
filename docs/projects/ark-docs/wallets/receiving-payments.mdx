@@ -1,0 +1,101 @@
+---
+title: "Receiving Payments"
+description: "Learn how to receive Bitcoin payments with your Arkade wallet"
+icon: "download"
+---
+
+## Overview
+
+Receiving payments with Arkade is simple and efficient. Your wallet can generate addresses for both boarding and ark payments, allowing your users to send Bitcoin to you through either method.
+
+## Getting Your Wallet Address
+
+To receive payments, you first need to generate an address:
+
+```typescript
+const offchainAddress = await wallet.getAddress()
+const boardingAddress = await wallet.getBoardingAddress()
+
+// The off-chain Ark address for instant payments
+console.log('Ark Address:', offchainAddress)
+
+// The on-chain boarding address
+console.log('Bitcoin Address:', boardingAddress)
+```
+
+## Ark Addresses
+
+Ark addresses start with `ark1` on Bitcoin mainnet or `tark1` on testnet and regtest.
+
+<Card title="Understanding Ark Addresses" icon="address-card" href="/wallets/ark-addresses">
+  Learn about the technical structure of Ark addresses, how they're generated, and the security guarantees they provide.
+</Card>
+
+## Monitoring for Incoming Payments
+
+To detect when payments are received, you can use `Wallet.notifyIncomingFunds()` for incoming transactions in real-time.
+
+```typescript
+
+// Example function to process incoming funds
+async function processIncomingFunds(notification: IncomingFunds) {
+  // Update your application state
+  switch (notification.type) {
+    case 'vtxo':
+      for (const vtxo of notification.vtxos) {
+        console.log(`Received payment of ${vtxo.amount} sats`);
+        
+        // You might want to store the VTXO in your database
+        await storeVtxoInDatabase(vtxo);
+        
+        // Notify the user
+        showNotification(`Received ${vtxo.amount} sats!`);
+        
+        // Update the UI
+        await refreshBalanceDisplay();
+      }
+      break;
+    case 'utxo':
+      for (const utxo of notification.utxos) {
+        await storeBoardingUtxoInDatabase(utxo)
+
+        // Notify the user
+        showNotification(`Received ${utxo.amount} sats on boarding address!`);
+        
+        // Update the UI
+        await refreshBalanceDisplay();
+      }
+      break;
+  }
+}
+
+// Start the subscription
+const stop = wallet.notifyIncomingFunds(processIncomingFunds)
+
+// Stop the subscription
+stop()
+```
+
+### Best Practices
+
+<Accordion title="Error Handling" icon="shield-check">
+  Always implement proper error handling for your subscription to ensure your application remains stable even if there are network issues.
+</Accordion>
+
+<Accordion title="Reconnection Logic" icon="arrow-repeat">
+  Consider implementing reconnection logic if the subscription is interrupted due to network issues.
+</Accordion>
+
+<Accordion title="Deduplication" icon="filter">
+  Implement deduplication logic to ensure you don't process the same payment multiple times, especially if your application restarts.
+</Accordion>
+
+## Next Steps
+
+- [Check Balances](/wallets/balances) - Learn how to verify your wallet balance after receiving payments
+- [Send Payments](/wallets/sending-payments) - Learn how to send payments to others
+- [Payment History](/wallets/payment-history) - Track all your received and sent payments
+
+---
+
+<NextButton url="/wallets/balances" text="Check Balances" />

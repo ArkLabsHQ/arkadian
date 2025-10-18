@@ -1,0 +1,49 @@
+---
+title: "Roles"
+description: "Explanation of the key roles in the Arkade architecture"
+icon: "users"
+---
+
+The Arkade Operator coordinates Arkade's virtual execution environment through a **modular architecture** that comprises several core functions, like **transaction validation and batch creation**, **transaction signing**, **liquidity provisioning** and **system coordination**.
+
+These functions can be delegated to independent entities, having this modular design enable horizontal scaling, distributed deployment and increases overall system security.
+
+<Info>
+  The signing function is the first core function to be separated from the operator, making the Arkade Signer the first additional independent entity in the Arkade design.
+</Info>
+
+<Tip>
+  Future implementations will enable individual operator functions to be replicated across multiple infrastructure providers, geographic regions, or operated by different entities, reducing single points of failure and improving system resilience.
+</Tip>
+
+### Arkade Operator
+
+The system operates as an Arkade Operator with three primary responsibilities:
+
+| **Function**                          | **Description**                                                         | **Implementation**                                               |
+| ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Batch Output Management**           | Creates and manages batch outputs through onchain Bitcoin transactions  | Round processing, intent registration and VTXO tree construction |
+| **Offchain Transaction Facilitation** | Enables fast transactions between users without blockchain confirmation | Scrupt verification and collaborative signing                    |
+| **Liquidity Provision**               | Provides liquidity for commitment transactions that finalize each batch | Integration with `arkd-wallet` service                           |
+
+**Transaction Validation and Batch Creation**. The operator validates incoming transactions against the current VTXO set, forwards valid requests to the Arkade Signer for cosigning, and aggregates multiple user operations into a single batch output which eventually gets anchored onchain via a [commitment transaction](/learn/pillars/batch-outputs#commitment-transactions).
+
+The operator's role is designed with strict boundaries. It cannot unilaterally spend user VTXOs or override unilateral exit paths, as these are secured by presigned transaction trees that users control independently.
+
+Furthermore, a [slashing mechanism](/learn/security/economic-security) will be implemented where operator collateral will get burned in case of fraudulent behaviour.
+
+**Liquidity Provision**. The operator provides liquidity for user operations that require onchain settlement, such as VTXO renewals or offboarding (ie. exiting Arkade). To do so, it temporarily deploys bitcoin from its treasury until it can reclaim funds after [batch expiry](/learn/pillars/batch-expiry). This creates a capital obligation that requires the operator to manage reserves efficiently and ensure continuous availability.
+
+<Tip>
+  Future versions may delegate this task to third-party liquidity providers.
+</Tip>
+
+## Arkade Signer
+
+The Arkade Signer represents a critical architectural separation that isolates transaction signing authority from operator control. Rather than allowing the Arkade Operator to directly sign user transactions, this responsibility is delegated to a separate module that operates under verifiable constraints.
+
+The Signer generates a single signing key that all Arkade addresses require for VTXO cosigning, but this key is protected within a secure hardware environment (TEE) that prevents access even by the operator. Users communicate directly with the Signer through encrypted channels (e2ee), ensuring that signature requests remain confidential and uncensorable. This architectural decision transforms the trust model from strictly relying on operator honesty to relying on cryptographic and hardware guarantees that can be independently verified.
+
+<Info>
+  Detailed security mechanisms, including Trusted Execution Environment implementation, remote attestation procedures, and collateral enforcement, are covered in the [Advanced Security](/learn/security/advanced-security) section.
+</Info>

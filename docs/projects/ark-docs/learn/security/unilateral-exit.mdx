@@ -1,0 +1,75 @@
+---
+title: "Unilateral Exit"
+description: "Sovereignty & User Control"
+icon: "door-open"
+---
+
+The [VTXO structure](/learn/pillars/vtxos#vtxo-structure) includes a presigned transaction path that enables its owner to exit to Bitcoin independently. When a VTXO is created, it comes with a valid set of Bitcoin transactions that can be broadcast at any time without requiring signatures or cooperation from operators or other users.
+
+## Exit Requirements
+
+Arkade's architecture organizes VTXOs in a virtual tree structure rooted into [batch outputs](/learn/pillars/batch-outputs). Each batch output branches into multiple virtual transactions, which can further branch into additional virtual transactions, creating a tree-like structure of spending relationships. Individual VTXOs exist as leaves or intermediate nodes within this virtual tree.
+
+To enforce a unilateral exit claim onchain, users must publish a complete transaction path from the relevant batch output down to their specific VTXO. This requires broadcasting multiple sequential Bitcoin transactions that "unroll" the virtual tree structure, with each transaction in the chain consuming outputs from the previous transaction until the user's VTXO is finally claimed.
+
+**Example Exit Path:**
+
+1. Batch Output → Virtual Transaction A (first level)
+2. Virtual Transaction A → Virtual Transaction B (second level)
+3. Virtual Transaction B → User's VTXO (final claim)
+
+Each transaction in this chain must be individually broadcast and confirmed on Bitcoin, with users paying standard Bitcoin network fees for each transaction.
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/exitpathlight.png" 
+    alt="Batch Outputs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/exitpathdark.png" 
+    alt="Batch Outputs"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+## Exit Costs
+
+**Base Costs:** Every unilateral exit incurs Bitcoin network fees for each required transaction in the path. A VTXO requiring a 3-transaction exit path costs 3x the base Bitcoin transaction fee, regardless of the VTXO's value.
+
+**Chain Length Impact:** As users engage in more offchain activity, their VTXOs move deeper into the virtual tree structure, creating longer exit paths. Extended offchain [transaction chains](/learn/pillars/arkade-tx#transaction-chains) compound exit costs:
+
+- Direct child of Batch Output: 1 Bitcoin transaction required
+- Second-level VTXO: 2 Bitcoin transactions required
+- Third-level VTXO: 3 Bitcoin transactions required
+- And so on...
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/txchainlight.png" 
+    alt="Transaction Chain"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/txchaindark.png" 
+    alt="Transaction Chain"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+For smaller VTXO values, exit costs can become prohibitive. With high Bitcoin fees, the cumulative cost of publishing multiple transactions may exceed the VTXO's balance, effectively stranding smaller holdings until either Bitcoin fees decrease or the VTXO value is enough to cover the expense.
+
+This cost structure creates natural economic incentives for users to periodically refresh their VTXOs through [batch settlement](/learn/pillars/batch-swaps) rather than allowing exit paths to grow indefinitely. Users must balance the convenience of extended offchain activity against the related cost of maintaining unilateral exit optionality.
+
+<Tip>In order for a user to unilaterally exit, they must broadcast a combination of presigned transactions containing their VTXO. Possessing these presigned transactions ensures a user can always spend their allocated funds independently, without requiring coordination with other participants or the operator.</Tip>
+
+

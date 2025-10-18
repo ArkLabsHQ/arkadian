@@ -1,0 +1,85 @@
+---
+title: "IndexerService"
+description: "The IndexerService provides query and subscription APIs for Arkade’s transaction data"
+icon: "magnifying-glass"
+---
+
+The [`IndexerService`](https://github.com/arkade-os/arkd/blob/72ea52fe/api-spec/protobuf/ark/v1/indexer.proto#L7-L121) exposes a set of gRPC and REST endpoints that allow clients to query commitment transactions, inspect VTXO trees, monitor forfeit and sweep transactions, and subscribe to real-time updates for script activity. The `IndexerService` supports both point-in-time queries and real-time subscriptions.
+
+<Tip>
+  **API references** can be found [here](https://docs.arklabs.xyz/integrate/api/#tag/IndexerService) and a **set of tools to handle protobuf specifications** can be found [here](https://buf.build/arkade-os/arkd/docs/fcb9f21ef69836e8ddadc2d070deb0c5be139336:ark.v1#ark.v1.IndexerService).
+</Tip>
+
+### API Layer Logic
+
+Client applications use the `IndexerService` to:
+
+| **Operation Category** | **Methods**                                         | **Purpose**                        |
+| :--------------------- | :-------------------------------------------------- | :--------------------------------- |
+| Commitment Data        | `GetCommitmentTx`, `GetForfeitTxs`, `GetConnectors` | Commitment tx analysis             |
+| VTXO Management        | `GetVtxos`, `GetVtxoTree`, `GetVtxoTreeLeaves`      | VTXO lifecycle and tree navigation |
+| Transaction History    | `GetVtxoChain`, `GetVirtualTxs`                     | Transaction chain analysis         |
+| Batch Operations       | `GetBatchSweepTransactions`                         | Batch settlement tracking          |
+| Real-time Monitoring   | `SubscribeForScripts`, `GetSubscription`            | Script-based event subscriptions   |
+
+<Tip>
+  This service is essential for builders who want to provide visibility into user funds, transaction history, or batch-level activity without relying on custom indexers or database infrastructure.
+</Tip>
+
+#### API Layer Logic Explained
+
+<AccordionGroup>
+  <Accordion title="Commitment Data">
+    These functions provide comprehensive analysis of [commitment transactions](/learn/pillars/batch-swaps#commitment-transactions) and their associated components.
+
+    - `GetCommitmentTx` returns information (via [`GetCommitmentTxResponse`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L123-L134)) about a specific commitment transaction (identified via its `TxId`), including its associated batches, input/output amounts, and start/end timestamps
+    - `GetForfeitTxs` returns the list of [forfeit](/learn/pillars/batch-swaps#forfeit-transactions) transactions submitted for a given commitment transaction
+    - `GetConnectors` returns the tree of [connector outputs](/learn/pillars/connectors) with details on tree positioning for the provided commitment transaction
+
+    The responses for `GetForfeitTxs` and `GetConnectors` support pagination if results span multiple pages.
+  </Accordion>
+  <Accordion title="VTXO Management">
+    VTXO lifecycle and tree navigation functions enable clients to query and traverse the state of virtual transactions.
+
+    - [`GetVtxos`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L52-L59) provides flexible VTXO querying by addresses or outpoints with filtering options for spendable, spent only, or recoverable states
+    - [`GetVtxoTree`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L34-L41) returns the complete VTXO tree structure for a given batch outpoint, including transaction details and tree positioning information
+    - [`GetVtxoTreeLeaves`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L43-L50) returns the list of leaves (VTXO outpoints) of the tree(s) for a batch outpoint, optimized for clients that only need the final outputs
+  </Accordion>
+  <Accordion title="Transaction History">
+    Offchain transaction chain analysis tools in the [virtual mempool](/learn/pillars/virtual-mempool) enable tracing of VTXO spending flows and virtual transaction data
+
+    - [`GetVirtualTxs`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L70-L76) returns the raw virtual transactions (in hex) for a given set of Arkade transaction IDs
+    - [`GetVtxoChain`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L61-L68) traces the lineage of [Arkade transactions](/learn/pillars/arkade-tx) from any VTXO leaf spending through to the creation of a specified VTXO outpoint (ie. [tx chain](/learn/pillars/arkade-tx#transaction-chains)), enabling full transaction history reconstruction
+  </Accordion>
+  <Accordion title="Batch Operations">
+    [Batch settlement](/learn/pillars/batch-swaps) tracking provides visibility into the sweep transactions that claim batch outputs back to the operator.
+
+    - [`GetBatchSweepTransactions`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L78-L92) returns the list of transactions that were swept by a given batch output and includes information on whether a batch output has been claimed by the operator after expiry or if a user has initiated unrolling of the tree.
+
+    <Info>
+      In normal operation, this contains a single transaction ID representing the complete batch claim. However, if any tree leaves were unrolled onchain before expiration, the list contains multiple transaction IDs representing the partial sweeps. For example, in a binary tree with 4\+ leaves, one unroll triggers 3 sweep transactions for the remaining tree. If an entire VTXO tree was unrolled onchain, the sweep transaction list is empty.
+    </Info>
+  </Accordion>
+  <Accordion title="Real-time Monitoring">
+    Script-based event subscription system enables clients to receive real-time notifications for transactions affecting specific VTXO scripts.
+
+    - `SubscribeForScripts` allows clients to create or update subscriptions for transaction notifications related to specific VTXO scripts, returning a subscription ID for stream access
+    - `GetSubscription` provides server-side streaming of real-time notifications for subscribed scripts, delivering transaction details including new and spent VTXOs, transaction data, and checkpoint transactions
+    - `UnsubscribeForScripts` lets a client remove specific scripts from existing subscriptions
+  </Accordion>
+</AccordionGroup>
+
+### Notes for Builders
+
+- Use script-level subscriptions to drive reactive clients or backend workflows
+- VTXO queries and chain tracing allow for full lifecycle auditing of offchain funds
+- Tree navigation is optimized - use `GetVtxoTreeLeaves` for efficiency when you only need final outputs, not the full tree structure
+- Batch sweep tracking helps monitor operator claims - `GetBatchSweepTransactions` shows normal vs. partial sweep scenarios when leaves are unrolled onchain
+- Real-time subscriptions are stateful - manage the subscription lifecycle with `SubscribeForScripts` / `UnsubscribeForScripts` before using `GetSubscription` streams
+- All methods support both gRPC and REST interfaces through auto-generated gateway mappings
+- All endpoints are paginated and follow REST conventions
+
+<Tip>
+  The `IndexerService` is complementary to the [`ArkService`](/arkd/core-services/ark-service).
+  Use the `IndexerService` for historical transaction data and detailed analysis and `ArkService` for real-time updates
+</Tip>

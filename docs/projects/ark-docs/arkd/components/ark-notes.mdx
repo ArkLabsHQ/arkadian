@@ -1,0 +1,35 @@
+---
+title: "Arkade Notes"
+description: "Arkade Notes as redeemable offchain vouchers"
+icon: "ticket"
+---
+
+An Arkade Note is a [recoverable VTXO](/learn/pillars/vtxos#vtxo-states) and is **akin to a virtual voucher** created by the server and redeemable for VTXOs.
+
+Arkade Notes are designed for several purposes: 
+
+- **Smooth user onboarding**. An operator can issue Arkade Notes that users redeem for a VTXO
+- **Offchain VTXO spending** Arkade Notes can be sent via standard communication channels (eg. messengers, NFC, ..)
+
+### Arkade Note Structure 
+
+Each note starts with the prefix `arknote` and contains ([`CreateNoteRequest`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/admin.proto#L84-L87)):
+
+- **A Unique ID** (uint32): a distinct identifier for tracking each note
+- **Value:** the amount this note is worth
+- **Server Signature**: a signature on the `ID | amount` hash validating authenticity
+
+Notes appear in the VTXO system as recoverable inputs. In the `GetVtxos` API, the [`recoverable_only`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/api-spec/protobuf/ark/v1/indexer.proto#L181-L183) filter specifically refers to notes, sub-dust, or swept VTXOs.
+
+
+### Redeeming Arkade Notes
+
+Redeeming a note works much like [spending a VTXO offchain](/arkd/txs/offchain-execution). Instead of providing a VTXO as an input to an [intent](/arkd/components/intent-system), the client includes the Arkade Note. The note is then marked as spent (ensuring double-spent protection) and replaced with a new VTXO belonging to the user.
+
+### Distribution and Use Cases
+
+Arkade Notes are simple **encoded text strings**, making them highly portable. They can be:
+
+- Sent via chat or email
+- Printed as QR codes
+- Transferred over contactless technologies like NFC

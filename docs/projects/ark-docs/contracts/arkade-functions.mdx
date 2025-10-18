@@ -1,0 +1,529 @@
+---
+title: "Arkade Functions"
+description: "Built-in functions and operations in Arkade Script"
+icon: "function"
+---
+
+
+
+<Warning>
+  **Experimental Technology**
+  
+  The Arkade Language is experimental technology in active development. All code and examples presented here are for exploration and proof of concept purposes only. Do not use in production environments.
+</Warning>
+
+# Arkade Functions
+
+Arkade Script provides a comprehensive set of built-in functions for common operations in Bitcoin smart contracts. These functions abstract away the complexity of Bitcoin Script while providing powerful capabilities for contract development.
+
+## Signature Verification
+
+### checkSig
+
+Verifies a signature against a public key:
+
+```solidity
+bool isValid = checkSig(signature, pubkey);
+```
+
+Parameters:
+- `signature`: The signature to verify
+- `pubkey`: The public key to verify against
+
+Returns:
+- `bool`: True if the signature is valid, false otherwise
+
+Example:
+```solidity
+require(checkSig(userSig, user), "Invalid signature");
+```
+
+### checkMultisig
+
+Verifies multiple signatures against multiple public keys:
+
+```solidity
+bool isValid = checkMultisig(pubkeys, signatures);
+```
+
+Parameters:
+- `pubkeys`: Array of public keys
+- `signatures`: Array of signatures
+
+Returns:
+- `bool`: True if all signatures are valid, false otherwise
+
+Example:
+```solidity
+require(checkMultisig([alice, bob], [aliceSig, bobSig]), "Invalid multisig");
+```
+
+### checkSigFromStack
+
+Verifies a signature against a message and public key:
+
+```solidity
+bool isValid = checkSigFromStack(signature, pubkey, message);
+```
+
+Parameters:
+- `signature`: The signature to verify
+- `pubkey`: The public key to verify against
+- `message`: The message that was signed
+
+Returns:
+- `bool`: True if the signature is valid, false otherwise
+
+Example:
+```solidity
+bytes message = sha256(assetPair + int2bytes(price));
+require(checkSigFromStack(oracleSig, oracle, message), "Invalid oracle signature");
+```
+
+## Hash Functions
+
+### sha256
+
+Computes the SHA-256 hash of data:
+
+```solidity
+bytes32 hash = sha256(data);
+```
+
+Parameters:
+- `data`: The data to hash
+
+Returns:
+- `bytes32`: The SHA-256 hash
+
+Example:
+```solidity
+require(sha256(preimage) == hash, "Invalid preimage");
+```
+
+### ripemd160
+
+Computes the RIPEMD-160 hash of data:
+
+```solidity
+bytes20 hash = ripemd160(data);
+```
+
+Parameters:
+- `data`: The data to hash
+
+Returns:
+- `bytes20`: The RIPEMD-160 hash
+
+Example:
+```solidity
+bytes20 pubkeyHash = ripemd160(sha256(pubkey));
+```
+
+### hash160
+
+Computes the Hash160 (SHA-256 followed by RIPEMD-160) of data:
+
+```solidity
+bytes20 hash = hash160(data);
+```
+
+Parameters:
+- `data`: The data to hash
+
+Returns:
+- `bytes20`: The Hash160 result
+
+Example:
+```solidity
+bytes20 pubkeyHash = hash160(pubkey);
+```
+
+### hash256
+
+Computes the double SHA-256 hash of data:
+
+```solidity
+bytes32 hash = hash256(data);
+```
+
+Parameters:
+- `data`: The data to hash
+
+Returns:
+- `bytes32`: The double SHA-256 hash
+
+Example:
+```solidity
+bytes32 txid = hash256(txdata);
+```
+
+## Timelock Functions
+
+### checkLockTime
+
+Verifies that the transaction's locktime meets a requirement:
+
+```solidity
+bool isValid = checkLockTime(locktime);
+```
+
+Parameters:
+- `locktime`: The minimum required locktime
+
+Returns:
+- `bool`: True if the transaction's locktime is greater than or equal to the specified locktime
+
+Example:
+```solidity
+require(checkLockTime(expiryTime), "Timelock not yet reached");
+```
+
+### checkSequence
+
+Verifies that the input's sequence number meets a requirement:
+
+```solidity
+bool isValid = checkSequence(sequence);
+```
+
+Parameters:
+- `sequence`: The minimum required sequence
+
+Returns:
+- `bool`: True if the input's sequence is greater than or equal to the specified sequence
+
+Example:
+```solidity
+require(checkSequence(relativeLocktime), "Relative timelock not yet reached");
+```
+
+## Conversion Functions
+
+### int2bytes
+
+Converts an integer to a byte array:
+
+```solidity
+bytes intBytes = int2bytes(value);
+```
+
+Parameters:
+- `value`: The integer to convert
+
+Returns:
+- `bytes`: The byte representation of the integer
+
+Example:
+```solidity
+bytes message = assetId + int2bytes(amount);
+```
+
+### bytes2int
+
+Converts a byte array to an integer:
+
+```solidity
+int value = bytes2int(bytes);
+```
+
+Parameters:
+- `bytes`: The byte array to convert
+
+Returns:
+- `int`: The integer value
+
+Example:
+```solidity
+int amount = bytes2int(amountBytes);
+```
+
+## Script Generation
+
+### new P2PKH
+
+Creates a Pay-to-Public-Key-Hash (P2PKH) script:
+
+```solidity
+bytes script = new P2PKH(pubkey);
+```
+
+Parameters:
+- `pubkey`: The public key to create the script for
+
+Returns:
+- `bytes`: The P2PKH script
+
+Example:
+```solidity
+require(tx.outputs[0].scriptPubKey == new P2PKH(recipient), "Output not spendable by recipient");
+```
+
+### new P2SH
+
+Creates a Pay-to-Script-Hash (P2SH) script:
+
+```solidity
+bytes script = new P2SH(redeemScript);
+```
+
+Parameters:
+- `redeemScript`: The redeem script to hash
+
+Returns:
+- `bytes`: The P2SH script
+
+Example:
+```solidity
+bytes redeemScript = /* complex script */;
+require(tx.outputs[0].scriptPubKey == new P2SH(redeemScript), "Output not using correct P2SH");
+```
+
+### new P2WPKH
+
+Creates a Pay-to-Witness-Public-Key-Hash (P2WPKH) script:
+
+```solidity
+bytes script = new P2WPKH(pubkey);
+```
+
+Parameters:
+- `pubkey`: The public key to create the script for
+
+Returns:
+- `bytes`: The P2WPKH script
+
+Example:
+```solidity
+require(tx.outputs[0].scriptPubKey == new P2WPKH(recipient), "Output not using P2WPKH");
+```
+
+### new P2WSH
+
+Creates a Pay-to-Witness-Script-Hash (P2WSH) script:
+
+```solidity
+bytes script = new P2WSH(witnessScript);
+```
+
+Parameters:
+- `witnessScript`: The witness script to hash
+
+Returns:
+- `bytes`: The P2WSH script
+
+Example:
+```solidity
+bytes witnessScript = /* complex script */;
+require(tx.outputs[0].scriptPubKey == new P2WSH(witnessScript), "Output not using correct P2WSH");
+```
+
+### new P2TR
+
+Creates a Pay-to-Taproot (P2TR) script:
+
+```solidity
+bytes script = new P2TR(internalKey, scriptTree);
+```
+
+Parameters:
+- `internalKey`: The internal key for the Taproot output
+- `scriptTree` (optional): The script tree for the Taproot output
+
+Returns:
+- `bytes`: The P2TR script
+
+Example:
+```solidity
+require(tx.outputs[0].scriptPubKey == new P2TR(internalKey, contractHash), "Output not using correct P2TR");
+```
+
+## Key Functions
+
+### tweakKey
+
+Tweaks a public key with a value:
+
+```solidity
+pubkey tweakedKey = tweakKey(pubkey, tweak);
+```
+
+Parameters:
+- `pubkey`: The public key to tweak
+- `tweak`: The value to tweak with
+
+Returns:
+- `pubkey`: The tweaked public key
+
+Example:
+```solidity
+pubkey expectedKey = tweakKey(internalKey, contractHash);
+require(tx.outputs[0].scriptPubKey == new P2TR(expectedKey), "Output key not correctly tweaked");
+```
+
+### aggregateKeys
+
+Aggregates multiple public keys into a single key:
+
+```solidity
+pubkey aggregatedKey = aggregateKeys(pubkeys);
+```
+
+Parameters:
+- `pubkeys`: Array of public keys to aggregate
+
+Returns:
+- `pubkey`: The aggregated public key
+
+Example:
+```solidity
+pubkey multisigKey = aggregateKeys([alice, bob, charlie]);
+```
+
+## Array Functions
+
+### length
+
+Returns the length of an array:
+
+```solidity
+int arrayLength = array.length;
+```
+
+Example:
+```solidity
+require(pubkeys.length == signatures.length, "Mismatched array lengths");
+```
+
+### concat
+
+Concatenates two arrays:
+
+```solidity
+bytes[] combined = concat(array1, array2);
+```
+
+Parameters:
+- `array1`: The first array
+- `array2`: The second array
+
+Returns:
+- Array containing all elements from both input arrays
+
+Example:
+```solidity
+bytes message = concat(header, payload);
+```
+
+## Utility Functions
+
+### require
+
+Enforces a condition, failing if it's not met:
+
+```solidity
+require(condition, "Error message");
+```
+
+Parameters:
+- `condition`: The condition to check
+- `message` (optional): Error message if the condition fails
+
+Example:
+```solidity
+require(amount > 0, "Amount must be positive");
+```
+
+### min
+
+Returns the minimum of two values:
+
+```solidity
+int minimum = min(a, b);
+```
+
+Parameters:
+- `a`: First value
+- `b`: Second value
+
+Returns:
+- The smaller of the two values
+
+Example:
+```solidity
+int fee = min(calculatedFee, maxFee);
+```
+
+### max
+
+Returns the maximum of two values:
+
+```solidity
+int maximum = max(a, b);
+```
+
+Parameters:
+- `a`: First value
+- `b`: Second value
+
+Returns:
+- The larger of the two values
+
+Example:
+```solidity
+int payout = max(minimumPayout, calculatedPayout);
+```
+
+## Advanced Functions
+
+### verifyTaprootSignature
+
+Verifies a Taproot signature:
+
+```solidity
+bool isValid = verifyTaprootSignature(signature, pubkey, message, leafHash);
+```
+
+Parameters:
+- `signature`: The signature to verify
+- `pubkey`: The public key to verify against
+- `message`: The message that was signed
+- `leafHash`: The leaf hash for the Taproot script path
+
+Returns:
+- `bool`: True if the signature is valid, false otherwise
+
+Example:
+```solidity
+require(verifyTaprootSignature(sig, key, msg, leafHash), "Invalid Taproot signature");
+```
+
+### computeMerkleRoot
+
+Computes a Merkle root from a list of hashes:
+
+```solidity
+bytes32 root = computeMerkleRoot(hashes);
+```
+
+Parameters:
+- `hashes`: Array of hashes to include in the Merkle tree
+
+Returns:
+- `bytes32`: The Merkle root
+
+Example:
+```solidity
+bytes32 expectedRoot = computeMerkleRoot(leafHashes);
+require(contractRoot == expectedRoot, "Invalid Merkle root");
+```
+
+## Conclusion
+
+These built-in functions provide the building blocks for creating sophisticated Bitcoin smart contracts with Arkade Script. By combining these functions with the language's syntax and type system, you can create secure and efficient contracts for a wide range of use cases.
+
+For more advanced use cases, you may also need to use the new opcodes described in the [Arkade Script](/contracts/arkade-script) documentation.
+
+---
+
+<NextButton url="/contracts/smart-contracts-utxo" text="Back to UTXO Smart Contracts" />

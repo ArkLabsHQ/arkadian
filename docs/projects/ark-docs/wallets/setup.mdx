@@ -1,0 +1,65 @@
+---
+title: "Create your Wallet"
+description: "Learn how to integrate Arkade wallets into your application"
+icon: "wallet"
+---
+
+## Prerequisites
+
+<Tip>
+  Ensure you have the following installed before getting started:
+
+  - Node.js (v16 or higher)
+</Tip>
+
+## Installation
+
+```bash
+npm install @arkade-os/sdk
+```
+
+## Arkade Operator Instances
+
+<Info>
+  Connect to the following live Arkade Operator instances. This allows you to test your integration against a live environment without the need for a local setup.
+</Info>
+
+| **Network** | **URL**                                                           | **Status**    |
+| :---------- | :---------------------------------------------------------------- | :------------ |
+| Regtest     | [<u>http://localhost:7070</u>](http://localhost:7070)             | Self-deployed |
+| Mutinynet   | [<u>https://mutinynet.arkade.sh</u>](https://mutinynet.arkade.sh) | ✅ Active      |
+| Signet      | [<u>https://signet.arkade.sh</u>](https://signet.arkade.sh)       | ✅ Active      |
+
+## Basic Setup
+
+<Note>
+  When creating a wallet, you can use an existing private key or generate a new one. For production applications, always use a secure key management solution rather than hardcoded keys.
+</Note>
+
+```typescript
+import { SingleKey, Wallet } from '@arkade-os/sdk'
+
+// use your private key in hex format  
+const identity = SingleKey.fromHex('secret')
+
+// create a wallet instance
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+})
+
+// You can receive bitcoin offchain instantly! No inbound liquidity!
+const address = await wallet.getAddress()
+console.log('Ark Address:', address)
+```
+
+## Next Steps
+
+Now that you have set up your Arkade wallet, you can:
+
+- [Work with Balances and UTXOs](/wallets/balances) - Learn how to manage balances and track payments
+- [Use Ramps](/wallets/ramps) - Understand how to move funds in and out of Arkade
+
+---
+
+<NextButton url="/wallets/balances" text="Working with Balances" />

@@ -1,0 +1,37 @@
+---
+title: "Ramps"
+description: "How Funds move in and out of Arkade"
+icon: "truck-ramp-box"
+---
+
+Arkade is designed as an extension of Bitcoin. To use it, users need a way to take Bitcoin in and, just as importantly, a way to take it back out. These entry and exit points are called **ramps**.
+
+- **Boarding (Onboarding)** into Arkade can happen in two ways:
+  - **Peer-to-peer**: a user can simply receive a VTXO from another Arkade participant, no onchain interaction needed
+  - **From Bitcoin**: a user can send Bitcoin to a dedicated boarding address, which converts the onchain UTXO into an offchain VTXO inside Arkade
+- **Exiting (Offboarding)** returns funds to Bitcoin. This can be done:
+  - **Collaboratively**, with the operator, which is efficient and simple
+  - **Unilaterally**, without the operator, which is always possible but more complex and costly
+
+This dual design ensures flexibility: users can seamlessly enter Arkade either by transacting with peers or by boarding directly from Bitcoin, and they always retain guaranteed exit paths back to the base layer.
+
+
+### Where to go next
+
+Choose the path that fits your role:
+
+<Card title="Wallet & Payments" icon="wallet" horizontal href="/wallets/ramps">
+  Looking to integrate Arkade ramps into your wallet? Head over to the Ramps: Boarding & Exiting section for code examples and detailed workflows.
+</Card>
+
+For developers and learners exploring or extending the Arkade SDKs and APIs:
+
+<Columns cols={2}>
+  <Card title="Boarding Arkade" icon="circle-up" href="/arkd/txs/boarding">
+    How to board Arkade with a UTXO via the Intent System
+  </Card>
+  <Card title="Exiting Arkade" icon="circle-down" href="/arkd/txs/exiting">
+    How to exit Arkade and convert VTXOs to Bitcoin UTXOs
+  </Card>
+</Columns>
+

@@ -1,0 +1,20 @@
+---
+title: "Liveness"
+description: "Discussion of liveness requirements in Arkade, including operator availability and VTXO expiry"
+icon: "heart-pulse"
+---
+
+Arkade's operational model involves two critical liveness requirements: operator availability and user activity management.
+
+## Operator Liveness
+
+Arkade uses a server-client architecture where operator downtime disrupts functionality. When the operator goes offline, users cannot initiate new transactions until the operator returns, but existing funds remain completely safe through presigned exit transactions. Users retain the ability to exit unilaterally at any time, regardless of operator status. The duration of any downtime depends entirely on the operator's infrastructure resilience and recovery capabilities.
+
+## User Liveness (VTXO Expiry)
+
+VTXOs have a built-in [expiry mechanism](/learn/pillars/batch-expiry) that require periodic user attention. As VTXOs age in the virtual mempool, users must periodically renew them through a batch swap to avoid expiry.
+
+Expired VTXOs get swept by the Arkade Operator. While users may recover their funds, they lose the ability to unilaterally enforce ownership claims onchain. This creates natural incentives for users to remain active and settle their preconfirmed VTXOs appropriately.
+
+<Tip>VTXO renewal can be [delegated](/learn/pillars/batch-expiry#delegation-solutions) to a third party without relinquishing fund sovereignty in the process</Tip>
+

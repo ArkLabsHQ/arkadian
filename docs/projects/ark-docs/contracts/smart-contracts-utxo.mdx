@@ -1,0 +1,156 @@
+---
+title: "Smart Contracts in UTXO Model"
+description: "Understanding how smart contracts work in Bitcoin's UTXO paradigm"
+icon: "code"
+---
+
+<Warning>
+  **Experimental Technology**
+
+  All code and concepts presented in this documentation are for exploration and proof of concept purposes only. These examples should not be used in production environments. The Arkade Language ecosystem is under active development and subject to significant changes.
+</Warning>
+
+# Smart Contracts in the UTXO Model
+
+Bitcoin's Unspent Transaction Output (UTXO) model differs fundamentally from the account-based model used in platforms like Ethereum. This difference creates both challenges and opportunities for smart contract development. Arkade builds upon Bitcoin's UTXO model to enable powerful smart contracts while maintaining Bitcoin's security properties.
+
+## The UTXO Paradigm
+
+In the UTXO model:
+
+- Each transaction consumes one or more UTXOs as inputs
+- Each transaction creates one or more new UTXOs as outputs
+- Each UTXO can only be spent once
+- Each UTXO has an associated script that defines the conditions for spending it
+
+This model provides excellent security and scalability but creates challenges for stateful applications. Traditional smart contract platforms use an account model where contract state is stored directly in accounts, but in Bitcoin, we must think differently.
+
+## Commit-Reveal Pattern
+
+The classic approach to smart contracts in Bitcoin uses a commit-reveal pattern:
+
+1. **Commit Phase**: Participants commit to certain values by locking funds in a transaction output with specific spending conditions
+2. **Reveal Phase**: Participants reveal the committed values when spending the output, satisfying the script conditions
+
+Here's a simple example of a hash time-locked contract (HTLC) using the commit-reveal pattern:
+
+```
+# Commit Phase - Lock funds with this script
+OP_IF
+    # Reveal preimage to claim
+    OP_SHA256 <hash> OP_EQUALVERIFY
+    <receiver_pubkey> OP_CHECKSIG
+OP_ELSE
+    # Timeout path
+    <timeout> OP_CHECKLOCKTIMEVERIFY OP_DROP
+    <sender_pubkey> OP_CHECKSIG
+OP_ENDIF
+```
+
+In this pattern:
+
+- The commit phase locks funds that can be claimed by revealing a preimage to a hash
+- The reveal phase occurs when the receiver spends the output by providing the preimage
+
+## State Transitions in UTXO
+
+Traditional Bitcoin script has limited ability to enforce state transitions. When a UTXO is spent, its script can only verify the spending conditions, but cannot directly enforce conditions on the outputs being created.
+
+This limitation makes it difficult to implement contracts that need to maintain state across multiple transactions, such as:
+
+- Decentralized exchanges
+- Payment channels
+- Automated market makers
+- Lending protocols
+
+## Advancing Beyond Commit-Reveal
+
+Arkade Script introduces two key innovations that enable more powerful smart contracts in the UTXO model:
+
+### 1. Transaction Introspection
+
+Transaction introspection allows a script to examine properties of the transaction that's spending it, including the outputs being created. This enables:
+
+- Verification that outputs maintain certain properties
+- Enforcement of state transitions
+- Implementation of covenants (restrictions on how funds can be spent)
+
+Instead of just revealing values during spending, contracts can verify the entire state transition:
+
+```solidity
+// Verify that output 0 maintains the contract with updated state
+require(tx.outputs[0].scriptPubKey == updatedContractScript, "Invalid state transition");
+require(tx.outputs[0].value >= minValue, "Insufficient value in next state");
+```
+
+### 2. Taproot and Key Tweaking
+
+Taproot enables more complex script conditions while maintaining privacy. Combined with key tweaking, it allows:
+
+- Verification that outputs commit to specific contract terms
+- Complex spending conditions hidden in Taproot trees
+- Efficient verification of contract continuation
+
+Example of verifying continuation through key tweaking:
+
+```solidity
+// Verify that output 0 contains a Taproot output with the expected tweaked key
+bytes expectedTweakedKey = tweakKey(internalKey, contractHash);
+require(tx.outputs[0].scriptPubKey == new P2TR(expectedTweakedKey), "Invalid continuation");
+```
+
+## State-Carrying Contract Primitives
+
+With introspection and Taproot, Arkade enables true stateful contracts in the UTXO model through:
+
+### Token Support
+
+Tokens can represent state and ownership within contracts:
+
+- Fungible tokens for value representation
+- Non-fungible tokens for unique assets
+- Token transfers as state transitions
+
+### Recursive Covenants
+
+Recursive covenants allow contracts to enforce conditions on their future spending:
+
+- Self-replicating contract logic
+- Enforced state machine transitions
+- Preservation of invariants across transactions
+
+Example of a recursive covenant:
+
+```solidity
+function updateState(int newValue, signature userSig, pubkey user) {
+  // Verify current state
+  int currentValue = tx.input.current.value;
+  
+  // Verify state transition is valid
+  require(newValue > currentValue, "New value must be greater than current value");
+  
+  // Verify output maintains the same contract with updated state
+  require(tx.outputs[0].scriptPubKey == tx.input.current.scriptPubKey, "Contract script must be preserved");
+  require(tx.outputs[0].value == newValue, "Output must contain new value");
+  
+  // Verify user signature
+  require(checkSig(userSig, user), "Invalid user signature");
+}
+```
+
+## The VTXO Paradigm
+
+Arkade introduces the Virtual Transaction Output (VTXO) paradigm, which combines the security of Bitcoin's UTXO model with the flexibility needed for complex applications:
+
+- **Immediate Execution Path**: Cooperative execution with server co-signature for instant finality
+- **Timelock Unilateral Path**: Fallback mechanism for onchain redemption with timelock constraints
+
+This dual-path approach enables efficient offchain execution while maintaining Bitcoin's security guarantees.
+
+## Conclusion
+
+Smart contracts in the UTXO model require different design patterns than account-based systems, but with Arkade Script's innovations, they can achieve comparable functionality with Bitcoin's security advantages. The following sections will explore the Arkade Language in detail, showing how to build powerful applications using these principles.
+
+---
+
+<NextButton url="/contracts/arkade-script" text="Arkade Script" />

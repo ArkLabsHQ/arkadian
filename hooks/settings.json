@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "hooks/arkadian-env-check-hook.js"
+      }
+    ]
+  }
+}

@@ -1,0 +1,186 @@
+---
+title: "Intent System"
+description: "How Arkade’s intent system coordinates user participation in batch swaps using BIP322"
+icon: "gear"
+---
+
+When a user wants to settle their funds onchain via a [batch swap](/learn/pillars/batch-swaps), they submit an intent to the operator. Arkade intents are valid-but-unmineable Bitcoin transactions that encode an ownership proof of the inputs a user wants to redeem - whether it's offchain VTXOs, an onchain UTXO or [recoverable coins](/learn/pillars/vtxos#vtxo-states) (eg. expired coins or in form of an [Arkade Note](/arkd/components/ark-notes)) - and define the outputs they wish to receive.
+
+Arkade intents are based on [BIP322](/learn/glossary#bip322), a standardized Bitcoin message signing protocol. The system was introduced with the [v0.7.0 arkd release](https://github.com/arkade-os/arkd/releases/tag/v0.7.0?ref=blog.arklabs.xyz).
+
+<Tip>
+  The usage of BIP322 enables users to choose between renewing their [expiring](/learn/pillars/batch-expiry) offchain funds themselves or [delegating](/learn/pillars/batch-expiry#delegation-solutions) the renewal of such VTXOs. The delegated intent workflow can be found under [Intent Delegation](/arkd/components/intent-delegation#intent-delegation-workflow)
+</Tip>
+
+### Intent Structure
+
+This section defines the intent schema that expresses what is being spent and where it goes. It covers the top-level fields, the `Receiver` format (onchain address vs. offchain pubkey), and the `IntentMessage` that captures execution parameters and the intent’s validity window.
+
+<AccordionGroup>
+  <Accordion title="Intent structure">
+    The [`Intent domain`](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/internal/core/domain/intent.go#L9-L15) is a user-submitted presigned Bitcoin transaction that:
+
+    - Contains an `IntentId`(UUID)
+    - Specifies the `Inputs`(VTXOs, UTXOs, or expired coins)
+    - Specifies the `Outputs`(via `Receivers`). Either:
+      - onchain (via `OnchainAddress`)
+      - offchain (via `PubKey`to create new VTXOs)
+    - Contains a `Proof`of ownership of those funds via a `bip322`signature
+    - Contains a `Message` (`bip322 message`) with intent details
+
+    ```typescript
+    type Intent struct {
+        Id        string
+        Inputs    []Vtxo
+        Receivers []Receiver
+        Proof     string
+        Message   string
+    }
+    ```
+  </Accordion>
+  <Accordion title="Receiver Structure">
+    [`Receivers`](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/internal/core/domain/intent.go#L88-L92) is defined via an `Amount`, an `OnchainAddress`and a `PubKey`(of which at least one must be present during Intent submission. Those are used to construct Arkade transaction outputs or direct onchain payments. 
+
+    ```typescript
+    type Receiver struct {
+        Amount         uint64
+        OnchainAddress string // onchain
+        PubKey         string // offchain
+    }
+    ```
+  </Accordion>
+  <Accordion title="IntentMessage Format">
+    [`IntentMessage`](https://github.com/arkade-os/arkd/blob/master/pkg/ark-lib/bip322/message.go#L19-L38) contains intent details in JSON structure:
+
+    - The `Type`indicates if the intent is for renewal or ownership proof to delete another
+    - `InputTapTrees`is the revealed Taproot tree of all inputs of the intent. Revelation occurs like witness data in Bitcoin
+    - `OnchainOutputIndexes`: Indicates which outputs become UTXOs; others are VTXOs
+    - `ValidAt`: Time (seconds) when the intent becomes valid; 0 = valid right away
+    - `ExpireAt`: Time (seconds) when the intent expires; 0 = no expiry
+    - `CosignersPublicKeys`: Public keys signing the VTXO tree; typically one, but can be more to support flexible user needs
+
+    ```typescript
+    type IntentMessage struct {
+        BaseIntentMessage
+        // InputTapTrees is the list of taproot trees associated with the spent inputs
+        // the index of the taproot tree in the list corresponds to the index of the input + 1
+        // (we ignore the first bip322 input, as it is duplicate of the second one)
+        InputTapTrees []string `json:"input_tap_trees"`
+        // OnchainOutputIndexes specifies what are the outputs in the proof tx
+        // that should be considered as onchain by the Ark operator
+        OnchainOutputIndexes []int `json:"onchain_output_indexes"`
+        // ValidAt is the timestamp (in seconds) at which the proof should be considered valid
+        // if set to 0, the proof will be considered valid indefinitely or until ExpireAt is reached
+        ValidAt int64 `json:"valid_at"`
+        // ExpireAt is the timestamp (in seconds) at which the proof should be considered invalid
+        // if set to 0, the proof will be considered valid indefinitely
+        ExpireAt int64 `json:"expire_at"`
+        // CosignersPublicKeys contains the public keys of the cosigners
+        // if the outputs are not registered in the proof or all the outputs are onchain, this field is not required
+        // it is required only if one of the outputs is offchain
+        CosignersPublicKeys []string `json:"cosigners_public_keys"`
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Intent Lifecycle 
+
+The Arkade event stream (`GetEventStream`) is a server-side streaming RPC method in the [`ArkService`](/arkd/core-services/ark-service) that provides real-time batch processing coordination events to clients including batch start, finalization, and failure notifications. The server uses this stream to indicate the next required action and corresponding API call. The full Intent lifecycle is as follows:
+
+<Steps>
+  <Step title="Create a BIP322 Signature" titleSize="h3">
+    Intents use BIP322 message signing protocol for proving ownership of coins.
+
+    <Accordion title="Code example: BIP322 signature implementation from the TS-SDK">
+      ```typescript
+       export function create(
+        message: string,
+        inputs: TransactionInput[],
+        outputs: TransactionOutput[] = []
+      ): FullProof {
+        if (inputs.length == 0) throw ErrMissingInputs;
+        if (!validateInputs(inputs)) throw ErrMissingData;
+        if (!validateOutputs(outputs)) throw ErrMissingData;
+      
+        // create the initial transaction to spend
+        const toSpend = craftToSpendTx(message, inputs[0].witnessUtxo.script);
+      
+        // create the transaction to sign
+        return craftToSignTx(toSpend, inputs, outputs);
+      }
+      ```
+
+      Source: [TS-SDK](https://github.com/arkade-os/ts-sdk/blob/a71959317f054a80b97f78e51d394219c986f272/src/bip322/index.ts#L58-L71)
+    </Accordion>
+    The `create` function takes a string message corresponding to the associated action described below ("Register" or "Delete").
+  </Step>
+  <Step title="Register an Intent" titleSize="h3">
+    The core of intent registration is the `RegisterIntentRequest` which contains a `Bip322Signature`field and an [intent message](/arkd/components/intent-system#intentmessage-format):
+
+    <Accordion title="Code example: RegisterIntentRequest">
+      ```typescript
+      message RegisterIntentRequest {
+      // BIP322 signature embeds the outpoints to be spent and new ones to be created, as well as the
+      // the proof of funds.
+      Bip322Signature intent = 1;
+      }
+      message RegisterIntentResponse {
+      string intent_id = 1;
+      }
+      ```
+    </Accordion>
+    <Accordion title="Intent message format">
+      The [intent message structure](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-lib/bip322/message.go#L19-L38) includes:
+
+      - `InputTapTrees` - Taproot trees for spent inputs
+      - `OnchainOutputIndexes` - Which outputs should be considered onchain
+      - `ValidAt`/`ExpireAt` - Timestamp validity windows
+      - `CosignersPublicKeys` - Required for offchain outputs
+
+      <Note>
+        Messages are JSON string encoded with a static format, making the order of the fields relevant
+      </Note>
+    </Accordion>
+    <Accordion title="Example: intent message">
+      ```typescript
+         const message = {
+             type: "register",
+             input_tap_trees: inputTapTrees,
+             onchain_output_indexes: onchainOutputsIndexes,
+             valid_at: nowSeconds,
+             expire_at: nowSeconds + 2 * 60, // valid for 2 minutes
+             cosigners_public_keys: cosignerPubKeys,
+         };
+      ```
+
+      Source: [Typescript SDK](https://github.com/arkade-os/ts-sdk/blob/a71959317f054a80b97f78e51d394219c986f272/src/wallet/wallet.ts#L1124-L1131)
+    </Accordion>
+    The server then responds with a `RegisterIntentResponse`containing an `intent_id`string for tracking.
+  </Step>
+  <Step title="Confirm Registration" titleSize="h3">
+    After receiving a `BatchStartedEvent`containing their intent ID hash, clients must call `ConfirmRegistration`with a `ConfirmRegistrationRequest`containing the `intent_id`to confirm participation. The server responds with an empty `ConfirmRegistrationResponse`.
+  </Step>
+  <Step title="Delete Intent" titleSize="h3">
+    The `DeleteIntent`method accepts a `DeleteIntentRequest`with a `Bip322Signature`proof that demonstrates ownership of any input VTXOs from the original intent. The server responds with an empty `DeleteIntentResponse`upon successful deletion.
+
+    <Accordion title="Code example: delete from Typescript SDK">
+      ```typescript
+      const message = {
+        type: "delete",
+        expire_at: nowSeconds + 2 * 60, // valid for 2 minutes
+      }
+      ```
+
+      Source: [Typescript SDK](https://github.com/arkade-os/ts-sdk/blob/a71959317f054a80b97f78e51d394219c986f272/src/wallet/wallet.ts#L1153-L1156)
+    </Accordion>
+  </Step>
+</Steps>
+
+### **Recovery Mechanisms**
+
+The intent system provides additional options for edge cases like [recoverable VTXOs](/learn/pillars/vtxos#vtxo-states):
+
+- **Expired VTXOs**: Recover unspent and swept VTXOs ([`recoverVtxos`](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-cli/main.go#L423-L439))
+- **Note Redemption**: Redeem Arkade notes [(`redeemNotes`)](https://github.com/arkade-os/arkd/blob/4cabf95f33b0196c47518425e92efc089636aa20/pkg/ark-cli/main.go#L441-L459)
+- **Sub-dust VTXOs**: Amounts below the Bitcoin dust threshold ([`SubDustScript](https://github.com/arkade-os/arkd/blob/1d45ead6c3ec18bfe281baae5093000f56ffff3a/internal/core/application/service.go#L2257-L2258))

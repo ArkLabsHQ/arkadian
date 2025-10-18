@@ -1,0 +1,14 @@
+---
+icon: "clouds"
+title: "What is the Virtual Mempool?"
+description: "Explains Arkade's offchain execution layer."
+---
+
+ The [virtual mempool](/learn/pillars/virtual-mempool) is Arkade's offchain execution layer, a dynamic coordination environment for Bitcoin-native applications.
+
+It powers real-time transaction flows that:
+- Emulate Bitcoin’s UTXO model through Virtual Transaction Outputs (VTXOs)
+- Execute in parallel without global state bottlenecks
+- Let users control when (and if) to anchor to the Bitcoin blockchain (["dynamic settlement"](/learn/security/transaction-finality#dynamic-settlement))
+
+Arkade’s execution layer is designed for scale. Transactions form a directed acyclic graph (DAG) that enables independent branches to execute simultaneously. Execution is instant, and settlement is batched onchain.

@@ -1,0 +1,315 @@
+---
+project_id: ark-infra
+default_sections_by_intent:
+  qna:        ["system/project_overview.md", "testing/getting-started.md"]
+  qa:         ["testing/getting-started.md", "testing/validation.md"]
+  dev:        ["sop/deployment-workflow.md", "system/opentofu-reference.md"]
+  monitoring: ["testing/operations.md", "sop/monitoring-guide.md"]
+aliases:
+  overview: ["system/project_overview.md", "system/architecture.md"]
+  deploy: ["testing/deployment-guide.md", "sop/deployment-workflow.md"]
+  aws: ["system/aws-infrastructure.md", "system/networking.md"]
+  security: ["system/security.md", "sop/secrets-management.md"]
+scripts:
+  tofu_init: "cd docker-compose/opentofu && tofu init"
+  tofu_plan: "make tofu-plan ENV=<env>"
+  tofu_apply: "make tofu-apply ENV=<env>"
+  compose_up: "make compose-up-attach ENV=<env>"
+  ssm_session: "make ssm-session ENV=<env>"
+---
+
+# Ark Infra — Project Index
+
+**ark-infra** is the single source of truth for all Ark infrastructure deployments across environments (regtest, staging, production) using OpenTofu and Docker Compose on AWS.
+
+## Directory Structure
+
+### `system/` — System Architecture & Infrastructure
+Core infrastructure documentation:
+
+- **project_overview.md** — What ark-infra is, multi-environment strategy, services
+- **architecture.md** — AWS layers, service architecture, data flow, no-SSH design
+- **aws-infrastructure.md** — VPC, EC2, RDS, ElastiCache, ECR, CloudWatch
+- **networking.md** — VPC endpoints, security groups, ingress/egress flow
+- **security.md** — SSM access, secrets management, network isolation
+- **opentofu-reference.md** — Variables, outputs, state management
+
+### `testing/` — Deployment & Operations
+Practical guides for deployment and daily operations:
+
+- **getting-started.md** — 5-minute regtest deployment
+- **deployment-guide.md** — Complete deployment for regtest, staging, production
+- **validation.md** — Post-deployment validation checklists
+- **operations.md** — Daily operations, service management, monitoring
+- **troubleshooting.md** — Common issues and solutions
+
+### `sop/` — Standard Operating Procedures
+Step-by-step procedures for infrastructure tasks:
+
+- **deployment-workflow.md** — End-to-end deployment process
+- **secrets-management.md** — Managing secrets with AWS Secrets Manager/KMS
+- **monitoring-guide.md** — Monitoring stack, metrics, alerts
+- **disaster-recovery.md** — Backup strategies, recovery procedures
+- **scaling-guide.md** — Sizing recommendations and scaling procedures
+
+### `tasks/` — Infrastructure Plans & Changes
+Infrastructure changes, migrations, and improvements.
+
+### `change-log/` — Recent Changes
+Curated summaries of infrastructure changes.
+
+### `pr-report/` — Pull Request Summaries
+Analysis and summaries of pull requests.
+
+---
+
+## Key Concepts
+
+### Multi-Environment Design
+**Three isolated environments using OpenTofu workspaces:**
+- **regtest**: Development/testing with Nigiri Bitcoin network
+- **staging**: Pre-production with real Bitcoin node
+- **prod**: Production with full Bitcoin mainnet node and backups
+
+### Infrastructure as Code
+**OpenTofu (Terraform fork) provisions:**
+- VPC with public/private subnets
+- EC2 instance with Docker Compose
+- RDS PostgreSQL (3 databases)
+- ElastiCache Redis
+- ECR repositories
+- VPC endpoints for private AWS access
+- CloudWatch monitoring
+- IAM roles and security groups
+
+### Docker Compose Orchestration
+**Application services on EC2:**
+- **Ingress**: cloudflared (tunnel) → traefik (reverse proxy)
+- **Core**: arkd, arkd-wallet, kms-unlocker, nbxplorer, bitcoind (prod only)
+- **Telemetry**: otel-collector, prometheus, grafana, loki, jaeger, alertmanager
+
+### No-SSH Architecture
+**All access via AWS Systems Manager (SSM):**
+- No port 22 exposure
+- No SSH key management
+- Full session audit trail
+- Port forwarding for localhost-only services
+
+### Automatic Operations
+**Services that run without manual intervention:**
+- **kms-unlocker**: Fetches password from Secrets Manager, unlocks wallet, backs up seed
+- **nbxplorer**: Indexes Bitcoin blockchain automatically
+- **traefik**: Handles SSL certificates with Let's Encrypt
+- **cloudflared**: Maintains secure tunnel to Cloudflare
+
+---
+
+## Quick Reference
+
+### Environment Setup
+```bash
+# Prerequisites
+# 1. OpenTofu installed
+# 2. AWS credentials configured
+# 3. Required secrets available
+
+# Initialize OpenTofu
+cd docker-compose/opentofu
+tofu init
+
+# Create workspace
+make tofu-workspace-new NAME=regtest
+
+# Switch workspace
+make tofu-workspace-select NAME=regtest
+```
+
+### Deployment Commands
+```bash
+# Plan infrastructure
+make tofu-plan ENV=regtest
+
+# Apply infrastructure (interactive)
+make tofu-apply ENV=regtest
+
+# Deploy with secrets
+make tofu-apply ENV=prod \
+  -var="slack_api_url=..." \
+  -var="cloudflare_tunnel_token=..." \
+  -var="kms_unlocker_secret=..."
+
+# Start services
+make compose-up-attach ENV=regtest
+
+# Check service status
+make compose-ps ENV=regtest
+```
+
+### Access & Monitoring
+```bash
+# SSM session (interactive shell)
+make ssm-session ENV=prod
+
+# Port forwarding (Grafana)
+make ssm-port-forward ENV=prod LOCAL=3333 REMOTE=3333
+
+# View logs
+make compose-logs ENV=prod SERVICE=arkd
+
+# Check arkd status
+make arkd-wallet-balance ENV=prod
+```
+
+### Maintenance Commands
+```bash
+# List EC2 snapshots
+make list-snapshots ENV=prod
+
+# Backup/restore OpenTofu state
+make backup-state ENV=prod
+make restore-state ENV=prod FILE=backup.tfstate
+
+# Update services
+make compose-pull ENV=prod
+make compose-up-recreate ENV=prod
+```
+
+---
+
+## Deployed Services
+
+### Core Services
+- **arkd** (7070) — Main Ark daemon (REST + gRPC API)
+- **arkd-wallet** (6060) — Wallet sidecar (auto-unlocked)
+- **kms-unlocker** — Automatic wallet unlock with AWS KMS
+- **nbxplorer** — Bitcoin blockchain indexer (automatic)
+- **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
+
+### Ingress & Routing
+- **cloudflared** — Cloudflare Tunnel for secure ingress
+- **traefik** (443, 8080*) — Reverse proxy + SSL termination
+
+### Data Stores
+- **PostgreSQL** (RDS) — projection, event, nbxplorer databases
+- **Redis** (ElastiCache) — Caching and queues
+
+### Telemetry Stack
+- **otel-collector** — Metrics collection hub
+- **prometheus** (9090) — Metrics storage
+- **grafana** (3333*) — Dashboards and visualization
+- **loki** — Log aggregation
+- **jaeger** (16686) — Distributed tracing
+- **alertmanager** (9093) — Alert routing to Slack
+- **cadvisor** — Container metrics
+
+**(*) = Localhost-only, access via SSM port forwarding**
+
+---
+
+## AWS Infrastructure
+
+### Networking
+- **VPC**: 10.10.0.0/16
+- **Public Subnets**: 10.10.1.0/24 (NAT Gateway, VPC endpoints)
+- **Private Subnets**: 10.10.101.0/24 (EC2, RDS, Redis)
+- **VPC Endpoints**: SSM, ECR, CloudWatch, S3 (no NAT charges)
+
+### Security Groups
+- **app_sg**: EC2 instance
+- **rds_sg**: PostgreSQL instances
+- **redis_sg**: ElastiCache
+- **vpc_endpoints_sg**: VPC endpoint access
+
+### IAM Roles
+- **EC2 Instance Role**: SSM, ECR, Secrets Manager, CloudWatch
+- **ECS Task Execution Role**: For future ECS support
+
+---
+
+## Environment Comparison
+
+| Aspect | Regtest | Staging | Production |
+|--------|---------|---------|------------|
+| **Bitcoin Node** | External (Nigiri) | bitcoind | bitcoind |
+| **EBS Volume** | No | Optional | Yes (required) |
+| **Instance Type** | t3.small | t3.medium | t3.large+ |
+| **RDS** | t3.micro | t3.small | db.t3.medium+ |
+| **Redis** | t3.micro | t3.small | t3.medium+ |
+| **Fast Sync** | N/A | AssumeUTXO | AssumeUTXO |
+| **Backups** | No | Optional | Automated |
+| **Multi-AZ** | No | No | Optional |
+| **Monitoring** | Basic | Full | Full + Alerts |
+
+---
+
+## Configuration Files
+
+### OpenTofu
+- `opentofu/main.tf` — Main infrastructure definition
+- `opentofu/variables.tf` — Variable definitions
+- `opentofu/outputs.tf` — Output values
+- `opentofu/ecr.tf` — ECR repositories
+- `opentofu/cloudwatch.tf` — Monitoring setup
+
+### Environments
+- `environments/regtest.tfvars` — Regtest configuration
+- `environments/prod.tfvars` — Production template (secrets via -var flags)
+
+### Docker Compose
+- `compose/docker-compose.ark.regtest.yaml` — Regtest services
+- `compose/docker-compose.ark.prod.yaml` — Production services
+
+### Scripts
+- `scripts/user-data-prod.sh` — EC2 initialization for production
+- `scripts/user-data-regtest.sh` — EC2 initialization for regtest
+
+---
+
+## Security Features
+
+### No Public Access
+- Private subnets for all application resources
+- No SSH (port 22) access
+- Admin APIs bound to localhost only
+- Access via SSM Session Manager with audit logging
+
+### Secrets Management
+- Wallet password: AWS Secrets Manager (KMS encrypted)
+- Wallet seed: Auto-backed up to Secrets Manager
+- Environment secrets: Passed via -var flags (never committed)
+- SSL certificates: Automatic via Let's Encrypt
+
+### Network Isolation
+- VPC endpoints for AWS service access (no internet routing)
+- NAT Gateway only for required external traffic
+- Security groups with least-privilege rules
+- CloudWatch audit logs for all SSM sessions
+
+---
+
+## Bitcoin Fast Sync Options
+
+### Option A: Pre-synced EBS Volume
+Attach existing synced volume (fastest, same AZ).
+
+### Option B: AssumeUTXO Snapshot
+Download UTXO snapshot for fast sync (~20 min vs days).
+```bash
+make tofu-apply ENV=prod -var="utxo_set_url=https://..."
+```
+
+### Option C: EBS Snapshot Restore
+Restore from point-in-time snapshot (portable across AZs/regions).
+
+---
+
+## Documentation Size Guidelines
+
+To keep context lean for Claude agents:
+
+- **usage/how-to**: ≤ 100-120 lines
+- **architecture**: 400-700 words
+- **deployment guide**: 600-1000 words
+- **SOP procedures**: ≤ 120 lines
+
+Keep files focused and cross-reference when needed.

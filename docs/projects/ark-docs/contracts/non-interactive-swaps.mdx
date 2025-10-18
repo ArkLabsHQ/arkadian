@@ -1,0 +1,152 @@
+---
+title: "Non-Interactive Swaps"
+description: "Advanced contract patterns for non-interactive asset swaps in Arkade"
+icon: "arrows-rotate"
+---
+
+Non-interactive swaps allow users to exchange assets without requiring both parties to be online simultaneously. This pattern leverages Arkade Script's advanced capabilities to create secure, trustless swap mechanisms.
+
+## Overview
+
+Unlike traditional atomic swaps that require coordination between parties, non-interactive swaps allow:
+
+- One party to create a swap offer that can be taken by anyone
+- Takers to complete the swap at their convenience without the maker being online
+- Automatic verification of swap conditions without trusted third parties
+
+## Contract Architecture
+
+The non-interactive swap contract uses a combination of:
+
+1. **Hash Preimage Verification** - To ensure the correct asset is being swapped
+2. **Transaction Introspection** - To verify output amounts and destinations
+3. **Timelock Mechanisms** - To allow the maker to reclaim their assets after expiration
+
+## Example Implementation
+
+```solidity
+// Contract configuration options
+options {
+  server = server;
+  exit = 144;
+}
+
+contract NonInteractiveSwap(
+  pubkey maker,
+  pubkey server,
+  bytes32 assetIdHash,
+  int amount,
+  int expiryTime
+) {
+  // Maker can cancel the swap after expiry
+  function cancel(signature makerSig) {
+    require(tx.time >= expiryTime, "Swap has not expired yet");
+    require(checkSig(makerSig, maker), "Invalid maker signature");
+  }
+  
+  // Anyone can complete the swap by providing the correct asset
+  function swap(bytes32 assetId, signature takerSig, pubkey taker) {
+    // Verify the asset being provided matches what the maker requested
+    require(sha256(assetId) == assetIdHash, "Asset ID doesn't match requested asset");
+    
+    // Verify the output contains the correct amount going to the maker
+    require(tx.outputs[0].value >= amount, "Output amount too small");
+    require(tx.outputs[0].asset == assetId, "Output asset incorrect");
+    
+    // Verify the output is spendable by the maker
+    bytes makerScript = new P2PKH(maker);
+    require(tx.outputs[0].scriptPubKey == makerScript, "Output not spendable by maker");
+    
+    // Verify the taker signature
+    require(checkSig(takerSig, taker), "Invalid taker signature");
+  }
+}
+```
+
+## Advanced Features
+
+### Partial Fills
+
+Non-interactive swaps can be extended to support partial fills, allowing multiple takers to each fulfill a portion of the swap:
+
+```solidity
+function partialSwap(bytes32 assetId, int partialAmount, signature takerSig, pubkey taker) {
+  // Verify the asset being provided matches what the maker requested
+  require(sha256(assetId) == assetIdHash, "Asset ID doesn't match requested asset");
+  
+  // Verify the partial amount is reasonable
+  require(partialAmount > 0, "Partial amount must be positive");
+  require(partialAmount <= amount, "Partial amount too large");
+  
+  // Calculate the proportional output based on the partial amount
+  int proportionalOutput = (partialAmount * totalOutput) / amount;
+  
+  // Verify the output contains the correct amount going to the maker
+  require(tx.outputs[0].value >= proportionalOutput, "Output amount too small");
+  require(tx.outputs[0].asset == assetId, "Output asset incorrect");
+  
+  // Verify the output is spendable by the maker
+  bytes makerScript = new P2PKH(maker);
+  require(tx.outputs[0].scriptPubKey == makerScript, "Output not spendable by maker");
+  
+  // Verify the change output returns to a new swap contract with updated amount
+  int remainingAmount = amount - partialAmount;
+  if (remainingAmount > 0) {
+    // Verify there's a change output with the remaining swap contract
+    // Implementation details omitted for brevity
+  }
+  
+  // Verify the taker signature
+  require(checkSig(takerSig, taker), "Invalid taker signature");
+}
+```
+
+### Price Oracles
+
+For swaps that need to execute at market price rather than a fixed rate, oracle integration can be added:
+
+```solidity
+function marketSwap(bytes32 assetId, int price, signature oracleSig, pubkey oracle, signature takerSig, pubkey taker) {
+  // Verify the asset being provided matches what the maker requested
+  require(sha256(assetId) == assetIdHash, "Asset ID doesn't match requested asset");
+  
+  // Verify the oracle signature on the price data
+  bytes message = sha256(assetId + int2bytes(tx.time));
+  require(checkSigFromStack(oracleSig, oracle, message), "Invalid oracle signature");
+  
+  // Calculate the expected amount based on the oracle price
+  int expectedAmount = amount * price / 10000; // Assuming price is in basis points
+  
+  // Verify the output contains the correct amount going to the maker
+  require(tx.outputs[0].value >= expectedAmount, "Output amount too small");
+  require(tx.outputs[0].asset == assetId, "Output asset incorrect");
+  
+  // Verify the output is spendable by the maker
+  bytes makerScript = new P2PKH(maker);
+  require(tx.outputs[0].scriptPubKey == makerScript, "Output not spendable by maker");
+  
+  // Verify the taker signature
+  require(checkSig(takerSig, taker), "Invalid taker signature");
+}
+```
+
+## Security Considerations
+
+When implementing non-interactive swaps, consider these security aspects:
+
+1. **Frontrunning Protection** - Consider mechanisms to prevent frontrunning of attractive swap offers
+2. **Fee Management** - Ensure the contract accounts for transaction fees to avoid dust outputs
+3. **Replay Protection** - Implement nonces or other mechanisms to prevent replay attacks
+4. **Timelock Selection** - Choose appropriate timelocks that balance security with capital efficiency
+
+## Future Directions
+
+The Arkade ecosystem is exploring several enhancements to non-interactive swaps:
+
+- **Multi-asset Swaps** - Supporting swaps involving more than two assets
+- **Conditional Swaps** - Swaps that execute only when certain external conditions are met
+- **Privacy Enhancements** - Techniques to improve the privacy of swap participants
+
+---
+
+<NextButton url="/contracts/synthetic-assets" text="Synthetic Assets" />

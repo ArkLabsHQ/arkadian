@@ -1,0 +1,37 @@
+---
+title: "Connectors"
+description: "Ensuring atomic execution across batches"
+icon: "link"
+---
+
+
+
+Connector outputs are dust-amount outputs created in commitment transactions specifically to serve as inputs for [forfeit transactions](/learn/pillars/batch-swaps#forfeit-transactions). They ensure atomicity of the swap procedure.
+
+For each VTXO swap in a commitment transaction, the operator creates a connector output. 
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/connectorlight.png" 
+    alt="Spending conditions"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/connectordark.png" 
+    alt="Spending conditions"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+The connector output holds a similar tree structure to the batch output, mapping one dust output to each VTXO that requires forfeit protection. It is constructed and owned solely by the Arkade operator.
+
+The connector output is meant to be spent in a forfeit transaction to ensure that a swap is conditional on the commitment transaction itself being confirmed onchain.
+
+<Tip>
+  A connector output is not exclusively for the purpose of a batch swap: it is also used to allow VTXOs to be swapped for an onchain UTXO during an exit.
+</Tip>

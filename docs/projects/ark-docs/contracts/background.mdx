@@ -1,0 +1,42 @@
+---
+title: "Background"
+description: "Understand Arkade’s foundation: Bitcoin Script, UTXOs, VTXOs, and the limits of preconfirmation"
+icon: "book"
+---
+
+### Bitcoin Script, the UTXO Model and its limitations
+
+Bitcoin tracks ownership through Unspent Transaction Outputs (UTXOs). Each UTXO locks value to a script, typically requiring a signature to spend. Transactions consume UTXOs as inputs and create new ones as outputs. This model is local
+and composable: validation doesn't depend on a global state. It supports a [directed acyclic graph (DAG) of transactions](/learn/pillars/virtual-mempool#dag-structure).
+
+However, UTXOs must be confirmed onchain. This means waiting for block inclusion. Further, transactions in the Bitcoin mempool have ancestor limits and other relay policies that can limit UTXO contracts.
+
+<Card icon="bitcoin-sign" horizontal href="/contracts/smart-contracts-utxo">
+  Dive deeper into Bitcoin's UTXO paradigm, its commit-reveal pattern and how state transitions work
+</Card>
+
+### Bitcoin Mempool and its Fee Market
+
+In Bitcoin, pending transactions wait in the mempool. Miners choose which ones to include, prioritizing by fee per byte. Since block space is scarce and block times are slow (10 min), users compete for inclusion into blocks through a fee auction. This introduces unpredictable costs and results in payments being slow and expensive. Altogether, this rules our efficient onchain contract execution entirely, making **Bitcoin unreliable for real-time applications**.
+
+### Arkade's Offchain Execution Layer
+
+Arkade addresses Bitcoin's scalability and cost limitations through virtual UTXOs (VTXOs). Users transact with VTXOs just like regular UTXOs: spend them as inputs, create new ones as outputs. The key difference is that these transactions happen instantly offchain, bypassing mempool congestion and fees. VTXOs follow Bitcoin's UTXO model,  including local validation, composability, and DAG structure, but exist in Arkade’s virtual mempool, where they are tracked and validated by an operator. This allows users to transact instantly, with optional settlement to Bitcoin.
+
+Instead of publishing every transaction onchain, Arkade uses a [batch settlement model](/learn/pillars/batch-swaps) that aggregates multiple offchain transfers into a single Bitcoin transaction. The operator collects and cosigns all valid VTXO transfers, then settles the entire batch in one block. This [transaction batching](/learn/pillars/batch-outputs) compresses hundreds of individual transactions into a single anchor, drastically reducing both fees and block space usage.
+
+### TL;DR: Solving Bitcoin’s Onchain Limitations
+
+Arkade’s design addresses the core limitations of BItcoin L1: 
+
+- **Latency**: VTXOs can be created and spent offchain with instant preconfirmation, bypassing block confirmation delays
+- **Fee Volatility**: Users are insulated from onchain fee spikes; batch settlement spreads cost across many participants
+- **Mempool Constraints**: VTXO transfers live outside the Bitcoin mempool; no ancestor limits, pinning attacks, or RBF rules
+- **Composable Contracts**: Arkade enables chaining and multi-party coordination via presigned, verifiable offchain commitments, preserving Bitcoin’s DAG structure.
+
+Together, these properties enable offchain composability, speed, and scalability, all within Bitcoin’s trust-minimized model. VTXOs are cryptographically tied to actual Bitcoin UTXOs via commitment transactions, and users can always unilaterally exit to L1 using presigned transactions. The operator cannot steal funds - they can only facilitate or delay transactions, with misbehavior being [detectable and punishable](learn/security/economic-security).
+
+
+<Tip>
+  Arkade's preconfirmation offers speed without Bitcoin-level finality. Security improves only once VTXOs are settled onchain in the next Bitcoin block.
+</Tip>

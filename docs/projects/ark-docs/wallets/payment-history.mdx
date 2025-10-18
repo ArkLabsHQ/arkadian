@@ -1,0 +1,158 @@
+---
+title: "Payment History"
+description: "Learn how to retrieve and work with transaction history in Arkade"
+icon: "list"
+---
+
+Arkade provides a simple way to retrieve transaction history for your wallet. This includes both onchain and offchain transactions, giving you a comprehensive view of all wallet activity.
+
+## Retrieving Transaction History
+
+You can retrieve the complete transaction history for your wallet with a single API call:
+
+```typescript
+// Get transaction history
+const history = await wallet.getTransactionHistory()
+console.log('Number of transactions:', history.length)
+
+history.forEach((tx, index) => {
+  console.log(`Transaction #${index + 1}:`);
+  console.log(`  Type: ${tx.type}`);
+  console.log(`  Amount: ${tx.amount} sats`);
+  console.log(`  Settled: ${tx.settled ? 'Yes' : 'No'}`);
+  console.log(`  Created At: ${tx.createdAt}`);
+  
+  // boarding tx
+  if (tx.key.boardingTxid) {
+    console.log(`  Boarding TXID: ${tx.key.boardingTxid}`);
+  }
+  // offchain tx
+  if (tx.key.arkTxid) {
+    console.log(`  Ark TXID: ${tx.key.arkTxid}`);
+  }
+  // commitment tx
+  if (tx.key.commitmentTxid) {
+    console.log(`  Commitment TXID: ${tx.key.commitmentTxid}`);
+  }
+}); 
+```
+
+## Transaction Types
+
+The transaction history includes various types of transactions:
+
+- **Received payments** - Both onchain and offchain payments received
+- **Sent payments** - Payments you've made to others
+- **Boarding transactions** - When you've moved funds into Arkade
+- **Exit transactions** - When you've moved funds out of Arkade
+
+## Filtering Transactions
+
+You might want to filter transactions based on certain criteria:
+
+```typescript
+// Get all transactions
+const allTransactions = await wallet.getTransactionHistory();
+
+// Filter for received transactions only
+const receivedTransactions = allTransactions.filter(
+  tx => tx.type === TxType.TxReceived
+);
+
+// Filter for sent transactions only
+const sentTransactions = allTransactions.filter(
+  tx => tx.type === TxType.TxSent
+);
+
+// Filter for settled transactions only
+const settledTransactions = allTransactions.filter(
+  tx => tx.settled === true
+);
+
+// Filter for transactions above a certain amount
+const largeTransactions = allTransactions.filter(
+  tx => tx.amount > 100000 // 100,000 sats
+);
+
+console.log('Received transactions:', receivedTransactions.length);
+console.log('Sent transactions:', sentTransactions.length);
+console.log('Settled transactions:', settledTransactions.length);
+console.log('Large transactions:', largeTransactions.length);
+```
+
+## Displaying Transaction History
+
+When displaying transaction history in your application, you might want to format the data for better readability:
+
+```typescript
+// Format transaction for display
+function formatTransaction(tx) {
+  const date = new Date(tx.createdAt);
+  const formattedDate = date.toLocaleDateString();
+  const formattedTime = date.toLocaleTimeString();
+  
+  return {
+    type: tx.type === TxType.TxReceived ? 'Received' : 'Sent',
+    amount: `${tx.amount} sats`,
+    formattedAmount: `${(tx.amount / 100000000).toFixed(8)} BTC`,
+    date: formattedDate,
+    time: formattedTime,
+    status: tx.settled ? 'Settled' : 'Preconfirmed',
+    id: tx.key.arkTxid || tx.key.boardingTxid || 'N/A'
+  };
+}
+
+// Format all transactions
+const formattedTransactions = allTransactions.map(formatTransaction);
+
+// Now you can use formattedTransactions in your UI
+console.log('Formatted transactions:', formattedTransactions);
+```
+
+## Exporting Transaction History
+
+For accounting or record-keeping purposes, you might want to export the transaction history:
+
+```typescript
+// Export transaction history to CSV
+function exportToCsv(transactions) {
+  const headers = ['Type', 'Amount (sats)', 'Amount (BTC)', 'Date', 'Time', 'Status', 'Transaction ID'];
+  
+  const rows = transactions.map(tx => {
+    const formatted = formatTransaction(tx);
+    return [
+      formatted.type,
+      tx.amount,
+      formatted.formattedAmount,
+      formatted.date,
+      formatted.time,
+      formatted.status,
+      formatted.id
+    ];
+  });
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+  
+  return csvContent;
+}
+
+const csv = exportToCsv(allTransactions);
+console.log('CSV export:', csv);
+
+// In a browser environment, you could trigger a download
+// const blob = new Blob([csv], { type: 'text/csv' });
+// const url = URL.createObjectURL(blob);
+// const a = document.createElement('a');
+// a.href = url;
+// a.download = 'transaction_history.csv';
+// a.click();
+```
+
+---
+
+<PreviousButton url="/wallets/detecting-payments" text="Detecting Payments" />
+
+<NextButton url="/wallets/ramps" text="Ramps" />

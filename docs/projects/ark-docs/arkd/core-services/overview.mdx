@@ -1,0 +1,25 @@
+---
+title: "Overview"
+description: "The following provides an overview of the main gRPC services that power the arkd system."
+icon: "list"
+---
+
+
+The Arkade API layer is composed of two complementary services through which clients interact with the Arkade Operator:
+
+- [`ArkService`](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/api-spec/protobuf/ark/v1/service.proto#L125) – the primary access point for real-time coordination, batch participation, intent management, and transaction submission. It enables clients to register intents, coordinate multi-party batches, sign with MuSig2, and spend VTXOs without relinquishing control of their funds. Event-driven endpoints like `GetEventStream` and `GetTransactionsStream` let clients stay synchronized with network activity.
+
+- [`IndexerService`](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/api-spec/protobuf/ark/v1/indexer.proto#L121) – optimized for historical queries, auditing, and VTXO tree navigation. It provides functions for VTXO lifecycle analysis, chain tracing, sweep monitoring, and connector tree exploration. Use it to reconstruct offchain state, audit fund flows, and handle data-rich workflows.
+
+These two core services handle all client interactions including batch processing, VTXO management, transaction submission, and data querying.
+
+All endpoints are available over gRPC and REST, follow consistent RESTful conventions with pagination, and use BIP322-compatible signatures for secure proof of ownership. 
+
+Builders can combine real-time streams with script-level subscriptions for reactive applications, and rely on indexer queries for lifecycle analysis and efficient VTXO tree lookups (`GetVtxoTreeLeaves` vs. full `GetVtxoTree`). Batch sweep tracking provides visibility into operator claims and onchain unroll scenarios.
+
+The **complete interfaces** for both services are defined in the [protocol buffer specification](https://github.com/arkade-os/arkd/tree/master/api-spec/protobuf) and are available in the buf.build registry: 
+
+* [buf.build ArkService interface](https://buf.build/arkade-os/arkd/docs/fcb9f21ef69836e8ddadc2d070deb0c5be139336:ark.v1#ark.v1.ArkService) [(+ API reference)](https://docs.arklabs.xyz/integrate/api#tag/ArkService)
+* [buf.build IndexerService interface](https://buf.build/arkade-os/arkd/docs/fcb9f21ef69836e8ddadc2d070deb0c5be139336:ark.v1#ark.v1.IndexerService) [(+ API reference)](https://docs.arklabs.xyz/integrate/api/#tag/IndexerService)
+
+<Tip>TL;DR. Use ArkService for coordination, signing, and settlement and use IndexerService for querying, tracing, and auditing.</Tip>

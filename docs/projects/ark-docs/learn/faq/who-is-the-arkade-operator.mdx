@@ -1,0 +1,15 @@
+---
+icon: "user-gear"
+title: "Who is the Arkade Operator?"
+description: "Explains the role of the Arkade Operator."
+---
+
+The Arkade Operator coordinates offchain activity through a modular architecture comprising several functions: transaction aggregation and validation, onchain batch creation and liquidity provisioning.
+
+The Operator:
+- Coordinates transactions in the Virtual Mempool
+- Issues preconfirmations for instant execution
+- Posts settlement batches to Bitcoin via [commitment transactions](/learn/pillars/batch-outputs#commitment-transactions)
+- Cannot control user funds — every VTXO includes presigned Bitcoin exit paths
+
+For added security, critical roles like the Arkade Signer are separated from the operator and run independently within a Trusted Execution Environment (TEE), providing verifiable proof of correct behavior and preventing even the operator from accessing signing keys.

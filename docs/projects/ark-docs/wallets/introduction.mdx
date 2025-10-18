@@ -1,0 +1,74 @@
+---
+title: "Introduction"
+description: "Arkade Wallets and Payments"
+icon: "play"
+---
+
+Arkade wallets are simple to integrate and use. Arkade integrates directly without external daemons by design. Developers can interact with the protocol using standard Bitcoin-compatible infrastructure and purpose-built native SDKs in various languages.
+Whether you're building for your own custody or shipping self-custodial wallets for your users, the SDK is flexible by design. If you want to go deeper, the lower-level APIs give you everything you need to build custom integrations from scratch.
+
+
+## Reference Wallet Implementation
+
+Arkade provides a reference wallet implementation that demonstrates best practices and serves as a practical example for developers:
+
+<Card title="Arkade Wallet" icon="github" href="https://github.com/arkade-os/wallet">
+  Reference implementation with best practices for wallet integration
+</Card>
+
+The reference wallet showcases how to implement key features such as:
+
+- Creating and managing self-custodial wallets
+- Sending Bitcoin transactions in Arkade
+- Balance and Payment detection
+- Transaction history
+- Service worker for background processing
+
+Exploring this implementation can help you understand how to effectively integrate Arkade into your own applications.
+
+
+## TypeScript SDK
+
+<Card title="TypeScript SDK" icon="github" href="https://github.com/arkade-os/ts-sdk">
+  Official TypeScript SDK for integrating Arkade into your applications
+</Card>
+
+In the following developer guides, we'll primarily use JavaScript/TypeScript for examples, but the concepts apply to all SDKs.
+
+<Accordion title="Supported Platforms" icon="laptop-code" defaultOpen={true}>
+  Our TypeScript SDK supports multiple platforms:
+
+  - **Browser** - For web applications
+  - **React Native** - For mobile applications
+  - **Node.js** - For server-side applications
+</Accordion>
+
+<Accordion title="Getting Support" icon="headset">
+  If you need help with the SDK or have feature requests:
+  
+  - Join the [Arkade Telegram community](https://t.me/arkade_os)
+  - Open an issue on [GitHub](https://github.com/arkade-os/ts-sdk/issues)
+  - Learn more about [Arkade architecture](/primer)
+  
+  This is just the beginning. If there's something you wish the SDK did — tell us. We're listening.
+</Accordion>
+
+For complete API documentation and usage examples, see the [TypeScript SDK documentation](https://arkade-os.github.io/ts-sdk/).
+
+## Other Languages
+
+<CardGroup cols={2}>
+  <Card title="Rust SDK" icon="github" href="https://github.com/arkade-os/rust-sdk">
+    High-performance Rust implementation for systems programming
+  </Card>
+  <Card title="Go SDK" icon="github" href="https://github.com/arkade-os/go-sdk">
+    Go implementation for server-side applications
+  </Card>
+</CardGroup>
+
+Refer to the respective GitHub repositories for detailed usage instructions.
+
+
+---
+
+<NextButton url="/wallets/getting-started" text="Getting Started" />

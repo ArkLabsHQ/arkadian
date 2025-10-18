@@ -1,0 +1,97 @@
+---
+title: "ArkService"
+description: "The ArkService is the primary API layer for interacting with the Arkade server"
+icon: "right-left"
+---
+
+The [`ArkService`](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/api-spec/protobuf/ark/v1/service.proto) handles the core business logic of the Ark protocol’s batch processing system. Operations encompass [onchain batch coordination and settlement](/arkd/txs/onchain-settlement), including the coordination of multi-party signing sessions using MuSig2, intent management, as well as [offchain VTXO spending operations](/arkd/txs/offchain-execution). It provides a comprehensive set of gRPC and REST endpoints to facilitate client-side coordination.
+
+<Tip>**API references** can be found [here](https://docs.arklabs.xyz/integrate/api#tag/ArkService) and a **set of tools to handle protobuf specifications** can be found [here](https://buf.build/arkade-os/arkd/docs/fcb9f21ef69836e8ddadc2d070deb0c5be139336:ark.v1#ark.v1.ArkService).</Tip>
+
+### API Layer Logic
+
+The `ArkService` abstracts much of the protocol logic, helping builders focus on client experiences. 
+
+| **Operation Category** | **Methods**                                | **Purpose**                               |
+| ---------------------- | ------------------------------------------ | ----------------------------------------- |
+| System Information     | `GetInfo`                                  | Server parameters and network information |
+| Intent Management      | `RegisterIntent`, `DeleteIntent`           | Client intent registration                |
+| Batch Participation     | `ConfirmRegistration`, `GetEventStream`    | Multi-party batch processing coordination |
+| Tree Signing           | `SubmitTreeNonces`, `SubmitTreeSignatures` | MuSig2 multi-signature coordination       |
+| Forfeit Management     | `SubmitSignedForfeitTx`                    | Forfeit tx submission and retrieval       |
+| Offchain Execution     | `SubmitTx`, `FinalizeTx`                   | Offchain tx submission and finalization   |
+| Real-time Updates      | `GetTransactionsStream`                    | Live tx notifications                     |
+
+<Warning>Building without the SDKs still requires a solid understanding of how to create, validate, and process batch events.</Warning>
+
+#### API Layer Logic Explained
+
+<AccordionGroup>
+  <Accordion title="System Information">
+    `GetInfo` provides essential server configuration and network parameters. It returns ([`GetInfoResponse`](https://github.com/arkade-os/arkd/blob/master/api-spec/protobuf/ark/v1/service.proto#L128-L143))
+
+    - ..the signer public key, network type, and version information
+    - ..timing parameters like round intervals and expiry delays
+    - ..economic parameters such as dust limits and min/max amounts for UTXOs and VTXOs
+    - ..the forfeit address where funds are sent as part of Arkade’s security mechanism
+    - ..market hour information, signaling operational time windows when the Arkade server processes batches
+  </Accordion>
+  <Accordion title="Intent Management">
+    [Intent](/arkd/components/intent-system) registration and removal is using `BIP322` signatures for proof of ownership:
+
+    - `RegisterIntent` allows clients to register new transaction intents 
+    - `DeleteIntent` enables clients to remove previously registered intents
+
+  </Accordion>
+  <Accordion title="Batch Participation">
+    - `ConfirmRegistration` allows selected clients to confirm participation in the next batch
+    - `GetEventStream` provides clients with real-time batch updates including batch start, finalization, and failure notifications
+  </Accordion>
+  <Accordion title="Tree Signing via MuSig2">
+    The server coordinates the MuSig2 multi‑signature process:
+
+    - `SubmitTreeNonces` lets clients submit nonces for the MuSig2 session
+    - `SubmitTreeSignatures` lets clients submit partial signatures for aggregation
+
+    Both functions require batch ID and the cosigner's public key.
+  </Accordion>
+  <Accordion title="Forfeit Management">
+    `SubmitSignedForfeitTxs` handles [forfeit transaction](/learn/pillars/batch-swaps#forfeit-transactions) submission. The Arkade server verifies and finalizes the transaction as part of the batch settlement process.
+
+<Note>If a delegate is involved, the forfeit transaction is partially signed with `SIGHASH_ALL | ANYONECANPAY` allowing a [connector output](/learn/pillars/connectors) to be added once the delegate submits the intent.</Note>
+
+  </Accordion>
+  <Accordion title="Offchain Execution">
+    Arkade's [virtual mempool](/learn/pillars/virtual-mempool) tracks the two-phase lifecycle of [offchain transactions that spend VTXOs](/arkd/txs/offchain-execution):
+
+    - `SubmitTx` initiates offchain spending with the user handing in signed Arkade transactions (`signed_ark_tx`) and unsigned checkpoint transactions (`checkpoint_txs`)
+    - `FinalizeTx` completes the process by submitting fully signed [checkpoint transactions](/arkd/server-security/checkpoint-txs)
+
+  </Accordion>
+  <Accordion title="Real-time Updates">
+    `GetTransactionsStream` is a server-side streaming RPC that allows clients to receive real-time notifications for both Commitment and Arkade transactions.
+
+    Each notification uses `TxNotification`, and which includes:
+
+    - the transaction ID (`txid`) and `tx` fields containing the transaction hash and the raw transaction data
+    - VTXO state changes with `spent_vtxos` showing which VTXOs were consumed and `spendable_vtxos` showing newly created VTXOs
+    - Checkpoint transactions keyed by outpoint
+
+    The stream does not support historical data, but only transactions from stream opening onwards.
+  </Accordion>
+</AccordionGroup>
+
+### Notes for Builders
+
+The [complete ArkService interface is defined in the Protocol Buffers specification](https://github.com/arkade-os/arkd/blob/72ea52fed01190a472ecbabffa06911d69a94377/api-spec/protobuf/ark/v1/service.proto) and includes all these functions as part of the core gRPC service.
+
+- All endpoints follow RESTful conventions using HTTP annotations
+- Query `GetInfo` to verify server compatibility, network type, and version information before establishing connections
+- `arkv1.GetEventStream` and `arkv1.GetTransactionsStream` are server-side streaming RPCs for event-driven clients that should be run in background processes to react in real-time
+- All client-side operations involving [intent](/arkd/components/intent-system) submission should be signed using BIP322-compatible wallets
+- Intent registration and confirmation are critical steps before a client can participate in a settlement
+
+<Tip>The `ArkService` is complementary to the [`IndexerService`](/arkd/core-services/indexer-service). 
+Use the `ArkService` for real-time updates and the `IndexerService` for historical transaction data and detailed analysis</Tip>
+
+

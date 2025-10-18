@@ -1,0 +1,13 @@
+---
+icon: "layer-group"
+title: "What are VTXOs?"
+description: "Explains Virtual Transaction Outputs (VTXOs) in Arkade."
+---
+[Virtual Transaction Outputs (VTXOs)](/learn/pillars/vtxos) are unspent outputs of a presigned Bitcoin transaction, the commitment transaction, that mirror Bitcoin's UTXO structure. VTXOs expand the capabilities of onchain UTXOs within Arkade's virtual execution environment. VTXOs are designed to remain offchain but can be published onchain at any time to enforce a unilateral exit.
+
+Each VTXO contains at least two spending paths: a collaborative path for default operation and an exit path that guarantees user control.
+
+VTXOs operate in three main [states](/learn/pillars/vtxos#vtxo-states):
+1. Preconfirmed: Validated and cosigned, can be spent immediately
+2. Bitcoin Finality: Confirmed onchain through commitment transactions
+3. Expired: Subject to sweep if not swapped in time

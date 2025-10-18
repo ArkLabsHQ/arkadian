@@ -1,0 +1,31 @@
+---
+title: "Overview"
+description: "The basics of Arkade as a transaction batching protocol"
+icon: "list"
+---
+
+Bitcoin's blockchain offers strong security guarantees, but constrained in throuhgput and cost efficiency, restricting its practical use for high-scale financial applications.
+
+Arkade addresses [Bitcoin's limitations](/contracts/background) through a novel implementation of transaction batching which aggregates a multitude of offchain transactions into a single onchain commitment. This aggregation significantly reduces individual transaction cost and enhances scalability.
+
+The protocol mirrors Bitcoin's UTXO structure using [Virtual Transaction Outputs (VTXOs)](/learn/pillars/vtxos). VTXOs  enable efficient offchain coordination while ensuring users retain unilateral control when transacting on Arkade.
+
+This section introduces how VTXOs function as the foundation of Arkade: first by outlining their role as offchain equivalents of Bitcoin’s UTXOs, then by examining the states they move through over their lifecycle. It continues with an explanation of transaction batching, the process of consolidating many VTXOs into a single batch output anchored on Bitcoin, and concludes with batch swaps, the renewal mechanism that re-anchors VTXOs and extends their settlement guarantees. Together, these components define Arkade’s scalable and trust-minimized execution layer.
+
+
+### Explore the building blocks of Arkade
+
+<CardGroup cols={2}>
+  <Card title="VTXOs" icon="money-bill" href="/learn/pillars/vtxos">
+    Self-custodial offchain abstractions of a UTXO
+  </Card>
+    <Card title="VTXO States" icon="recycle" href="/learn/pillars/vtxos#vtxo-states">
+    Understanding the different state and lifecycle phases of VTXOs in Arkade
+  </Card>
+  <Card title="Transaction batching" icon="layer-group" href="/learn/pillars/batch-outputs">
+    How Arkade transactions get aggregated in Batch Outputs and anchored to Bitcoin via Commitment Transactions
+  </Card>
+  <Card title="Batch Swaps" icon="rotate" href="/learn/pillars/batch-swaps">
+    How VTXOs get (re-)anchored (ie. settled) to Bitcoin
+  </Card>
+</CardGroup>

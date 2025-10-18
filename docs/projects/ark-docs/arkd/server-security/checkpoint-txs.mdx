@@ -1,0 +1,138 @@
+---
+title: "Checkpoint Transactions"
+description: "How checkpoint transactions protect the operator from griefing attacks"
+icon: "check-to-slot"
+---
+
+<Info>
+Once the server detects a double-spend attempt, it reacts in one of two ways, depending on the [transaction state](/learn/pillars/vtxos#vtxo-states):
+
+- VTXO settled: broadcast [forfeit transaction](/arkd/server-security/forfeit-txs)
+- VTXO preconfirmed: broadcast checkpoint transaction
+</Info>
+
+## Warding Off Griefing Attacks 
+
+Checkpoint transactions are a core component of the Arkade protocol to ward off potential griefing attacks. They allow the operator to broadcast said transaction when detecting fraudulent user behaviour. 
+A malicious user could chain multiple offchain payments to itself, ultimately [batch swap](/learn/pillars/batch-swaps) the resulting VTXO or exit the Ark entirely, but then broadcast a unilateral exit path from a prior VTXO of the transaction chain. **This attack would force the operator to publish all prior Arkade transactions up to the [batch output](/learn/pillars/batch-outputs) that anchors them** or the unilateral exit, potentially resulting in significant costs.
+
+<Tip>
+  Checkpoint transactions allow the server to only broadcast one transaction to defend itself in case of a griefing attack. They are special transactions that serve as intermediate states in offchain transaction processing.
+
+</Tip>
+
+## Checkpoint Transaction Structure 
+
+A checkpoint transaction is essentially a self-send of the user, but removing the exit script path from the VTXO script leaf, transferring it to the server. It uses a Taproot script with two paths:
+
+- A+S (collaborative)
+- S+CSV (server after timeout)
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/checkpointlight.png" 
+    alt="Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/checkpointdark.png" 
+    alt="Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+Checkpoints are signed by both the user and the operator before the related VTXO becomes eligible for a batch swap or a unilateral exit. 
+
+<Warning>
+  In the offchain environment no [forfeit transaction](/learn/pillars/batch-swaps#forfeit-transactions) is signed, but only once a VTXO is batch swapped. Until then, transactions operate under a [preconfirmation](/learn/security/transaction-finality#preconfirmation) trust model.
+</Warning>
+
+## Potential Attack Scenarios 
+
+### User broadcasts only part of tx chain
+
+One type of attack against the operator could be that a user broadcasts only a part of an offchain transaction chain, (orange) forcing the operator to broadcast all transactions of that chain (violet), resulting in high onchain cost:
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/chainattacklight.png" 
+    alt="Chain Attack"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/chainattackdark.png" 
+    alt="Chain Attack"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+With checkpoint transactions, it suffices for the operator to broadcast one single onchain transaction, reducing the defense cost significantly:
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/chaindefenselight.png" 
+    alt="Chain Attack with Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/chaindefensedark.png" 
+    alt="Chain Attack with Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+### User broadcasts only 1 input of a 2-input tx
+
+Another way to attack the server would be if a user only broadcasts one input of a two-input offchain transaction, forcing the operator to broadcast the second branch of that [DAG](/learn/pillars/virtual-mempool#dag-structure), resulting in high onchain cost:
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/multichainattacklight.png" 
+    alt="Two-Input Attack"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/multichainattackdark.png" 
+    alt="Two-Input Attack"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+With checkpoint transactions, again, it suffices for the operator to broadcast one single onchain transaction, reducing the defense cost significantly:
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="block dark:hidden" 
+    src="/images/ark/multichaindefenselight.png" 
+    alt="Two-Input Attack with Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img 
+    className="hidden dark:block" 
+    src="/images/ark/multichaindefensedark.png" 
+    alt="Two-Input Attack with Checkpoint"
+    style={{ width: "100%", height: "auto" }}
+  />
+</div>
+
+Overall, checkpoint transactions allow the operator to claim a VTXO, unless the VTXO holder posts the Arkade transaction following this exact checkpoint transaction.
+
+<Tip>Checkpoint transactions provide the operator with a low‑cost mechanism to mitigate attacks, such as partial or selective broadcasting of offchain transaction chains.</Tip>
