@@ -101,6 +101,52 @@ Each alert rule consists of:
 - Restart Ark service if necessary
 - Investigate root cause (crash dump, error logs)
 
+### RoundFailureDetected
+
+**Purpose**: Detect when round processing failures occur in arkd by parsing log messages for the "round failed" pattern.
+
+**Configuration:**
+```yaml
+- alert: RoundFailureDetected
+  expr: rate(arkd_round_failed_total[1m]) > 0
+  for: 10s
+  labels:
+    severity: warning
+  annotations:
+    summary: "Round failure detected in arkd logs"
+    description: "The pattern 'round failed' appeared in arkd logs, indicating a round processing error. Check arkd logs for details."
+```
+
+**How It Works:**
+
+1. **Log-to-Metric Conversion:**
+   - OpenTelemetry Collector's `logstometrics` processor parses arkd logs
+   - When "round failed" pattern is found, increments `arkd_round_failed_total` counter
+   - Counter metric is exported to Prometheus for alerting
+
+2. **Expression Breakdown:**
+   - `arkd_round_failed_total`: Counter metric incremented when "round failed" appears in logs
+   - `rate(arkd_round_failed_total[1m])`: Calculate rate of failures over 1 minute
+   - `> 0`: Trigger when any failure occurs
+
+3. **Duration**: Alert fires after 10 seconds of detecting failures (near-immediate notification)
+
+4. **Severity**: Labeled as "warning" (operational issue requiring investigation)
+
+**When It Fires:**
+- Round processing encounters errors
+- Network issues preventing round completion
+- Participant connection failures during round
+- Database or state management errors during round processing
+
+**Response Actions:**
+- Check arkd logs for full error context: `docker logs arkd | grep "round failed"`
+- Review recent round activity in Grafana dashboards
+- Check participant connection status
+- Verify database connectivity and state
+- Monitor for patterns (single failure vs recurring failures)
+- Escalate if failures persist or increase in frequency
+
 ## Alert Evaluation
 
 ### Evaluation Cycle
