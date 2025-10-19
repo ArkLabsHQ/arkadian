@@ -23,30 +23,30 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Components
+### `${ARKADIAN_DIR}/docs/projects/ark-faucet/system/` — System Architecture & Components
 Core documentation about ark-faucet:
 
-- **project_overview.md** — What ark-faucet is, features, use cases
-- **architecture.md** — Service architecture and components
-- **api-design.md** — HTTP API design and endpoints
-- **configuration.md** — Environment variables and configuration
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/system/project_overview.md** — — What ark-faucet is, features, use cases
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/system/architecture.md** — — Service architecture and components
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/system/api-design.md** — — HTTP API design and endpoints
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/system/configuration.md** — — Environment variables and configuration
 
-### `testing/` — Usage & Operations
+### `${ARKADIAN_DIR}/docs/projects/ark-faucet/testing/` — Usage & Operations
 Practical guides for using and deploying:
 
-- **usage.md** — Quick start guide
-- **api-reference.md** — Complete API documentation with examples
-- **how_to_run.md** — Local and Docker deployment
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/testing/usage.md** — — Quick start guide
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/testing/api-reference.md** — — Complete API documentation with examples
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/testing/how_to_run.md** — — Local and Docker deployment
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/ark-faucet/sop/` — Standard Operating Procedures
 Step-by-step guides for operations:
 
-- **development-workflow.md** — Development setup and workflow
-- **deployment-guide.md** — Production deployment guide
-- **wallet-management.md** — Managing faucet wallet and balance
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/sop/development-workflow.md** — — Development setup and workflow
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/sop/deployment-guide.md** — — Production deployment guide
+- **${ARKADIAN_DIR}/docs/projects/ark-faucet/sop/wallet-management.md** — — Managing faucet wallet and balance
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/ark-faucet/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

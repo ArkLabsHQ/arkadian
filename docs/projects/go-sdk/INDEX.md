@@ -23,31 +23,31 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & API
+### `${ARKADIAN_DIR}/docs/projects/go-sdk/system/` — System Architecture & API
 Core documentation about the SDK architecture and API:
 
-- **project_overview.md** — What go-sdk is, features, and capabilities
-- **architecture.md** — Client architecture, service integration, storage model
-- **api-reference.md** — Main ArkClient interface and wallet operations
-- **storage-backends.md** — In-memory, file, and SQL storage options
-- **integration.md** — Integration with arkd server and other services
-- **examples.md** — Overview of example applications
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/project_overview.md** — — What go-sdk is, features, and capabilities
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/architecture.md** — — Client architecture, service integration, storage model
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/api-reference.md** — — Main ArkClient interface and wallet operations
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/storage-backends.md** — — In-memory, file, and SQL storage options
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/integration.md** — — Integration with arkd server and other services
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/system/examples.md** — — Overview of example applications
 
-### `testing/` — Usage & Development
+### `${ARKADIAN_DIR}/docs/projects/go-sdk/testing/` — Usage & Development
 Practical guides for using and developing with the SDK:
 
-- **usage.md** — Quick start guide and common operations
-- **how_to_develop.md** — Development setup, running tests, contributing
-- **troubleshooting.md** — Common issues and solutions
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/testing/usage.md** — — Quick start guide and common operations
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/testing/how_to_develop.md** — — Development setup, running tests, contributing
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/testing/troubleshooting.md** — — Common issues and solutions
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/go-sdk/sop/` — Standard Operating Procedures
 Step-by-step guides for SDK operations:
 
-- **building-wallets.md** — Guide for building wallet applications
-- **working-with-storage.md** — Storage backend selection and usage
-- **integration-guide.md** — Integrating SDK into applications
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/sop/building-wallets.md** — — Guide for building wallet applications
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/sop/working-with-storage.md** — — Storage backend selection and usage
+- **${ARKADIAN_DIR}/docs/projects/go-sdk/sop/integration-guide.md** — — Integrating SDK into applications
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/go-sdk/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

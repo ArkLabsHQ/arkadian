@@ -24,31 +24,31 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Design
+### `${ARKADIAN_DIR}/docs/projects/ark-simulator/system/` — System Architecture & Design
 Core technical documentation about the simulator:
 
-- **project_overview.md** — What ark-simulator is, its purpose, and capabilities
-- **architecture.md** — Orchestrator, clients, and deployment modes
-- **configuration.md** — Simulation YAML schema and configuration
-- **aws-deployment.md** — AWS/ECS deployment architecture
-- **components.md** — Orchestrator and client components
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/system/project_overview.md** — — What ark-simulator is, its purpose, and capabilities
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/system/architecture.md** — — Orchestrator, clients, and deployment modes
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/system/configuration.md** — — Simulation YAML schema and configuration
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/system/aws-deployment.md** — — AWS/ECS deployment architecture
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/system/components.md** — — Orchestrator and client components
 
-### `testing/` — Usage & Operations
+### `${ARKADIAN_DIR}/docs/projects/ark-simulator/testing/` — Usage & Operations
 Practical guides for running simulations:
 
-- **usage.md** — Quick start and common simulation workflows
-- **local-deployment.md** — Running locally (single/multi-process)
-- **aws-setup.md** — AWS deployment and configuration
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/testing/usage.md** — — Quick start and common simulation workflows
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/testing/local-deployment.md** — — Running locally (single/multi-process)
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/testing/aws-setup.md** — — AWS deployment and configuration
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/ark-simulator/sop/` — Standard Operating Procedures
 Step-by-step guides for simulation operations:
 
-- **creating-scenarios.md** — How to create simulation YAML files
-- **analyzing-results.md** — Reading and interpreting simulation results
-- **scaling-simulations.md** — Running large-scale tests on AWS
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/sop/creating-scenarios.md** — — How to create simulation YAML files
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/sop/analyzing-results.md** — — Reading and interpreting simulation results
+- **${ARKADIAN_DIR}/docs/projects/ark-simulator/sop/scaling-simulations.md** — — Running large-scale tests on AWS
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/ark-simulator/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

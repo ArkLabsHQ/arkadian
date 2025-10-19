@@ -30,35 +30,35 @@ scripts:
 
 ## Directory Structure
 
-### `system/`  System Architecture & Design
+### `${ARKADIAN_DIR}/docs/projects/arkd/system/`  System Architecture & Design
 Core technical documentation about how arkd is structured and operates:
 
-- **project_overview.md**  High-level introduction to arkd, its purpose, and key concepts
-- **architecture.md**  Hexagonal architecture pattern, dependency rules, and layer responsibilities
-- **folder_structure.md**  Repository organization and where to find components
-- **tech_stack.md**  Technologies, frameworks, and libraries used
-- **integration_points.md**  How components communicate across layers and with external services
-- **configuration.md**  Environment variables and configuration options
-- **application_core.md**  Core application service orchestration and use cases
-- **repo_manager.md**  Repository interfaces and data persistence patterns
-- **ark_lib.md**  Shared utilities and data structures
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/project_overview.md** —  High-level introduction to arkd, its purpose, and key concepts
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/architecture.md** —  Hexagonal architecture pattern, dependency rules, and layer responsibilities
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/folder_structure.md** —  Repository organization and where to find components
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/tech_stack.md** —  Technologies, frameworks, and libraries used
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/integration_points.md** —  How components communicate across layers and with external services
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/configuration.md** —  Environment variables and configuration options
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/application_core.md** —  Core application service orchestration and use cases
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/repo_manager.md** —  Repository interfaces and data persistence patterns
+- **${ARKADIAN_DIR}/docs/projects/arkd/system/ark_lib.md** —  Shared utilities and data structures
 
-### `testing/`  Usage, Testing & Troubleshooting
+### `${ARKADIAN_DIR}/docs/projects/arkd/testing/`  Usage, Testing & Troubleshooting
 Practical guides for running, testing, and debugging arkd:
 
-- **usage.md**  Quick start guide and common usage patterns
-- **how_to_run.md**  Development environment setup and running arkd locally
-- **how_to_test.md**  Running unit tests, integration tests, and simulations
-- **troubleshooting.md**  Common issues and solutions
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/usage.md** —  Quick start guide and common usage patterns
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_run.md** —  Development environment setup and running arkd locally
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_test.md** —  Running unit tests, integration tests, and simulations
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/troubleshooting.md** —  Common issues and solutions
 
-### `sop/`  Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/arkd/sop/`  Standard Operating Procedures
 Step-by-step guides for common development tasks:
 
 - Procedures for adding features, fixing bugs, and making changes
 - Workflow guides and best practices
 - Lessons learned from development
 
-### `tasks/`  Product Requirements & Implementation Plans
+### `${ARKADIAN_DIR}/docs/projects/arkd/tasks/`  Product Requirements & Implementation Plans
 PRDs, feature specifications, and implementation tracking:
 
 - Feature proposals and requirements

@@ -27,33 +27,33 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Components
+### `${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/` — System Architecture & Components
 Core documentation about kms-unlocker architecture and design:
 
-- **project_overview.md** — What kms-unlocker is, features, and capabilities
-- **architecture.md** — Hexagonal architecture, service lifecycle, state machine
-- **backup-systems.md** — Local vs AWS backup, seed and macaroon backup flows
-- **aws-integration.md** — AWS KMS, Secrets Manager, IAM permissions
-- **connection-resilience.md** — Connection monitoring, auto-reconnect, health checks
-- **configuration.md** — Environment variables and configuration options
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/project_overview.md** — — What kms-unlocker is, features, and capabilities
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/architecture.md** — — Hexagonal architecture, service lifecycle, state machine
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/backup-systems.md** — — Local vs AWS backup, seed and macaroon backup flows
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/aws-integration.md** — — AWS KMS, Secrets Manager, IAM permissions
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/connection-resilience.md** — — Connection monitoring, auto-reconnect, health checks
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/system/configuration.md** — — Environment variables and configuration options
 
-### `testing/` — Usage & Operations
+### `${ARKADIAN_DIR}/docs/projects/kms-unlocker/testing/` — Usage & Operations
 Practical guides for running and testing:
 
-- **usage.md** — Quick start and common operations
-- **how_to_run.md** — Local development, Docker Compose modes
-- **how_to_test.md** — Unit tests, integration tests, E2E tests
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/testing/usage.md** — — Quick start and common operations
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/testing/how_to_run.md** — — Local development, Docker Compose modes
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/testing/how_to_test.md** — — Unit tests, integration tests, E2E tests
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/kms-unlocker/sop/` — Standard Operating Procedures
 Step-by-step guides for operations:
 
-- **development-workflow.md** — Development setup and workflow
-- **aws-deployment.md** — AWS production deployment guide
-- **backup-recovery.md** — Backup strategies and disaster recovery
-- **localstack-testing.md** — Testing with LocalStack (AWS simulation)
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/sop/development-workflow.md** — — Development setup and workflow
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/sop/aws-deployment.md** — — AWS production deployment guide
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/sop/backup-recovery.md** — — Backup strategies and disaster recovery
+- **${ARKADIAN_DIR}/docs/projects/kms-unlocker/sop/localstack-testing.md** — — Testing with LocalStack (AWS simulation)
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/kms-unlocker/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

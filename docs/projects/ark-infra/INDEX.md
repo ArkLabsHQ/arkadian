@@ -24,35 +24,35 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Infrastructure
+### `${ARKADIAN_DIR}/docs/projects/ark-infra/system/` — System Architecture & Infrastructure
 Core infrastructure documentation:
 
-- **project_overview.md** — What ark-infra is, multi-environment strategy, services
-- **architecture.md** — AWS layers, service architecture, data flow, no-SSH design
-- **aws-infrastructure.md** — VPC, EC2, RDS, ElastiCache, ECR, CloudWatch
-- **networking.md** — VPC endpoints, security groups, ingress/egress flow
-- **security.md** — SSM access, secrets management, network isolation
-- **opentofu-reference.md** — Variables, outputs, state management
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/project_overview.md** — — What ark-infra is, multi-environment strategy, services
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/architecture.md** — — AWS layers, service architecture, data flow, no-SSH design
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/aws-infrastructure.md** — — VPC, EC2, RDS, ElastiCache, ECR, CloudWatch
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/networking.md** — — VPC endpoints, security groups, ingress/egress flow
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/security.md** — — SSM access, secrets management, network isolation
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/system/opentofu-reference.md** — — Variables, outputs, state management
 
-### `testing/` — Deployment & Operations
+### `${ARKADIAN_DIR}/docs/projects/ark-infra/testing/` — Deployment & Operations
 Practical guides for deployment and daily operations:
 
-- **getting-started.md** — 5-minute regtest deployment
-- **deployment-guide.md** — Complete deployment for regtest, staging, production
-- **validation.md** — Post-deployment validation checklists
-- **operations.md** — Daily operations, service management, monitoring
-- **troubleshooting.md** — Common issues and solutions
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/testing/getting-started.md** — — 5-minute regtest deployment
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/testing/deployment-guide.md** — — Complete deployment for regtest, staging, production
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/testing/validation.md** — — Post-deployment validation checklists
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/testing/operations.md** — — Daily operations, service management, monitoring
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/testing/troubleshooting.md** — — Common issues and solutions
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/ark-infra/sop/` — Standard Operating Procedures
 Step-by-step procedures for infrastructure tasks:
 
-- **deployment-workflow.md** — End-to-end deployment process
-- **secrets-management.md** — Managing secrets with AWS Secrets Manager/KMS
-- **monitoring-guide.md** — Monitoring stack, metrics, alerts
-- **disaster-recovery.md** — Backup strategies, recovery procedures
-- **scaling-guide.md** — Sizing recommendations and scaling procedures
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/sop/deployment-workflow.md** — — End-to-end deployment process
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/sop/secrets-management.md** — — Managing secrets with AWS Secrets Manager/KMS
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/sop/monitoring-guide.md** — — Monitoring stack, metrics, alerts
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/sop/disaster-recovery.md** — — Backup strategies, recovery procedures
+- **${ARKADIAN_DIR}/docs/projects/ark-infra/sop/scaling-guide.md** — — Sizing recommendations and scaling procedures
 
-### `tasks/` — Infrastructure Plans & Changes
+### `${ARKADIAN_DIR}/docs/projects/ark-infra/tasks/` — Infrastructure Plans & Changes
 Infrastructure changes, migrations, and improvements.
 
 ### `change-log/` — Recent Changes

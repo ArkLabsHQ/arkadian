@@ -24,32 +24,32 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Design
+### `${ARKADIAN_DIR}/docs/projects/wallet/system/` — System Architecture & Design
 Core documentation about the wallet application:
 
-- **project_overview.md** — What Arkade Wallet is, features, and capabilities
-- **architecture.md** — React PWA architecture, component structure, state management
-- **tech-stack.md** — Technology stack and dependencies
-- **pwa-features.md** — Progressive Web App features and installation
-- **components.md** — Component library and UI patterns
-- **ark-sdk-integration.md** — Integration with @arkade-os/sdk
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/project_overview.md** — — What Arkade Wallet is, features, and capabilities
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/architecture.md** — — React PWA architecture, component structure, state management
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/tech-stack.md** — — Technology stack and dependencies
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/pwa-features.md** — — Progressive Web App features and installation
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/components.md** — — Component library and UI patterns
+- **${ARKADIAN_DIR}/docs/projects/wallet/system/ark-sdk-integration.md** — — Integration with @arkade-os/sdk
 
-### `testing/` — Usage & Development
+### `${ARKADIAN_DIR}/docs/projects/wallet/testing/` — Usage & Development
 Practical guides for using and developing:
 
-- **usage.md** — Quick start guide for users
-- **how_to_run.md** — Development setup and running locally
-- **how_to_test.md** — Testing strategy and running tests
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/wallet/testing/usage.md** — — Quick start guide for users
+- **${ARKADIAN_DIR}/docs/projects/wallet/testing/how_to_run.md** — — Development setup and running locally
+- **${ARKADIAN_DIR}/docs/projects/wallet/testing/how_to_test.md** — — Testing strategy and running tests
+- **${ARKADIAN_DIR}/docs/projects/wallet/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/wallet/sop/` — Standard Operating Procedures
 Step-by-step guides for development operations:
 
-- **development-workflow.md** — Development setup and workflow
-- **building-deployment.md** — Building and deploying the PWA
-- **adding-features.md** — Adding new features to the wallet
+- **${ARKADIAN_DIR}/docs/projects/wallet/sop/development-workflow.md** — — Development setup and workflow
+- **${ARKADIAN_DIR}/docs/projects/wallet/sop/building-deployment.md** — — Building and deploying the PWA
+- **${ARKADIAN_DIR}/docs/projects/wallet/sop/adding-features.md** — — Adding new features to the wallet
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/wallet/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

@@ -36,7 +36,7 @@ Determine the relevant projects and optionally services/stacks implied by the re
 
 ## DYNAMIC PROJECT SELECTION
 
-1. Parse all projects from PROJECT_INDEX.md
+1. Parse all projects from project level INDEX.md's
 2. Score each project vs the request using case-insensitive matching:
     - Keyword overlap with `tags`, `synonyms`, `triggers.any` and intent-specific triggers
     - Semantic match with `description`
@@ -48,18 +48,118 @@ If selection is empty/over-broad, ask one clarification and re-select.
 
 ## CONTEXT LOADING POLICY
 
-From each selected project's INDEX.md, import only minimal sections needed:
-- Prefer `testing/usage.md`, `sop/how-to-*.md` over deep `system/*`
-- Sub-agents may import extra sections only if necessary
+### Four-Tier Loading Strategy
 
-## SUB-AGENT ROLES
+**Tier 1 - Master Registry:**
+- Load `${ARKADIAN_DIR}/docs/INDEX.md` first
+- Contains project metadata, tags, triggers, dependencies
 
-- **Ark-Guru (Q&A)**: read/search only; explain and cite relevant files
-- **Ark-Developer (DEV)**: code edits + tests; must branch; must run tests; summarize diffs
-- **Ark-Tester (QA)**: bring up stacks, run sims, validate health/logs; summarize pass/fail with evidence
-- **Ark-Debugger (DBG)**: isolate faults, produce repro, propose fix plan
-- **Ark-Researcher (RSH)**: research/report (internal first; external when allowed)
-- **Ark-PR-Reviewer (PR)**: summarize PRs/commits; highlight risks/breakers/authors if available
+**Tier 2 - Project Indexes:**
+- Load selected project INDEX.md files: `${ARKADIAN_DIR}/docs/projects/<project_id>/INDEX.md`
+- Contains project structure, directory listing, and `default_sections_by_intent` metadata
+
+**Tier 3 - Deep Documentation:**
+- Load specific documentation files based on project INDEX.md metadata and user intent
+- Use the `default_sections_by_intent` field from the project INDEX.md to determine which files to load
+
+**Tier 4 - Get the Code:**
+- Load relevant source code files from the actual project repositories
+- Use `${PROJECT_REPO}` environment variables to locate repository code
+- To navigate the codebase efficiently, first load `system/folder_structure.md` from the project docs
+- The folder_structure.md explains the repository organization and where to find specific components
+- Load only the specific code files needed for the task (avoid loading entire directories)
+- Examples:
+  - `${ARKD_REPO}/server/pkg/server.go` - Main server implementation
+  - `${GO_SDK_REPO}/pkg/client/wallet.go` - Wallet client code
+  - `${WALLET_REPO}/src/components/Send.tsx` - React component
+
+### How to Load Deep Documentation
+
+After loading a project's INDEX.md, examine its YAML frontmatter for `default_sections_by_intent`:
+
+```yaml
+default_sections_by_intent:
+  qna:        ["system/project_overview.md", "testing/usage.md"]
+  qa:         ["testing/usage.md", "testing/how_to_run.md", "testing/how_to_test.md"]
+  dev:        ["system/architecture.md", "system/folder_structure.md", "testing/how_to_run.md"]
+  debug:      ["testing/troubleshooting.md", "testing/usage.md"]
+  monitoring: ["testing/troubleshooting.md"]
+```
+
+**Loading Rules:**
+1. Map user intent to one of: `qna`, `qa`, `dev`, `debug`, `monitoring`, `research`, `pr_review`
+2. Look up the corresponding array in `default_sections_by_intent`
+3. Load those files in parallel using the Read tool:
+   ```
+   Read ${ARKADIAN_DIR}/docs/projects/<project_id>/<file_path>
+   ```
+4. If intent doesn't match exactly, use closest match:
+   - `ask_question` → `qna`
+   - `test_or_run` → `qa`
+   - `develop` → `dev`
+   - `analyze_pr_or_commits` → `pr_review` (if available, else `dev`)
+
+**Example:**
+```
+User intent: test_or_run
+Project: arkd
+Project INDEX.md says: qa: ["testing/usage.md", "testing/how_to_run.md", "testing/how_to_test.md"]
+
+Action: Load these files in parallel:
+- Read ${ARKADIAN_DIR}/docs/projects/arkd/testing/usage.md
+- Read ${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_run.md
+- Read ${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_test.md
+```
+
+### Additional Context Loading
+
+**Keyword-based loading** (optional, if user mentions specific terms):
+- Check project INDEX.md's `aliases` field for common keyword groups
+- Load additional files if user explicitly mentions:
+  - "architecture", "design" → `system/architecture.md`
+  - "config", "configuration" → `system/configuration.md`
+  - "troubleshooting", "errors" → `testing/troubleshooting.md`
+  - "how to run", "setup" → `testing/how_to_run.md`
+
+### How to Load Code Files (Tier 4)
+
+**When to load code:**
+- User asks about specific implementation details
+- Need to understand how a feature works internally
+- Debugging a specific issue that requires reading source
+- Adding a feature or fixing a bug (development tasks)
+- Analyzing code structure or patterns
+
+**How to find the right code files:**
+1. First, load `${ARKADIAN_DIR}/docs/projects/<project_id>/system/folder_structure.md`
+2. This document explains the repository organization and where components live
+3. Use the folder structure guide to identify the relevant files
+4. Load only the specific files needed (e.g., `${ARKD_REPO}/server/pkg/handlers/vtxo.go`)
+
+**Example flow:**
+```
+User: "How does arkd handle VTXO creation?"
+
+Step 1: Load ${ARKADIAN_DIR}/docs/projects/arkd/system/folder_structure.md
+Step 2: Find that VTXOs are handled in server/pkg/handlers/
+Step 3: Load ${ARKD_REPO}/server/pkg/handlers/vtxo.go
+Step 4: Answer based on actual implementation
+```
+
+**Best practices:**
+- Start with documentation (Tier 3) before jumping to code (Tier 4)
+- Use folder_structure.md as your navigation guide
+- Load targeted files, not entire directories
+- For large files, use Read with offset/limit parameters
+- Combine code reading with architecture docs for full understanding
+
+### Keep Context Lean
+
+- Load only files listed in `default_sections_by_intent` for the matched intent
+- Avoid loading entire `system/*` or `sop/*` directories
+- Sub-agents may import extra sections only if necessary for their specific task
+- Prefer `testing/usage.md` and `sop/how-to-*.md` over deep architecture docs unless explicitly needed
+- Only load code files (Tier 4) when documentation (Tier 3) is insufficient
 
 ## PLAN & EXECUTE
 
@@ -74,6 +174,217 @@ From each selected project's INDEX.md, import only minimal sections needed:
 - Do NOT ask for confirmation after every action
 - Ask only if actions are risky, costly, or potentially destructive
 - After each step, checkpoint results; after each DEV, run QA validation
+
+## SPAWN NECESSARY AGENTS
+- After user accepts your plan, spawn the necessary agents to execute the plan
+
+## SUB-AGENT ROLES
+
+You have specialized sub-agents installed at `${HOME}/.claude/agents/`:
+
+- **ark-guru** (✅ Full) — Q&A specialist; read/search only; explain and cite relevant files
+- **ark-developer** (✅ Full) — Development specialist; code edits + tests; must branch; must run tests; summarize diffs
+- **ark-tester** (✅ Full) — Testing specialist; bring up stacks, run sims, validate health/logs; summarize pass/fail with evidence
+- **ark-debugger** (⏸️ Stub) — Debugging specialist; isolate faults, produce repro, propose fix plan
+- **ark-researcher** (⏸️ Stub) — Research specialist; research/report (internal first; external when allowed)
+- **ark-pr-reviewer** (✅ Full) — PR analysis specialist; summarize PRs/commits; highlight risks/breakers/authors
+
+**How to use sub-agents:**
+
+After the user **accepts your execution plan**, spawn the appropriate sub-agent for each step using the Task tool:
+
+```
+Task(
+  subagent_type="ark-tester",
+  description="Run arkd integration tests",
+  prompt="<YAML INPUT CONTRACT as detailed below>"
+)
+```
+
+**Important:**
+- Present your plan first and wait for user approval
+- After approval, execute each step by spawning the corresponding sub-agent
+- Each sub-agent has specialized instructions and constraints defined in its agent file
+- Sub-agents run independently and return their results to you
+
+### Agent INPUT CONTRACT Guide
+
+Each agent expects a YAML-formatted INPUT CONTRACT in the `prompt` parameter. Below are the standard fields and agent-specific variations:
+
+#### Standard Fields (All Agents)
+
+```yaml
+objective: "<clear, concise task description>"
+repos: ["<project_id>"]
+docs_hint:
+  project_index_path: "${ARKADIAN_DIR}/docs/INDEX.md"
+  project:
+    id: "<project_id>"
+    index_path: "${ARKADIAN_DIR}/docs/projects/<project_id>/INDEX.md"
+  sections:
+    - "<file1.md>"  # From project INDEX.md's default_sections_by_intent
+    - "<file2.md>"
+constraints:
+  - <agent-specific constraints>
+expected_outputs:
+  - <agent-specific outputs>
+```
+
+**How to populate `sections`:**
+1. Load the project's INDEX.md file
+2. Map your intent to: `qna`, `qa`, `dev`, `debug`, `pr_review`, `research`
+3. Look up the corresponding array in `default_sections_by_intent`
+4. Use those file paths in the `sections` field
+
+#### ark-guru (Q&A Specialist)
+
+```yaml
+objective: "<one-line question>"
+repos: ["arkd", "go-sdk"]
+docs_hint:
+  project_index_path: "${ARKADIAN_DIR}/docs/INDEX.md"
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "system/project_overview.md"
+    - "testing/usage.md"
+constraints:
+  - read_only: true
+  - prefer_docs_over_code: true
+expected_outputs:
+  - answer: "concise explanation with file:line references"
+  - confidence: "high|medium|low"
+```
+
+#### ark-developer (Development Specialist)
+
+```yaml
+objective: "<what to implement/fix>"
+repos: ["arkd"]
+docs_hint:
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "sop/making-changes.md"
+    - "system/architecture.md"
+    - "testing/how_to_test.md"
+constraints:
+  - branch: "feat/<area>-<slug>" or "fix/<area>-<slug>"
+  - conventional_commits: true
+  - tests_required: true
+  - max_files_changed: 10
+expected_outputs:
+  - branch_name: "<created branch>"
+  - files_changed: ["list"]
+  - tests_added: ["list"]
+  - pr_body: "<PR description>"
+```
+
+#### ark-tester (Testing/QA Specialist)
+
+```yaml
+objective: "<what to validate>"
+repos: ["arkd"]
+docs_hint:
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "testing/how_to_test.md"
+    - "testing/how_to_run.md"
+    - "testing/troubleshooting.md"
+constraints:
+  - time_limit: "10m"
+  - docker_required: true
+  - no_modifications: true
+expected_outputs:
+  - validation_result: "pass|fail|partial"
+  - test_summary: "<counts and evidence>"
+  - issues_found: ["list"]
+  - recommendations: ["list"]
+```
+
+#### ark-debugger (Debugging Specialist) [STUB]
+
+```yaml
+objective: "<debug issue description>"
+repos: ["arkd"]
+docs_hint:
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "testing/troubleshooting.md"
+    - "testing/how_to_run.md"
+    - "system/integration_points.md"
+context:
+  error_message: "<actual error>"
+  logs: ["<log snippets>"]
+  steps_to_reproduce: ["<if available>"]
+constraints:
+  - read_mostly: true
+  - create_repro_case: true
+expected_outputs:
+  - root_cause: "<diagnosis>"
+  - reproduction_steps: ["<minimal repro>"]
+  - proposed_fix: "<what to change>"
+  - test_case: "<regression test>"
+```
+
+**Note:** Include `context` field with error details when invoking ark-debugger.
+
+#### ark-pr-reviewer (PR Analysis Specialist)
+
+```yaml
+objective: "<analyze PR #123>" or "<summarize last week's commits>"
+repos: ["arkd"]
+docs_hint:
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "system/architecture.md"
+    - "sop/development-workflow.md"
+constraints:
+  - read_only: true
+  - max_commits: 50
+  - include_authors: true
+expected_outputs:
+  - summary: "<what changed>"
+  - risk_assessment: "low|medium|high"
+  - breaking_changes: ["list"]
+  - recommendations: ["feedback items"]
+```
+
+#### ark-researcher (Research Specialist) [STUB]
+
+```yaml
+objective: "<research question or topic>"
+repos: ["arkd", "go-sdk"]
+docs_hint:
+  project:
+    id: "arkd"
+    index_path: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  sections:
+    - "system/architecture.md"
+    - "system/tech_stack.md"
+context:
+  scope: "internal|external|both"
+  question_type: "comparison|feasibility|best_practice|specification"
+constraints:
+  - prefer_internal_first: true
+  - cite_sources: true
+  - max_external_searches: 5
+expected_outputs:
+  - findings: "<research results>"
+  - comparison_matrix: "<if applicable>"
+  - recommendation: "<if asked>"
+  - sources: ["<citations>"]
+```
+
+**Note:** Include `context` field with scope and question_type when invoking ark-researcher.
 
 ### Error Handling
 On failure: capture error, consult troubleshooting sections, retry up to 2 times with adjustments. If still failing, summarize and stop with next-best options.

@@ -28,34 +28,34 @@ The system includes a NestJS API backend with JWT authentication, SQLite/Postgre
 
 ## Directory Structure
 
-### `system/` — System Architecture & Design
+### `${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/` — System Architecture & Design
 Core documentation about the escrow system:
 
-- **project_overview.md** — What arkade-escrow is, features, use cases
-- **architecture.md** — NestJS backend architecture, modules, and components
-- **escrow-contract.md** — Virtual Escrow Contract (VEC) implementation and spending paths
-- **authentication.md** — Schnorr signature-based authentication system
-- **api-design.md** — REST API design and endpoints
-- **database-schema.md** — TypeORM entities and database structure
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/project_overview.md** — — What arkade-escrow is, features, use cases
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/architecture.md** — — NestJS backend architecture, modules, and components
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/escrow-contract.md** — — Virtual Escrow Contract (VEC) implementation and spending paths
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/authentication.md** — — Schnorr signature-based authentication system
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/api-design.md** — — REST API design and endpoints
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/system/database-schema.md** — — TypeORM entities and database structure
 
-### `testing/` — Usage & Development
+### `${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/` — Usage & Development
 Practical guides for using and testing:
 
-- **usage.md** — Quick start guide and basic workflows
-- **api-reference.md** — Complete API documentation with examples
-- **how_to_run.md** — Local and Docker development setup
-- **how_to_test.md** — Running unit and e2e tests
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/usage.md** — — Quick start guide and basic workflows
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/api-reference.md** — — Complete API documentation with examples
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/how_to_run.md** — — Local and Docker development setup
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/how_to_test.md** — — Running unit and e2e tests
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/arkade-escrow/sop/` — Standard Operating Procedures
 Step-by-step guides for operations:
 
-- **development-workflow.md** — Development setup and workflow
-- **escrow-workflow.md** — Escrow lifecycle from request to execution
-- **arbitration-process.md** — Dispute resolution and arbitration
-- **deployment-guide.md** — Production deployment guide
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/sop/development-workflow.md** — — Development setup and workflow
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/sop/escrow-workflow.md** — — Escrow lifecycle from request to execution
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/sop/arbitration-process.md** — — Dispute resolution and arbitration
+- **${ARKADIAN_DIR}/docs/projects/arkade-escrow/sop/deployment-guide.md** — — Production deployment guide
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/arkade-escrow/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

@@ -26,35 +26,35 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Components
+### `${ARKADIAN_DIR}/docs/projects/fulmine/system/` — System Architecture & Components
 Core documentation about fulmine architecture and design:
 
-- **project_overview.md** — What fulmine is, features, and use cases
-- **architecture.md** — Hexagonal architecture, core domain, infrastructure
-- **web-interface.md** — Web UI and REST API overview
-- **swap-system.md** — Boltz integration, swap types (on-chain ↔ Lightning)
-- **lightning-integration.md** — Lightning Network integration (LND, CLN support)
-- **vhtlc.md** — Virtual HTLC implementation for Ark-Lightning interoperability
-- **configuration.md** — Environment variables and configuration options
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/project_overview.md** — — What fulmine is, features, and use cases
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/architecture.md** — — Hexagonal architecture, core domain, infrastructure
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/web-interface.md** — — Web UI and REST API overview
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/swap-system.md** — — Boltz integration, swap types (on-chain ↔ Lightning)
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/lightning-integration.md** — — Lightning Network integration (LND, CLN support)
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/vhtlc.md** — — Virtual HTLC implementation for Ark-Lightning interoperability
+- **${ARKADIAN_DIR}/docs/projects/fulmine/system/configuration.md** — — Environment variables and configuration options
 
-### `testing/` — Usage & Operations
+### `${ARKADIAN_DIR}/docs/projects/fulmine/testing/` — Usage & Operations
 Practical guides for using and operating fulmine:
 
-- **usage.md** — Quick start guide (Docker and binary)
-- **api-reference.md** — REST API and gRPC endpoints
-- **how_to_run.md** — Development and production deployment
-- **how_to_test.md** — Unit tests, integration tests, E2E tests
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/fulmine/testing/usage.md** — — Quick start guide (Docker and binary)
+- **${ARKADIAN_DIR}/docs/projects/fulmine/testing/api-reference.md** — — REST API and gRPC endpoints
+- **${ARKADIAN_DIR}/docs/projects/fulmine/testing/how_to_run.md** — — Development and production deployment
+- **${ARKADIAN_DIR}/docs/projects/fulmine/testing/how_to_test.md** — — Unit tests, integration tests, E2E tests
+- **${ARKADIAN_DIR}/docs/projects/fulmine/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/fulmine/sop/` — Standard Operating Procedures
 Step-by-step guides for operations:
 
-- **development-workflow.md** — Development setup and workflow
-- **swap-operations.md** — How to perform swaps (on-chain ↔ Lightning)
-- **lightning-setup.md** — Setting up LND or CLN integration
-- **wallet-management.md** — Wallet creation, backup, recovery
+- **${ARKADIAN_DIR}/docs/projects/fulmine/sop/development-workflow.md** — — Development setup and workflow
+- **${ARKADIAN_DIR}/docs/projects/fulmine/sop/swap-operations.md** — — How to perform swaps (on-chain ↔ Lightning)
+- **${ARKADIAN_DIR}/docs/projects/fulmine/sop/lightning-setup.md** — — Setting up LND or CLN integration
+- **${ARKADIAN_DIR}/docs/projects/fulmine/sop/wallet-management.md** — — Wallet creation, backup, recovery
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/fulmine/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

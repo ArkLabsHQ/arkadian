@@ -23,31 +23,31 @@ scripts:
 
 ## Directory Structure
 
-### `system/` — System Architecture & Components
+### `${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/` — System Architecture & Components
 Core documentation about the telemetry stack:
 
-- **project_overview.md** — What ark-telemetry is and how it works
-- **architecture.md** — System architecture with OpenTelemetry as central hub
-- **components.md** — Detailed component descriptions (Prometheus, Grafana, Loki, Jaeger, etc.)
-- **configuration.md** — Configuration files and environment variables
-- **alert-rules.md** — Alert rule definitions and strategies
-- **dashboards.md** — Available dashboards and their purposes
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/project_overview.md** — — What ark-telemetry is and how it works
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/architecture.md** — — System architecture with OpenTelemetry as central hub
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/components.md** — — Detailed component descriptions (Prometheus, Grafana, Loki, Jaeger, etc.)
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/configuration.md** — — Configuration files and environment variables
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/alert-rules.md** — — Alert rule definitions and strategies
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/system/dashboards.md** — — Available dashboards and their purposes
 
-### `testing/` — Usage & Operations
+### `${ARKADIAN_DIR}/docs/projects/ark-telemetry/testing/` — Usage & Operations
 Practical guides for running and using the stack:
 
-- **usage.md** — Quick start and common operations
-- **how_to_run.md** — Starting the stack, configuration, and setup
-- **troubleshooting.md** — Common issues and debugging
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/testing/usage.md** — — Quick start and common operations
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/testing/how_to_run.md** — — Starting the stack, configuration, and setup
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/testing/troubleshooting.md** — — Common issues and debugging
 
-### `sop/` — Standard Operating Procedures
+### `${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/` — Standard Operating Procedures
 Step-by-step guides for telemetry operations:
 
-- **adding-alerts.md** — How to add new alert rules
-- **adding-dashboards.md** — How to create and modify dashboards
-- **monitoring-guide.md** — Best practices for monitoring Ark
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/adding-alerts.md** — — How to add new alert rules
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/adding-dashboards.md** — — How to create and modify dashboards
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/monitoring-guide.md** — — Best practices for monitoring Ark
 
-### `tasks/` — Product Requirements & Plans
+### `${ARKADIAN_DIR}/docs/projects/ark-telemetry/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
 ### `change-log/` — Recent Changes

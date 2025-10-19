@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs copy-settings export-env make-executable verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs copy-settings export-env make-executable install-agents verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -85,6 +85,11 @@ make-executable: ## Make hooks executable
 	@chmod +x hooks/*.ts hooks/*.js 2>/dev/null || true
 	@echo "$(GREEN)✓ Hooks are now executable$(NC)"
 
+install-agents: ## Install agents to ~/.claude/agents
+	@echo "$(YELLOW)Installing agents...$(NC)"
+	@./scripts/install-agents.sh
+	@echo "$(GREEN)✓ Agents installed$(NC)"
+
 update-shell: ## Source shell config (run in new shell)
 	@echo "$(YELLOW)To activate environment variables, run:$(NC)"
 	@echo "  source $(SHELL_CONFIG)"
@@ -114,6 +119,12 @@ verify: ## Verify installation
 		echo "$(GREEN)✓ Context loading hook is executable$(NC)"; \
 	else \
 		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
+	fi
+	@# Check agents
+	@if [ -d "$$HOME/.claude/agents" ] && [ $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l) -eq 6 ]; then \
+		echo "$(GREEN)✓ 6 agents installed in ~/.claude/agents$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Agents not fully installed (run: make install-agents)$(NC)"; \
 	fi
 	@# Check shell config
 	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \

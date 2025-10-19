@@ -26,7 +26,7 @@ This documentation is built with Mintlify and published at the official Ark docu
 
 ## Directory Structure
 
-### `arkd/` — Arkd Server Documentation
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/arkd/` — Arkd Server Documentation
 Documentation about the Ark server daemon (arkd):
 
 - **what-is-arkd.mdx** — Introduction to arkd
@@ -35,7 +35,7 @@ Documentation about the Ark server daemon (arkd):
 - **server-security/** — Security mechanisms (checkpoint txs, forfeit txs)
 - **txs/** — Transaction types (boarding, offchain execution, onchain settlement, exiting)
 
-### `learn/` — Learning Resources
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/learn/` — Learning Resources
 Educational content about Ark protocol:
 
 - **faq/** — Frequently asked questions
@@ -64,7 +64,7 @@ Educational content about Ark protocol:
   - Advanced security
   - Risks and limitations
 
-### `contracts/` — Arkade Smart Contracts
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/contracts/` — Arkade Smart Contracts
 Documentation about Arkade (Ark smart contract language):
 
 - **overview.mdx** — Arkade overview
@@ -87,7 +87,7 @@ Documentation about Arkade (Ark smart contract language):
 - **synthetic-assets.mdx** — Synthetic asset contracts
 - **oracle-dlc.mdx** — Oracle and DLC integration
 
-### `wallets/` — Wallet Development
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/wallets/` — Wallet Development
 Guide for building Ark wallets:
 
 - **introduction.mdx** — Wallet overview
