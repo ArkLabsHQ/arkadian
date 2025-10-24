@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable update-shell test-hook verify clean help
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs copy-settings export-env make-executable install-agents verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs copy-settings export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -90,6 +90,16 @@ install-agents: ## Install agents to ~/.claude/agents
 	@./scripts/install-agents.sh
 	@echo "$(GREEN)✓ Agents installed$(NC)"
 
+install-skills: ## Install skills to ~/.claude/skills
+	@echo "$(YELLOW)Installing skills...$(NC)"
+	@./scripts/install-skills.sh
+	@echo "$(GREEN)✓ Skills installed$(NC)"
+
+install-commands: ## Install commands to ~/.claude/commands
+	@echo "$(YELLOW)Installing commands...$(NC)"
+	@./scripts/install-commands.sh
+	@echo "$(GREEN)✓ Commands installed$(NC)"
+
 update-shell: ## Source shell config (run in new shell)
 	@echo "$(YELLOW)To activate environment variables, run:$(NC)"
 	@echo "  source $(SHELL_CONFIG)"
@@ -121,10 +131,22 @@ verify: ## Verify installation
 		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
 	fi
 	@# Check agents
-	@if [ -d "$$HOME/.claude/agents" ] && [ $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l) -eq 6 ]; then \
-		echo "$(GREEN)✓ 6 agents installed in ~/.claude/agents$(NC)"; \
+	@if [ -d "$$HOME/.claude/agents" ] && [ $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l) -eq 7 ]; then \
+		echo "$(GREEN)✓ 7 agents installed in ~/.claude/agents$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠️  Agents not fully installed (run: make install-agents)$(NC)"; \
+	fi
+	@# Check skills
+	@if [ -d "$$HOME/.claude/skills" ] && [ $$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l) -eq 8 ]; then \
+		echo "$(GREEN)✓ 8 skills installed in ~/.claude/skills$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Skills not fully installed (run: make install-skills)$(NC)"; \
+	fi
+	@# Check commands
+	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -eq 8 ]; then \
+		echo "$(GREEN)✓ 8 commands installed in ~/.claude/commands$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Commands not fully installed (run: make install-commands)$(NC)"; \
 	fi
 	@# Check shell config
 	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
@@ -141,6 +163,21 @@ uninstall: ## Remove Arkadian installation
 		cp $$HOME/.claude/settings.json $$HOME/.claude/settings.json.pre-uninstall; \
 		rm $$HOME/.claude/settings.json; \
 		echo "$(GREEN)✓ Removed settings.json (backup saved)$(NC)"; \
+	fi
+	@# Remove agents
+	@if [ -d "$$HOME/.claude/agents" ]; then \
+		rm -rf $$HOME/.claude/agents; \
+		echo "$(GREEN)✓ Removed agents$(NC)"; \
+	fi
+	@# Remove skills
+	@if [ -d "$$HOME/.claude/skills" ]; then \
+		rm -rf $$HOME/.claude/skills; \
+		echo "$(GREEN)✓ Removed skills$(NC)"; \
+	fi
+	@# Remove commands
+	@if [ -d "$$HOME/.claude/commands" ]; then \
+		rm -rf $$HOME/.claude/commands; \
+		echo "$(GREEN)✓ Removed commands$(NC)"; \
 	fi
 	@# Remove ARKADIAN_DIR from shell config
 	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
