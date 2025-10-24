@@ -319,8 +319,47 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 - **test_or_run**: `start fulmine`, `test swap`, `run web interface`
 - **debug**: `swap failed`, `htlc issues`, `boltz errors`
 
-**Dependencies**: `boltz` (external swap provider), Bitcoin node (btcd/bitcoind)
+**Dependencies**: `boltz-backend` (external swap provider), Bitcoin node (btcd/bitcoind)
 **Depended On By**: `wallet` (for Lightning swap functionality), users needing Lightning liquidity
+
+---
+
+### boltz-backend
+**ID**: `boltz-backend`
+**Name**: Boltz Backend
+**Type**: External Service/Swap Infrastructure
+**Language**: TypeScript/Rust
+**Index**: `${ARKADIAN_DIR}/docs/projects/boltz-backend/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/go/boltz-backend`
+
+**Description**:
+Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps between Bitcoin layers. Provides trustless swaps between Bitcoin mainchain, Lightning Network, Liquid sidechain, and EVM chains using HTLCs and Taproot. RESTful API for swap creation and monitoring. Hybrid TypeScript + Rust architecture for performance and reliability.
+
+**Key Capabilities**:
+- Submarine swaps (Chain → Lightning)
+- Reverse submarine swaps (Lightning → Chain)
+- Chain swaps (Chain → Chain) across Bitcoin/Liquid/EVM
+- Atomic HTLC-based swaps (non-custodial)
+- Taproot cooperative claims for privacy
+- 0-confirmation support for small amounts
+- BOLT12 offers and blinded paths
+- RESTful HTTP API (v1 and v2)
+- WebSocket real-time swap updates
+- PostgreSQL/SQLite storage
+- LND and CLN integration
+
+**Tags**: `swap`, `lightning`, `submarine-swap`, `atomic-swap`, `htlc`, `taproot`, `bitcoin`, `liquid`, `evm`, `rest-api`, `typescript`, `rust`, `postgres`
+
+**Synonyms**: `boltz`, `swap-backend`, `swap-provider`, `boltz-exchange`
+
+**Triggers**:
+- **ask_question**: `atomic swap`, `submarine swap`, `how to swap chains`, `lightning swap`, `boltz api`
+- **develop**: `add swap type`, `improve swap logic`, `api endpoint`, `htlc implementation`
+- **test_or_run**: `start boltz backend`, `regtest environment`, `integration test`
+- **debug**: `swap stuck`, `htlc timeout`, `lightning payment failed`, `chain lockup failed`
+
+**Dependencies**: Bitcoin node (bitcoind/btcd), Lightning node (LND/CLN), Liquid node (elementsd - optional), PostgreSQL/SQLite
+**Depended On By**: `fulmine` (uses Boltz for Lightning swaps), Ark users via fulmine integration
 
 ---
 
@@ -429,6 +468,8 @@ arkd (core)
 | go-sdk | ark-simulator | Library-Consumer |
 | go-sdk | ark-faucet | Library-Consumer |
 | wallet | fulmine | Integrates Lightning swaps |
+| fulmine | boltz-backend | Client-Server (Swap API) |
+| boltz-backend | fulmine | Swap-Provider |
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
 | ark-docs | All | Documentation-Reference |
@@ -436,9 +477,10 @@ arkd (core)
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow
+**TypeScript/JavaScript Projects**: wallet, arkade-escrow, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
+**External Services**: boltz-backend
 
 ---
 
