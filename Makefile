@@ -124,17 +124,27 @@ test-hook: ## Test the context loading hook
 
 verify: ## Verify installation
 	@echo "$(YELLOW)Verifying installation...$(NC)"
-	@# Check settings.json
-	@if [ -f "$$HOME/.claude/settings.json" ]; then \
-		echo "$(GREEN)✓ Settings file exists$(NC)"; \
+	@# Check settings.json (try both filenames)
+	@if [ -f "$$HOME/.claude/.claude-settings.json" ]; then \
+		echo "$(GREEN)✓ Settings file exists (.claude-settings.json)$(NC)"; \
+	elif [ -f "$$HOME/.claude/settings.json" ]; then \
+		echo "$(GREEN)✓ Settings file exists (settings.json)$(NC)"; \
 	else \
 		echo "$(RED)❌ Settings file missing$(NC)"; exit 1; \
 	fi
-	@# Check ARKADIAN_DIR in settings.json
-	@if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings.json; then \
-		echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
-	else \
-		echo "$(RED)❌ ARKADIAN_DIR not found in settings.json$(NC)"; exit 1; \
+	@# Check ARKADIAN_DIR in settings.json (try both filenames)
+	@if [ -f "$$HOME/.claude/.claude-settings.json" ]; then \
+		if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/.claude-settings.json; then \
+			echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
+		else \
+			echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
+		fi; \
+	elif [ -f "$$HOME/.claude/settings.json" ]; then \
+		if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings.json; then \
+			echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
+		else \
+			echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
+		fi; \
 	fi
 	@# Check hooks
 	@if [ -x "hooks/load-arkadian-context.ts" ]; then \
@@ -155,8 +165,8 @@ verify: ## Verify installation
 		echo "$(YELLOW)⚠️  Skills not fully installed (run: make install-skills)$(NC)"; \
 	fi
 	@# Check commands
-	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -eq 8 ]; then \
-		echo "$(GREEN)✓ 8 commands installed in ~/.claude/commands$(NC)"; \
+	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -ge 8 ]; then \
+		echo "$(GREEN)✓ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l | tr -d ' ') commands installed in ~/.claude/commands$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠️  Commands not fully installed (run: make install-commands)$(NC)"; \
 	fi
