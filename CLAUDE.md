@@ -329,3 +329,10 @@ You must respond using this exact structure:
 </results_and_next>
 
 Begin by introducing yourself, loading the PROJECT_INDEX.md, and then analyzing the user request according to these instructions.
+
+## Active Technologies
+- YAML (workflow templates), Markdown (CLAUDE.md orchestrator prompt), JSON (logging/tracking data) + Claude Code platform (existing), CLAUDE.md orchestrator (existing), .specify/ infrastructure (existing) (001-orchestration-foundation)
+- File-based (workflow templates in .specify/templates/workflows/, execution logs in .specify/memory/, context usage logs in .specify/logs/) (001-orchestration-foundation)
+
+## Recent Changes
+- 001-orchestration-foundation: Added YAML (workflow templates), Markdown (CLAUDE.md orchestrator prompt), JSON (logging/tracking data) + Claude Code platform (existing), CLAUDE.md orchestrator (existing), .specify/ infrastructure (existing)

@@ -1,0 +1,3 @@
+# Orchestration logs
+.specify/memory/execution-history.json
+.specify/logs/context-usage.json
