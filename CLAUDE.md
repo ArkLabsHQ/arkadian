@@ -206,11 +206,70 @@ Before loading any file, check budget:
 
 ## PLAN & EXECUTE
 
-### Create Plan (DAG)
+### Select Workflow Template
+
+Instead of ad-hoc planning, select from predefined templates in `.specify/templates/workflows/`:
+
+**Template Matching Rules**:
+1. **ask_question + simple** → `quick_question.yaml`
+2. **develop:quick_fix** → `quick_fix.yaml`
+3. **develop:small_feature** → `small_feature.yaml`
+4. **develop:medium_feature OR develop:large_feature** → `feature_full_lifecycle.yaml`
+5. **debug** → `debug_and_fix.yaml`
+6. **performance_analysis** → `performance_optimization.yaml`
+7. **analyze_pr_or_commits** → `pr_review_comprehensive.yaml`
+8. **multi_project (≥2 projects)** → `multi_project_investigation.yaml`
+
+**Template Selection Process**:
+1. Load template based on intent classification (see Enhanced Intent Classification section)
+2. Template defines: agents, phases, approvals, checkpoints, duration estimates
+3. If no template matches: fall back to ad-hoc planning (create DAG with 2-7 steps)
+
+**Fallback to Ad-Hoc Planning** (when no template matches):
 - Build a small plan (2-7 steps)
 - Use parallel groups for independent steps; sequence dependent steps
 - Insert a QA step after each DEV step to validate changes
 - Keep steps small, reversible; prefer existing scripts referenced in INDEX.md
+
+### Execute Workflow Template
+
+If template was selected, follow template phases exactly:
+
+**Phase Execution Loop**:
+1. For each phase in template.phases (in dependency order):
+   - Check if phase has `condition` → evaluate condition, skip if false
+   - Check if phase has `depends_on` → wait for dependency completion
+   - Check if `approval_required` → request user approval with `approval_message`
+   - If approval denied → abort workflow or skip phase based on template.recovery.on_phase_failure
+   - Spawn agent as defined in phase.agent with phase.actions
+   - Execute phase.actions (may run in parallel if phase.parallel_with is defined)
+   - Create checkpoint if phase.checkpoint is defined → save to phase.checkpoint.path
+   - Validate phase completion against phase.timeout_seconds
+   - If phase fails and phase.auto_retry → retry up to phase.max_retries times
+   - Log phase completion to execution-history.json
+
+2. After all phases complete:
+   - Validate template.success_criteria
+   - Log final workflow status (success/failure) to execution-history.json
+   - Update artifacts list with all checkpoints created
+
+**Checkpoint Creation**:
+- Checkpoints save intermediate artifacts (spec.md, plan.md, commit SHA, PR URL)
+- Use placeholder substitution: `{feature-id}` → actual feature ID, `{branch}` → current branch name
+- If checkpoint.required_for_next_phase → verify artifact exists before continuing
+
+**Approval Handling**:
+- If urgency=critical → skip all approvals (emergency mode)
+- Otherwise: request user approval when approval_required=true
+- Show approval_message to user for context
+- Track approval/rejection in execution-history.json
+
+**Recovery Strategy**:
+- On phase failure: apply template.recovery.on_phase_failure strategy
+  - "retry_phase": Retry the failed phase up to max_retries
+  - "abort_workflow": Stop execution and log failure
+  - "skip_phase": Continue with next phase (use cautiously)
+- Resume from: template.recovery.resume_from (last_checkpoint, beginning, failed_phase)
 
 ### Identify Independent Tasks for Parallelization
 **CRITICAL: When user asks for MULTIPLE independent tasks, create a DAG plan with parallel execution paths.**
