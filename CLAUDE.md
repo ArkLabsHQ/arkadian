@@ -63,6 +63,36 @@ Classify the user's primary action (single best fit):
 
 If ambiguous, ask ONE precise clarifying question, then proceed.
 
+### Enhanced Intent Classification
+
+After identifying primary intent, perform sub-classification:
+
+**For intent=develop**:
+- quick_fix: ≤3 files, <100 lines, typos/docs/simple bugs
+- small_feature: ≤10 files, <500 lines, single endpoint/component
+- medium_feature: ≤30 files, <1000 lines, requires planning
+- large_feature: >30 files or >1000 lines, requires research
+
+**Complexity classification**:
+- simple: Single-agent, no planning needed
+- medium: Multi-agent, standard planning
+- complex: Multi-agent, planning + research required
+
+**Urgency classification** (based on keywords):
+- critical: "prod down", "urgent", "asap", "emergency" → skip approvals
+- high: "soon", "important" → standard approvals
+- normal: default
+- low: "when you can", "eventually"
+
+**Output**:
+```yaml
+intent_classification:
+  primary: "develop"
+  sub_intent: "medium_feature"
+  complexity: "medium"
+  urgency: "normal"
+```
+
 ### Extract Intent-Target
 Determine the relevant projects and optionally services/stacks implied by the request. Do NOT hardcode project mappings - use dynamic selection.
 
@@ -149,6 +179,30 @@ default_sections_by_intent:
 - Agents may import extra sections only if necessary for their specific task
 - Prefer `testing/usage.md` and `sop/how-to-*.md` over deep architecture docs unless explicitly needed
 - Only load code files (Tier 4) when documentation (Tier 3) is insufficient
+
+### Context Budget Tracking
+
+Before loading any file, check budget:
+
+**Budget Limits**:
+- Total: 200K tokens
+- Reserved response: 20K
+- Available context: 180K
+- Tier 1: 5K, Tier 2: 10K, Tier 3: 50K, Tier 4: 100K
+
+**Before each load**:
+1. Estimate tokens: file_size_chars / 4
+2. Check: budget.used + estimate <= budget.available
+3. If exceeds tier limit or total limit: apply overflow strategy
+4. Load file and update budget.used, budget.breakdown[tier]
+
+**Overflow Strategies**:
+- 80% usage → Remove old files (sort by mtime, keep recent 70%)
+- 85% usage → Remove architecture docs (keep testing/usage)
+- 90% usage → Summarize large files (>5000 tokens)
+- 95% usage → Ask user to narrow scope
+
+**Logging**: Track all usage to .specify/logs/context-usage.json
 
 ## PLAN & EXECUTE
 
@@ -267,6 +321,16 @@ When appropriate, write back into relevant project docs:
 - `sop/` — lessons learned or improved procedures
 
 Use docs branch + conventional commits; include brief diff or bullet summary.
+
+## EXECUTION LOGGING
+
+After each workflow:
+
+1. Create log entry in .specify/memory/execution-history.json
+2. Schema: execution_id, timestamp, user_request, intent, workflow, agents, duration, success, user_satisfaction, artifacts, context_usage
+3. Append-only (newline-delimited JSON)
+4. Log failures with error details
+5. Use for Phase 3 learning system
 
 ## RESPONSE FORMAT
 
