@@ -11,7 +11,7 @@ The Arkadian orchestration system uses environment variables to locate all 12 Ar
 ```
 .env (local, gitignored)
     ↓
-~/.claude/.claude-settings.json (generated)
+~/.claude/settings.json (generated)
     ↓
 Claude Code loads on startup
     ↓
@@ -101,7 +101,7 @@ ARKADE_ESCROW_REPO=/Users/dusansekulic/code/go/arkade-escrow
 make copy-settings-with-env
 ```
 
-This generates `~/.claude/.claude-settings.json`:
+This generates `~/.claude/settings.json`:
 
 ```json
 {
@@ -188,7 +188,7 @@ env | grep -E "(ARKADIAN|ARKD|FULMINE|BOLTZ)"
 ### Verify Settings File
 
 ```bash
-cat ~/.claude/.claude-settings.json | jq '.env'
+cat ~/.claude/settings.json | jq '.env'
 ```
 
 Should show all 13 environment variables.
@@ -214,7 +214,7 @@ The orchestrator should:
 1. Check `.env` exists: `cat .env`
 2. Regenerate settings: `make copy-settings-with-env`
 3. Restart Claude Code
-4. Verify: `cat ~/.claude/.claude-settings.json | jq '.env.ARKD_REPO'`
+4. Verify: `cat ~/.claude/settings.json | jq '.env.ARKD_REPO'`
 
 ### Issue: Directory Not Found
 
@@ -243,7 +243,7 @@ The orchestrator should:
 | `.env.example` | Template with placeholders | Yes |
 | `.env` | Your actual paths | No (gitignored) |
 | `.claude-settings.template.json` | Template for Claude settings | Yes |
-| `~/.claude/.claude-settings.json` | Generated settings with env vars | No (in home dir) |
+| `~/.claude/settings.json` | Generated settings with env vars | No (in home dir) |
 | `scripts/generate-env.sh` | Prompts for paths | Yes |
 | `scripts/generate-claude-settings.sh` | Generates settings from .env | Yes |
 
@@ -288,7 +288,7 @@ make copy-settings-with-env
 ## Next Steps
 
 1. ✅ Install: `make install`
-2. ✅ Verify: `cat ~/.claude/.claude-settings.json`
+2. ✅ Verify: `cat ~/.claude/settings.json`
 3. ✅ Restart Claude Code
 4. ✅ Test: Ask orchestrator to load code from a repository
 5. ✅ Iterate: Update `.env` paths as needed
@@ -296,7 +296,7 @@ make copy-settings-with-env
 ## Questions?
 
 - **Where do I put my project paths?** → In `.env` (gitignored)
-- **How does Claude Code know about them?** → Loaded from `~/.claude/.claude-settings.json`
+- **How does Claude Code know about them?** → Loaded from `~/.claude/settings.json`
 - **When are they expanded?** → Automatically by Claude Code when reading CLAUDE.md
 - **What if I move repositories?** → Update `.env`, run `make copy-settings-with-env`, restart Claude Code
 - **Can I use relative paths?** → Yes, but absolute paths are recommended for reliability
