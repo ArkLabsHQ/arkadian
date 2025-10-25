@@ -468,13 +468,232 @@ Use docs branch + conventional commits; include brief diff or bullet summary.
 
 ## EXECUTION LOGGING
 
-After each workflow:
+Log all workflow executions to `.specify/memory/execution-history.json` for Phase 3 learning system.
 
-1. Create log entry in .specify/memory/execution-history.json
-2. Schema: execution_id, timestamp, user_request, intent, workflow, agents, duration, success, user_satisfaction, artifacts, context_usage
-3. Append-only (newline-delimited JSON)
-4. Log failures with error details
-5. Use for Phase 3 learning system
+### Schema Requirements
+
+Each execution record MUST contain:
+- `execution_id` (UUID v4)
+- `timestamp` (ISO 8601 format)
+- `user_request` (original request text)
+- `intent` (classification object from Enhanced Intent Classification)
+- `workflow` (template name, version, fallback flag)
+- `agents` (array of spawned agents with durations)
+- `duration_seconds` (total workflow time)
+- `success` (boolean)
+- `user_satisfaction` ("approved", "rejected", "unknown")
+- `artifacts` (array of file paths/commit SHAs created)
+- `context_usage` (token usage summary from Context Budget Tracking)
+- `phases_executed` (array of phase execution details)
+- `errors` (array of error objects if success=false)
+
+### Logging Triggers
+
+#### Trigger 1: Workflow Start (T027)
+**When**: Immediately after intent classification and project selection, before context loading
+
+**Action**:
+1. Generate `execution_id` using UUID v4
+2. Record `timestamp` (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
+3. Capture `user_request` (original user input)
+4. Capture `intent` (full classification object from Enhanced Intent Classification)
+5. Initialize partial log entry:
+```json
+{
+  "execution_id": "uuid-v4",
+  "timestamp": "2025-10-25T10:00:00Z",
+  "user_request": "original user request text",
+  "intent": {
+    "primary": "develop",
+    "sub_intent": "medium_feature",
+    "complexity": "medium",
+    "urgency": "normal",
+    "multi_project": false,
+    "projects": ["arkd"]
+  },
+  "workflow": {"template_name": null, "fallback_to_adhoc": false},
+  "agents": [],
+  "duration_seconds": null,
+  "success": null,
+  "user_satisfaction": "unknown",
+  "artifacts": [],
+  "context_usage": {},
+  "phases_executed": [],
+  "errors": []
+}
+```
+6. Store in memory (do NOT write to file yet - wait for workflow end)
+
+#### Trigger 2: Workflow End (T028)
+**When**: After all workflow phases complete (success or failure)
+
+**Action**:
+1. Calculate `duration_seconds` (end_time - start_time)
+2. Set `success` (true if all phases completed successfully, false otherwise)
+3. Capture `artifacts` (list of all checkpoints created: spec.md paths, commit SHAs, PR URLs)
+4. Capture `context_usage` (final token counts from Context Budget Tracking):
+```json
+"context_usage": {
+  "total_tokens": 95000,
+  "tier1": 4500,
+  "tier2": 8200,
+  "tier3": 42000,
+  "tier4": 40300,
+  "overflow_events": 2,
+  "strategies_applied": ["prioritize_recent_files", "prefer_usage_docs"]
+}
+```
+5. Capture `phases_executed` (array of phase details):
+```json
+"phases_executed": [
+  {
+    "id": "specify",
+    "duration_seconds": 600,
+    "success": true,
+    "approval_granted": true
+  },
+  {
+    "id": "implement",
+    "duration_seconds": 1200,
+    "success": true,
+    "approval_granted": false
+  }
+]
+```
+6. Append complete log entry to `.specify/memory/execution-history.json` (newline-delimited JSON format)
+7. Validate JSON before writing (see T032 below)
+
+#### Trigger 3: User Approval/Rejection (T029)
+**When**: User responds to approval request (during workflow execution)
+
+**Action**:
+1. Update in-memory log entry:
+   - If user approves: `user_satisfaction = "approved"`
+   - If user rejects: `user_satisfaction = "rejected"`
+2. Add to `phases_executed` for current phase:
+```json
+{
+  "id": "current_phase_id",
+  "approval_granted": true,  // or false
+  "approval_timestamp": "2025-10-25T10:15:30Z"
+}
+```
+3. If user rejects and workflow aborts: set `success = false`, write log immediately
+
+#### Trigger 4: Workflow Failure (T030)
+**When**: Any phase fails, workflow aborts, or unrecoverable error occurs
+
+**Action**:
+1. Set `success = false`
+2. Populate `errors` array with error details:
+```json
+"errors": [
+  {
+    "phase": "implement",
+    "timestamp": "2025-10-25T10:45:30Z",
+    "error_type": "test_failure",
+    "message": "Integration tests failed: 3 failures in vtxo_handler_test.go",
+    "stack_trace": "...",
+    "recovery_attempted": true,
+    "recovery_success": false
+  }
+]
+```
+3. Write log entry immediately (don't wait for workflow end)
+4. Include partial `context_usage` (whatever was loaded before failure)
+
+### Graceful Failure Handling (T031)
+
+Logging failures MUST NOT block workflow execution.
+
+**Implementation**:
+```
+try:
+  append_to_execution_log(log_entry)
+except FileWriteError as e:
+  console.warn("⚠️ Failed to write execution log: {e}")
+  console.warn("Continuing workflow execution...")
+  // DO NOT throw error - workflow continues normally
+except JSONValidationError as e:
+  console.warn("⚠️ Execution log validation failed: {e}")
+  console.warn("Log entry: {log_entry}")
+  console.warn("Continuing workflow execution...")
+  // DO NOT throw error - workflow continues normally
+```
+
+**Rationale**: Execution logging is for observability and future learning. It should never prevent workflows from completing successfully.
+
+### JSON Schema Validation (T032)
+
+Before writing to `.specify/memory/execution-history.json`, validate log entry.
+
+**Required Field Validation**:
+- `execution_id` → must be valid UUID v4 format
+- `timestamp` → must be valid ISO 8601 format
+- `user_request` → must be non-empty string
+- `intent.primary` → must be one of 8 valid intent types
+- `workflow.template_name` → must be valid template name or null
+
+**Type Validation**:
+- `duration_seconds` → must be non-negative integer
+- `success` → must be boolean (true/false)
+- `user_satisfaction` → must be "approved", "rejected", or "unknown"
+- `artifacts` → must be array of strings
+- `context_usage.total_tokens` → must be integer ≤ 200000
+
+**Schema File Reference**: See `specs/001-orchestration-foundation/data-model.md` Entity 4: Execution Record (lines 471-620)
+
+**Validation Function** (pseudo-code):
+```python
+def validate_execution_record(record):
+  assert record['execution_id'] matches UUID_V4_PATTERN
+  assert record['timestamp'] matches ISO_8601_PATTERN
+  assert len(record['user_request']) > 0
+  assert record['intent']['primary'] in VALID_INTENT_TYPES
+  assert record['success'] in [true, false]
+  assert record['duration_seconds'] >= 0
+  return true  # Valid
+```
+
+If validation fails:
+- Log warning with validation error details
+- DO NOT write invalid record to file
+- DO NOT block workflow execution
+
+### File Format
+
+**Newline-Delimited JSON (NDJSON)**:
+- Each log entry is a single line (one JSON object per line)
+- Enables O(1) append operations (no array parsing required)
+- Easy to stream/process line-by-line
+
+**Example** (`.specify/memory/execution-history.json`):
+```json
+{"execution_id":"uuid1","timestamp":"2025-10-25T10:00:00Z","user_request":"fix typo","success":true}
+{"execution_id":"uuid2","timestamp":"2025-10-25T11:00:00Z","user_request":"add feature","success":true}
+{"execution_id":"uuid3","timestamp":"2025-10-25T12:00:00Z","user_request":"debug issue","success":false,"errors":[...]}
+```
+
+### Phase 3 Learning System Integration
+
+This execution history enables future learning capabilities:
+- **Success rate tracking**: Calculate per-template success rates
+- **Duration prediction**: Improve estimated_duration_seconds based on historical data
+- **Failure pattern detection**: Identify common failure modes per intent/workflow
+- **Adaptive routing**: Route similar requests to historically successful workflows
+- **Context optimization**: Learn which docs are most useful per intent type
+
+**Query Examples** (for Phase 3):
+```bash
+# Get success rate for feature_full_lifecycle template
+jq 'select(.workflow.template_name=="feature_full_lifecycle") | .success' execution-history.json | jq -s 'map(select(. == true)) | length / length'
+
+# Get average duration for quick_fix workflow
+jq 'select(.workflow.template_name=="quick_fix") | .duration_seconds' execution-history.json | jq -s 'add / length'
+
+# Find all failed workflows in last 7 days
+jq 'select(.success==false and .timestamp > "2025-10-18")' execution-history.json
+```
 
 ## RESPONSE FORMAT
 
