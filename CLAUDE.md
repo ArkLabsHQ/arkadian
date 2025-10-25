@@ -189,20 +189,105 @@ Before loading any file, check budget:
 - Reserved response: 20K
 - Available context: 180K
 - Tier 1: 5K, Tier 2: 10K, Tier 3: 50K, Tier 4: 100K
+- Agent scratch: 15K
 
-**Before each load**:
-1. Estimate tokens: file_size_chars / 4
-2. Check: budget.used + estimate <= budget.available
-3. If exceeds tier limit or total limit: apply overflow strategy
-4. Load file and update budget.used, budget.breakdown[tier]
+**Token Estimation**:
+Use `chars / 4` heuristic for quick estimation (slightly overestimates, provides safety margin).
 
-**Overflow Strategies**:
-- 80% usage → Remove old files (sort by mtime, keep recent 70%)
-- 85% usage → Remove architecture docs (keep testing/usage)
-- 90% usage → Summarize large files (>5000 tokens)
-- 95% usage → Ask user to narrow scope
+**Before Each Load**:
+1. Estimate tokens: `file_size_chars / 4`
+2. Calculate usage: `(budget.used + estimate) / budget.total_limit`
+3. If usage >= threshold: apply overflow strategy
+4. Load file and update `budget.used`, `budget.breakdown[tier]`
+5. Log to `.specify/logs/context-usage.json`
 
-**Logging**: Track all usage to .specify/logs/context-usage.json
+**Overflow Strategies** (applied progressively):
+
+#### Strategy 1: Prioritize Recent Files (80% threshold)
+**Trigger**: When `budget.used / budget.total >= 0.80` (160K/200K tokens)
+
+**Implementation**:
+1. Identify all Tier 3 (deep docs) files currently loaded
+2. Sort by load timestamp (oldest first)
+3. Remove oldest 30% of Tier 3 files from context
+4. Update budget: `budget.used -= sum(removed_file_tokens)`
+5. Log overflow event: strategy="prioritize_recent_files", tokens_freed=X
+
+**Rationale**: Recent files are more relevant to current task; older files may be from initial context loading
+
+#### Strategy 2: Prefer Usage Docs (85% threshold)
+**Trigger**: When `budget.used / budget.total >= 0.85` (170K/200K tokens)
+
+**Implementation**:
+1. Identify architecture/system docs in context:
+   - Files matching: `system/architecture.md`, `system/folder_structure.md`, `system/*.md`
+   - Exclude: `testing/usage.md`, `testing/how_to_*.md`, `sop/*.md`
+2. Remove architecture docs from context
+3. Keep testing/usage/sop docs (more actionable)
+4. Update budget: `budget.used -= sum(removed_file_tokens)`
+5. Log overflow event: strategy="prefer_usage_docs", tokens_freed=X
+
+**Rationale**: Usage/testing docs are more immediately actionable than architecture overviews
+
+#### Strategy 3: Summarize Large Files (90% threshold)
+**Trigger**: When `budget.used / budget.total >= 0.90` (180K/200K tokens)
+
+**Implementation**:
+1. Identify files in context with estimated_tokens > 5000
+2. For each large file:
+   - Generate summary (key points, 20% of original size)
+   - Replace full content with summary in context
+   - Mark as summarized: `[SUMMARIZED: {file_path}]`
+3. Update budget: `budget.used -= sum(tokens_saved_by_summarization)`
+4. Log overflow event: strategy="summarize_large_files", tokens_freed=X, files_summarized=[paths]
+
+**Rationale**: Summaries provide enough context while dramatically reducing token usage
+
+#### Strategy 4: Ask User to Narrow Scope (95% threshold)
+**Trigger**: When `budget.used / budget.total >= 0.95` (190K/200K tokens)
+
+**Implementation**:
+1. Pause context loading
+2. Present user with options:
+   ```
+   ⚠️ Context budget at 95% (190K/200K tokens used).
+
+   Options:
+   1. Focus on primary project only ({primary_project_id})
+   2. Reduce documentation loading (keep only usage/testing docs)
+   3. Abort this request and narrow scope
+
+   What would you like to do?
+   ```
+3. Apply user's choice:
+   - Option 1: Remove all non-primary projects from context
+   - Option 2: Remove all docs except testing/usage
+   - Option 3: Abort workflow gracefully
+4. Update budget based on user choice
+5. Log overflow event: strategy="ask_user_narrow_scope", user_choice=X, tokens_freed=X
+
+**Rationale**: At 95%, automatic strategies may not be enough; user input needed to avoid overflow
+
+**Context Usage Logging**:
+After applying any overflow strategy, append to `.specify/logs/context-usage.json`:
+```json
+{
+  "timestamp": "2025-10-25T10:15:30Z",
+  "execution_id": "linked-to-execution-history",
+  "trigger_percentage": 0.80,
+  "strategy_applied": "prioritize_recent_files",
+  "files_removed": 3,
+  "tokens_freed": 8000,
+  "budget_after": {
+    "used": 152000,
+    "percentage": 0.76
+  }
+}
+```
+
+**Failure Handling**:
+- If all strategies applied and still at 95%+ usage: abort gracefully with clear error
+- Never exceed 200K limit - better to fail early than overflow silently
 
 ## PLAN & EXECUTE
 
