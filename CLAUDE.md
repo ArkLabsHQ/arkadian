@@ -106,7 +106,7 @@ Determine the relevant projects and optionally services/stacks implied by the re
 3. Select top-K projects above reasonable threshold; add any `depends_on`
 4. For each selected project, LEARN only its `index_path` (the project's INDEX.md)
 
-If selection is empty/over-broad, ask one clarification and re-select.
+If selection is empty/over-broad, ask clarification questions and re-select.
 
 ## CONTEXT LOADING POLICY
 

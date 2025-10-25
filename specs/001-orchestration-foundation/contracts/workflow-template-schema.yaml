@@ -1,0 +1,490 @@
+# Workflow Template Schema
+# Version: 1.0.0
+# Date: 2025-10-25
+#
+# This schema defines the structure for workflow templates used by the Arkadian orchestrator.
+# All workflow templates must conform to this schema.
+
+# ==============================================================================
+# METADATA SECTION
+# ==============================================================================
+metadata:
+  name:
+    type: string
+    required: true
+    pattern: "^[a-z_]+$"  # kebab-case or snake_case
+    description: "Unique template identifier"
+    examples:
+      - "quick_question"
+      - "feature_full_lifecycle"
+      - "debug_and_fix"
+
+  description:
+    type: string
+    required: true
+    min_length: 10
+    max_length: 200
+    description: "Human-readable summary of what this template does"
+    examples:
+      - "Simple Q&A, no code changes"
+      - "Medium to large feature with full planning cycle"
+
+  version:
+    type: string
+    required: true
+    pattern: "^\\d+\\.\\d+\\.\\d+$"  # Semver
+    description: "Template version (semver)"
+    examples:
+      - "1.0.0"
+      - "2.1.3"
+
+  author:
+    type: string
+    required: false
+    description: "Template author or system that created it"
+    default: "arkadian-system"
+
+  created:
+    type: string
+    required: false
+    format: date  # YYYY-MM-DD
+    description: "Date template was created"
+
+  last_modified:
+    type: string
+    required: false
+    format: date
+    description: "Date template was last modified"
+
+# ==============================================================================
+# APPLICABILITY SECTION (Intent Matching)
+# ==============================================================================
+applies_to:
+  primary_intent:
+    type: string
+    required: true
+    enum:
+      - "ask_question"
+      - "develop"
+      - "test_or_run"
+      - "analyze_pr_or_commits"
+      - "debug"
+      - "monitor_or_alert"
+      - "research"
+      - "performance_analysis"
+    description: "Primary intent type this template handles"
+
+  sub_intent:
+    type: array
+    required: false
+    items:
+      type: string
+    description: "Applicable sub-intents (if any)"
+    examples:
+      - ["quick_fix", "small_feature"]
+      - ["medium_feature", "large_feature"]
+      - ["critical", "high"]
+
+  complexity:
+    type: array
+    required: true
+    items:
+      type: string
+      enum: ["simple", "medium", "complex"]
+    min_items: 1
+    description: "Applicable complexity levels"
+    examples:
+      - ["simple"]
+      - ["medium", "complex"]
+
+  urgency:
+    type: array
+    required: true
+    items:
+      type: string
+      enum: ["low", "normal", "high", "critical"]
+    min_items: 1
+    description: "Applicable urgency levels"
+    examples:
+      - ["normal", "high"]
+      - ["low", "normal", "high", "critical"]
+
+  multi_project:
+    type: boolean
+    required: false
+    default: false
+    description: "Whether this template is for multi-project requests"
+
+# ==============================================================================
+# EXECUTION SECTION
+# ==============================================================================
+execution:
+  agents:
+    type: array
+    required: true
+    items:
+      type: string
+      enum:
+        - "ark-guru"
+        - "ark-project-manager"
+        - "ark-developer"
+        - "ark-tester"
+        - "ark-debugger"
+        - "ark-researcher"
+        - "ark-pr-reviewer"
+    min_items: 1
+    description: "Agents used in this workflow"
+    examples:
+      - ["ark-guru"]
+      - ["ark-project-manager", "ark-developer", "ark-tester"]
+
+  phases:
+    type: array
+    required: true
+    items:
+      type: object
+      schema: "Phase"  # See Phase schema below
+    min_items: 1
+    description: "Ordered execution phases"
+
+# ==============================================================================
+# PHASE SCHEMA (Nested)
+# ==============================================================================
+Phase:
+  id:
+    type: string
+    required: true
+    pattern: "^[a-z_]+$"
+    description: "Unique phase identifier (within template)"
+    examples:
+      - "specify"
+      - "implement"
+      - "test"
+
+  name:
+    type: string
+    required: false
+    description: "Human-readable phase name"
+    examples:
+      - "Create Specification"
+      - "Implement Feature"
+
+  agent:
+    type: string
+    required: true
+    enum:
+      - "guru"
+      - "project-manager"
+      - "developer"
+      - "tester"
+      - "debugger"
+      - "researcher"
+      - "pr-reviewer"
+    description: "Agent name (without 'ark-' prefix)"
+
+  depends_on:
+    type: string
+    required: false
+    nullable: true
+    description: "Phase ID this depends on (null for first phase)"
+    validation: "Must reference existing phase.id or be null"
+
+  condition:
+    type: string
+    required: false
+    description: "Optional condition for executing this phase"
+    examples:
+      - "if [NEEDS CLARIFICATION] markers exist"
+      - "if tests fail"
+
+  approval_required:
+    type: boolean
+    required: true
+    description: "Whether user approval is needed before this phase"
+
+  approval_message:
+    type: string
+    required: false
+    description: "Message to show user when requesting approval"
+    examples:
+      - "Specification complete. Proceed to planning?"
+      - "Tests pass. Create pull request?"
+
+  actions:
+    type: array
+    required: true
+    items:
+      type: string
+    min_items: 1
+    description: "Steps to execute in this phase"
+    examples:
+      - ["Use pm-spec skill", "Generate spec.md"]
+      - ["Run tests", "Check coverage"]
+
+  checkpoint:
+    type: object
+    required: false
+    description: "Artifact to save at end of phase"
+    properties:
+      path:
+        type: string
+        required: true
+        description: "File path or identifier (supports {feature-id} placeholder)"
+        examples:
+          - "specs/{feature-id}/spec.md"
+          - "git commit SHA"
+      required_for_next_phase:
+        type: boolean
+        required: false
+        default: true
+        description: "Whether checkpoint must exist before next phase"
+
+  timeout_seconds:
+    type: integer
+    required: true
+    min: 60  # 1 minute minimum
+    max: 7200  # 2 hours maximum
+    description: "Phase timeout in seconds"
+
+  parallel_with:
+    type: array
+    required: false
+    items:
+      type: string
+    description: "Phase IDs that can run in parallel with this phase"
+    examples:
+      - ["research"]
+      - ["test", "security_scan"]
+
+  auto_fix:
+    type: boolean
+    required: false
+    default: false
+    description: "Whether phase can automatically fix issues"
+
+  auto_retry:
+    type: boolean
+    required: false
+    default: false
+    description: "Whether phase should retry on failure"
+
+  max_retries:
+    type: integer
+    required: false
+    default: 0
+    min: 0
+    max: 5
+    description: "Maximum retry attempts if auto_retry is true"
+
+# ==============================================================================
+# SUCCESS CRITERIA SECTION
+# ==============================================================================
+success_criteria:
+  type: array
+  required: false
+  items:
+    type: string
+  description: "Conditions that must be met for workflow success"
+  examples:
+    - "All tests pass"
+    - "spec.md exists and passes validation"
+    - "PR created with complete description"
+
+# ==============================================================================
+# PERFORMANCE SECTION
+# ==============================================================================
+performance:
+  estimated_duration_seconds:
+    type: integer
+    required: true
+    min: 1
+    description: "Expected workflow duration in seconds"
+    examples:
+      - 120  # 2 minutes for quick question
+      - 2700  # 45 minutes for medium feature
+      - 5400  # 90 minutes for large feature
+
+  max_duration_seconds:
+    type: integer
+    required: true
+    min: 1
+    description: "Maximum workflow duration (timeout)"
+    validation: "Must be >= estimated_duration_seconds"
+
+# ==============================================================================
+# RECOVERY SECTION
+# ==============================================================================
+recovery:
+  on_phase_failure:
+    type: string
+    required: false
+    default: "retry_phase"
+    enum:
+      - "retry_phase"
+      - "abort_workflow"
+      - "skip_phase"
+    description: "Action to take when a phase fails"
+
+  checkpoint_frequency:
+    type: string
+    required: false
+    default: "per_phase"
+    enum:
+      - "per_phase"
+      - "per_agent"
+      - "manual"
+    description: "How often to create checkpoints"
+
+  resume_from:
+    type: string
+    required: false
+    default: "last_checkpoint"
+    enum:
+      - "last_checkpoint"
+      - "beginning"
+      - "failed_phase"
+    description: "Where to resume after failure recovery"
+
+# ==============================================================================
+# VALIDATION RULES
+# ==============================================================================
+#
+# The following rules must be enforced when loading templates:
+#
+# 1. DAG Validation:
+#    - phases must form a directed acyclic graph (no cycles)
+#    - First phase must have depends_on: null
+#    - All depends_on values must reference existing phase.id
+#
+# 2. Agent Validation:
+#    - All agents in phases must be listed in execution.agents
+#    - Agent names must exist in ~/.claude/agents/
+#
+# 3. Timeout Validation:
+#    - Sum of phase timeouts should be <= max_duration_seconds
+#    - estimated_duration_seconds <= max_duration_seconds
+#
+# 4. Approval Validation:
+#    - If approval_required: true, approval_message should be set
+#    - At least one phase should have approval_required: true
+#
+# 5. Checkpoint Validation:
+#    - If checkpoint.required_for_next_phase: true, next phase must exist
+#    - Checkpoint paths must use valid placeholders: {feature-id}, {branch}
+#
+# ==============================================================================
+
+# ==============================================================================
+# EXAMPLE TEMPLATE (Minimal)
+# ==============================================================================
+example_minimal:
+  metadata:
+    name: "quick_question"
+    description: "Simple Q&A, no code changes"
+    version: "1.0.0"
+
+  applies_to:
+    primary_intent: "ask_question"
+    complexity: ["simple"]
+    urgency: ["low", "normal", "high", "critical"]
+
+  execution:
+    agents: ["ark-guru"]
+    phases:
+      - id: "ask"
+        agent: "guru"
+        depends_on: null
+        approval_required: false
+        actions: ["Load relevant docs", "Explain concept", "Cite sources"]
+        timeout_seconds: 300
+
+  performance:
+    estimated_duration_seconds: 120
+    max_duration_seconds: 300
+
+# ==============================================================================
+# EXAMPLE TEMPLATE (Complete)
+# ==============================================================================
+example_complete:
+  metadata:
+    name: "feature_full_lifecycle"
+    description: "Medium to large feature with full planning cycle"
+    version: "1.0.0"
+    author: "arkadian-system"
+    created: "2025-10-25"
+
+  applies_to:
+    primary_intent: "develop"
+    sub_intent: ["medium_feature", "large_feature"]
+    complexity: ["medium", "complex"]
+    urgency: ["low", "normal", "high"]
+    multi_project: false
+
+  execution:
+    agents: ["ark-project-manager", "ark-developer", "ark-tester"]
+    phases:
+      - id: "specify"
+        name: "Create Specification"
+        agent: "project-manager"
+        depends_on: null
+        approval_required: true
+        approval_message: "Specification complete. Proceed to planning?"
+        actions: ["Use pm-spec skill", "Generate spec.md"]
+        checkpoint:
+          path: "specs/{feature-id}/spec.md"
+          required_for_next_phase: true
+        timeout_seconds: 900
+
+      - id: "plan"
+        name: "Create Implementation Plan"
+        agent: "project-manager"
+        depends_on: "specify"
+        approval_required: true
+        approval_message: "Plan complete. Proceed to implementation?"
+        actions: ["Use pm-plan skill", "Generate plan.md"]
+        checkpoint:
+          path: "specs/{feature-id}/plan.md"
+          required_for_next_phase: true
+        timeout_seconds: 1200
+
+      - id: "implement"
+        name: "Implement Feature"
+        agent: "developer"
+        depends_on: "plan"
+        approval_required: false
+        actions: ["Use dev-implement skill", "Write code", "Run tests"]
+        checkpoint:
+          path: "git commit SHA"
+          required_for_next_phase: true
+        timeout_seconds: 3600
+
+      - id: "test"
+        name: "Validate Implementation"
+        agent: "tester"
+        depends_on: "implement"
+        approval_required: false
+        actions: ["Run test suite", "Validate deployment"]
+        auto_retry: true
+        max_retries: 2
+        timeout_seconds: 900
+
+  success_criteria:
+    - "spec.md exists and passes validation"
+    - "plan.md contains architecture decisions"
+    - "All tests pass"
+
+  performance:
+    estimated_duration_seconds: 2700
+    max_duration_seconds: 5400
+
+  recovery:
+    on_phase_failure: "retry_phase"
+    checkpoint_frequency: "per_phase"
+    resume_from: "last_checkpoint"
+
+# ==============================================================================
+# SCHEMA VERSION
+# ==============================================================================
+schema_version: "1.0.0"
+schema_date: "2025-10-25"
+schema_author: "arkadian-system"
