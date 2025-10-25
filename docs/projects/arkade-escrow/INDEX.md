@@ -58,10 +58,10 @@ Step-by-step guides for operations:
 ### `${ARKADIAN_DIR}/docs/projects/arkade-escrow/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
-### `change-log/` — Recent Changes
+### `${ARKADIAN_DIR}/docs/projects/arkd/change-log/` — Recent Changes
 Curated summaries of significant changes.
 
-### `pr-report/` — Pull Request Summaries
+### `${ARKADIAN_DIR}/docs/projects/arkd/pr-report/` — Pull Request Summaries
 Analysis and summaries of pull requests.
 
 ---

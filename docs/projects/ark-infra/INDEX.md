@@ -55,10 +55,10 @@ Step-by-step procedures for infrastructure tasks:
 ### `${ARKADIAN_DIR}/docs/projects/ark-infra/tasks/` — Infrastructure Plans & Changes
 Infrastructure changes, migrations, and improvements.
 
-### `change-log/` — Recent Changes
+### `${ARKADIAN_DIR}/docs/projects/arkd/change-log/` — Recent Changes
 Curated summaries of infrastructure changes.
 
-### `pr-report/` — Pull Request Summaries
+### `${ARKADIAN_DIR}/docs/projects/arkd/pr-report/` — Pull Request Summaries
 Analysis and summaries of pull requests.
 
 ---

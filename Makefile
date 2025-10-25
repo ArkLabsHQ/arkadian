@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs copy-settings export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -53,7 +53,19 @@ setup-dirs: ## Create necessary directories
 	@mkdir -p $$HOME/.claude
 	@echo "$(GREEN)✓ Created ~/.claude/$(NC)"
 
-copy-settings: ## Copy settings.json to ~/.claude/
+generate-env: ## Generate .env from user prompts
+	@if [ -f ".env" ]; then \
+		echo "$(YELLOW)⚠️  .env already exists. To regenerate, delete it first:$(NC)"; \
+		echo "  rm .env && make generate-env"; \
+	else \
+		bash scripts/generate-env.sh; \
+	fi
+
+copy-settings-with-env: ## Generate settings.json with all env vars from .env
+	@echo "$(YELLOW)Installing settings.json with environment variables...$(NC)"
+	@bash scripts/generate-claude-settings.sh
+
+copy-settings: ## Copy settings.json to ~/.claude/ (legacy - use copy-settings-with-env)
 	@echo "$(YELLOW)Installing settings.json...$(NC)"
 	@if [ -f "$$HOME/.claude/settings.json" ]; then \
 		echo "$(YELLOW)⚠️  Backing up existing settings.json to settings.json.backup$(NC)"; \

@@ -51,10 +51,10 @@ Step-by-step guides for simulation operations:
 ### `${ARKADIAN_DIR}/docs/projects/ark-simulator/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
-### `change-log/` — Recent Changes
+### `${ARKADIAN_DIR}/docs/projects/arkd/change-log/` — Recent Changes
 Curated summaries of significant changes.
 
-### `pr-report/` — Pull Request Summaries
+### `${ARKADIAN_DIR}/docs/projects/arkd/pr-report/` — Pull Request Summaries
 Analysis and summaries of pull requests.
 
 ---

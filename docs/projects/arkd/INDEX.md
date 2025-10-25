@@ -65,14 +65,14 @@ PRDs, feature specifications, and implementation tracking:
 - Implementation plans and status
 - Technical decisions and trade-offs
 
-### `change-log/`  Recent Changes
+### `${ARKADIAN_DIR}/docs/projects/arkd/change-log/`  Recent Changes
 Curated summaries of significant changes:
 
 - Recent feature additions
 - Bug fixes and improvements
 - Breaking changes and migrations
 
-### `pr-report/`  Pull Request Summaries
+### `${ARKADIAN_DIR}/docs/projects/arkd/pr-report/`  Pull Request Summaries
 Analysis and summaries of pull requests:
 
 - PR reviews and analysis
