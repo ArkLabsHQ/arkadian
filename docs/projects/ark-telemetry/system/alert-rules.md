@@ -2,11 +2,20 @@
 
 ## Overview
 
-Alert rules in ark-telemetry are defined in Prometheus query language (PromQL) and evaluated continuously by Prometheus. When an alert condition is met, Prometheus sends the alert to Alertmanager, which handles notification routing and delivery to Slack.
+Alert rules in ark-telemetry are defined in two systems:
+
+1. **Prometheus (PromQL)**: Metric-based alerts for resource usage and service health
+2. **Loki (LogQL)**: Log-based alerts for pattern detection and application errors
+
+When an alert condition is met, both Prometheus and Loki send alerts to Alertmanager, which handles notification routing and delivery to Slack.
 
 ## Alert Configuration
 
+### Prometheus Alert Rules
 Alert rules are defined in `${ARK_TELEMETRY_REPO}/alert.rules.yml` and loaded by Prometheus at startup. The rules are organized in groups with common evaluation intervals.
+
+### Loki Alert Rules
+Log-based alert rules are defined in `${ARK_TELEMETRY_REPO}/loki-alert-rules.yml` and evaluated by Loki's ruler component. These rules use LogQL syntax to detect patterns in application logs.
 
 ### Alert Rule Structure
 
@@ -335,5 +344,268 @@ In Prometheus UI:
 1. Navigate to Alerts page
 2. Click on alert name
 3. View firing history and state transitions
+
+## Loki Log-Based Alert Rules
+
+### Overview
+
+Loki alert rules use LogQL (Loki Query Language) to detect patterns in application logs. These rules are particularly useful for detecting application-level errors that don't produce metrics, such as low liquidity warnings, wallet errors, and transaction failures.
+
+### ArkdLowLiquidity
+
+**Purpose**: Detect when arkd reports insufficient liquidity to process rounds.
+
+**Configuration:**
+```yaml
+- alert: ArkdLowLiquidity
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)not enough liquidity" [5m])) > 0
+  for: 30s
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: liquidity
+  annotations:
+    summary: "Arkd low liquidity detected"
+    description: "The pattern 'not enough liquidity' appeared in arkd logs."
+    logql_query: '{container="arkd"} |~ "(?i)not enough liquidity"'
+```
+
+**How It Works:**
+
+1. **LogQL Expression Breakdown:**
+   - `{container="arkd"}`: Filter logs from arkd container
+   - `|~ "(?i)not enough liquidity"`: Case-insensitive regex pattern match
+   - `count_over_time(...[5m])`: Count occurrences in last 5 minutes
+   - `sum(...)`: Aggregate across all log streams
+   - `> 0`: Trigger if pattern appears at least once
+
+2. **Duration**: Alert fires after pattern persists for 30 seconds
+
+3. **Severity**: Labeled as "warning" (operational issue)
+
+**When It Fires:**
+- Arkd wallet balance is too low to fund round operations
+- Round processing requires more liquidity than available
+- UTXO set doesn't have sufficient funds for required outputs
+
+**Response Actions:**
+- Check wallet balance: `docker exec arkd-wallet ark-cli getbalance`
+- Review recent rounds and liquidity consumption
+- Top up wallet if balance is critically low
+- Investigate abnormal liquidity drain patterns
+
+### ArkdWalletLocked
+
+**Purpose**: Detect when arkd cannot access wallet due to locked state.
+
+**Configuration:**
+```yaml
+- alert: ArkdWalletLocked
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)wallet is locked" [5m])) > 0
+  for: 30s
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: wallet_access
+```
+
+**When It Fires:**
+- Wallet passphrase not provided or incorrect
+- kms-unlocker service failed to unlock wallet
+- Manual wallet lock operation
+
+**Response Actions:**
+- Verify kms-unlocker service is running: `docker ps | grep kms-unlocker`
+- Check kms-unlocker logs: `docker logs kms-unlocker`
+- Manually unlock wallet if needed
+- Verify AWS KMS permissions and secrets
+
+### ArkdInsufficientFunds
+
+**Purpose**: Detect when arkd has insufficient funds for operations.
+
+**Configuration:**
+```yaml
+- alert: ArkdInsufficientFunds
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)insufficient funds" [5m])) > 0
+  for: 30s
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: funding
+```
+
+**When It Fires:**
+- Transaction fees exceed available balance
+- Round outputs require more funds than wallet contains
+- Fee rate spike causes unexpected funding shortfall
+
+**Response Actions:**
+- Check wallet balance and available UTXOs
+- Review recent transaction fee rates
+- Consider consolidating UTXOs to reduce fee overhead
+- Top up wallet with additional funds
+
+### ArkdUtxoSelectionFailure
+
+**Purpose**: Detect UTXO selection failures that prevent round processing.
+
+**Configuration:**
+```yaml
+- alert: ArkdUtxoSelectionFailure
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)failed to select UTXOs" [5m])) > 0
+  for: 30s
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: utxo_management
+```
+
+**When It Fires:**
+- UTXO set is too fragmented
+- No single UTXO large enough for round requirements
+- Dust UTXOs prevent efficient coin selection
+- All UTXOs are locked/reserved
+
+**Response Actions:**
+- Check UTXO set: `docker exec arkd-wallet ark-cli listunspent`
+- Consider UTXO consolidation transaction
+- Review round size parameters
+- Check for stuck/pending transactions locking UTXOs
+
+### ArkdLowLiquidityFrequent
+
+**Purpose**: Detect persistent high-frequency liquidity issues requiring immediate attention.
+
+**Configuration:**
+```yaml
+- alert: ArkdLowLiquidityFrequent
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)not enough liquidity" [5m])) > 10
+  for: 1m
+  labels:
+    severity: critical
+    component: arkd
+    alert_type: liquidity
+```
+
+**When It Fires:**
+- Low liquidity pattern appears more than 10 times in 5 minutes
+- Indicates systemic liquidity management problem
+- Arkd likely unable to process rounds consistently
+
+**Response Actions:**
+- IMMEDIATE: Check wallet balance and funding status
+- Review liquidity management strategy
+- Consider emergency wallet top-up
+- Investigate root cause of rapid liquidity depletion
+- May require service restart after liquidity restoration
+
+### ArkdLiquidityIssue (Combined)
+
+**Purpose**: Detect any liquidity-related error pattern across multiple error types.
+
+**Configuration:**
+```yaml
+- alert: ArkdLiquidityIssue
+  expr: |
+    sum(count_over_time({container="arkd"} |~ "(?i)(not enough liquidity|insufficient funds|failed to select UTXOs)" [10m])) > 5
+  for: 2m
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: liquidity_combined
+```
+
+**When It Fires:**
+- More than 5 liquidity-related errors in 10 minutes
+- Combines all liquidity error patterns
+- Indicates broader liquidity management issues
+
+**Response Actions:**
+- Comprehensive wallet health check
+- Review all liquidity-related logs
+- Assess UTXO set health and fragmentation
+- Evaluate liquidity management policies
+- Consider operational adjustments
+
+## LogQL Alert Best Practices
+
+### Pattern Matching
+
+Use case-insensitive regex for robustness:
+```logql
+{container="arkd"} |~ "(?i)error pattern"
+```
+
+### Time Windows
+
+Choose appropriate time windows based on error frequency:
+- Short windows (1-5m): For critical errors that need immediate attention
+- Long windows (10-30m): For pattern analysis and trend detection
+
+### Threshold Tuning
+
+- Start conservative (threshold > 0) to catch all occurrences
+- Increase threshold after observing baseline error rates
+- Use separate alerts for high-frequency variants (critical severity)
+
+### Testing LogQL Queries
+
+Test queries in Grafana Explore before deploying:
+
+1. Navigate to Grafana → Explore
+2. Select Loki datasource
+3. Enter LogQL query: `{container="arkd"} |~ "(?i)not enough liquidity"`
+4. Observe results and adjust pattern
+5. Add `count_over_time()` and test threshold logic
+
+### Configurable Thresholds
+
+Use environment variables for flexible threshold tuning:
+
+```yaml
+expr: |
+  sum(count_over_time({container="arkd"} |~ "(?i)pattern" [${LOKI_ALERT_WINDOW:-5m}])) > ${THRESHOLD:-0}
+```
+
+Set at runtime:
+```bash
+LOKI_ALERT_WINDOW=10m THRESHOLD=5 make docker-run
+```
+
+## Loki Alert Maintenance
+
+### Reloading Rules
+
+After editing loki-alert-rules.yml:
+```bash
+docker restart loki
+```
+
+### Validating LogQL Syntax
+
+Test in Grafana Explore or use Loki's API:
+```bash
+curl -G -s "http://localhost:3100/loki/api/v1/query" \
+  --data-urlencode 'query={container="arkd"} |~ "(?i)not enough liquidity"' \
+  | jq .
+```
+
+### Viewing Loki Alert Status
+
+Check Loki's ruler API:
+```bash
+curl -s "http://localhost:3100/loki/api/v1/rules" | jq .
+```
+
+Or view in Grafana:
+1. Navigate to Alerting → Alert rules
+2. Filter by datasource: Loki
+3. View rule status and firing history
 
 For more information on configuring notification routing, see configuration.md. For dashboard visualization of alert metrics, see dashboards.md.

@@ -141,7 +141,7 @@ Environment Variables:
 
 ### Purpose
 
-Loki is the log aggregation system that stores and indexes logs from Ark. It provides log query capabilities similar to Prometheus but for log data.
+Loki is the log aggregation system that stores and indexes logs from Ark. It provides log query capabilities similar to Prometheus but for log data, and includes a ruler component for log-based alerting.
 
 ### Key Features
 
@@ -150,6 +150,7 @@ Loki is the log aggregation system that stores and indexes logs from Ark. It pro
 - **OTLP Support**: Native support for OpenTelemetry log format
 - **Pattern Detection**: Automatically extracts patterns from logs
 - **Retention**: 15-day log retention (360 hours)
+- **Ruler for Alerting**: Evaluates LogQL alert rules and sends alerts to Alertmanager
 
 ### Configuration
 
@@ -157,6 +158,7 @@ Storage:
 - **Backend**: Filesystem (tsdb schema v13)
 - **Chunks**: /loki/chunks
 - **Indexes**: Period-based with 24h rotation
+- **Rules**: /etc/loki/rules (for alert rule definitions)
 - **Retention**: 360 hours with compactor
 
 Ingestion:
@@ -169,11 +171,37 @@ Query Optimization:
 - **Metric Aggregation**: Enabled for pattern detection
 - **Structured Metadata**: Supported for rich log context
 
+Ruler Configuration:
+- **Alertmanager URL**: http://alertmanager:9093
+- **Rule Directory**: /etc/loki/rules
+- **Evaluation Interval**: 10 seconds (matches Prometheus)
+- **Storage Type**: Local filesystem
+- **API Enabled**: Yes (for rule management)
+
+### Alert Rules
+
+Loki evaluates LogQL-based alert rules defined in `/etc/loki/rules/fake/loki-alert-rules.yml`:
+
+**Liquidity Monitoring:**
+- **ArkdLowLiquidity**: Detects "not enough liquidity" pattern in logs
+- **ArkdLowLiquidityFrequent**: Fires when pattern appears >10 times in 5 minutes (critical)
+- **ArkdInsufficientFunds**: Detects "insufficient funds" errors
+- **ArkdUtxoSelectionFailure**: Detects UTXO selection failures
+
+**Wallet Access:**
+- **ArkdWalletLocked**: Detects "wallet is locked" pattern
+
+**Combined Monitoring:**
+- **ArkdLiquidityIssue**: Aggregates all liquidity-related errors (>5 in 10 minutes)
+
+All alerts use case-insensitive regex patterns and configurable time windows.
+
 ### Integration Points
 
 - Receives logs from OTel Collector via OTLP
 - Queried by Grafana for log panels and Explore
-- Optionally sends alerts to Alertmanager (ruler enabled)
+- Sends alerts to Alertmanager (ruler enabled)
+- Provides ruler API for rule management and status checking
 
 ## Jaeger
 

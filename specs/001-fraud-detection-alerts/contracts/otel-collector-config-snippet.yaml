@@ -1,0 +1,63 @@
+# OpenTelemetry Collector Configuration Snippet
+# Deploy to: ${ARK_TELEMETRY_REPO}/collector-config.yaml (add to connectors and service sections)
+# Purpose: Transform fraud-related log patterns into Prometheus metrics
+
+# Add to connectors section:
+connectors:
+  logstometrics/fraud_detection:
+    # Convert unilateral exit logs to metrics
+    - name: arkd_unilateral_exit_initiated_total
+      description: "Count of unilateral exits initiated"
+      type: counter
+      match: 'IsMatch(body, "(?i)(unilateral exit|unroll initiated|force redemption)")'
+
+    # Convert double-spend logs to metrics
+    - name: arkd_double_spend_attempt_total
+      description: "Count of double-spend attempts detected"
+      type: counter
+      match: 'IsMatch(body, "(?i)(VTXO already spent|duplicate VTXO|double spend)")'
+
+    # Convert forfeit failure logs to metrics
+    - name: arkd_forfeit_failure_total
+      description: "Count of forfeit proof failures"
+      type: counter
+      match: 'IsMatch(body, "(?i)(forfeit proof.*failed|forfeit proof.*invalid)")'
+
+    # Track round participants for rate calculations
+    - name: arkd_round_participants_total
+      description: "Total participants across all rounds"
+      type: counter
+      match: 'IsMatch(body, "(?i)round.*participants")'
+      extract:
+        # Extract participant count from log message
+        # Example: "round-42 confirmation: 25 participants"
+        participant_count:
+          pattern: 'participants?:\s*(\d+)'
+          type: int
+
+# Add to service.pipelines section (modify existing logs pipeline):
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
+      # NEW: Add connectors to transform logs to metrics
+      connectors: [logstometrics/fraud_detection]
+
+    # NEW: Create metrics pipeline that consumes log-derived metrics
+    metrics/fraud_detection:
+      receivers: [logstometrics/fraud_detection]
+      processors: [batch]
+      exporters: [prometheus]
+
+# Configuration Notes:
+# 1. The logstometrics connector parses incoming logs and increments counters based on pattern matches
+# 2. These metrics are then exported to Prometheus via the prometheus exporter
+# 3. Prometheus alert rules can query these metrics (e.g., rate(arkd_double_spend_attempt_total[1m]) > 0)
+# 4. This provides a hybrid approach: Loki for detailed log analysis, Prometheus for reliable alerting
+
+# Environment Variables (for threshold tuning):
+# - FRAUD_DETECTION_UNILATERAL_EXIT_THRESHOLD: Number of exits in time window to trigger alert (default: 3)
+# - FRAUD_DETECTION_TIME_WINDOW: Time window for rate calculations (default: 5m)
+# - FRAUD_DETECTION_FORFEIT_FAILURE_PCT: Percentage threshold for forfeit failures (default: 0.10 = 10%)

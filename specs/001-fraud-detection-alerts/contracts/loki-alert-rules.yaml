@@ -1,0 +1,92 @@
+# Loki Alert Rules for Fraud Detection
+# Deploy to: ${ARK_TELEMETRY_REPO}/loki-alert-rules.yml (append to existing rules)
+# Format: Loki ruler alerting rules YAML
+# Evaluation interval: 10s (configured in loki-config.yaml ruler section)
+
+groups:
+  - name: fraud_detection_logs
+    interval: 10s
+    rules:
+      # Unilateral Exit Detection (Log-based)
+      - alert: ArkdUnilateralExitInitiated
+        expr: |
+          sum(count_over_time({container="arkd"} |~ "(?i)(unilateral exit|unroll initiated|force redemption)" [1m])) > 0
+        for: 10s
+        labels:
+          severity: info
+          component: arkd
+          alert_type: unilateral_exit
+        annotations:
+          summary: "Unilateral exit initiated"
+          description: "A user has initiated a unilateral exit (force redemption). This is an informational alert for audit purposes. Check Loki for user and VTXO details."
+          logql_query: '{container="arkd"} |~ "(?i)(unilateral exit|unroll initiated|force redemption)"'
+
+      - alert: ArkdUnilateralExitCompleted
+        expr: |
+          sum(count_over_time({container="arkd"} |~ "(?i)(unilateral exit completed|unroll completed)" [5m])) > 0
+        for: 30s
+        labels:
+          severity: info
+          component: arkd
+          alert_type: unilateral_exit
+        annotations:
+          summary: "Unilateral exit completed"
+          description: "A user has completed a unilateral exit after timelock expiry. This is an informational alert for audit purposes."
+          logql_query: '{container="arkd"} |~ "(?i)(unilateral exit completed|unroll completed)"'
+
+      # Double-Spend Detection (Log-based)
+      - alert: ArkdDoubleSpendPattern
+        expr: |
+          sum(count_over_time({container="arkd"} |~ "(?i)(VTXO already spent|duplicate VTXO|invalid VTXO.*spent|double spend)" [1m])) > 0
+        for: 5s
+        labels:
+          severity: critical
+          component: arkd
+          alert_type: double_spend
+        annotations:
+          summary: "Double-spend pattern detected in logs"
+          description: "Log pattern indicating double-spend attempt detected. IMMEDIATE INVESTIGATION REQUIRED. Check Loki for VTXO ID, user identifier, and round context."
+          logql_query: '{container="arkd"} |~ "(?i)(VTXO already spent|duplicate VTXO|invalid VTXO.*spent)"'
+          runbook_url: "https://docs.arkade.com/ops/runbooks/double-spend-response"
+
+      # Forfeit Proof Failures (Log-based)
+      - alert: ArkdForfeitProofFailure
+        expr: |
+          sum(count_over_time({container="arkd"} |~ "(?i)(forfeit proof.*failed|forfeit proof.*invalid|forfeit proof.*timeout)" [1m])) > 0
+        for: 30s
+        labels:
+          severity: warning
+          component: arkd
+          alert_type: forfeit_failure
+        annotations:
+          summary: "Forfeit proof submission failure detected"
+          description: "One or more users failed to submit valid forfeit proofs during round confirmation. Check Loki for user ID, round ID, and failure reason."
+          logql_query: '{container="arkd"} |~ "(?i)(forfeit proof.*failed|forfeit proof.*invalid|forfeit proof.*timeout)"'
+
+      - alert: ArkdForfeitRepeatOffender
+        expr: |
+          sum(count_over_time({container="arkd"} |~ "(?i)forfeit proof.*failed" | logfmt | user="__user_id__" [24h])) > 3
+        for: 1m
+        labels:
+          severity: warning
+          component: arkd
+          alert_type: forfeit_failure
+        annotations:
+          summary: "User repeatedly failing forfeit proof submission"
+          description: "A single user has failed forfeit proof submission more than 3 times in 24 hours. This may indicate a malicious actor or persistent connectivity issues. Consider investigation or temporary restriction."
+          logql_query: '{container="arkd"} |~ "(?i)forfeit proof.*failed" | logfmt | user="__user_id__"'
+
+      # Coordinated Attack Detection
+      - alert: ArkdCoordinatedFraudPattern
+        expr: |
+          (sum(count_over_time({container="arkd"} |~ "(?i)(unilateral exit|double spend|forfeit proof.*failed)" [5m]))) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: arkd
+          alert_type: coordinated_attack
+        annotations:
+          summary: "Potential coordinated fraud attack detected"
+          description: "High frequency of multiple fraud indicators detected within 5 minutes (>10 events). This may indicate a coordinated attack. IMMEDIATE INVESTIGATION REQUIRED."
+          logql_query: '{container="arkd"} |~ "(?i)(unilateral exit|double spend|forfeit proof.*failed)"'
+          runbook_url: "https://docs.arkade.com/ops/runbooks/coordinated-attack-response"

@@ -1,0 +1,84 @@
+# Prometheus Alert Rules for Fraud Detection
+# Deploy to: ${ARK_TELEMETRY_REPO}/alert.rules.yml (append to existing rules)
+# Format: Prometheus alerting rules YAML
+# Evaluation interval: 10s (configured in prometheus-config.yaml)
+
+groups:
+  - name: fraud_detection
+    interval: 10s
+    rules:
+      # Unilateral Exit Monitoring
+      - alert: ArkdUnilateralExitHighFrequency
+        expr: sum(increase(arkd_unilateral_exit_initiated_total[5m])) > 3
+        for: 30s
+        labels:
+          severity: critical
+          component: arkd
+          alert_type: unilateral_exit
+        annotations:
+          summary: "High frequency of unilateral exits detected"
+          description: "More than 3 unilateral exits initiated in the last 5 minutes. This may indicate service degradation or loss of user trust. Check arkd logs and service health."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/unilateral-exit-spike"
+
+      # Double-Spend Detection
+      - alert: ArkdDoubleSpendDetected
+        expr: rate(arkd_double_spend_attempt_total[1m]) > 0
+        for: 10s
+        labels:
+          severity: critical
+          component: arkd
+          alert_type: double_spend
+        annotations:
+          summary: "Double-spend attempt detected"
+          description: "A duplicate VTXO spend attempt was detected. This is a critical security event requiring immediate investigation. Check Loki logs for VTXO ID and user details."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/double-spend-response"
+
+      # Forfeit Proof Failure Rate
+      - alert: ArkdForfeitFailureHighRate
+        expr: (rate(arkd_forfeit_failure_total[5m]) / rate(arkd_round_participants_total[5m])) > 0.10
+        for: 1m
+        labels:
+          severity: critical
+          component: arkd
+          alert_type: forfeit_failure
+        annotations:
+          summary: "High forfeit proof failure rate (>10%)"
+          description: "More than 10% of round participants are failing forfeit proof submission. This may indicate a network attack, systemic bug, or connectivity issues. Check round processing and participant status."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/forfeit-failure-spike"
+
+      # VTXO Expiry Warnings
+      - alert: ArkdVTXOExpiry24h
+        expr: (sum(vtxo_current_value{expiry_time - time() < 86400}) / sum(vtxo_current_value)) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          component: arkd
+          alert_type: vtxo_expiry
+        annotations:
+          summary: "Large volume of VTXOs expiring in 24 hours"
+          description: "More than 10% of total system value is in VTXOs expiring within 24 hours. Users may be preparing mass unilateral exits or abandoning the service. Consider proactive outreach."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/vtxo-expiry-warnings"
+
+      - alert: ArkdVTXOExpiry6h
+        expr: vtxo_current_value{expiry_time - time() < 21600} / on(user_id) group_left sum(vtxo_current_value) by (user_id) > 0.50
+        for: 2m
+        labels:
+          severity: info
+          component: arkd
+          alert_type: vtxo_expiry
+        annotations:
+          summary: "User has >50% balance in VTXOs expiring in 6 hours"
+          description: "A single user has more than 50% of their balance in VTXOs expiring within 6 hours. Consider reaching out to prevent fund lockup."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/vtxo-expiry-warnings"
+
+      - alert: ArkdVTXOExpiredUnclaimed
+        expr: sum(vtxo_current_value{expiry_time < time()})
+        for: 24h
+        labels:
+          severity: info
+          component: arkd
+          alert_type: vtxo_expiry
+        annotations:
+          summary: "Expired VTXOs remain unclaimed"
+          description: "VTXOs with total value {{ $value }} sats have expired but not yet been claimed via unilateral exit. Daily summary for operational awareness."
+          runbook_url: "https://docs.arkade.com/ops/runbooks/expired-vtxo-tracking"
