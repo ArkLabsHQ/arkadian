@@ -1,0 +1,155 @@
+# Metadata
+name: "feature_full_lifecycle"
+description: "Medium to large feature with full planning cycle"
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-10-25"
+last_modified: "2025-10-25"
+
+# Applicability
+applies_to:
+  primary_intent: "develop"
+  sub_intent: ["medium_feature", "large_feature"]
+  complexity: ["medium", "complex"]
+  urgency: ["low", "normal", "high"]
+  multi_project: false
+
+# Execution
+execution:
+  agents: ["ark-project-manager", "ark-developer", "ark-tester"]
+  phases:
+    - id: "specify"
+      name: "Create Specification"
+      agent: "project-manager"
+      depends_on: null
+      approval_required: true
+      approval_message: "Specification complete. Proceed to planning?"
+      actions:
+        - "Use pm-spec skill to create specification"
+        - "Generate spec.md with user stories, requirements, success criteria"
+        - "Identify edge cases and constraints"
+      checkpoint:
+        path: "specs/{feature-id}/spec.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "clarify"
+      name: "Clarify Ambiguities"
+      agent: "project-manager"
+      depends_on: "specify"
+      condition: "if [NEEDS CLARIFICATION] markers exist in spec.md"
+      approval_required: false
+      actions:
+        - "Use pm-clarify skill to resolve ambiguities"
+        - "Update spec.md with clarified requirements"
+        - "Remove [NEEDS CLARIFICATION] markers"
+      checkpoint:
+        path: "specs/{feature-id}/spec.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "plan"
+      name: "Create Implementation Plan"
+      agent: "project-manager"
+      depends_on: "clarify"
+      approval_required: true
+      approval_message: "Plan complete. Proceed to task breakdown?"
+      actions:
+        - "Use pm-plan skill to create implementation plan"
+        - "Generate plan.md, research.md, data-model.md, contracts/"
+        - "Document architecture decisions and risk analysis"
+      checkpoint:
+        path: "specs/{feature-id}/plan.md"
+        required_for_next_phase: true
+      timeout_seconds: 1200
+
+    - id: "tasks"
+      name: "Break Down into Tasks"
+      agent: "project-manager"
+      depends_on: "plan"
+      approval_required: true
+      approval_message: "Task breakdown complete. Hand off to developer?"
+      actions:
+        - "Use pm-tasks skill to generate task list"
+        - "Generate tasks.md with dependency-ordered tasks"
+        - "Define acceptance criteria for each task"
+      checkpoint:
+        path: "specs/{feature-id}/tasks.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "analyze"
+      name: "Validate Consistency"
+      agent: "project-manager"
+      depends_on: "tasks"
+      approval_required: false
+      actions:
+        - "Use pm-analyze skill to validate cross-artifact consistency"
+        - "Auto-fix minor inconsistencies if possible"
+        - "Flag major inconsistencies for review"
+      auto_fix: true
+      timeout_seconds: 300
+
+    - id: "implement"
+      name: "Implement Feature"
+      agent: "developer"
+      depends_on: "analyze"
+      approval_required: false
+      actions:
+        - "Use dev-implement skill to execute tasks.md"
+        - "Create branch: feat/<area>-<slug>"
+        - "Write code, tests, documentation"
+        - "Run tests locally"
+        - "Commit changes with conventional commits"
+      checkpoint:
+        path: "git commit SHA"
+        required_for_next_phase: true
+      timeout_seconds: 3600
+
+    - id: "test"
+      name: "Validate Implementation"
+      agent: "tester"
+      depends_on: "implement"
+      approval_required: false
+      actions:
+        - "Run test suite (unit + integration)"
+        - "Validate deployment health"
+        - "Check success criteria from spec.md"
+        - "Verify performance benchmarks"
+      auto_retry: true
+      max_retries: 2
+      timeout_seconds: 900
+
+    - id: "pr"
+      name: "Create Pull Request"
+      agent: "developer"
+      depends_on: "test"
+      approval_required: true
+      approval_message: "Tests pass. Create pull request and push?"
+      actions:
+        - "Create PR with summary, test plan, breaking changes"
+        - "Link spec.md and plan.md in PR description"
+        - "Push branch to remote"
+      checkpoint:
+        path: "PR URL"
+        required_for_next_phase: false
+      timeout_seconds: 300
+
+# Success criteria
+success_criteria:
+  - "spec.md exists and passes quality checklist"
+  - "plan.md contains architecture decisions and risk analysis"
+  - "tasks.md has dependency-ordered tasks with acceptance criteria"
+  - "All tests pass (unit + integration)"
+  - "PR created with complete description"
+
+# Performance
+performance:
+  estimated_duration_seconds: 2700
+  max_duration_seconds: 5400
+
+# Recovery
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

@@ -1,0 +1,101 @@
+# Metadata
+name: "pr_review_comprehensive"
+description: "Multi-phase PR analysis with optional remediation"
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-10-25"
+last_modified: "2025-10-25"
+
+# Applicability
+applies_to:
+  primary_intent: "analyze_pr_or_commits"
+  complexity: ["simple", "medium", "complex"]
+  urgency: ["low", "normal", "high", "critical"]
+  multi_project: false
+
+# Execution
+execution:
+  agents: ["ark-pr-reviewer", "ark-tester", "ark-developer"]
+  phases:
+    - id: "review"
+      name: "Review PR Changes"
+      agent: "pr-reviewer"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Analyze code changes and diffs"
+        - "Review commit messages"
+        - "Check for breaking changes"
+        - "Identify security concerns"
+        - "Highlight potential risks"
+      checkpoint:
+        path: "pr-review-report.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+      parallel_with: ["test"]
+
+    - id: "test"
+      name: "Test PR Changes"
+      agent: "tester"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Checkout PR branch"
+        - "Run test suite"
+        - "Check code coverage"
+        - "Validate deployment health"
+      checkpoint:
+        path: "test-results.json"
+        required_for_next_phase: true
+      timeout_seconds: 600
+      parallel_with: ["review"]
+
+    - id: "aggregate"
+      name: "Aggregate Findings"
+      agent: "pr-reviewer"
+      depends_on: "test"
+      approval_required: false
+      actions:
+        - "Combine review and test results"
+        - "Summarize findings"
+        - "Categorize issues by severity"
+        - "Generate final report"
+      checkpoint:
+        path: "pr-analysis-final.md"
+        required_for_next_phase: true
+      timeout_seconds: 300
+
+    - id: "remediate"
+      name: "Remediate Issues"
+      agent: "developer"
+      depends_on: "aggregate"
+      condition: "if critical or high severity issues found"
+      approval_required: true
+      approval_message: "Issues found. Proceed with remediation?"
+      actions:
+        - "Address critical and high severity issues"
+        - "Apply fixes to PR branch"
+        - "Re-run tests"
+        - "Update PR"
+      checkpoint:
+        path: "remediation commit SHA"
+        required_for_next_phase: false
+      timeout_seconds: 900
+
+# Success criteria
+success_criteria:
+  - "PR changes reviewed"
+  - "Tests executed successfully"
+  - "Findings aggregated and categorized"
+  - "Critical issues remediated (if any)"
+
+# Performance
+performance:
+  estimated_duration_seconds: 900
+  max_duration_seconds: 1800
+
+# Recovery
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"
