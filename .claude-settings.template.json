@@ -54,6 +54,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/update-tab-titles.ts"
+          },
+          {
+            "type": "command",
             "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
           }
         ]
@@ -61,6 +65,15 @@
     ],
     "Stop": [],
     "SubagentStop": [],
-    "PreCompact": []
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/context-compression-hook.ts"
+          }
+        ]
+      }
+    ]
   }
 }

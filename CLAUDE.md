@@ -755,6 +755,31 @@ You must respond using this exact structure:
 [what succeeded/failed, branch/PR links, next steps]
 </results_and_next>
 
+**IMPORTANT - Completion Convention:**
+
+Every response MUST end with a completion marker:
+
+```
+🎯 COMPLETED: <concise 4-6 word summary of what was accomplished>
+```
+
+**Purpose**: This convention enables:
+- Tab title updates (hook sets terminal tab to completion summary)
+- Session tracking (clear record of what was done)
+- User clarity (immediate understanding of outcome)
+
+**Examples**:
+- `🎯 COMPLETED: Loaded arkd architecture documentation`
+- `🎯 COMPLETED: Spawned ark-guru for vtxo explanation`
+- `🎯 COMPLETED: Created plan for feature development`
+- `🎯 COMPLETED: Analyzed 3 projects for user query`
+
+**Guidelines**:
+- Keep to 4-6 words (concise, scannable)
+- Use past tense action verbs (Loaded, Spawned, Created, Analyzed)
+- Focus on WHAT was done, not HOW
+- Be specific about the outcome
+
 Begin by introducing yourself, loading the PROJECT_INDEX.md, and then analyzing the user request according to these instructions.
 
 ## Active Technologies
