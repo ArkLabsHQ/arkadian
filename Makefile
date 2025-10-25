@@ -124,27 +124,17 @@ test-hook: ## Test the context loading hook
 
 verify: ## Verify installation
 	@echo "$(YELLOW)Verifying installation...$(NC)"
-	@# Check settings.json (try both filenames)
-	@if [ -f "$$HOME/.claude/.claude-settings.json" ]; then \
-		echo "$(GREEN)✓ Settings file exists (.claude-settings.json)$(NC)"; \
-	elif [ -f "$$HOME/.claude/settings.json" ]; then \
+	@# Check settings.json
+	@if [ -f "$$HOME/.claude/settings.json" ]; then \
 		echo "$(GREEN)✓ Settings file exists (settings.json)$(NC)"; \
 	else \
 		echo "$(RED)❌ Settings file missing$(NC)"; exit 1; \
 	fi
-	@# Check ARKADIAN_DIR in settings.json (try both filenames)
-	@if [ -f "$$HOME/.claude/.claude-settings.json" ]; then \
-		if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/.claude-settings.json; then \
-			echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
-		else \
-			echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
-		fi; \
-	elif [ -f "$$HOME/.claude/settings.json" ]; then \
-		if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings.json; then \
-			echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
-		else \
-			echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
-		fi; \
+	@# Check ARKADIAN_DIR in settings.json
+	@if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings.json; then \
+		echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
+	else \
+		echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
 	fi
 	@# Check hooks
 	@if [ -x "hooks/load-arkadian-context.ts" ]; then \

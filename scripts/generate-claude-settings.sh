@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate ~/.claude/.claude-settings.json from .env file
+# Generate ~/.claude/settings.json from .env file
 # Reads all environment variables from .env and populates settings.json
 
 set -e
@@ -8,7 +8,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ARKADIAN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$ARKADIAN_DIR/.env"
 TEMPLATE_FILE="$ARKADIAN_DIR/.claude-settings.template.json"
-SETTINGS_FILE="$HOME/.claude/.claude-settings.json"
+SETTINGS_FILE="$HOME/.claude/settings.json"
 
 # Check if .env exists
 if [ ! -f "$ENV_FILE" ]; then
