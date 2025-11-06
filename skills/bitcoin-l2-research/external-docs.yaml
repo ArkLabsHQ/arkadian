@@ -1,0 +1,200 @@
+# External Bitcoin/L2 Documentation Sources
+# High-quality sources for WebFetch and research prioritization
+
+bitcoin_core:
+  official:
+    - url: https://github.com/bitcoin/bitcoin
+      type: repository
+      priority: highest
+      description: Bitcoin Core source code
+
+    - url: https://bitcoincore.org/
+      type: official_site
+      priority: highest
+      description: Bitcoin Core project website
+
+    - url: https://github.com/bitcoin/bips
+      type: specifications
+      priority: highest
+      description: Bitcoin Improvement Proposals
+
+    - url: https://developer.bitcoin.org/
+      type: documentation
+      priority: highest
+      description: Bitcoin Developer Documentation
+
+  technical_resources:
+    - url: https://bitcoin.stackexchange.com/
+      type: community_qa
+      priority: high
+      description: Bitcoin Stack Exchange (technical Q&A)
+
+    - url: https://bitcoinops.org/
+      type: newsletter
+      priority: highest
+      description: Bitcoin Optech (weekly technical newsletter)
+
+    - url: https://github.com/bitcoin-core/btcinformation
+      type: aggregator
+      priority: high
+      description: Bitcoin Core information repository
+
+lightning_network:
+  specifications:
+    - url: https://github.com/lightning/bolts
+      type: specifications
+      priority: highest
+      description: Lightning Network BOLT specifications
+
+    - url: https://lightning.network/
+      type: official_site
+      priority: high
+      description: Lightning Network website
+
+  implementations:
+    - url: https://github.com/lightningnetwork/lnd
+      type: implementation
+      priority: high
+      description: LND (Lightning Network Daemon)
+
+    - url: https://github.com/ElementsProject/lightning
+      type: implementation
+      priority: high
+      description: Core Lightning (CLN)
+
+    - url: https://github.com/ACINQ/eclair
+      type: implementation
+      priority: high
+      description: Eclair Lightning
+
+  documentation:
+    - url: https://docs.lightning.engineering/
+      type: documentation
+      priority: highest
+      description: Lightning Labs documentation
+
+    - url: https://lightning.readthedocs.io/
+      type: documentation
+      priority: high
+      description: Core Lightning documentation
+
+ark_protocol:
+  official:
+    - url: https://ark-protocol.org/
+      type: official_site
+      priority: highest
+      description: Ark Protocol official website
+
+    - url: https://arkdev.info/
+      type: documentation
+      priority: highest
+      description: Ark Developer documentation
+
+  implementations:
+    - url: https://github.com/ark-network/ark
+      type: repository
+      priority: highest
+      description: Ark reference implementation
+
+  research:
+    - url: https://burakkeceli.com/ark-protocol/
+      type: blog
+      priority: high
+      description: Ark Protocol creator's blog
+
+other_l2:
+  liquid:
+    - url: https://liquid.net/
+      type: official_site
+      priority: high
+      description: Liquid Network official site
+
+    - url: https://docs.liquid.net/
+      type: documentation
+      priority: high
+      description: Liquid documentation
+
+  rollups:
+    - url: https://rollkit.dev/
+      type: documentation
+      priority: medium
+      description: Rollkit (Bitcoin rollups)
+
+    - url: https://www.sovereign.xyz/
+      type: official_site
+      priority: medium
+      description: Sovereign SDK
+
+  rgb:
+    - url: https://rgb.tech/
+      type: official_site
+      priority: medium
+      description: RGB Protocol
+
+  stacks:
+    - url: https://www.stacks.co/
+      type: official_site
+      priority: medium
+      description: Stacks (Bitcoin layers)
+
+research_papers:
+  bitcoin:
+    - url: https://bitcoin.org/bitcoin.pdf
+      type: whitepaper
+      priority: highest
+      description: Bitcoin whitepaper (Satoshi)
+
+  lightning:
+    - url: https://lightning.network/lightning-network-paper.pdf
+      type: whitepaper
+      priority: highest
+      description: Lightning Network whitepaper
+
+  academic:
+    - url: https://arxiv.org/
+      type: academic_repository
+      priority: high
+      description: ArXiv (search bitcoin, lightning, layer-2)
+      query_suffix: "?search_query=bitcoin"
+
+community_resources:
+  aggregators:
+    - url: https://bitcoinops.org/en/newsletters/
+      type: newsletter_archive
+      priority: highest
+      description: Bitcoin Optech newsletter archive
+
+  technical_blogs:
+    - url: https://blog.lightning.engineering/
+      type: blog
+      priority: high
+      description: Lightning Labs blog
+
+    - url: https://blog.blockstream.com/
+      type: blog
+      priority: high
+      description: Blockstream Research blog
+
+    - url: https://bitcoinmagazine.com/technical
+      type: blog
+      priority: medium
+      description: Bitcoin Magazine (Technical section)
+
+conferences:
+  bitcoin:
+    - name: Bitcoin Core Dev Meetings
+      url: https://bitcoincore.org/en/meetings/
+      type: meeting_notes
+      priority: high
+
+  lightning:
+    - name: Lightning Network Summit
+      url: https://www.youtube.com/@lightning
+      type: videos
+      priority: medium
+
+# Source Quality Tiers
+# Tier 1 (Highest): Official specs, BIPs, BOLTs, core docs
+# Tier 2 (High): Optech, implementation docs, academic papers
+# Tier 3 (Medium): Technical blogs, conference talks, community resources
+# Tier 4 (Low): Forums, social media (use with caution, verify claims)

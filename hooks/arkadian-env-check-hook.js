@@ -20,18 +20,36 @@ const path = require('path');
  * Required Arkadian environment variables with project mapping
  */
 const REQUIRED_VARS = [
-  { name: "ARKADIAN_DOCS", description: "Arkadian documentation root", project: null },
-  { name: "ARKD_REPO", description: "arkd server repository", project: "arkd" },
-  { name: "GO_SDK_REPO", description: "Go SDK repository", project: "go-sdk" },
-  { name: "WALLET_REPO", description: "Wallet (React PWA) repository", project: "wallet" },
-  { name: "ARK_FAUCET_REPO", description: "Ark Faucet repository", project: "ark-faucet" },
-  { name: "ARK_SIMULATOR_REPO", description: "Ark Simulator repository", project: "ark-simulator" },
-  { name: "ARK_TELEMETRY_REPO", description: "Ark Telemetry repository", project: "ark-telemetry" },
-  { name: "ARK_INFRA_REPO", description: "Ark Infrastructure repository", project: "ark-infra" },
-  { name: "KMS_UNLOCKER_REPO", description: "KMS Unlocker repository", project: "kms-unlocker" },
-  { name: "FULMINE_REPO", description: "Fulmine (Lightning) repository", project: "fulmine" },
-  { name: "ARK_DOCS_REPO", description: "Ark Documentation repository", project: "ark-docs" },
-  { name: "ARKADE_ESCROW_REPO", description: "Arkade Escrow repository", project: "arkade-escrow" },
+  { name: "ARKADIAN_DOCS", description: "Arkadian documentation root", project: null, type: "path" },
+  { name: "ARKD_REPO", description: "arkd server repository", project: "arkd", type: "path" },
+  { name: "GO_SDK_REPO", description: "Go SDK repository", project: "go-sdk", type: "path" },
+  { name: "WALLET_REPO", description: "Wallet (React PWA) repository", project: "wallet", type: "path" },
+  { name: "ARK_FAUCET_REPO", description: "Ark Faucet repository", project: "ark-faucet", type: "path" },
+  { name: "ARK_SIMULATOR_REPO", description: "Ark Simulator repository", project: "ark-simulator", type: "path" },
+  { name: "ARK_TELEMETRY_REPO", description: "Ark Telemetry repository", project: "ark-telemetry", type: "path" },
+  { name: "ARK_INFRA_REPO", description: "Ark Infrastructure repository", project: "ark-infra", type: "path" },
+  { name: "KMS_UNLOCKER_REPO", description: "KMS Unlocker repository", project: "kms-unlocker", type: "path" },
+  { name: "FULMINE_REPO", description: "Fulmine (Lightning) repository", project: "fulmine", type: "path" },
+  { name: "ARK_DOCS_REPO", description: "Ark Documentation repository", project: "ark-docs", type: "path" },
+  { name: "ARKADE_ESCROW_REPO", description: "Arkade Escrow repository", project: "arkade-escrow", type: "path" },
+];
+
+/**
+ * GitHub URL environment variables (for progress tracking)
+ */
+const GITHUB_VARS = [
+  { name: "ARKD_GITHUB", description: "arkd GitHub URL (org/repo)", project: "arkd", type: "github" },
+  { name: "GO_SDK_GITHUB", description: "go-sdk GitHub URL (org/repo)", project: "go-sdk", type: "github" },
+  { name: "WALLET_GITHUB", description: "wallet GitHub URL (org/repo)", project: "wallet", type: "github" },
+  { name: "ARK_FAUCET_GITHUB", description: "ark-faucet GitHub URL (org/repo)", project: "ark-faucet", type: "github" },
+  { name: "ARK_SIMULATOR_GITHUB", description: "ark-simulator GitHub URL (org/repo)", project: "ark-simulator", type: "github" },
+  { name: "ARK_TELEMETRY_GITHUB", description: "ark-telemetry GitHub URL (org/repo)", project: "ark-telemetry", type: "github" },
+  { name: "ARK_INFRA_GITHUB", description: "ark-infra GitHub URL (org/repo)", project: "ark-infra", type: "github" },
+  { name: "KMS_UNLOCKER_GITHUB", description: "kms-unlocker GitHub URL (org/repo)", project: "kms-unlocker", type: "github" },
+  { name: "FULMINE_GITHUB", description: "fulmine GitHub URL (org/repo)", project: "fulmine", type: "github" },
+  { name: "BOLTZ_BACKEND_GITHUB", description: "boltz-backend GitHub URL (org/repo)", project: "boltz-backend", type: "github" },
+  { name: "ARK_DOCS_GITHUB", description: "ark-docs GitHub URL (org/repo)", project: "ark-docs", type: "github" },
+  { name: "ARKADE_ESCROW_GITHUB", description: "arkade-escrow GitHub URL (org/repo)", project: "arkade-escrow", type: "github" },
 ];
 
 /**
@@ -78,8 +96,12 @@ function directoryExists(path) {
 function validateEnvironment() {
   const missing = [];
   const invalid = [];
+  const githubMissing = [];
+  const githubInvalid = [];
   let valid = 0;
+  let githubValid = 0;
 
+  // Validate path variables
   for (const varInfo of REQUIRED_VARS) {
     const value = process.env[varInfo.name];
 
@@ -92,7 +114,21 @@ function validateEnvironment() {
     }
   }
 
-  return { missing, invalid, valid };
+  // Validate GitHub URL variables
+  for (const varInfo of GITHUB_VARS) {
+    const value = process.env[varInfo.name];
+
+    if (!value) {
+      githubMissing.push(varInfo);
+    } else if (!/^[\w-]+\/[\w.-]+$/.test(value)) {
+      // Validate format: org/repo
+      githubInvalid.push({ ...varInfo, value });
+    } else {
+      githubValid++;
+    }
+  }
+
+  return { missing, invalid, valid, githubMissing, githubInvalid, githubValid };
 }
 
 /**
@@ -213,12 +249,13 @@ function checkDocumentationFreshness() {
 /**
  * Display validation results
  */
-function displayResults(missing, invalid, valid) {
+function displayResults(missing, invalid, valid, githubMissing, githubInvalid, githubValid) {
   const total = REQUIRED_VARS.length;
+  const githubTotal = GITHUB_VARS.length;
 
   // If everything is OK, stay silent
-  if (missing.length === 0 && invalid.length === 0) {
-    console.error(`✅ Arkadian environment: ${valid}/${total} variables configured`);
+  if (missing.length === 0 && invalid.length === 0 && githubMissing.length === 0 && githubInvalid.length === 0) {
+    console.error(`✅ Arkadian environment: ${valid}/${total} paths, ${githubValid}/${githubTotal} GitHub URLs configured`);
     return;
   }
 
@@ -228,7 +265,7 @@ function displayResults(missing, invalid, valid) {
   console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // Show statistics
-  console.error(`\n📊 Status: ${valid}/${total} variables configured correctly\n`);
+  console.error(`\n📊 Status: ${valid}/${total} paths, ${githubValid}/${githubTotal} GitHub URLs\n`);
 
   // Show missing variables
   if (missing.length > 0) {
@@ -250,20 +287,35 @@ function displayResults(missing, invalid, valid) {
     console.error('');
   }
 
+  // Show missing GitHub URLs
+  if (githubMissing.length > 0) {
+    console.error(`⚠️  Missing GitHub URLs (${githubMissing.length}):\n`);
+    for (const varInfo of githubMissing) {
+      console.error(`   - ${varInfo.name}`);
+      console.error(`     ${varInfo.description}`);
+    }
+    console.error('');
+  }
+
+  // Show invalid GitHub URLs
+  if (githubInvalid.length > 0) {
+    console.error(`⚠️  Invalid GitHub URLs (must be org/repo format) (${githubInvalid.length}):\n`);
+    for (const varInfo of githubInvalid) {
+      console.error(`   - ${varInfo.name}="${varInfo.value}"`);
+      console.error(`     ${varInfo.description}`);
+    }
+    console.error('');
+  }
+
   // Show setup instructions
   console.error('📋 Setup Instructions:\n');
-  console.error('   1. Copy template:');
-  console.error('      cp scripts/env-setup-template.sh ~/.arkadian-env.sh\n');
-  console.error('   2. Edit with your actual paths:');
-  console.error('      vim ~/.arkadian-env.sh\n');
-  console.error('   3. Source in your shell RC file:');
-  console.error('      echo \'source ~/.arkadian-env.sh\' >> ~/.zshrc\n');
-  console.error('   4. Reload your shell:');
-  console.error('      source ~/.zshrc\n');
-  console.error('   5. Verify setup:');
-  console.error('      verify_arkadian_repos\n');
+  console.error('   1. Run environment setup:');
+  console.error('      make generate-env\n');
+  console.error('   2. Regenerate settings with env vars:');
+  console.error('      make install\n');
+  console.error('   3. Restart Claude Code\n');
 
-  console.error('💡 Note: These variables enable ${VAR} path resolution in documentation.');
+  console.error('💡 Note: These variables enable ${VAR} path resolution and GitHub progress tracking.');
   console.error('   Claude Code will expand them when accessing Arkadian project files.\n');
 
   console.error('⚠️  Some Arkadian features may not work correctly without these variables.');
@@ -389,10 +441,10 @@ async function main() {
     }
 
     // Validate environment
-    const { missing, invalid, valid } = validateEnvironment();
+    const { missing, invalid, valid, githubMissing, githubInvalid, githubValid } = validateEnvironment();
 
     // Display environment validation results
-    displayResults(missing, invalid, valid);
+    displayResults(missing, invalid, valid, githubMissing, githubInvalid, githubValid);
 
     // Check documentation freshness (only if environment is valid)
     if (missing.length === 0 && invalid.length === 0) {

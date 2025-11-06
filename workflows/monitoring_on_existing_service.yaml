@@ -1,0 +1,79 @@
+name: "monitoring_on_existing_service"
+description: "Attach an existing service/container to Ark telemetry (Prometheus, Grafana, Loki, Tempo)."
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-11-01"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "monitor_or_alert"
+  complexity: ["simple", "medium"]
+  urgency: ["low", "normal", "high"]
+  multi_project: true
+
+execution:
+  agents:
+    - "ark-guru"
+    - "ark-developer"
+    - "ark-tester"
+
+  phases:
+    - id: "inspect"
+      name: "Inspect Current Telemetry Setup"
+      agent: "guru"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Load ark-telemetry and ark-infra documentation from their INDEX.md files."
+        - "Identify current telemetry stack (Prometheus + Grafana + Loki + Tempo)."
+        - "Identify what service the user wants to monitor (container name, port, metrics endpoint, logs)."
+      checkpoint:
+        path: "monitoring/{service-name}/current-setup.md"
+        required_for_next_phase: true
+      timeout_seconds: 300
+
+    - id: "instrument"
+      name: "Generate Instrumentation/Config"
+      agent: "developer"
+      depends_on: "inspect"
+      approval_required: false
+      actions:
+        - "Generate Prometheus scrape config for the target service."
+        - "Generate Loki promtail config or Docker logging config."
+        - "Generate Grafana dashboard import JSON or reference to existing Ark dashboard."
+        - "Update docker-compose / tofu snippets to include service in telemetry."
+      checkpoint:
+        path: "monitoring/{service-name}/instrumentation.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "validate"
+      name: "Validate Telemetry is Flowing"
+      agent: "tester"
+      depends_on: "instrument"
+      approval_required: false
+      actions:
+        - "Reload telemetry stack or restart promtail/otelcol if needed."
+        - "Verify service appears in Prometheus targets."
+        - "Verify logs appear in Loki for the service labels."
+        - "Emit validation report."
+      checkpoint:
+        path: "monitoring/{service-name}/validation-report.md"
+        required_for_next_phase: false
+      timeout_seconds: 600
+      auto_retry: true
+      max_retries: 1
+
+success_criteria:
+  - "current-setup.md describes existing telemetry"
+  - "instrumentation.md has Prometheus/Loki/Grafana snippets"
+  - "validation-report.md confirms service is visible in telemetry stack"
+
+performance:
+  estimated_duration_seconds: 900
+  max_duration_seconds: 1800
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

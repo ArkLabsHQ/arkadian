@@ -1,0 +1,79 @@
+name: "debug_and_fix"
+description: "Fault isolation, reproduction, fix, and validation"
+version: "1.0.1"
+author: "arkadian-system"
+created: "2025-10-25"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "debug"
+  complexity: ["simple", "medium", "complex"]
+  urgency: ["low", "normal", "high", "critical"]
+  multi_project: false
+
+execution:
+  agents: ["ark-debugger", "ark-developer", "ark-tester"]
+  phases:
+    - id: "isolate"
+      name: "Isolate Fault"
+      agent: "ark-debugger"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Analyze error logs and stack traces"
+        - "Identify root cause of failure"
+        - "Create minimal reproduction case"
+        - "Document findings in troubleshooting.md"
+      checkpoint:
+        path: "repro-steps-or-test-case.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+      # Orchestrator: bind to selected project and load testing/troubleshooting.md
+
+    - id: "fix"
+      name: "Apply Fix"
+      agent: "ark-developer"
+      depends_on: "isolate"
+      condition: "if urgency is critical, skip approval; else require approval"
+      approval_required: false
+      approval_message: "Fix ready. Proceed with implementation?"
+      actions:
+        - "Create branch: fix/<area>-<slug>"
+        - "Implement fix based on debugger findings"
+        - "Add regression test"
+        - "Commit with conventional commit message"
+      checkpoint:
+        path: "git-commit-SHA"
+        required_for_next_phase: true
+      timeout_seconds: 1200
+      auto_retry: false
+
+    - id: "validate"
+      name: "Validate Fix"
+      agent: "ark-tester"
+      depends_on: "fix"
+      approval_required: false
+      actions:
+        - "Run regression test"
+        - "Verify original issue is resolved"
+        - "Run full test suite"
+        - "Check for side effects"
+      timeout_seconds: 600
+      auto_retry: true
+      max_retries: 2
+
+success_criteria:
+  - "Root cause identified and documented"
+  - "Fix applied and committed"
+  - "Regression test added"
+  - "All tests pass"
+  - "Original issue confirmed resolved"
+
+performance:
+  estimated_duration_seconds: 1200
+  max_duration_seconds: 2700
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

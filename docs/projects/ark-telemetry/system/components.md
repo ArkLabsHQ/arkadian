@@ -241,6 +241,67 @@ Storage:
 - Provides UI for trace visualization
 - Can be queried by Grafana with Jaeger data source
 
+## Pyroscope
+
+### Purpose
+
+Pyroscope is the continuous profiling platform that collects and stores performance profiles from Ark services. It provides low-overhead profiling for CPU, memory, goroutines, mutex, and block profiles to identify performance bottlenecks and resource leaks.
+
+### Key Features
+
+- **Continuous Profiling**: Always-on profiling with < 1% CPU overhead
+- **Multiple Profile Types**: CPU, heap allocations, goroutines, mutex contention, blocking operations
+- **Flame Graphs**: Interactive visualization of profile data showing function call hierarchies
+- **Time-Series Profiling**: View profile changes over time to detect performance regressions
+- **Differential Profiling**: Compare profiles across time ranges to measure optimization impact
+- **Tag-Based Filtering**: Filter profiles by service, network, version, and custom tags
+
+### Configuration
+
+Access:
+- **UI**: http://localhost:4040 (localhost-only, Pyroscope web interface)
+- **Ingestion**: http://pyroscope:4040 (internal Docker network endpoint)
+
+Storage:
+- **Volume**: pyroscope_data (persists profiles across container restarts)
+- **Path**: /var/lib/pyroscope inside container
+- **Retention**: 7 days (default, configurable)
+
+Environment Variables:
+- **PYROSCOPE_LOG_LEVEL**: info (logging level for Pyroscope server)
+
+### Profile Types
+
+- **CPU**: Identifies which functions consume CPU time (100Hz sampling)
+- **Heap Inuse Space**: Current memory allocations (shows memory leaks)
+- **Heap Alloc Space**: Total memory allocated over time
+- **Goroutines**: Active goroutine count and stack traces
+- **Mutex Count/Duration**: Lock contention statistics
+- **Block Count/Duration**: Blocking operations (channel ops, I/O)
+
+### Use Cases
+
+- Identify CPU-intensive functions during high-load periods
+- Detect memory leaks by tracking heap growth over 24+ hours
+- Find goroutine leaks causing resource exhaustion
+- Optimize mutex contention in concurrent code paths
+- Analyze blocking operations affecting throughput
+
+### Integration Points
+
+- Receives profiles from instrumented Go services (arkd, arkd-wallet) via HTTP push
+- Provides standalone web UI for flame graph visualization
+- Integrated with Grafana via Pyroscope datasource for unified dashboards
+- Profiles tagged with service name, network, and version for filtering
+
+### Instrumentation
+
+Ark services use github.com/grafana/pyroscope-go SDK:
+- Configured via ARKD_PYROSCOPE_SERVER_URL environment variable
+- Graceful degradation when Pyroscope server unavailable
+- Automatic profile upload every 10 seconds
+- Tagged with service=arkd/arkd-wallet, network=bitcoin/testnet, version
+
 ## Alertmanager
 
 ### Purpose
@@ -334,6 +395,103 @@ container_memory_usage_bytes{name=~"arkd.*"}
 - Requires privileged mode for kernel statistics
 - Read-only mounts for host filesystem access
 
+## Data Source Correlation
+
+### Overview
+
+Grafana data source correlation enables seamless navigation between logs, metrics, traces, and profiles. The ark-telemetry stack includes pre-configured correlation to accelerate troubleshooting workflows.
+
+### Correlation Features
+
+**Logs to Traces (Loki → Jaeger):**
+- Derived fields extract trace IDs from log text
+- Clickable links appear next to trace IDs in logs
+- Supports multiple trace ID formats: `trace_id=abc`, `"trace_id":"abc"`
+- Opens Jaeger with the specific trace loaded
+
+**Logs to Profiles (Loki → Pyroscope):**
+- Service name extraction creates profile links
+- Click service name to view CPU/memory flame graphs
+- Time range automatically matched to log timestamp
+
+**Metrics to Traces (Prometheus → Jaeger):**
+- Exemplars attach trace IDs to metric samples
+- Diamond markers on graphs indicate available traces
+- Click marker to investigate slow requests or spikes
+- Requires OpenTelemetry instrumentation with exemplar support
+
+**Traces to Logs (Jaeger → Loki):**
+- "Logs for this span" button in trace view
+- Opens Loki filtered by service and time range
+- Optionally filters by trace ID
+- Time window: ±1 hour around span by default
+
+**Traces to Metrics (Jaeger → Prometheus):**
+- "Metrics" tab shows related metric trends
+- Pre-configured queries: request rate, error rate, duration
+- Service labels automatically applied from trace tags
+- Helps identify if issue is isolated or systemic
+
+### Configuration
+
+Correlation is provisioned automatically via data source YAML files:
+
+- **loki.yaml**: Derived fields for trace and service extraction
+- **prometheus.yaml**: Exemplar trace ID destinations
+- **jaeger.yaml**: Traces-to-logs and traces-to-metrics mappings
+- **pyroscope.yaml**: Profile data source configuration
+
+All data sources use consistent UIDs for cross-referencing:
+- `loki` - Log aggregation
+- `prometheus` - Metrics storage
+- `jaeger` - Distributed tracing
+- `pyroscope` - Continuous profiling
+
+### Usage Patterns
+
+**Investigating High CPU:**
+1. Notice CPU spike in Prometheus dashboard
+2. Click exemplar marker on spike
+3. View trace showing slow function call
+4. Click "Logs for span" to see log context
+5. Click "View CPU Profile" to see flame graph
+6. Identify exact function consuming CPU
+
+**Debugging Slow Request:**
+1. Find error in Loki logs
+2. Click trace ID link
+3. View trace showing 3-second database query
+4. Click "Metrics" tab to check if DB is consistently slow
+5. Navigate to Pyroscope to profile database code
+
+**Root Cause Analysis:**
+- Start with symptom (metric alert, error log)
+- Jump to trace for detailed timing breakdown
+- View logs for additional context
+- Check profiles for code-level bottlenecks
+- Return to metrics to verify fix
+
+### Requirements for Correlation
+
+For correlation to work properly, Ark services must:
+
+1. **Emit trace IDs in logs** (structured logging):
+   ```
+   {"level":"info","trace_id":"abc123...","msg":"processing round"}
+   ```
+
+2. **Emit exemplars with metrics** (OpenTelemetry SDK):
+   - Attach trace ID to metric observations
+   - Prometheus scrapes and stores exemplars automatically
+
+3. **Use consistent tags across signals**:
+   - Loki: `{service="arkd"}`
+   - Prometheus: `{job="arkd"}`
+   - Jaeger: `service.name=arkd`
+   - Pyroscope: `{service_name="arkd"}`
+
+For detailed correlation setup and troubleshooting, see `/sop/configuring-correlation.md`.
+
 ## Component Dependencies
 
 ### Startup Order
@@ -343,13 +501,15 @@ container_memory_usage_bytes{name=~"arkd.*"}
 3. **loki**, **jaeger** - Independent, can start in parallel
 4. **alertmanager** - Can start anytime, used by Prometheus
 5. **cadvisor** - Independent container monitor
-6. **grafana** - Last, queries all other services
+6. **pyroscope** - Independent profiling backend
+7. **grafana** - Last, queries all other services
 
 ### Runtime Dependencies
 
-- Grafana requires Prometheus, Loki, and Jaeger to be running for full functionality
+- Grafana requires Prometheus, Loki, Jaeger, and Pyroscope to be running for full functionality
+- Data source correlation requires consistent UIDs across all data sources
 - Prometheus requires OTel Collector and cAdvisor for metric collection
 - Alertmanager requires Slack webhook configuration to send notifications
 - OTel Collector requires Loki and Jaeger to export logs and traces
 
-For configuration details, see configuration.md. For alert rules, see alert-rules.md.
+For configuration details, see configuration.md. For alert rules, see alert-rules.md. For correlation setup, see /sop/configuring-correlation.md.

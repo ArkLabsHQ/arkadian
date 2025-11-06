@@ -13,6 +13,7 @@ This is the **master index** for all projects in the Arkade ecosystem. It provid
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md`
 **Repository**: `${ARKD_REPO}`
+**GitHub**: `${ARKD_GITHUB}`
 
 **Description**:
 Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain transactions while maintaining Bitcoin's security guarantees. The server acts as an Arkade Operator, creating and managing Batch Outputs (VTXOs), facilitating off-chain transactions through rounds, and providing liquidity for commitment transactions. Uses hexagonal architecture with strict layering (domain, application, infrastructure).
@@ -50,6 +51,7 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/go-sdk/INDEX.md`
 **Repository**: `${GO_SDK_REPO}`
+**GitHub**: `${GO_SDK_GITHUB}`
 
 **Description**:
 Go client library for building Ark wallets and applications. Provides high-level abstractions for wallet operations, VTXO management, transaction building, and arkd server communication. Implements the Ark protocol client-side logic with support for multiple storage backends (SQLite, PostgreSQL, Badger).
@@ -85,6 +87,7 @@ Go client library for building Ark wallets and applications. Provides high-level
 **Language**: TypeScript/React
 **Index**: `${ARKADIAN_DIR}/docs/projects/wallet/INDEX.md`
 **Repository**: `${WALLET_REPO}`
+**GitHub**: `${WALLET_GITHUB}`
 
 **Description**:
 Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built with React 18, TypeScript, Ionic, and Vite. Provides a user-friendly interface for Ark protocol operations including VTXOs, off-chain payments, Lightning swaps via Boltz, and on-chain boarding. Installable on mobile (iOS, Android) and desktop without app store gatekeepers.
@@ -120,6 +123,7 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/ark-faucet/INDEX.md`
 **Repository**: `${ARK_FAUCET_REPO}`
+**GitHub**: `${ARK_FAUCET_GITHUB}`
 
 **Description**:
 Offchain-only wallet service that provides HTTP APIs for distributing Ark coins to both onchain and offchain addresses. Supports covenant (Liquid) and covenantless (Bitcoin) modes. Used for testnet distributions, developer testing, and onboarding new users to the Ark ecosystem.
@@ -154,6 +158,7 @@ Offchain-only wallet service that provides HTTP APIs for distributing Ark coins 
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/ark-simulator/INDEX.md`
 **Repository**: `${ARK_SIMULATOR_REPO}`
+**GitHub**: `${ARK_SIMULATOR_GITHUB}`
 
 **Description**:
 Simulation tool for testing Ark protocol under various load conditions. Creates multiple concurrent wallet clients that perform send/receive operations to stress-test arkd server performance, round settlement, VTXO management, and network throughput. Used for performance testing, capacity planning, and regression detection.
@@ -188,6 +193,7 @@ Simulation tool for testing Ark protocol under various load conditions. Creates 
 **Language**: Go (instrumentation) + YAML (config)
 **Index**: `${ARKADIAN_DIR}/docs/projects/ark-telemetry/INDEX.md`
 **Repository**: `${ARK_TELEMETRY_REPO}`
+**GitHub**: `${ARK_TELEMETRY_GITHUB}`
 
 **Description**:
 OpenTelemetry-based observability stack for Ark protocol monitoring. Provides metrics, traces, and logs collection from arkd and related services. Includes Prometheus for metrics storage, Grafana for visualization, Loki for log aggregation, and Tempo for distributed tracing.
@@ -223,6 +229,7 @@ OpenTelemetry-based observability stack for Ark protocol monitoring. Provides me
 **Language**: HCL (OpenTofu/Terraform) + YAML (Docker Compose)
 **Index**: `${ARKADIAN_DIR}/docs/projects/ark-infra/INDEX.md`
 **Repository**: `${ARK_INFRA_REPO}`
+**GitHub**: `${ARK_INFRA_GITHUB}`
 
 **Description**:
 Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastructure across local, staging, and production environments. Uses OpenTofu (Terraform alternative) for AWS resources and Docker Compose for local development stacks. Includes production-ready configurations for arkd, databases, monitoring, and networking.
@@ -258,6 +265,7 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/kms-unlocker/INDEX.md`
 **Repository**: `${KMS_UNLOCKER_REPO}`
+**GitHub**: `${KMS_UNLOCKER_GITHUB}`
 
 **Description**:
 Automated wallet unlock service with AWS KMS integration. Monitors arkd-wallet for lock state and automatically unlocks using credentials stored in AWS Secrets Manager. Provides production-grade secret management, connection resilience, backup systems (SSM fallback), and graceful degradation.
@@ -294,6 +302,7 @@ Automated wallet unlock service with AWS KMS integration. Monitors arkd-wallet f
 **Language**: Go
 **Index**: `${ARKADIAN_DIR}/docs/projects/fulmine/INDEX.md`
 **Repository**: `${FULMINE_REPO}`
+**GitHub**: `${FULMINE_GITHUB}`
 
 **Description**:
 Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain � Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
@@ -331,6 +340,7 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 **Language**: TypeScript/Rust
 **Index**: `${ARKADIAN_DIR}/docs/projects/boltz-backend/INDEX.md`
 **Repository**: `/Users/dusansekulic/code/go/boltz-backend`
+**GitHub**: `${BOLTZ_BACKEND_GITHUB}`
 
 **Description**:
 Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps between Bitcoin layers. Provides trustless swaps between Bitcoin mainchain, Lightning Network, Liquid sidechain, and EVM chains using HTLCs and Taproot. RESTful API for swap creation and monitoring. Hybrid TypeScript + Rust architecture for performance and reliability.
@@ -370,6 +380,7 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 **Language**: MDX (Markdown + JSX)
 **Index**: `${ARKADIAN_DIR}/docs/projects/ark-docs/INDEX.md`
 **Repository**: `${ARK_DOCS_REPO}`
+**GitHub**: `${ARK_DOCS_GITHUB}`
 
 **Description**:
 Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark concepts, arkd server, wallet development, smart contracts (Arkade language), and security model. Used as knowledge base for Q&A agents.
@@ -404,6 +415,7 @@ Official documentation repository for the Ark protocol and ecosystem. Built with
 **Language**: TypeScript/NestJS
 **Index**: `${ARKADIAN_DIR}/docs/projects/arkade-escrow/INDEX.md`
 **Repository**: `${ARKADE_ESCROW_REPO}`
+**GitHub**: `${ARKADE_ESCROW_GITHUB}`
 
 **Description**:
 Generic 3-party escrow system built on Ark protocol. Provides secure escrow contracts between sender (buyer), receiver (seller), and arbitrator using Virtual Escrow Contracts (VEC) with 6 spending paths (collaborative and unilateral). NestJS backend with Schnorr signature authentication, REST API, and Swagger documentation. POC/alpha status.

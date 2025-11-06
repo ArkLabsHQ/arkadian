@@ -1,0 +1,62 @@
+name: "stack_bootstrap"
+description: "Bring up a local Ark stack (arkd + optional wallet/simulator/telemetry) for development or testing."
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-11-01"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "test_or_run"
+  complexity: ["simple", "medium"]
+  urgency: ["low", "normal", "high"]
+  multi_project: true
+
+execution:
+  agents:
+    - "ark-tester"
+    - "ark-guru"
+
+  phases:
+    - id: "plan_stack"
+      name: "Select Stack Components"
+      agent: "guru"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "From user request, figure out which components are needed: arkd, wallet, ark-simulator, ark-telemetry, ark-faucet."
+        - "Load docs for each selected project from arkadian/docs/projects/<id>/INDEX.md."
+        - "Document chosen stack in stack-plan.md."
+      checkpoint:
+        path: "stacks/plan/stack-plan.md"
+        required_for_next_phase: true
+      timeout_seconds: 300
+
+    - id: "start_stack"
+      name: "Start Local Stack"
+      agent: "tester"
+      depends_on: "plan_stack"
+      approval_required: false
+      actions:
+        - "Run docker-compose or make targets referenced in project INDEX.md for each component."
+        - "Wait for health checks/logs to indicate readiness."
+        - "Document how to stop/clean up."
+      checkpoint:
+        path: "stacks/runs/{run-id}/startup-log.txt"
+        required_for_next_phase: false
+      timeout_seconds: 600
+      auto_retry: true
+      max_retries: 2
+
+success_criteria:
+  - "stack-plan.md exists with selected components."
+  - "Stack has been started using documented commands."
+  - "Health checks passed or known issues documented."
+
+performance:
+  estimated_duration_seconds: 600
+  max_duration_seconds: 1200
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

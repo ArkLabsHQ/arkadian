@@ -88,6 +88,52 @@ prompt_path "BOLTZ_BACKEND_REPO" "boltz-backend (Submarine swaps)" false
 prompt_path "ARK_DOCS_REPO" "ark-docs (Protocol documentation)" false
 prompt_path "ARKADE_ESCROW_REPO" "arkade-escrow (Escrow prototype)" false
 
+echo "" >> "$ENV_FILE"
+echo "# GitHub repository URLs (for progress tracking)" >> "$ENV_FILE"
+echo "# Format: org/repo (e.g., arkade-os/ark or ArkLabsHQ/ark-faucet)" >> "$ENV_FILE"
+echo "# Used by ark-progress-tracker for fetching PRs via GitHub CLI" >> "$ENV_FILE"
+
+# Function to prompt for GitHub URL with default
+prompt_github() {
+  local var_name=$1
+  local description=$2
+  local default=$3
+
+  if [ -n "$default" ]; then
+    read -p "Enter GitHub URL for $description [$default]: " github_url
+    github_url=${github_url:-$default}
+  else
+    read -p "Enter GitHub URL for $description (org/repo, or press Enter to skip): " github_url
+  fi
+
+  if [ -n "$github_url" ]; then
+    echo "$var_name=$github_url" >> "$ENV_FILE"
+    echo "  ✓ $var_name=$github_url"
+  else
+    echo "  Skipped"
+  fi
+  echo ""
+}
+
+echo ""
+echo "GitHub Repository URLs:"
+echo "----------------------"
+echo "Enter GitHub URLs in format: org/repo (e.g., arkade-os/ark)"
+echo ""
+
+prompt_github "ARKD_GITHUB" "arkd" "arkade-os/ark"
+prompt_github "GO_SDK_GITHUB" "go-sdk" "arkade-os/go-sdk"
+prompt_github "WALLET_GITHUB" "wallet" "arkade-os/wallet"
+prompt_github "ARK_FAUCET_GITHUB" "ark-faucet" "ArkLabsHQ/ark-faucet"
+prompt_github "ARK_SIMULATOR_GITHUB" "ark-simulator" "ArkLabsHQ/ark-simulator"
+prompt_github "ARK_TELEMETRY_GITHUB" "ark-telemetry" "ArkLabsHQ/ark-telemetry"
+prompt_github "ARK_INFRA_GITHUB" "ark-infra" "ArkLabsHQ/ark-infra"
+prompt_github "KMS_UNLOCKER_GITHUB" "kms-unlocker" "ArkLabsHQ/kms-unlocker"
+prompt_github "FULMINE_GITHUB" "fulmine" "ArkLabsHQ/fulmine"
+prompt_github "BOLTZ_BACKEND_GITHUB" "boltz-backend" "BoltzExchange/boltz-backend"
+prompt_github "ARK_DOCS_GITHUB" "ark-docs" "arkade-os/docs"
+prompt_github "ARKADE_ESCROW_GITHUB" "arkade-escrow" ""
+
 echo ""
 echo "=========================================="
 echo "✅ Environment configuration complete!"

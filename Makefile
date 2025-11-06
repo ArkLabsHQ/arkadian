@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings copy-mcp export-env make-executable update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env copy-mcp export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -75,6 +75,13 @@ copy-settings: ## Copy settings.json to ~/.claude/ (legacy - use copy-settings-w
 	@sed "s|ARKADIAN_DIR_PLACEHOLDER|$(ARKADIAN_DIR)|g" .claude-settings.template.json > $$HOME/.claude/settings.json
 	@echo "$(GREEN)✓ Installed ~/.claude/settings.json$(NC)"
 	@echo "$(GREEN)  ARKADIAN_DIR set to: $(ARKADIAN_DIR)$(NC)"
+
+copy-mcp: ## Configure MCP for browser automation
+	@echo "$(YELLOW)Configuring MCP for browser automation...$(NC)"
+	@echo "$(GREEN)✓ Skipping .mcp.json installation (deprecated)$(NC)"
+	@echo "$(YELLOW)  Using Claude CLI to configure Playwright MCP instead$(NC)"
+	claude mcp add --transport stdio playwright --scope user -- bunx @playwright/mcp@latest --extension || true
+	@echo "$(GREEN)✓ Playwright MCP configuration attempted$(NC)"
 
 export-env: ## Add ARKADIAN_DIR to shell config
 	@echo "$(YELLOW)Configuring environment variables...$(NC)"

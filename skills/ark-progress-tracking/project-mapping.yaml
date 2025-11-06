@@ -1,0 +1,581 @@
+# Project Mapping for Ark Ecosystem
+# Maps 12 Ark projects to business areas, stakeholders, priorities, and coordination patterns
+
+projects:
+  arkd:
+    id: "arkd"
+    name: "Ark Server"
+    repo: "ark-network/arkd"
+    description: "Core Ark server implementation (Go)"
+    category: "core_infrastructure"
+
+    business_areas:
+      - "protocol_implementation"
+      - "payment_processing"
+      - "vtxo_management"
+      - "round_orchestration"
+
+    tech_stack:
+      - "Go"
+      - "PostgreSQL"
+      - "gRPC"
+      - "Protocol Buffers"
+
+    stakeholders:
+      primary: ["protocol_team", "backend_team"]
+      secondary: ["product_team", "operations"]
+      visibility: ["executives", "business_development"]
+
+    priority_level: "critical"
+    change_frequency: "high"  # Multiple PRs per week
+
+    downstream_consumers:
+      - "go-sdk"
+      - "wallet"
+      - "arkade-escrow"
+      - "ark-faucet"
+      - "ark-simulator"
+
+    coordination_patterns:
+      proto_changes:
+        trigger: "api-spec/protobuf/ changed"
+        affected: ["go-sdk", "wallet", "arkade-escrow"]
+        coordination_type: "sequential"
+        timeline_impact: "2-3 days"
+        approval_needed: true
+
+      database_migration:
+        trigger: "internal/infrastructure/db/*/migration/ changed"
+        affected: ["ark-infra", "operations"]
+        coordination_type: "deployment_coordination"
+        timeline_impact: "maintenance_window_required"
+        approval_needed: true
+
+  go-sdk:
+    id: "go-sdk"
+    name: "Ark Go SDK"
+    repo: "ark-network/go-sdk"
+    description: "Client library for Ark protocol (Go)"
+    category: "core_infrastructure"
+
+    business_areas:
+      - "client_library"
+      - "developer_experience"
+      - "integration_support"
+
+    tech_stack:
+      - "Go"
+      - "gRPC client"
+      - "Bitcoin libraries"
+
+    stakeholders:
+      primary: ["sdk_team", "backend_team"]
+      secondary: ["developer_relations", "integrations"]
+      visibility: ["business_development"]
+
+    priority_level: "critical"
+    change_frequency: "medium"
+
+    upstream_dependencies:
+      - "arkd"  # Proto changes from arkd
+
+    downstream_consumers:
+      - "ark-faucet"
+      - "ark-simulator"
+      - "kms-unlocker"
+
+    coordination_patterns:
+      api_breaking_change:
+        trigger: "pkg/*.go public API changed"
+        affected: ["ark-faucet", "ark-simulator", "kms-unlocker"]
+        coordination_type: "parallel_updates_needed"
+        timeline_impact: "1-2 days"
+        approval_needed: true
+
+      version_bump:
+        trigger: "proto update or breaking change"
+        affected: ["all_sdk_consumers"]
+        coordination_type: "version_bump_and_migration_guide"
+        timeline_impact: "1 week for downstream updates"
+        approval_needed: false
+
+  wallet:
+    id: "wallet"
+    name: "Ark Wallet"
+    repo: "ark-network/wallet"
+    description: "PWA wallet application (TypeScript/React)"
+    category: "user_facing"
+
+    business_areas:
+      - "user_experience"
+      - "payment_interface"
+      - "swap_functionality"
+      - "lightning_integration"
+
+    tech_stack:
+      - "TypeScript"
+      - "React"
+      - "PWA"
+      - "@arkade-os/sdk"
+
+    stakeholders:
+      primary: ["frontend_team", "product_team"]
+      secondary: ["design_team", "user_support"]
+      visibility: ["executives", "marketing"]
+
+    priority_level: "high"
+    change_frequency: "high"
+
+    upstream_dependencies:
+      - "arkd"  # API changes
+      - "go-sdk"  # SDK updates (via @arkade-os/sdk)
+      - "fulmine"  # Lightning integration
+
+    coordination_patterns:
+      sdk_update:
+        trigger: "@arkade-os/sdk version bump"
+        affected: ["wallet"]
+        coordination_type: "dependency_update"
+        timeline_impact: "1-2 days testing"
+        approval_needed: false
+
+      ui_ux_changes:
+        trigger: "src/components/ or src/pages/ changed"
+        affected: ["design_team", "user_support"]
+        coordination_type: "design_review_and_documentation"
+        timeline_impact: "design review + user docs update"
+        approval_needed: false
+
+  ark-faucet:
+    id: "ark-faucet"
+    name: "Ark Faucet"
+    repo: "ark-network/ark-faucet"
+    description: "Testnet faucet service (Go)"
+    category: "developer_tools"
+
+    business_areas:
+      - "developer_experience"
+      - "testnet_support"
+
+    tech_stack:
+      - "Go"
+      - "go-sdk"
+
+    stakeholders:
+      primary: ["devrel_team"]
+      secondary: ["operations"]
+      visibility: []
+
+    priority_level: "medium"
+    change_frequency: "low"
+
+    upstream_dependencies:
+      - "go-sdk"
+
+  ark-simulator:
+    id: "ark-simulator"
+    name: "Ark Simulator"
+    repo: "ark-network/ark-simulator"
+    description: "Load testing and simulation tool (Go)"
+    category: "testing_tools"
+
+    business_areas:
+      - "qa_testing"
+      - "performance_validation"
+      - "scalability_testing"
+
+    tech_stack:
+      - "Go"
+      - "go-sdk"
+
+    stakeholders:
+      primary: ["qa_team", "backend_team"]
+      secondary: ["operations"]
+      visibility: []
+
+    priority_level: "medium"
+    change_frequency: "medium"
+
+    upstream_dependencies:
+      - "go-sdk"
+
+    coordination_patterns:
+      simulation_updates:
+        trigger: "New arkd features need simulation"
+        affected: ["qa_team"]
+        coordination_type: "test_scenario_creation"
+        timeline_impact: "1-2 days"
+        approval_needed: false
+
+  arkade-escrow:
+    id: "arkade-escrow"
+    name: "Arkade Escrow"
+    repo: "ark-network/arkade-escrow"
+    description: "Escrow service (TypeScript/NestJS)"
+    category: "services"
+
+    business_areas:
+      - "escrow_functionality"
+      - "payment_processing"
+
+    tech_stack:
+      - "TypeScript"
+      - "NestJS"
+      - "@arkade-os/sdk"
+
+    stakeholders:
+      primary: ["backend_team"]
+      secondary: ["product_team"]
+      visibility: ["business_development"]
+
+    priority_level: "high"
+    change_frequency: "medium"
+
+    upstream_dependencies:
+      - "arkd"  # API changes
+
+  fulmine:
+    id: "fulmine"
+    name: "Fulmine"
+    repo: "ark-network/fulmine"
+    description: "Lightning wallet implementation (Go)"
+    category: "services"
+
+    business_areas:
+      - "lightning_network_integration"
+      - "swap_functionality"
+      - "payment_routing"
+
+    tech_stack:
+      - "Go"
+      - "Lightning Network"
+
+    stakeholders:
+      primary: ["backend_team", "lightning_team"]
+      secondary: ["product_team"]
+      visibility: ["business_development"]
+
+    priority_level: "high"
+    change_frequency: "medium"
+
+    downstream_consumers:
+      - "wallet"  # Lightning integration
+      - "boltz-backend"  # Swap provider
+
+  boltz-backend:
+    id: "boltz-backend"
+    name: "Boltz Backend"
+    repo: "ark-network/boltz-backend"
+    description: "Swap infrastructure (TypeScript/Rust)"
+    category: "services"
+
+    business_areas:
+      - "swap_infrastructure"
+      - "liquidity_management"
+
+    tech_stack:
+      - "TypeScript"
+      - "Rust"
+
+    stakeholders:
+      primary: ["backend_team", "liquidity_team"]
+      secondary: ["operations"]
+      visibility: []
+
+    priority_level: "high"
+    change_frequency: "low"
+
+    upstream_dependencies:
+      - "fulmine"  # Swap integration
+
+  ark-infra:
+    id: "ark-infra"
+    name: "Ark Infrastructure"
+    repo: "ark-network/ark-infra"
+    description: "Infrastructure as Code (HCL/YAML)"
+    category: "infrastructure"
+
+    business_areas:
+      - "deployment_automation"
+      - "infrastructure_management"
+      - "scalability"
+
+    tech_stack:
+      - "Terraform"
+      - "Docker Compose"
+      - "Kubernetes"
+      - "HCL/YAML"
+
+    stakeholders:
+      primary: ["operations", "devops"]
+      secondary: ["backend_team"]
+      visibility: ["executives"]
+
+    priority_level: "critical"
+    change_frequency: "medium"
+
+    coordination_patterns:
+      infrastructure_change:
+        trigger: "docker-compose or terraform changed"
+        affected: ["all_deployments"]
+        coordination_type: "ops_team_approval"
+        timeline_impact: "deploy_window_weekends"
+        approval_needed: true
+
+      deployment_pipeline:
+        trigger: ".github/workflows/ changed"
+        affected: ["all_projects"]
+        coordination_type: "ci_cd_validation"
+        timeline_impact: "test_in_staging_first"
+        approval_needed: true
+
+  ark-telemetry:
+    id: "ark-telemetry"
+    name: "Ark Telemetry"
+    repo: "ark-network/ark-telemetry"
+    description: "Monitoring and observability stack (Go/YAML)"
+    category: "infrastructure"
+
+    business_areas:
+      - "monitoring"
+      - "observability"
+      - "alerting"
+      - "performance_tracking"
+
+    tech_stack:
+      - "Go"
+      - "Prometheus"
+      - "Grafana"
+      - "Loki"
+
+    stakeholders:
+      primary: ["operations", "devops"]
+      secondary: ["backend_team", "qa_team"]
+      visibility: []
+
+    priority_level: "high"
+    change_frequency: "medium"
+
+    coordination_patterns:
+      dashboard_update:
+        trigger: "grafana/ changed"
+        affected: ["operations"]
+        coordination_type: "ops_notification"
+        timeline_impact: "immediate"
+        approval_needed: false
+
+      alert_rule_change:
+        trigger: "prometheus/alerts/ changed"
+        affected: ["operations", "on_call"]
+        coordination_type: "ops_approval_and_testing"
+        timeline_impact: "test_in_staging_first"
+        approval_needed: true
+
+  kms-unlocker:
+    id: "kms-unlocker"
+    name: "KMS Unlocker"
+    repo: "ark-network/kms-unlocker"
+    description: "Wallet automation service (Go)"
+    category: "infrastructure"
+
+    business_areas:
+      - "wallet_automation"
+      - "key_management"
+
+    tech_stack:
+      - "Go"
+      - "go-sdk"
+      - "KMS integration"
+
+    stakeholders:
+      primary: ["operations", "security_team"]
+      secondary: []
+      visibility: []
+
+    priority_level: "medium"
+    change_frequency: "low"
+
+    upstream_dependencies:
+      - "go-sdk"
+
+  ark-docs:
+    id: "ark-docs"
+    name: "Ark Documentation"
+    repo: "ark-network/ark-docs"
+    description: "Official documentation (MDX)"
+    category: "documentation"
+
+    business_areas:
+      - "developer_documentation"
+      - "user_guides"
+      - "api_reference"
+
+    tech_stack:
+      - "MDX"
+      - "Docusaurus"
+
+    stakeholders:
+      primary: ["docs_team", "devrel_team"]
+      secondary: ["product_team"]
+      visibility: ["business_development"]
+
+    priority_level: "medium"
+    change_frequency: "medium"
+
+    coordination_patterns:
+      api_documentation:
+        trigger: "New API features in arkd"
+        affected: ["docs_team"]
+        coordination_type: "documentation_update"
+        timeline_impact: "parallel_to_feature_development"
+        approval_needed: false
+
+# Cross-Project Coordination Patterns
+coordination_patterns:
+  proto_changes_cascade:
+    description: "Proto changes in arkd cascade to SDK and all consumers"
+    trigger: "arkd api-spec/protobuf/ changed"
+    sequence:
+      - step: 1
+        project: "arkd"
+        action: "Merge proto change"
+      - step: 2
+        project: "go-sdk"
+        action: "Update proto bindings, release new version"
+        timeline: "1-2 days"
+      - step: 3
+        project: "ark-faucet"
+        action: "Update SDK dependency"
+        timeline: "parallel with other consumers"
+      - step: 3
+        project: "ark-simulator"
+        action: "Update SDK dependency"
+        timeline: "parallel with other consumers"
+      - step: 3
+        project: "kms-unlocker"
+        action: "Update SDK dependency"
+        timeline: "parallel with other consumers"
+      - step: 4
+        project: "wallet"
+        action: "Update @arkade-os/sdk (wraps go-sdk)"
+        timeline: "2-3 days after SDK release"
+
+  infrastructure_deployment:
+    description: "Infrastructure changes require ops approval and staging validation"
+    trigger: "ark-infra changed"
+    sequence:
+      - step: 1
+        project: "ark-infra"
+        action: "PR created"
+      - step: 2
+        actor: "ops_team"
+        action: "Review and approve"
+      - step: 3
+        environment: "staging"
+        action: "Deploy and validate"
+        timeline: "1-2 days"
+      - step: 4
+        environment: "production"
+        action: "Schedule deployment window (weekend)"
+        timeline: "weekend deploy"
+
+  feature_full_stack:
+    description: "Full-stack features span arkd, SDK, and wallet"
+    typical_sequence:
+      - step: 1
+        project: "arkd"
+        action: "Backend implementation"
+      - step: 2
+        project: "go-sdk"
+        action: "Client library support"
+        timeline: "1-2 days after arkd"
+      - step: 3
+        project: "wallet"
+        action: "UI implementation"
+        timeline: "2-3 days after SDK"
+      - step: 4
+        project: "ark-docs"
+        action: "Documentation"
+        timeline: "parallel with implementation"
+
+# Stakeholder Groups
+stakeholder_groups:
+  executives:
+    interests: ["business_value", "timeline", "risks", "high_level_progress"]
+    preferred_reports: ["weekly_summary", "feature_tracking"]
+    communication_style: "executive_summary_first"
+
+  product_team:
+    interests: ["feature_progress", "timeline", "blockers", "user_impact"]
+    preferred_reports: ["weekly_summary", "feature_tracking", "cross_project_coordination"]
+    communication_style: "business_value_and_timeline"
+
+  operations:
+    interests: ["infrastructure_changes", "deployment_needs", "performance", "alerts"]
+    preferred_reports: ["project_specific_ark_infra", "project_specific_ark_telemetry"]
+    communication_style: "technical_with_ops_focus"
+
+  backend_team:
+    interests: ["technical_changes", "api_changes", "performance", "architecture"]
+    preferred_reports: ["project_specific", "cross_project_coordination"]
+    communication_style: "technical_detailed"
+
+  frontend_team:
+    interests: ["api_changes", "sdk_updates", "ux_changes"]
+    preferred_reports: ["project_specific_wallet", "cross_project_coordination"]
+    communication_style: "api_contract_focused"
+
+  qa_team:
+    interests: ["test_coverage", "bugs", "regressions", "simulation_results"]
+    preferred_reports: ["project_specific_ark_simulator", "weekly_summary"]
+    communication_style: "quality_metrics_focused"
+
+  business_development:
+    interests: ["new_features", "enterprise_value", "integration_capabilities"]
+    preferred_reports: ["feature_tracking", "weekly_summary"]
+    communication_style: "customer_value_focused"
+
+  devrel_team:
+    interests: ["developer_experience", "documentation", "sdk_changes", "examples"]
+    preferred_reports: ["project_specific_go_sdk", "project_specific_ark_docs"]
+    communication_style: "developer_experience_focused"
+
+# Priority Matrix
+priority_matrix:
+  critical:
+    projects: ["arkd", "ark-infra", "go-sdk"]
+    change_impact: "high"
+    approval_threshold: "strict"
+    communication: "immediate"
+
+  high:
+    projects: ["wallet", "arkade-escrow", "fulmine", "ark-telemetry"]
+    change_impact: "medium-high"
+    approval_threshold: "standard"
+    communication: "same_day"
+
+  medium:
+    projects: ["ark-faucet", "ark-simulator", "kms-unlocker", "ark-docs", "boltz-backend"]
+    change_impact: "low-medium"
+    approval_threshold: "minimal"
+    communication: "weekly"
+
+# Repository Organization
+repo_organization:
+  owner: "ark-network"
+  total_repos: 12
+
+  by_category:
+    core_infrastructure: ["arkd", "go-sdk"]
+    user_facing: ["wallet"]
+    services: ["arkade-escrow", "fulmine", "boltz-backend"]
+    infrastructure: ["ark-infra", "ark-telemetry", "kms-unlocker"]
+    developer_tools: ["ark-faucet", "ark-simulator"]
+    documentation: ["ark-docs"]
+
+  by_language:
+    go: ["arkd", "go-sdk", "ark-faucet", "ark-simulator", "fulmine", "kms-unlocker", "ark-telemetry"]
+    typescript: ["wallet", "arkade-escrow", "boltz-backend"]
+    rust: ["boltz-backend"]  # partial
+    mdx: ["ark-docs"]
+    hcl_yaml: ["ark-infra"]

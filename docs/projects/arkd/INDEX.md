@@ -8,14 +8,15 @@ documentation_path: ${ARKADIAN_DOCS}/projects/arkd
 commits_behind_upstream: 0
 uncommitted_changes: false
 default_sections_by_intent:
-  qna:        ["system/project_overview.md", "testing/usage.md"]
-  qa:         ["testing/usage.md", "testing/how_to_run.md", "testing/how_to_test.md"]
-  dev:        ["testing/how_to_run.md", "system/architecture.md", "system/folder_structure.md"]
-  monitoring: ["testing/troubleshooting.md"]
+  qna:        ["system/project_overview.md", "testing/arkd-environment-and-testing-guide.md"]
+  qa:         ["testing/arkd-environment-and-testing-guide.md"]
+  dev:        ["testing/arkd-development-reference.md", "system/architecture.md", "system/folder_structure.md"]
+  monitoring: ["testing/arkd-environment-and-testing-guide.md"]
 aliases:
   overview: ["system/project_overview.md", "system/architecture.md"]
-  usage: ["testing/usage.md", "testing/how_to_run.md"]
-  test: ["testing/how_to_test.md", "testing/usage.md"]
+  usage: ["testing/arkd-environment-and-testing-guide.md"]
+  test: ["testing/arkd-environment-and-testing-guide.md"]
+  development: ["testing/arkd-development-reference.md"]
 scripts:
   compose_up: "make docker-run"
   smoke: "docker ps | grep arkd | grep -v Exited"
@@ -46,10 +47,8 @@ Core technical documentation about how arkd is structured and operates:
 ### `${ARKADIAN_DIR}/docs/projects/arkd/testing/`  Usage, Testing & Troubleshooting
 Practical guides for running, testing, and debugging arkd:
 
-- **${ARKADIAN_DIR}/docs/projects/arkd/testing/usage.md** —  Quick start guide and common usage patterns
-- **${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_run.md** —  Development environment setup and running arkd locally
-- **${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_test.md** —  Running unit tests, integration tests, and simulations
-- **${ARKADIAN_DIR}/docs/projects/arkd/testing/troubleshooting.md** —  Common issues and solutions
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/arkd-development-reference.md** —  Development guide for ark-developer (architecture, code patterns, building)
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/arkd-environment-and-testing-guide.md** —  Complete guide for ark-env-tester (setup, running, testing, debugging)
 
 ### `${ARKADIAN_DIR}/docs/projects/arkd/sop/`  Standard Operating Procedures
 Step-by-step guides for common development tasks:

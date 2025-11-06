@@ -1,0 +1,231 @@
+# Bitcoin/L2 Topic Taxonomy
+# Used by ark-researcher for query classification and decomposition
+
+bitcoin_core:
+  consensus:
+    - bips
+    - soft_forks
+    - activation_mechanisms
+    - validation_rules
+    - consensus_changes
+
+  protocol:
+    - block_structure
+    - transaction_format
+    - script_system
+    - signature_schemes
+    - taproot
+    - schnorr
+
+  network:
+    - p2p_protocol
+    - mempool_policy
+    - relay_rules
+    - block_propagation
+    - compact_blocks
+
+  wallet:
+    - key_management
+    - bip32_bip39_bip44
+    - descriptors
+    - psbt
+    - miniscript
+
+  privacy:
+    - coinjoin
+    - taproot_privacy
+    - confidential_transactions
+    - payjoin
+
+  scaling:
+    - segwit
+    - taproot_efficiency
+    - batch_validation
+    - utxo_management
+
+layer2_protocols:
+  payment_channels:
+    - lightning_network
+    - eltoo
+    - channel_factories
+    - virtual_channels
+
+  virtual_utxos:
+    - ark_protocol
+    - vtxo_lifecycle
+    - round_settlement
+    - operator_model
+
+  sidechains:
+    - liquid_network
+    - rsk
+    - federation_model
+    - peg_mechanisms
+
+  rollups:
+    - sovereign_sdk
+    - rollkit
+    - validity_rollups
+    - data_availability
+
+  state_channels:
+    - generalized_channels
+    - counterfactual
+    - state_commitments
+
+  validity_proofs:
+    - zk_rollups
+    - zk_proofs_on_bitcoin
+    - client_side_validation
+
+lightning_network:
+  architecture:
+    - channel_model
+    - htlc_contracts
+    - commitment_transactions
+    - revocation_mechanism
+
+  routing:
+    - path_finding
+    - onion_routing
+    - multi_path_payments
+    - trampoline_routing
+
+  liquidity:
+    - channel_balancing
+    - rebalancing_strategies
+    - loop_operations
+    - dual_funded_channels
+    - splicing
+
+  specs:
+    - bolt_specifications
+    - bolt_1_to_11
+    - channel_establishment
+    - payment_protocol
+
+  infrastructure:
+    - node_operations
+    - watchtowers
+    - lsp_model
+    - channel_factories
+
+ark_protocol:
+  core_concepts:
+    - vtxos
+    - rounds
+    - settlement
+    - boarding
+    - exit_mechanisms
+
+  architecture:
+    - operator_role
+    - covenantless_design
+    - intent_system
+    - batch_processing
+
+  security:
+    - economic_security
+    - forfeit_transactions
+    - checkpoint_transactions
+    - unilateral_exit
+
+  comparison:
+    - ark_vs_lightning
+    - ark_vs_liquid
+    - trust_assumptions
+    - liquidity_models
+
+cross_protocol:
+  liquidity:
+    - channel_liquidity_vs_vtxo
+    - capital_efficiency
+    - routing_vs_operator
+    - user_liquidity_requirements
+
+  trust_models:
+    - federation
+    - operator
+    - distributed_consensus
+    - client_side_validation
+
+  exit_mechanisms:
+    - cooperative_close
+    - unilateral_exit
+    - force_close
+    - dispute_resolution
+
+  interoperability:
+    - cross_l2_swaps
+    - lightning_ark_bridge
+    - submarine_swaps
+    - htlc_compatibility
+
+  ux_tradeoffs:
+    - onboarding_complexity
+    - liquidity_management
+    - backup_requirements
+    - recovery_procedures
+
+research_categories:
+  technical:
+    - protocol_design
+    - cryptographic_primitives
+    - consensus_mechanisms
+    - transaction_structures
+
+  comparative:
+    - protocol_comparison
+    - trust_model_analysis
+    - performance_benchmarks
+    - cost_analysis
+
+  security:
+    - threat_models
+    - attack_vectors
+    - economic_security
+    - game_theory
+
+  implementation:
+    - reference_implementations
+    - interoperability
+    - testing_strategies
+    - deployment_considerations
+
+external_protocols:
+  bitcoin_alternatives:
+    - liquid_sidechain
+    - rsk_smart_contracts
+    - stacks_bitcoin_layers
+    - rgb_client_validation
+
+  ethereum_l2:
+    - optimistic_rollups
+    - zk_rollups
+    - validium
+    - (comparison_context_only)
+
+  research_papers:
+    - academic_bitcoin_research
+    - l2_protocol_papers
+    - cryptography_papers
+    - consensus_research
+
+documentation_sources:
+  official:
+    - bitcoin_core_docs
+    - bips_repository
+    - lightning_bolts
+    - ark_whitepaper
+
+  community:
+    - bitcoin_optech
+    - lightning_labs_blog
+    - blockstream_research
+    - bitcoin_magazine_technical
+
+  academic:
+    - bitcoin_research_papers
+    - cryptography_conferences
+    - ieee_papers
+    - arxiv_bitcoin

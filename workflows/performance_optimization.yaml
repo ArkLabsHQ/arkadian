@@ -1,0 +1,108 @@
+name: "performance_optimization"
+description: "Performance analysis with baseline → optimize → benchmark cycle"
+version: "1.0.1"
+author: "arkadian-system"
+created: "2025-10-25"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "performance_analysis"
+  complexity: ["medium", "complex"]
+  urgency: ["low", "normal", "high"]
+  multi_project: false
+
+execution:
+  agents: ["ark-researcher", "ark-tester", "ark-debugger", "ark-developer"]
+  phases:
+    - id: "baseline"
+      name: "Establish Performance Baseline"
+      agent: "ark-tester"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Run performance benchmarks"
+        - "Measure current throughput, latency, resource usage"
+        - "Document baseline metrics"
+      checkpoint:
+        path: "baseline-metrics.json"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "analyze"
+      name: "Analyze Performance Bottlenecks"
+      agent: "ark-debugger"
+      depends_on: "baseline"
+      approval_required: false
+      actions:
+        - "Profile code execution (pprof/pyroscope)"
+        - "Identify hot paths and bottlenecks"
+        - "Analyze memory allocation patterns"
+        - "Document findings"
+      checkpoint:
+        path: "performance-analysis.md"
+        required_for_next_phase: true
+      timeout_seconds: 1200
+
+    - id: "research"
+      name: "Research Optimization Strategies"
+      agent: "ark-researcher"
+      depends_on: "analyze"
+      approval_required: true
+      approval_message: "Analysis complete. Proceed with optimization research?"
+      actions:
+        - "Research best practices for identified bottlenecks"
+        - "Evaluate optimization techniques"
+        - "Document recommended approaches"
+      checkpoint:
+        path: "optimization-research.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "optimize"
+      name: "Apply Optimizations"
+      agent: "ark-developer"
+      depends_on: "research"
+      approval_required: false
+      actions:
+        - "Create branch: perf/<area>-<slug>"
+        - "Implement recommended optimizations"
+        - "Add performance tests"
+        - "Commit changes"
+      checkpoint:
+        path: "git-commit-SHA"
+        required_for_next_phase: true
+      timeout_seconds: 2400
+
+    - id: "benchmark"
+      name: "Benchmark Improvements"
+      agent: "ark-tester"
+      depends_on: "optimize"
+      approval_required: true
+      approval_message: "Optimizations complete. Run final benchmarks?"
+      actions:
+        - "Run performance benchmarks"
+        - "Compare against baseline metrics"
+        - "Calculate improvement percentages"
+        - "Document results"
+      checkpoint:
+        path: "benchmark-results.json"
+        required_for_next_phase: false
+      timeout_seconds: 900
+      auto_retry: true
+      max_retries: 1
+
+success_criteria:
+  - "Baseline metrics established"
+  - "Bottlenecks identified and documented"
+  - "Optimization strategies researched"
+  - "Optimizations implemented and tested"
+  - "Performance improvements measured and documented"
+
+performance:
+  estimated_duration_seconds: 2700
+  max_duration_seconds: 5400
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

@@ -1,0 +1,43 @@
+name: "quick_question"
+description: "Simple Q&A, no code changes, single agent responds with citations"
+version: "1.0.1"
+author: "arkadian-system"
+created: "2025-10-25"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "ask_question"
+  complexity: ["simple"]
+  urgency: ["low", "normal", "high", "critical"]
+  multi_project: false
+
+execution:
+  # Orchestrator: expand to agent=ark-guru in final plan
+  agents: ["ark-guru"]
+  phases:
+    - id: "answer"
+      name: "Answer Question"
+      agent: "ark-guru"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Load relevant documentation from project INDEX.md"
+        - "Search for relevant concepts in architecture/usage docs"
+        - "Explain concept with citations to source files"
+        - "Provide code/API examples if applicable"
+      timeout_seconds: 300
+      # Orchestrator: when expanding this phase, bind selected project(s) and pick docs from default_sections_by_intent.qna
+
+success_criteria:
+  - "Question answered with relevant citations"
+  - "Documentation sources referenced"
+  - "No code changes made"
+
+performance:
+  estimated_duration_seconds: 120
+  max_duration_seconds: 300
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

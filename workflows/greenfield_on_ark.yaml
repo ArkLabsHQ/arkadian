@@ -1,0 +1,131 @@
+name: "greenfield_on_ark"
+description: "Design + scaffold a new project on Ark, reusing existing repos (arkd, go-sdk, ark-infra, ark-telemetry, wallet, fulmine, arkade-escrow) where possible."
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-11-01"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "develop"
+  sub_intent: ["greenfield", "new_service", "new_app", "product"]
+  complexity: ["medium", "complex"]
+  urgency: ["low", "normal", "high"]
+  multi_project: true
+
+execution:
+  agents:
+    - "ark-project-manager"
+    - "ark-guru"
+    - "ark-developer"
+    - "ark-tester"
+
+  phases:
+    - id: "discover"
+      name: "Discover Use Case & Constraints"
+      agent: "project-manager"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Extract business/use-case from user request (actors, flows, value)."
+        - "Identify protocol-level needs: on/offboarding, VTXO lifecycle, escrow/swap, wallet ops."
+        - "Identify non-functional constraints: runtime (local/docker/aws), language (Go/TS), persistence, auth."
+        - "Record assumptions and open questions."
+      checkpoint:
+        path: "greenfield/{project-slug}/discovery.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "reuse_map"
+      name: "Map to Existing Ark Repos"
+      agent: "guru"
+      depends_on: "discover"
+      approval_required: false
+      actions:
+        - "From discovery.md, select reusable Ark components (arkd, go-sdk, wallet, ark-infra, ark-telemetry, arkade-escrow, fulmine)."
+        - "For each selected component, note: docs INDEX path (arkadian/docs/projects/<id>/INDEX.md) + repo path (${..._REPO})."
+        - "Document required integration surfaces (gRPC, REST, SDK calls)."
+        - "Document dependencies to pull transitively (arkd → go-sdk, ark-infra → ark-telemetry)."
+      checkpoint:
+        path: "greenfield/{project-slug}/reuse-map.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "architecture"
+      name: "Draft Target Architecture"
+      agent: "project-manager"
+      depends_on: "reuse_map"
+      approval_required: true
+      approval_message: "Proposed architecture is ready (services + Ark deps + infra). Proceed to scaffolding?"
+      actions:
+        - "Define service boundaries (api / worker / ui), and which ones talk to Ark."
+        - "Define how new project talks to arkd (gRPC/REST) and where go-sdk will be used."
+        - "Select storage (SQLite/Postgres) and migration path."
+        - "Add observability hooks (ark-telemetry, Loki, Prometheus, Grafana)."
+        - "Output architecture.md with text diagram / components list."
+      checkpoint:
+        path: "greenfield/{project-slug}/architecture.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "scaffold"
+      name: "Generate Scaffolding Plan"
+      agent: "developer"
+      depends_on: "architecture"
+      approval_required: false
+      actions:
+        - "Select starter layout based on chosen language/runtime (Go service, TS/Nest, React/PWA)."
+        - "Add dependency on selected Ark repos (e.g. go-sdk module, TS SDK, shared proto)."
+        - "Generate Makefile / taskfile aligned with ark-infra / ark-telemetry expectations."
+        - "Generate .env.example with Ark endpoints (ARKD_URL, ARK_TELEMETRY_URL, DB_URL)."
+        - "Describe initial folder structure in scaffold.md."
+      checkpoint:
+        path: "greenfield/{project-slug}/scaffold.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    - id: "infra"
+      name: "Provision / Compose for New Service"
+      agent: "developer"
+      depends_on: "scaffold"
+      approval_required: false
+      actions:
+        - "Generate docker-compose snippet or tofu module that runs the new service against an existing arkd."
+        - "Wire to existing monitoring (ark-telemetry) if present."
+        - "Document how to run locally: docker compose up -d new-service."
+      checkpoint:
+        path: "greenfield/{project-slug}/infra.md"
+        required_for_next_phase: false
+      timeout_seconds: 600
+
+    - id: "validate"
+      name: "Validate New Project Boot"
+      agent: "tester"
+      depends_on: "infra"
+      approval_required: false
+      actions:
+        - "Start local stack (arkd or stub) + new service."
+        - "Run smoke tests against exposed endpoints."
+        - "Verify connectivity to Ark components listed in reuse-map.md."
+        - "Emit validation report."
+      checkpoint:
+        path: "greenfield/{project-slug}/validation-report.md"
+        required_for_next_phase: false
+      timeout_seconds: 600
+      auto_retry: true
+      max_retries: 1
+
+success_criteria:
+  - "discovery.md captures use-case and constraints."
+  - "reuse-map.md lists Ark repos + docs INDEX + repo paths."
+  - "architecture.md defines components, data, and Ark integration."
+  - "scaffold.md contains concrete folder layout and bootstrap commands."
+  - "validation-report.md shows stack can boot and reach Ark component(s)."
+
+performance:
+  estimated_duration_seconds: 2400
+  max_duration_seconds: 4800
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"

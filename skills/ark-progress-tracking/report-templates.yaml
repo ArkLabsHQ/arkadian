@@ -1,0 +1,447 @@
+# Report Templates for Ark Progress Tracking
+# These templates guide the ark-progress-tracker agent in generating stakeholder-friendly reports
+
+weekly_summary:
+  name: "Weekly Progress Summary"
+  description: "Executive-friendly weekly report across all 12 Ark projects"
+  time_period: "7 days"
+  audience: ["executives", "stakeholders", "product_team"]
+
+  sections:
+    - id: "executive_summary"
+      title: "📊 Executive Summary"
+      content:
+        - "2-3 sentence overview of week's focus and achievements"
+        - "Highlights (3-5 bullet points with emojis)"
+        - "Key metrics: PRs merged, PRs opened, active projects"
+
+    - id: "feature_progress"
+      title: "🎯 Feature Progress"
+      content:
+        - "Major features in active development"
+        - "For each feature: name, completion %, status emoji, business value, timeline, recent PRs, next steps"
+
+    - id: "critical_fixes"
+      title: "🐛 Critical Fixes"
+      content:
+        - "High priority bug fixes merged this week"
+        - "For each: repo#num, title, impact, severity, status"
+
+    - id: "infrastructure_updates"
+      title: "🏗️ Infrastructure & DevEx"
+      content:
+        - "Merged infrastructure changes"
+        - "In-progress infrastructure work"
+        - "Business value / developer impact"
+
+    - id: "documentation"
+      title: "📚 Documentation Updates"
+      content:
+        - "Doc updates with business value"
+
+    - id: "cross_project_coordination"
+      title: "🔄 Cross-Project Coordination"
+      content:
+        - "API changes requiring coordination"
+        - "For each: change description, affected projects, status, coordination notes"
+
+    - id: "blockers_and_risks"
+      title: "🚧 Blockers & Risks"
+      content:
+        - "Active blockers: name, affected feature, impact, owner, ETA"
+        - "Risks identified: description, mitigation plan"
+
+    - id: "velocity_metrics"
+      title: "📈 Project Velocity"
+      content:
+        - "Table: project, PRs merged, PRs opened, net change, velocity trend"
+        - "Overall trend assessment"
+
+    - id: "top_contributors"
+      title: "👥 Top Contributors This Week"
+      content:
+        - "Top 3-5 contributors with PR counts and focus areas"
+
+    - id: "next_week_priorities"
+      title: "🎯 Next Week Priorities"
+      content:
+        - "Targets (3-5 items)"
+        - "Upcoming features (next 2 weeks)"
+
+    - id: "metrics"
+      title: "📊 Metrics"
+      content:
+        - "Development activity: commits, PRs, avg PR size, avg time to merge"
+        - "Quality indicators: test coverage, bugs fixed, bugs reported, security issues"
+
+    - id: "stakeholder_notes"
+      title: "📝 Notes for Stakeholders"
+      content:
+        - "For Product Team: product-relevant insights"
+        - "For Operations Team: ops-relevant insights"
+        - "For Business Development: BD-relevant insights"
+
+  format: "markdown"
+  max_length: "2000 lines"
+  tone: "professional, optimistic but honest, data-driven"
+
+project_specific:
+  name: "Project Health Report"
+  description: "Detailed report for single Ark project"
+  time_period: "30 days"
+  audience: ["project_maintainers", "stakeholders", "product_team"]
+
+  sections:
+    - id: "project_overview"
+      title: "Project Overview"
+      content:
+        - "Project name, description, repo"
+        - "Key metrics: total PRs, open issues, contributors"
+
+    - id: "recent_activity"
+      title: "Recent Activity (Last 30 Days)"
+      content:
+        - "Merged PRs by category (features, fixes, infra, docs)"
+        - "Open PRs (in-review, draft)"
+        - "Key achievements"
+
+    - id: "velocity_trends"
+      title: "Velocity Trends"
+      content:
+        - "PR merge rate (current vs previous period)"
+        - "Time to merge trend"
+        - "Contributor activity"
+        - "Chart/graph if available"
+
+    - id: "contributor_stats"
+      title: "Contributor Statistics"
+      content:
+        - "Top contributors this period"
+        - "New contributors"
+        - "Contributor diversity"
+
+    - id: "blockers"
+      title: "Blockers"
+      content:
+        - "Active blockers affecting this project"
+        - "Impact, owner, ETA resolution"
+
+    - id: "dependencies"
+      title: "Dependencies on Other Projects"
+      content:
+        - "What this project depends on"
+        - "What projects depend on this"
+        - "Coordination needs"
+
+    - id: "recommendations"
+      title: "Recommendations"
+      content:
+        - "Process improvements"
+        - "Resource needs"
+        - "Risk mitigation"
+
+  format: "markdown"
+  max_length: "1000 lines"
+  tone: "analytical, actionable, supportive"
+
+feature_tracking:
+  name: "Feature Progress Report"
+  description: "Track single feature across multiple Ark projects"
+  time_period: "custom (feature lifetime)"
+  audience: ["product_team", "stakeholders", "feature_owner"]
+
+  sections:
+    - id: "feature_overview"
+      title: "Feature Overview"
+      content:
+        - "Feature name, description"
+        - "Business value"
+        - "Affected projects"
+
+    - id: "completion_status"
+      title: "Completion Status"
+      content:
+        - "Overall completion percentage"
+        - "Completion by project"
+        - "Visual progress bar/chart"
+
+    - id: "prs_by_status"
+      title: "PRs by Status"
+      content:
+        - "Merged PRs (✅ with dates)"
+        - "In-review PRs (🔄 with reviewers)"
+        - "Draft PRs (📝 with ETAs)"
+        - "Planned PRs (⏳)"
+
+    - id: "cross_project_work"
+      title: "Cross-Project Work"
+      content:
+        - "Dependencies between projects"
+        - "Coordination status"
+        - "Timeline dependencies"
+
+    - id: "blockers"
+      title: "Blockers"
+      content:
+        - "What's blocking feature completion"
+        - "Owner, impact, ETA resolution"
+
+    - id: "timeline_and_eta"
+      title: "Timeline & ETA"
+      content:
+        - "Original ETA vs current status"
+        - "On track / at risk / delayed"
+        - "Revised ETA if needed"
+        - "Critical path diagram"
+
+  format: "markdown"
+  max_length: "800 lines"
+  tone: "clear, timeline-focused, risk-aware"
+
+cross_project_coordination:
+  name: "Cross-Project Coordination Report"
+  description: "Analysis of changes affecting multiple Ark projects"
+  time_period: "14 days (default)"
+  audience: ["tech_leads", "architects", "product_team"]
+
+  sections:
+    - id: "coordination_overview"
+      title: "Coordination Overview"
+      content:
+        - "Summary of cross-project changes"
+        - "Projects involved"
+        - "Coordination complexity"
+
+    - id: "api_contract_changes"
+      title: "API Contract Changes"
+      content:
+        - "Proto changes (arkd)"
+        - "SDK API changes (go-sdk)"
+        - "Breaking vs non-breaking"
+        - "Version bump requirements"
+
+    - id: "dependency_chain"
+      title: "Dependency Chain"
+      content:
+        - "Sequential dependencies (arkd → SDK → wallet)"
+        - "Parallel work opportunities"
+        - "Visual dependency graph"
+
+    - id: "timeline_dependencies"
+      title: "Timeline Dependencies"
+      content:
+        - "Critical path"
+        - "Day-by-day coordination timeline"
+        - "Expected merge dates"
+
+    - id: "coordination_meetings"
+      title: "Coordination Meetings"
+      content:
+        - "Who needs to sync"
+        - "Suggested meeting topics"
+        - "Decisions needed"
+
+    - id: "action_items"
+      title: "Action Items"
+      content:
+        - "By person/team"
+        - "By priority"
+        - "By timeline"
+
+  format: "markdown"
+  max_length: "1200 lines"
+  tone: "coordination-focused, timeline-aware, action-oriented"
+
+# PR Context Report (used in pr-comprehensive-analysis.md)
+pr_context:
+  name: "PR Business Context"
+  description: "Business context for a single PR (used with ark-pr-reviewer)"
+  time_period: "PR-specific"
+  audience: ["stakeholders", "product_team", "developers"]
+
+  sections:
+    - id: "business_context"
+      title: "Business Context"
+      content:
+        - "What feature/initiative this PR belongs to"
+        - "Business value"
+        - "Customer/user impact"
+
+    - id: "cross_project_impact"
+      title: "Cross-Project Impact"
+      content:
+        - "Affected projects and their status"
+        - "Coordination needs"
+        - "Timeline implications"
+
+    - id: "feature_completion_status"
+      title: "Feature Completion Status"
+      content:
+        - "How this PR contributes to overall feature"
+        - "Before/after completion percentage"
+        - "Remaining work"
+
+    - id: "timeline_implications"
+      title: "Timeline Implications"
+      content:
+        - "Original ETA vs current status"
+        - "Risk assessment"
+        - "Impact of blockers on timeline"
+
+    - id: "related_work"
+      title: "Related Work"
+      content:
+        - "Other PRs in this feature"
+        - "Dependencies"
+        - "Follow-up work needed"
+
+    - id: "stakeholder_notes"
+      title: "Stakeholder Notes"
+      content:
+        - "Why this matters to business"
+        - "Enterprise/customer value"
+        - "Unblocking other work"
+
+  format: "markdown"
+  max_length: "600 lines"
+  tone: "business-focused, value-driven, timeline-aware"
+
+# Translation Rules
+business_value_translation:
+  # Technical term → stakeholder language
+  mappings:
+    gRPC_endpoint:
+      technical: "Add gRPC endpoint for X"
+      stakeholder: "New API capability enables Y integration"
+      impact: "Partners can now access this data"
+
+    proto_change:
+      technical: "Update protobuf definitions"
+      stakeholder: "API contract update"
+      impact: "May require client updates"
+
+    race_condition:
+      technical: "Fix race condition in round finalization"
+      stakeholder: "Critical reliability improvement"
+      impact: "Prevents system failures under load"
+
+    performance_optimization:
+      technical: "Optimize database query"
+      stakeholder: "Faster response times"
+      impact: "Better user experience, lower costs"
+
+    database_migration:
+      technical: "Add database migration for multi-DB support"
+      stakeholder: "Deployment flexibility improvement"
+      impact: "Supports more deployment scenarios"
+
+    monitoring_dashboard:
+      technical: "Add Grafana dashboard for VTXOs"
+      stakeholder: "Better operational visibility"
+      impact: "Faster issue detection and resolution"
+
+    ui_component:
+      technical: "Add swap status component"
+      stakeholder: "Improved user experience"
+      impact: "Users can track swap progress easier"
+
+    wallet_feature:
+      technical: "Implement Lightning swap flow"
+      stakeholder: "New capability for users"
+      impact: "On/off ramp to Lightning Network"
+
+    hexagonal_architecture:
+      technical: "Refactor to hexagonal architecture"
+      stakeholder: "Code organization improvement"
+      impact: "Easier to maintain and extend"
+
+    test_coverage:
+      technical: "Increase test coverage to 80%"
+      stakeholder: "Quality improvement"
+      impact: "Fewer bugs reaching production"
+
+    ci_cd_pipeline:
+      technical: "Add CI/CD pipeline for automated testing"
+      stakeholder: "Development automation"
+      impact: "Faster deployments, fewer errors"
+
+# Categorization Rules
+categorization:
+  by_type:
+    features:
+      labels: ["feature", "enhancement"]
+      title_keywords: ["add", "implement", "new", "support"]
+      business_value_template: "New capability: {description}"
+
+    improvements:
+      labels: ["enhancement", "performance", "refactor"]
+      title_keywords: ["improve", "optimize", "refactor", "update"]
+      business_value_template: "Enhanced: {description}"
+
+    bug_fixes:
+      labels: ["bug", "fix"]
+      title_keywords: ["fix", "resolve", "correct", "patch"]
+      business_value_template: "Resolved: {description}"
+
+    infrastructure:
+      labels: ["infrastructure", "devops", "ci", "deploy"]
+      title_keywords: ["docker", "deploy", "ci", "pipeline", "monitor"]
+      business_value_template: "Infrastructure: {description}"
+
+    documentation:
+      labels: ["documentation", "docs"]
+      title_keywords: ["docs", "readme", "guide", "documentation"]
+      business_value_template: "Documentation: {description}"
+
+  by_priority:
+    critical:
+      labels: ["critical", "security", "urgent", "P0"]
+      severity: "Critical"
+
+    high:
+      labels: ["high-priority", "important", "P1"]
+      severity: "High"
+
+    medium:
+      labels: ["medium-priority", "P2"]
+      severity: "Medium"
+
+    low:
+      labels: ["low-priority", "nice-to-have", "P3"]
+      severity: "Low"
+
+# Emoji Guide (for visual clarity)
+emojis:
+  status:
+    completed: "✅"
+    in_progress: "🔄"
+    draft: "📝"
+    blocked: "🚧"
+    waiting: "⏳"
+    at_risk: "⚠️"
+    failed: "❌"
+
+  categories:
+    feature: "🎯"
+    bug: "🐛"
+    performance: "⚡"
+    infrastructure: "🏗️"
+    documentation: "📚"
+    security: "🔒"
+    testing: "🧪"
+
+  trends:
+    increasing: "↗️"
+    stable: "→"
+    decreasing: "↘️"
+
+  general:
+    summary: "📊"
+    timeline: "📅"
+    coordination: "🔄"
+    metrics: "📈"
+    people: "👥"
+    notes: "📝"
+    question: "❓"
+    link: "🔗"
+    email: "📧"

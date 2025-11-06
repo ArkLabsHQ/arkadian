@@ -1,0 +1,71 @@
+name: "ad_hoc_minimal"
+description: "Generic 4-step DAG when no other template matches"
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-11-01"
+last_modified: "2025-11-01"
+
+applies_to:
+  primary_intent: "unknown"
+  complexity: ["simple", "medium"]
+  urgency: ["low", "normal", "high"]
+  multi_project: false
+
+execution:
+  agents: ["ark-guru", "ark-project-manager", "ark-developer", "ark-tester"]
+  phases:
+    - id: "discover"
+      name: "Discover / Read"
+      agent: "ark-guru"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Load master registry"
+        - "Load selected project INDEX.md"
+        - "Summarize user problem"
+      timeout_seconds: 180
+
+    - id: "plan"
+      name: "Plan"
+      agent: "ark-project-manager"
+      depends_on: "discover"
+      approval_required: true
+      approval_message: "Plan ready. Proceed to execution?"
+      actions:
+        - "Propose concrete actions"
+        - "Define which agents to use"
+        - "Define expected outputs"
+      timeout_seconds: 180
+
+    - id: "execute"
+      name: "Execute"
+      agent: "ark-developer"
+      depends_on: "plan"
+      approval_required: false
+      actions:
+        - "Perform the main user task"
+      timeout_seconds: 300
+
+    - id: "verify"
+      name: "Verify"
+      agent: "ark-tester"
+      depends_on: "execute"
+      approval_required: false
+      actions:
+        - "Run validation / health checks"
+      timeout_seconds: 180
+
+success_criteria:
+  - "User request clarified"
+  - "Plan created and approved"
+  - "Task executed"
+  - "Result validated"
+
+performance:
+  estimated_duration_seconds: 600
+  max_duration_seconds: 1200
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"
