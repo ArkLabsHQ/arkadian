@@ -809,6 +809,9 @@ failures:
     suggested_fix: "Add integration test check to workflow"
 ```
 
+### 5.6 New Agent Roles
+ark-observer -> read logs from loki, prometheus, yaeger, pyroscopse and do analisys, add indexer to get data from db
+
 ---
 
 ## Priority Matrix
