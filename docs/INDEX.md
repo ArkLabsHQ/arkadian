@@ -447,6 +447,44 @@ Generic 3-party escrow system built on Ark protocol. Provides secure escrow cont
 
 ---
 
+### arkade-explorer
+**ID**: `arkade-explorer`
+**Name**: Arkade Explorer
+**Type**: End-User Application/Web App
+**Language**: TypeScript/React
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-explorer/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/fe/arkade-explorer`
+**GitHub**: `${ARKADE_EXPLORER_GITHUB}`
+
+**Description**:
+Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, and VTXO addresses using the Arkade Indexer API. Features include smart search, transaction/address browsing, VTXO status tracking, and responsive design.
+
+**Key Capabilities**:
+- Commitment transaction explorer with batch details and raw hex viewer
+- Address VTXO explorer with balance statistics and status badges
+- Smart search (auto-detects transaction IDs vs addresses)
+- Real-time data via Arkade Indexer API
+- Responsive design (mobile + desktop)
+- Progressive Web App ready
+- Retro Space Invaders UI theme
+- Copy-to-clipboard functionality
+- TanStack Query for data fetching and caching
+
+**Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `react`, `typescript`, `vite`, `tailwindcss`, `pwa`, `indexer`, `web-app`, `frontend`
+
+**Synonyms**: `ark-explorer`, `block-explorer`, `tx-explorer`, `vtxo-explorer`
+
+**Triggers**:
+- **ask_question**: `view transaction`, `check vtxo`, `explore address`, `transaction details`, `block explorer`
+- **develop**: `add explorer feature`, `fix ui bug`, `update sdk version`, `new transaction view`
+- **test_or_run**: `start explorer`, `build explorer`, `dev server`, `preview build`
+- **debug**: `transaction not found`, `vtxo status wrong`, `api error`, `loading issue`
+
+**Dependencies**: `@arkade-os/sdk` (TypeScript SDK), Arkade Indexer API (external service)
+**Depended On By**: None (end-user application)
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -485,14 +523,17 @@ arkd (core)
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
 | ark-docs | All | Documentation-Reference |
+| arkade-explorer | arkd | Client-Server (via Indexer API) |
+| arkade-explorer | wallet | Sibling Frontend (same @arkade-os/sdk) |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: wallet, arkade-escrow, arkade-explorer, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
+**Frontend Applications**: wallet (PWA), arkade-explorer (Web App)
 
 ---
 
@@ -583,6 +624,7 @@ For conceptual questions, prioritize documentation loading order:
 | fulmine | Active Dev | � Alpha | Lightning wallet, under development |
 | ark-docs | Active |  | Documentation site, continuously updated |
 | arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
+| arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 
 ---
 
@@ -595,6 +637,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha � beta � stable)
 
-**Last Updated**: 2025-10-16
-**Version**: 1.0.0
+**Last Updated**: 2025-11-27
+**Version**: 1.1.0
 **Maintained By**: Arkadian Documentation Team
