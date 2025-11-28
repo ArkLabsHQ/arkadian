@@ -5,13 +5,14 @@ set -e
 JSON_MODE=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
+SESSION_DIR=""
 ARGS=()
 i=1
 while [ $i -le $# ]; do
     arg="${!i}"
     case "$arg" in
-        --json) 
-            JSON_MODE=true 
+        --json)
+            JSON_MODE=true
             ;;
         --short-name)
             if [ $((i + 1)) -gt $# ]; then
@@ -40,22 +41,37 @@ while [ $i -le $# ]; do
             fi
             BRANCH_NUMBER="$next_arg"
             ;;
-        --help|-h) 
-            echo "Usage: $0 [--json] [--short-name <name>] [--number N] <feature_description>"
+        --session-dir)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --session-dir requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --session-dir requires a value' >&2
+                exit 1
+            fi
+            SESSION_DIR="$next_arg"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--json] [--short-name <name>] [--number N] [--session-dir <path>] <feature_description>"
             echo ""
             echo "Options:"
-            echo "  --json              Output in JSON format"
-            echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
-            echo "  --number N          Specify branch number manually (overrides auto-detection)"
-            echo "  --help, -h          Show this help message"
+            echo "  --json                Output in JSON format"
+            echo "  --short-name <name>   Provide a custom short name (2-4 words) for the branch"
+            echo "  --number N            Specify branch number manually (overrides auto-detection)"
+            echo "  --session-dir <path>  Session directory for specs (default: \$REPO_ROOT/sessions/<timestamp>)"
+            echo "  --help, -h            Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
             echo "  $0 'Implement OAuth2 integration for API' --number 5"
+            echo "  $0 'Add feature' --session-dir /path/to/sessions/20251128-143052-feature"
             exit 0
             ;;
-        *) 
-            ARGS+=("$arg") 
+        *)
+            ARGS+=("$arg")
             ;;
     esac
     i=$((i + 1))
@@ -130,7 +146,18 @@ fi
 
 cd "$REPO_ROOT"
 
-SPECS_DIR="$REPO_ROOT/specs"
+# Determine specs directory - use session dir if provided, else create default session
+if [ -n "$SESSION_DIR" ]; then
+    SPECS_DIR="$SESSION_DIR/specs"
+elif [ -n "$ARKADIAN_DIR" ]; then
+    # Create a new session folder if not provided
+    SESSION_TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    SESSION_DIR="$ARKADIAN_DIR/sessions/${SESSION_TIMESTAMP}-spec"
+    SPECS_DIR="$SESSION_DIR/specs"
+else
+    # Fallback to legacy behavior for non-Arkadian contexts
+    SPECS_DIR="$REPO_ROOT/specs"
+fi
 mkdir -p "$SPECS_DIR"
 
 # Function to generate branch name with stop word filtering and length filtering
@@ -251,10 +278,12 @@ if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"
 export SPECIFY_FEATURE="$BRANCH_NAME"
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM"
+    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","SESSION_DIR":"%s","SPECS_DIR":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$SESSION_DIR" "$SPECS_DIR"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
+    echo "SESSION_DIR: $SESSION_DIR"
+    echo "SPECS_DIR: $SPECS_DIR"
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
 fi

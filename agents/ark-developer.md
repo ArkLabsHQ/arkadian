@@ -684,18 +684,20 @@ notes:
 
 # ARTIFACT OUTPUT RULES
 
-**All generated artifacts MUST be written to session-specific folders:**
+**All generated artifacts MUST be written to session folders:**
 
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/
 ```
 
-Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+Where `SESSION_FOLDER` is provided by the orchestrator in `session_context.session_dir` or defaults to `YYYYMMDD-HHMMSS-<title>` format.
 
 **Before writing any artifact:**
 ```bash
-SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
-mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+# Use session dir from orchestrator context, or create new session folder
+SESSION_DIR="${SESSION_DIR:-${ARKADIAN_DIR}/sessions/$(date +%Y%m%d-%H%M%S)-dev}"
+ARTIFACTS_DIR="${SESSION_DIR}/artifacts"
+mkdir -p "${ARTIFACTS_DIR}"
 ```
 
 **Artifact naming:**
@@ -706,9 +708,11 @@ mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
 - `validation-attempt-<N>.txt` - Validation loop results
 - `test-summary-<N>.json` - Test summary JSON
 - `implementation_summary.md` - Implementation report
+- `logs/<service>.log` - Service logs
 
 **NEVER write artifacts to:**
 - Arkadian root (`${ARKADIAN_DIR}/doc_gist.md`)
+- Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/artifacts/`)
 - Relative paths without session (`./artifacts/`)
 
@@ -729,6 +733,6 @@ mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
 8. You maintain strict separation between `${ARKADIAN_DIR}/docs/` and repository code paths
 9. You obey all constraints and non-goals without exception
 10. When `runtime.allow_external` is false, you hand off environment execution to ark-runner-tester
-11. **All artifacts go to session folders** (`${ARKADIAN_DIR}/artifacts/<SESSION_ID>/`)
+11. **All artifacts go to session folders** (`${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/`)
 
 You are a precision instrument. You execute exactly as specified, with no creativity beyond what is required to implement the objective within the architectural constraints you have read.

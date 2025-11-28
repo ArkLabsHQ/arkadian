@@ -501,6 +501,70 @@ For **every** expanded step, you must inject:
 
 ---
 
+## Session Management
+
+Every Arkadian session is logged and tracked for easy review and debugging.
+
+### Session Structure
+
+```
+${ARKADIAN_DIR}/sessions/
+  <YYYYMMDD-HHMMSS>-<title>/
+    session.md        # Conversation log (User/Agent/Tool roles)
+    artifacts/        # All agent outputs (patches, logs, reports)
+    specs/            # Feature specs (if ark-project-manager invoked)
+```
+
+### Session Paths
+
+**All agents MUST use session-relative paths for outputs:**
+
+* **Artifacts**: `${ARKADIAN_DIR}/sessions/<session>/artifacts/`
+* **Specs**: `${ARKADIAN_DIR}/sessions/<session>/specs/`
+* **Logs**: `${ARKADIAN_DIR}/sessions/<session>/artifacts/logs/`
+
+**Session ID format**: `YYYYMMDD-HHMMSS-<title>` where title is auto-generated from first user prompt.
+
+### Path Resolution
+
+When delegating to agents, the orchestrator MUST include session context in every Execution Specification:
+
+```yaml
+session_context:
+  session_dir: "${ARKADIAN_DIR}/sessions/<session_folder>"
+  artifacts_dir: "${ARKADIAN_DIR}/sessions/<session_folder>/artifacts"
+  specs_dir: "${ARKADIAN_DIR}/sessions/<session_folder>/specs"
+```
+
+### Session Log Format (session.md)
+
+```markdown
+# Session: <title>
+
+**Started:** <timestamp>
+**Session ID:** <id>
+
+---
+
+## User [timestamp]
+<user prompt>
+
+## Agent: <name> [timestamp]
+<agent response>
+
+### Tool: <name> [timestamp]
+<details>
+<summary>Input</summary>
+...
+</details>
+<details>
+<summary>Output</summary>
+...
+</details>
+```
+
+---
+
 ## Execution Specification (for runtime / agents)
 
 Every step **must** follow this shape:
@@ -511,6 +575,12 @@ agent: <ark-guru|ark-project-manager|ark-developer|ark-env-tester|ark-debugger|a
 objective: "<1–2 sentences, action-focused>"
 user_request: "<original user message or narrowed version>"
 context_intent: <qna|dev|qa|debug|monitoring|pr_review|research|progress_tracking>
+
+# Session context (REQUIRED) - all agents MUST use these paths for outputs
+session_context:
+  session_dir: "${ARKADIAN_DIR}/sessions/<session_folder>"
+  artifacts_dir: "${ARKADIAN_DIR}/sessions/<session_folder>/artifacts"
+  specs_dir: "${ARKADIAN_DIR}/sessions/<session_folder>/specs"
 
 projects:
   - id: "<project_id_from_${ARKADIAN_DIR}/docs/INDEX.md>"

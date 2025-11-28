@@ -29,34 +29,35 @@ Given that feature description, do this:
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
 2. **Check for existing branches before creating new one**:
-   
+
    a. First, fetch all remote branches to ensure we have the latest information:
       ```bash
       git fetch --all --prune
       ```
-   
+
    b. Find the highest feature number across all sources for the short-name:
       - Remote branches: `git ls-remote --heads origin | grep -E 'refs/heads/[0-9]+-<short-name>$'`
       - Local branches: `git branch | grep -E '^[* ]*[0-9]+-<short-name>$'`
-      - Specs directories: Check for directories matching `specs/[0-9]+-<short-name>`
-   
+      - Specs directories: Check for directories matching `specs/[0-9]+-<short-name>` in current session
+
    c. Determine the next available number:
       - Extract all numbers from all three sources
       - Find the highest number N
       - Use N+1 for the new branch number
-   
-   d. Run the script `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"` with the calculated number and short-name:
-      - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description
-      - Bash example: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" --json --number 5 --short-name "user-auth" "Add user authentication"`
-      - PowerShell example: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" -Json -Number 5 -ShortName "user-auth" "Add user authentication"`
-   
+
+   d. Run the script with the calculated number, short-name, and **session directory**:
+      - **IMPORTANT**: If a session directory is available (from orchestrator context or SESSION_DIR env), pass it with `--session-dir`
+      - Bash example: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" --session-dir "${SESSION_DIR}" "Add user authentication"`
+      - Without session: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" "Add user authentication"`
+
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, specs directories) to find the highest number
    - Only match branches/directories with the exact short-name pattern
    - If no existing branches/directories found with this short-name, start with number 1
    - You must only ever run this script once per feature
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
-   - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
+   - The JSON output will contain BRANCH_NAME, SPEC_FILE, SESSION_DIR, and SPECS_DIR paths
+   - Specs are created in `${SESSION_DIR}/specs/<feature-id>/` (session-scoped)
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
 
 3. Load `${ARKADIAN_DIR}/.specify/templates/spec-template.md` to understand required sections.
@@ -181,7 +182,18 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
+7. Report completion with branch name, session directory, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
+
+**Session-Aware Output Format:**
+```markdown
+## Specification Complete
+
+**Branch:** <branch_name>
+**Session:** <session_dir>
+**Spec File:** <spec_file_path>
+
+Specs are stored in: `sessions/<session_folder>/specs/<feature-id>/`
+```
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

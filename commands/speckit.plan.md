@@ -12,7 +12,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `${ARKADIAN_DIR}/.specify/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `${ARKADIAN_DIR}/.specify/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH, SESSION_DIR. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+   **Session Context**: The script automatically detects the current session directory. All plan artifacts will be created in `${SESSION_DIR}/specs/<feature-id>/`.
 
 2. **Load context**: Read FEATURE_SPEC and `${ARKADIAN_DIR}/.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
@@ -25,7 +27,20 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+4. **Stop and report**: Command ends after Phase 2 planning. Report branch, SESSION_DIR, IMPL_PLAN path, and generated artifacts.
+
+   **Session-Aware Output Format:**
+   ```markdown
+   ## Planning Complete
+
+   **Branch:** <branch_name>
+   **Session:** <session_dir>
+   **Artifacts:**
+   - plan.md: <path>
+   - research.md: <path>
+   - data-model.md: <path>
+   - contracts/: <path>
+   ```
 
 ## Phases
 

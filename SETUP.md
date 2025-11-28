@@ -17,51 +17,65 @@ Restart your terminal and Claude Code. Done!
 
 The installation process automatically:
 
-1. ✅ Checks prerequisites (bun, git)
+1. ✅ Checks prerequisites (node, git)
 2. ✅ Prompts for repository paths → generates `.env`
 3. ✅ Generates `~/.claude/settings.json` with environment variables
-4. ✅ Installs 7 agents to `~/.claude/agents/`
-5. ✅ Installs 8 skills to `~/.claude/skills/`
-6. ✅ Installs 10 commands to `~/.claude/commands/`
-7. ✅ Exports `ARKADIAN_DIR` to your shell config
-8. ✅ Makes hooks executable
-9. ✅ Verifies installation
+4. ✅ Installs `ORCHESTRATOR.md` as `~/.claude/CLAUDE.md` (global orchestrator)
+5. ✅ Installs 7 agents to `~/.claude/agents/`
+6. ✅ Installs 8 skills to `~/.claude/skills/`
+7. ✅ Installs 10 commands to `~/.claude/commands/`
+8. ✅ Installs hooks to `~/.claude/hooks/`
+9. ✅ Exports `ARKADIAN_DIR` to your shell config
+10. ✅ Verifies installation
 
 **Activation:** Global - works from any directory in Claude Code.
+
+**Note:** When working inside the arkadian repo itself, the project-local `.claude/CLAUDE.md` takes precedence (for arkadian development).
 
 ---
 
 ## Prerequisites
 
-- **Bun** - JavaScript/TypeScript runtime ([install](https://bun.sh))
+- **Node.js** - JavaScript runtime (v18+)
 - **Git** - Version control
 - **Claude Code** - Anthropic's CLI tool
 
-Install bun:
+Install Node.js:
 ```bash
-brew install oven-sh/bun/bun
+brew install node
 ```
 
 ---
 
 ## How It Works
 
-### Two-Hook System
+### Architecture Overview
 
-Arkadian uses intelligent context loading through two hooks:
+Arkadian uses Claude Code's native features for intelligent context loading:
 
-#### 1. SessionStart Hook
+#### 1. Auto-loaded CLAUDE.md (Global Orchestrator)
+**Loaded automatically by Claude Code on startup**
+- `~/.claude/CLAUDE.md` contains the orchestrator instructions
+- Establishes Arkadian's role and capabilities
+- References docs/workflows via `${ARKADIAN_DIR}` env var
+
+#### 2. Environment Variables
+**Resolved automatically by Claude Code**
+- All `${VAR_NAME}` references in settings.json are expanded
+- Allows paths to work across different developer machines
+
+#### 3. SessionStart Hook (Optional Enhancement)
 **Runs once when Claude Code starts**
-- Loads orchestrator (`CLAUDE.md`)
-- Establishes role and capabilities
-- Sets up environment variables
+- Validates environment variables are set correctly
+- Checks documentation freshness (commits behind upstream)
+- Non-blocking - warns but doesn't prevent startup
 
-#### 2. UserPromptSubmit Hook
-**Runs on every user prompt**
-- Analyzes user intent semantically
-- Loads master registry (`docs/INDEX.md`)
-- Scores and selects relevant projects (2-3 avg)
-- Loads only necessary project INDEX.md files
+#### 4. Semantic Project Selection (In Orchestrator)
+**Claude follows instructions in CLAUDE.md to:**
+- Analyze user intent semantically
+- Load master registry (`${ARKADIAN_DIR}/docs/INDEX.md`)
+- Score and select relevant projects (2-3 avg)
+- Load only necessary project INDEX.md files
 - **Result:** 94% context reduction vs loading all projects
 
 ### Semantic Project Selection
@@ -249,14 +263,16 @@ make copy-settings-with-env
 
 ```
 arkadian/
-├── CLAUDE.md                    # Orchestrator (loaded at SessionStart)
+├── ORCHESTRATOR.md              # Global orchestrator (→ ~/.claude/CLAUDE.md)
+├── .claude/
+│   └── CLAUDE.md                # Project-local context (for arkadian dev)
 ├── SETUP.md                     # This guide
-├── PRD.md                       # Implementation reference
+├── README.md                    # Project overview
 ├── Makefile                     # One-liner installer
 ├── .env                         # Your paths (gitignored)
 ├── .env.example                 # Template
 │
-├── agents/                      # 7 specialized agents
+├── agents/                      # 7 specialized agents (→ ~/.claude/agents/)
 │   ├── ark-guru.md              # Q&A specialist
 │   ├── ark-developer.md         # Development
 │   ├── ark-env-tester.md        # Testing/QA
@@ -265,7 +281,7 @@ arkadian/
 │   ├── ark-debugger.md          # Debugging (stub)
 │   └── ark-researcher.md        # Research (stub)
 │
-├── skills/                      # 8 skills (role-restricted)
+├── skills/                      # 8 skills (→ ~/.claude/skills/)
 │   ├── pm-spec/                 # Specification
 │   ├── pm-plan/                 # Planning
 │   ├── pm-tasks/                # Task breakdown
@@ -275,22 +291,34 @@ arkadian/
 │   ├── pm-constitution/         # Constitution
 │   └── dev-implement/           # Code writing (ONLY skill that writes)
 │
-├── commands/                    # 10 slash commands
+├── commands/                    # 10 slash commands (→ ~/.claude/commands/)
 │   ├── add-project.md
 │   ├── update-project.md
 │   └── speckit/                 # 8 speckit commands
 │
-├── hooks/
-│   ├── session-start-hook.ts           # Load orchestrator once
-│   └── load-arkadian-context.ts        # Dynamic context per prompt
+├── hooks/                       # Claude Code hooks (→ ~/.claude/hooks/)
+│   └── arkadian-env-check-hook.js  # Env validation on SessionStart
 │
-├── docs/
+├── docs/                        # PROJECT DOCS (stays in repo, referenced via ${ARKADIAN_DIR})
 │   ├── INDEX.md                 # Master project registry (12 projects)
 │   └── projects/
 │       ├── arkd/INDEX.md        # Project-specific docs
 │       ├── go-sdk/INDEX.md
 │       ├── wallet/INDEX.md
 │       └── [9 more projects...]
+│
+├── workflows/                   # WORKFLOW TEMPLATES (stays in repo)
+│   ├── quick_question.yaml
+│   ├── quick_fix.yaml
+│   ├── feature_full_lifecycle.yaml
+│   └── [11 more templates...]
+│
+├── specs/                       # FEATURE SPECS (stays in repo)
+│   └── 001-*/                   # Speckit-generated specs
+│
+├── .specify/                    # SPECKIT TEMPLATES (stays in repo)
+│   ├── templates/
+│   └── scripts/
 │
 └── scripts/
     ├── generate-env.sh

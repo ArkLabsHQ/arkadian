@@ -81,6 +81,32 @@ check_feature_branch() {
     return 0
 }
 
+# Get specs directory - prefers session-based path, falls back to legacy
+get_specs_dir() {
+    local repo_root="$1"
+
+    # Check for session directory (set by hooks or orchestrator)
+    if [[ -n "${SESSION_DIR:-}" ]]; then
+        echo "$SESSION_DIR/specs"
+    elif [[ -n "${ARKADIAN_DIR:-}" ]]; then
+        # Check if there's an active session by looking for recent session folders
+        local latest_session=""
+        local sessions_dir="$ARKADIAN_DIR/sessions"
+        if [[ -d "$sessions_dir" ]]; then
+            latest_session=$(ls -1t "$sessions_dir" 2>/dev/null | head -1)
+        fi
+        if [[ -n "$latest_session" ]]; then
+            echo "$sessions_dir/$latest_session/specs"
+        else
+            # Fall back to legacy specs directory
+            echo "$repo_root/specs"
+        fi
+    else
+        # Legacy: specs in repo root
+        echo "$repo_root/specs"
+    fi
+}
+
 get_feature_dir() { echo "$1/specs/$2"; }
 
 # Find feature directory by numeric prefix instead of exact branch match
@@ -88,7 +114,7 @@ get_feature_dir() { echo "$1/specs/$2"; }
 find_feature_dir_by_prefix() {
     local repo_root="$1"
     local branch_name="$2"
-    local specs_dir="$repo_root/specs"
+    local specs_dir=$(get_specs_dir "$repo_root")
 
     # Extract numeric prefix from branch (e.g., "004" from "004-whatever")
     if [[ ! "$branch_name" =~ ^([0-9]{3})- ]]; then
@@ -128,6 +154,7 @@ get_feature_paths() {
     local repo_root=$(get_repo_root)
     local current_branch=$(get_current_branch)
     local has_git_repo="false"
+    local specs_dir=$(get_specs_dir "$repo_root")
 
     if has_git; then
         has_git_repo="true"
@@ -136,10 +163,24 @@ get_feature_paths() {
     # Use prefix-based lookup to support multiple branches per spec
     local feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch")
 
+    # Determine session directory
+    local session_dir="${SESSION_DIR:-}"
+    if [[ -z "$session_dir" && -n "${ARKADIAN_DIR:-}" ]]; then
+        local sessions_parent="$ARKADIAN_DIR/sessions"
+        if [[ -d "$sessions_parent" ]]; then
+            local latest=$(ls -1t "$sessions_parent" 2>/dev/null | head -1)
+            if [[ -n "$latest" ]]; then
+                session_dir="$sessions_parent/$latest"
+            fi
+        fi
+    fi
+
     cat <<EOF
 REPO_ROOT='$repo_root'
 CURRENT_BRANCH='$current_branch'
 HAS_GIT='$has_git_repo'
+SPECS_DIR='$specs_dir'
+SESSION_DIR='$session_dir'
 FEATURE_DIR='$feature_dir'
 FEATURE_SPEC='$feature_dir/spec.md'
 IMPL_PLAN='$feature_dir/plan.md'

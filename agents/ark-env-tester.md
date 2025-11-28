@@ -306,23 +306,29 @@ notes: []
 
 ## ARTIFACT OUTPUT RULES
 
-**All generated artifacts MUST be written to session-specific folders:**
+**All generated artifacts MUST be written to session folders:**
 
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/<step_id>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/<step_id>/
 ```
 
-Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+Where `SESSION_FOLDER` is provided by the orchestrator in `session_context.session_dir` or defaults to `YYYYMMDD-HHMMSS-<title>` format.
 
 **Before writing any artifact:**
 ```bash
-SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
-mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}/${step_id}"
+# Use session dir from orchestrator context, or create new session folder
+SESSION_DIR="${SESSION_DIR:-${ARKADIAN_DIR}/sessions/$(date +%Y%m%d-%H%M%S)-test}"
+ARTIFACTS_DIR="${SESSION_DIR}/artifacts/${step_id}"
+mkdir -p "${ARTIFACTS_DIR}"
+mkdir -p "${ARTIFACTS_DIR}/logs"
+mkdir -p "${ARTIFACTS_DIR}/coverage"
+mkdir -p "${ARTIFACTS_DIR}/test_results"
+mkdir -p "${ARTIFACTS_DIR}/screenshots"
 ```
 
 **Artifact structure:**
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/<step_id>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/<step_id>/
 ├── env_report.json
 ├── docker_ps.txt
 ├── compose_config.yaml
@@ -341,6 +347,7 @@ ${ARKADIAN_DIR}/artifacts/<SESSION_ID>/<step_id>/
 
 **NEVER write artifacts to:**
 - Arkadian root (`${ARKADIAN_DIR}/env_report.json`)
+- Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/test_results/`)
 - Relative paths without session (`artifacts/<step_id>/`)
 

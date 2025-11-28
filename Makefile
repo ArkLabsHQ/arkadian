@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings copy-mcp export-env make-executable update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings copy-mcp export-env install-hooks install-claude-md update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -26,9 +26,9 @@ help: ## Show this help message
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env copy-mcp export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env install-hooks install-claude-md copy-mcp export-env install-agents install-skills install-commands verify ## Complete installation
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -39,19 +39,20 @@ install: check-prereqs setup-dirs generate-env copy-settings-with-env copy-mcp e
 	@echo ""
 	@echo "$(YELLOW)Then restart Claude Code to activate Arkadian.$(NC)"
 	@echo ""
-	@echo "Test with: make test-hook"
+	@echo "$(YELLOW)Start with: arkadian$(NC)"
 
 check-prereqs: ## Check for required dependencies
 	@echo "$(YELLOW)Checking prerequisites...$(NC)"
-	@command -v bun >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: bun is not installed. Install from https://bun.sh$(NC)"; exit 1; }
-	@echo "$(GREEN)✓ bun found: $$(bun --version)$(NC)"
+	@command -v node >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: node is not installed$(NC)"; exit 1; }
+	@echo "$(GREEN)✓ node found: $$(node --version)$(NC)"
 	@command -v git >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: git is not installed$(NC)"; exit 1; }
 	@echo "$(GREEN)✓ git found: $$(git --version | head -1)$(NC)"
 
 setup-dirs: ## Create necessary directories
 	@echo "$(YELLOW)Creating directories...$(NC)"
 	@mkdir -p $$HOME/.claude
-	@echo "$(GREEN)✓ Created ~/.claude/$(NC)"
+	@mkdir -p $$HOME/.claude/hooks
+	@echo "$(GREEN)✓ Created ~/.claude/ and ~/.claude/hooks/$(NC)"
 
 generate-env: ## Generate .env from user prompts
 	@if [ -f ".env" ]; then \
@@ -76,11 +77,30 @@ copy-settings: ## Copy settings.json to ~/.claude/ (legacy - use copy-settings-w
 	@echo "$(GREEN)✓ Installed ~/.claude/settings.json$(NC)"
 	@echo "$(GREEN)  ARKADIAN_DIR set to: $(ARKADIAN_DIR)$(NC)"
 
+install-hooks: ## Install hooks to ~/.claude/hooks/
+	@echo "$(YELLOW)Installing hooks...$(NC)"
+	@if [ -f "$$HOME/.claude/hooks/arkadian-env-check-hook.js" ]; then \
+		echo "$(YELLOW)⚠️  Backing up existing hook$(NC)"; \
+		cp $$HOME/.claude/hooks/arkadian-env-check-hook.js $$HOME/.claude/hooks/arkadian-env-check-hook.js.backup; \
+	fi
+	@cp hooks/arkadian-env-check-hook.js $$HOME/.claude/hooks/
+	@chmod +x $$HOME/.claude/hooks/arkadian-env-check-hook.js
+	@echo "$(GREEN)✓ Installed arkadian-env-check-hook.js to ~/.claude/hooks/$(NC)"
+
+install-claude-md: ## Install orchestrator as ~/.claude/CLAUDE.md
+	@echo "$(YELLOW)Installing orchestrator CLAUDE.md...$(NC)"
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(YELLOW)⚠️  Backing up existing CLAUDE.md$(NC)"; \
+		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.backup; \
+	fi
+	@# Replace ${ARKADIAN_DIR} with actual path
+	@sed "s|\$${ARKADIAN_DIR}|$(ARKADIAN_DIR)|g" ORCHESTRATOR.md > $$HOME/.claude/CLAUDE.md
+	@echo "$(GREEN)✓ Installed ORCHESTRATOR.md as ~/.claude/CLAUDE.md$(NC)"
+	@echo "$(GREEN)  ARKADIAN_DIR set to: $(ARKADIAN_DIR)$(NC)"
+
 copy-mcp: ## Configure MCP for browser automation
 	@echo "$(YELLOW)Configuring MCP for browser automation...$(NC)"
-	@echo "$(GREEN)✓ Skipping .mcp.json installation (deprecated)$(NC)"
-	@echo "$(YELLOW)  Using Claude CLI to configure Playwright MCP instead$(NC)"
-	claude mcp add --transport stdio playwright --scope user -- bunx @playwright/mcp@latest --extension || true
+	@claude mcp add --transport stdio playwright --scope user -- bunx @playwright/mcp@latest --extension 2>/dev/null || true
 	@echo "$(GREEN)✓ Playwright MCP configuration attempted$(NC)"
 
 export-env: ## Add ARKADIAN_DIR to shell config
@@ -98,11 +118,6 @@ export-env: ## Add ARKADIAN_DIR to shell config
 	@echo "export ARKADIAN_DIR=\"$(ARKADIAN_DIR)\"" >> $(SHELL_CONFIG)
 	@echo "$(GREEN)✓ Added ARKADIAN_DIR to $(SHELL_CONFIG)$(NC)"
 	@echo "$(YELLOW)  Run 'source $(SHELL_CONFIG)' to load the variable$(NC)"
-
-make-executable: ## Make hooks executable
-	@echo "$(YELLOW)Making hooks executable...$(NC)"
-	@chmod +x hooks/*.ts hooks/*.js 2>/dev/null || true
-	@echo "$(GREEN)✓ Hooks are now executable$(NC)"
 
 install-agents: ## Install agents to ~/.claude/agents
 	@echo "$(YELLOW)Installing agents...$(NC)"
@@ -123,9 +138,9 @@ update-shell: ## Source shell config (run in new shell)
 	@echo "$(YELLOW)To activate environment variables, run:$(NC)"
 	@echo "  source $(SHELL_CONFIG)"
 
-test-hook: ## Test the context loading hook
+test-hook: ## Test the environment check hook
 	@echo "$(YELLOW)Testing hook...$(NC)"
-	@echo '{"session_id":"test","prompt":"test arkd","transcript_path":"/tmp/test.json"}' | bun hooks/load-arkadian-context.ts | head -20
+	@echo '{"session_id":"test","hook_event_name":"SessionStart"}' | node $$HOME/.claude/hooks/arkadian-env-check-hook.js 2>&1 | head -30
 	@echo ""
 	@echo "$(GREEN)✓ Hook test complete$(NC)"
 
@@ -143,11 +158,17 @@ verify: ## Verify installation
 	else \
 		echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
 	fi
-	@# Check hooks
-	@if [ -x "hooks/load-arkadian-context.ts" ]; then \
-		echo "$(GREEN)✓ Context loading hook is executable$(NC)"; \
+	@# Check CLAUDE.md
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(GREEN)✓ CLAUDE.md installed$(NC)"; \
 	else \
-		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
+		echo "$(RED)❌ CLAUDE.md missing$(NC)"; exit 1; \
+	fi
+	@# Check hooks
+	@if [ -x "$$HOME/.claude/hooks/arkadian-env-check-hook.js" ]; then \
+		echo "$(GREEN)✓ Hook installed and executable$(NC)"; \
+	else \
+		echo "$(RED)❌ Hook not installed$(NC)"; exit 1; \
 	fi
 	@# Check agents (compare installed vs source)
 	@src_agents=$$(ls -1 agents/*.md 2>/dev/null | wc -l | tr -d ' '); \
@@ -166,10 +187,12 @@ verify: ## Verify installation
 		echo "$(YELLOW)⚠️  Skills not fully installed ($$installed_skills/$$src_skills - run: make install-skills)$(NC)"; \
 	fi
 	@# Check commands
-	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -ge 8 ]; then \
-		echo "$(GREEN)✓ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l | tr -d ' ') commands installed in ~/.claude/commands$(NC)"; \
+	@src_commands=$$(ls -1 commands/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	installed_commands=$$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	if [ -d "$$HOME/.claude/commands" ] && [ "$$installed_commands" -ge "$$src_commands" ]; then \
+		echo "$(GREEN)✓ $$installed_commands commands installed in ~/.claude/commands$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  Commands not fully installed (run: make install-commands)$(NC)"; \
+		echo "$(YELLOW)⚠️  Commands not fully installed ($$installed_commands/$$src_commands - run: make install-commands)$(NC)"; \
 	fi
 	@# Check shell config
 	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
@@ -180,12 +203,26 @@ verify: ## Verify installation
 
 uninstall: ## Remove Arkadian installation
 	@echo "$(YELLOW)Uninstalling Arkadian...$(NC)"
-	@# Backup settings.json
+	@# Backup and remove settings.json
 	@if [ -f "$$HOME/.claude/settings.json" ]; then \
 		echo "$(YELLOW)Backing up settings.json...$(NC)"; \
 		cp $$HOME/.claude/settings.json $$HOME/.claude/settings.json.pre-uninstall; \
 		rm $$HOME/.claude/settings.json; \
-		echo "$(GREEN)✓ Removed settings.json (backup saved)$(NC)"; \
+		echo "$(GREEN)✓ Removed settings.json (backup: settings.json.pre-uninstall)$(NC)"; \
+	fi
+	@# Backup and remove CLAUDE.md
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(YELLOW)Backing up CLAUDE.md...$(NC)"; \
+		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.pre-uninstall; \
+		rm $$HOME/.claude/CLAUDE.md; \
+		echo "$(GREEN)✓ Removed CLAUDE.md (backup: CLAUDE.md.pre-uninstall)$(NC)"; \
+	fi
+	@# Backup and remove hooks
+	@if [ -f "$$HOME/.claude/hooks/arkadian-env-check-hook.js" ]; then \
+		echo "$(YELLOW)Backing up hook...$(NC)"; \
+		cp $$HOME/.claude/hooks/arkadian-env-check-hook.js $$HOME/.claude/hooks/arkadian-env-check-hook.js.pre-uninstall; \
+		rm $$HOME/.claude/hooks/arkadian-env-check-hook.js; \
+		echo "$(GREEN)✓ Removed hook (backup saved)$(NC)"; \
 	fi
 	@# Remove agents
 	@if [ -d "$$HOME/.claude/agents" ]; then \
@@ -207,7 +244,9 @@ uninstall: ## Remove Arkadian installation
 		sed -i.bak '/# Arkadian Assistant Configuration/d; /export ARKADIAN_DIR=/d' $(SHELL_CONFIG); \
 		echo "$(GREEN)✓ Removed ARKADIAN_DIR from $(SHELL_CONFIG)$(NC)"; \
 	fi
+	@echo ""
 	@echo "$(GREEN)✓ Uninstall complete$(NC)"
+	@echo "$(YELLOW)Backups saved with .pre-uninstall extension$(NC)"
 	@echo "$(YELLOW)Restart your terminal to complete uninstall$(NC)"
 
 clean: ## Clean backup files
@@ -215,6 +254,10 @@ clean: ## Clean backup files
 	@rm -f $(SHELL_CONFIG).bak
 	@rm -f $$HOME/.claude/settings.json.backup
 	@rm -f $$HOME/.claude/settings.json.pre-uninstall
+	@rm -f $$HOME/.claude/CLAUDE.md.backup
+	@rm -f $$HOME/.claude/CLAUDE.md.pre-uninstall
+	@rm -f $$HOME/.claude/hooks/*.backup
+	@rm -f $$HOME/.claude/hooks/*.pre-uninstall
 	@echo "$(GREEN)✓ Cleanup complete$(NC)"
 
 status: ## Show installation status
@@ -222,7 +265,7 @@ status: ## Show installation status
 	@echo "============================"
 	@echo ""
 	@echo "$(YELLOW)Prerequisites:$(NC)"
-	@command -v bun >/dev/null 2>&1 && echo "$(GREEN)✓ bun: $$(bun --version)$(NC)" || echo "$(RED)✗ bun not installed$(NC)"
+	@command -v node >/dev/null 2>&1 && echo "$(GREEN)✓ node: $$(node --version)$(NC)" || echo "$(RED)✗ node not installed$(NC)"
 	@command -v git >/dev/null 2>&1 && echo "$(GREEN)✓ git: $$(git --version | head -1)$(NC)" || echo "$(RED)✗ git not installed$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Configuration:$(NC)"
@@ -230,9 +273,13 @@ status: ## Show installation status
 	@echo "  Shell config: $(SHELL_CONFIG)"
 	@echo ""
 	@echo "$(YELLOW)Installation:$(NC)"
-	@[ -f "$$HOME/.claude/settings.json" ] && echo "$(GREEN)✓ settings.json installed$(NC)" || echo "$(RED)✗ settings.json missing$(NC)"
+	@[ -f "$$HOME/.claude/settings.json" ] && echo "$(GREEN)✓ settings.json$(NC)" || echo "$(RED)✗ settings.json missing$(NC)"
+	@[ -f "$$HOME/.claude/CLAUDE.md" ] && echo "$(GREEN)✓ CLAUDE.md$(NC)" || echo "$(RED)✗ CLAUDE.md missing$(NC)"
+	@[ -x "$$HOME/.claude/hooks/arkadian-env-check-hook.js" ] && echo "$(GREEN)✓ Hook installed$(NC)" || echo "$(RED)✗ Hook missing$(NC)"
+	@[ -d "$$HOME/.claude/agents" ] && echo "$(GREEN)✓ Agents: $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l | tr -d ' ')$(NC)" || echo "$(RED)✗ Agents missing$(NC)"
+	@[ -d "$$HOME/.claude/skills" ] && echo "$(GREEN)✓ Skills: $$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l | tr -d ' ')$(NC)" || echo "$(RED)✗ Skills missing$(NC)"
+	@[ -d "$$HOME/.claude/commands" ] && echo "$(GREEN)✓ Commands: $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l | tr -d ' ')$(NC)" || echo "$(RED)✗ Commands missing$(NC)"
 	@grep -q "ARKADIAN_DIR" $(SHELL_CONFIG) 2>/dev/null && echo "$(GREEN)✓ ARKADIAN_DIR in shell config$(NC)" || echo "$(RED)✗ ARKADIAN_DIR not in shell config$(NC)"
-	@[ -x "hooks/load-arkadian-context.ts" ] && echo "$(GREEN)✓ Hooks executable$(NC)" || echo "$(RED)✗ Hooks not executable$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Current ARKADIAN_DIR value:$(NC)"
 	@echo "  $$ARKADIAN_DIR"

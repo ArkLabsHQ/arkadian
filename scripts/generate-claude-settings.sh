@@ -78,6 +78,21 @@ updated_content=$(echo "$template_content" | awk -v env_json="$env_json" '
   { print }
 ')
 
+# Replace additionalDirectories placeholders
+# Replace ARKD_REPO_PLACEHOLDER with actual value, etc.
+while IFS='=' read -r key value; do
+  # Skip comments and empty lines
+  [[ "$key" =~ ^#.*$ ]] && continue
+  [[ -z "$key" ]] && continue
+
+  # Remove any quotes from value
+  value=$(echo "$value" | sed 's/^["'\'']\(.*\)["'\'']$/\1/')
+
+  # Replace placeholder in content
+  placeholder="${key}_PLACEHOLDER"
+  updated_content=$(echo "$updated_content" | sed "s|\"$placeholder\"|\"$value\"|g")
+done < "$ENV_FILE"
+
 # Write to settings file
 mkdir -p "$(dirname "$SETTINGS_FILE")"
 echo "$updated_content" > "$SETTINGS_FILE"

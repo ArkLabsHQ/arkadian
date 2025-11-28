@@ -33,6 +33,20 @@
       "Bash(dd if=/dev/zero of=/dev/sda)",
       "Bash(mkfs.ext4 /dev/sda)",
       "Bash(> /dev/sda)"
+    ],
+    "additionalDirectories": [
+      "ARKD_REPO_PLACEHOLDER",
+      "GO_SDK_REPO_PLACEHOLDER",
+      "WALLET_REPO_PLACEHOLDER",
+      "ARK_FAUCET_REPO_PLACEHOLDER",
+      "ARK_SIMULATOR_REPO_PLACEHOLDER",
+      "ARK_TELEMETRY_REPO_PLACEHOLDER",
+      "ARK_INFRA_REPO_PLACEHOLDER",
+      "KMS_UNLOCKER_REPO_PLACEHOLDER",
+      "FULMINE_REPO_PLACEHOLDER",
+      "BOLTZ_BACKEND_REPO_PLACEHOLDER",
+      "ARK_DOCS_REPO_PLACEHOLDER",
+      "ARKADE_ESCROW_REPO_PLACEHOLDER"
     ]
   },
   "hooks": {
@@ -44,37 +58,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/session-start-hook.ts"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
+            "command": "node ~/.claude/hooks/arkadian-env-check-hook.js"
+          },
           {
             "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/update-tab-titles.ts"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
+            "command": "bun ${ARKADIAN_DIR}/hooks/session-manager-hook.ts"
           }
         ]
       }
     ],
     "Stop": [],
     "SubagentStop": [],
-    "PreCompact": [
+    "SessionEnd": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/context-compression-hook.ts"
+            "command": "bun ${ARKADIAN_DIR}/hooks/session-manager-hook.ts"
           }
         ]
       }
