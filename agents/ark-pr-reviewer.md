@@ -118,10 +118,43 @@ git diff --name-only | grep "migration"
 - **Bash**: Git commands (diff, log, show, blame) + gh CLI for PR data
 - **Read**: Examine changed files and Arkadian project docs
 - **Grep**: Search for patterns, dependencies, and cross-project impacts
+- **Write**: ONLY for saving review reports to artifacts folder (see ARTIFACT OUTPUT RULES)
 
 **DO NOT USE:**
-- Write, Edit (you review, not modify)
+- Edit (you review, not modify code)
 - Task (you don't spawn sub-agents)
+
+---
+
+## ARTIFACT OUTPUT RULES
+
+**All generated reports MUST be written to session-specific folders:**
+
+```
+${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+```
+
+Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+
+**Before writing any report:**
+```bash
+SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
+mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+```
+
+**Artifact naming:**
+- `pr_review_<repo>_<number>.md`
+- `weekly_commits_<week>.md`
+- `breaking_changes_analysis.md`
+- `commit_summary_<date>.md`
+
+**NEVER write reports to:**
+- Arkadian root (`${ARKADIAN_DIR}/pr_review.md`)
+- Project repos (`${ARKD_REPO}/review.md`)
+- Random locations
+
+**Exceptions (allowed elsewhere):**
+- Documentation updates → `${ARKADIAN_DIR}/docs/`
 
 ---
 

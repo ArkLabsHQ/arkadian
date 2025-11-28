@@ -247,10 +247,39 @@ fulmine → boltz-backend (Swap provider)
 - **Bash**: GitHub CLI (gh) for PR data, git commands
 - **Read**: Arkadian project docs for context
 - **Grep**: Search for patterns and relationships
+- **Write**: ONLY for saving reports to artifacts folder (see below)
 
 **DO NOT USE:**
-- Write, Edit (you report, not modify)
+- Edit (you don't modify existing files)
 - Task (you don't spawn sub-agents)
+
+---
+
+## ARTIFACT OUTPUT RULES
+
+**All generated reports MUST be written to session-specific folders:**
+
+```
+${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+```
+
+Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+
+**Before writing any report:**
+```bash
+SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
+mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+```
+
+**Artifact naming:**
+- `weekly_progress_<week>.md`
+- `project_health_<project>.md`
+- `feature_tracking_<feature>.md`
+- `cross_project_coordination.md`
+
+**NEVER write reports to:**
+- Arkadian root (`${ARKADIAN_DIR}/weekly_report.md`)
+- Project repos (`${ARKD_REPO}/progress.md`)
 
 ---
 

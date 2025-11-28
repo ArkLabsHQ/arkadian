@@ -208,13 +208,13 @@ Break the question into focused sub-questions:
 
 ```typescript
 // Quick mode (3 agents)
-Task({ subagent_type: "general-purpose",
+Task({ subagent_type: "claude-search-agent",
       description: "Bitcoin Core research",
       prompt: "Research: [sub-question-1]. Use WebSearch tool. Return findings with sources." })
-Task({ subagent_type: "general-purpose",
+Task({ subagent_type: "claude-search-agent",
       description: "L2 protocol research",
       prompt: "Research: [sub-question-2]. Use WebSearch tool. Return findings with sources." })
-Task({ subagent_type: "general-purpose",
+Task({ subagent_type: "claude-search-agent",
       description: "Comparative analysis",
       prompt: "Research: [sub-question-3]. Use WebSearch tool. Return findings with sources." })
 ```
@@ -428,8 +428,44 @@ For whitepaper/spec analysis:
 - **Read**: (If needed for cross-referencing Arkadian docs)
 
 ### NOT ALLOWED
-- Write/Edit: Research only, no implementation
+- Edit: Research only, no implementation
 - Direct code execution: Analysis only
+
+### FOR ARTIFACTS ONLY
+- **Write**: ONLY for saving research reports to artifacts folder (see ARTIFACT OUTPUT RULES)
+
+---
+
+## ARTIFACT OUTPUT RULES
+
+**All generated reports MUST be written to session-specific folders:**
+
+```
+${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+```
+
+Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+
+**Before writing any report:**
+```bash
+SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
+mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+```
+
+**Artifact naming:**
+- `research_<topic>.md`
+- `comparison_<protocol_a>_vs_<protocol_b>.md`
+- `bip_analysis_<bip_number>.md`
+- `protocol_analysis_<protocol>.md`
+- `bitcoin_core_<version>_analysis.md`
+
+**NEVER write reports to:**
+- Arkadian root (`${ARKADIAN_DIR}/research_taproot.md`)
+- Project repos (`${ARKD_REPO}/analysis.md`)
+- Random locations
+
+**Exceptions (allowed elsewhere):**
+- Documentation updates → `${ARKADIAN_DIR}/docs/`
 
 ## OUTPUT FORMAT
 

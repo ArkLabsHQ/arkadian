@@ -33,6 +33,15 @@ Each agent is optimized for specific roles and workflows:
 
 ### 1. **Software Developer** (Senior/Mid/Junior)
 
+**How Arkadian Helps:** Arkadian acts as your expert pair programmer with deep knowledge of all 12 Ark projects. It understands the hexagonal architecture, knows where every component lives, and can implement features that span multiple repositories while maintaining consistency.
+
+**Daily Workflow:**
+1. **Morning standup:** Ask "What PRs were merged yesterday affecting arkd?" to catch up
+2. **Feature work:** Natural language → working code with tests and documentation
+3. **Code review:** Get instant architecture compliance checks before pushing
+4. **Bug fixing:** Systematic debugging with knowledge of entire codebase
+5. **Testing:** One command to spin up full local stack with all dependencies
+
 #### Primary Use Cases
 
 **A. Feature Implementation**
@@ -45,6 +54,23 @@ Each agent is optimized for specific roles and workflows:
   - "Add Prometheus metrics for VTXO creation rates"
 - **Value**: Follows project architecture (hexagonal), coding standards, generates tests
 - **Time Saved**: 30-50% faster implementation with built-in best practices
+
+**Real-World Example:**
+```
+You: "Add GetRoundStatus endpoint to arkd"
+
+Arkadian:
+1. Loads arkd + go-sdk docs (knows gRPC patterns from INDEX)
+2. Creates proto definition in server/proto/
+3. Implements server-side handler in application/
+4. Adds domain logic in internal/core/domain/
+5. Generates client SDK update in go-sdk
+6. Writes unit tests with 85%+ coverage
+7. Updates API documentation
+8. Creates PR with conventional commit message
+
+Result: Production-ready feature in 15 minutes vs 2 hours manual
+```
 
 **B. Bug Fixing**
 - **Agent**: `ark-developer` + `ark-env-tester`
@@ -77,6 +103,27 @@ Each agent is optimized for specific roles and workflows:
 ---
 
 ### 2. **Technical Lead / Architect**
+
+**How Arkadian Helps:** Arkadian is your architectural guardian across 12 repositories. It understands the hexagonal architecture principles, detects boundary violations, and ensures consistency across the entire Ark ecosystem. It can review PRs faster than humans while catching subtle cross-project impacts.
+
+**Daily Workflow:**
+1. **Morning:** Review overnight PRs across all repos with architectural analysis
+2. **Architecture decisions:** Ask "How should I structure X?" for instant guidance
+3. **Cross-project impact:** "Show me all PRs affecting proto definitions" → see cascading changes
+4. **Design reviews:** Validate new designs against existing patterns
+5. **Knowledge sharing:** Document architectural decisions with Arkadian's help
+
+**Before Arkadian:**
+- Manual review of 5-10 PRs/day = 3-4 hours
+- Miss subtle cross-repo impacts
+- Inconsistent architecture enforcement
+- Junior devs wait hours for guidance
+
+**With Arkadian:**
+- Auto-review 20+ PRs/day in 1 hour
+- Catch all cross-repo impacts automatically
+- Consistent architecture compliance
+- Instant architectural guidance 24/7
 
 #### Primary Use Cases
 
@@ -115,6 +162,22 @@ Each agent is optimized for specific roles and workflows:
 
 ### 3. **QA Engineer / Test Engineer**
 
+**How Arkadian Helps:** Arkadian is your test automation expert that knows how to set up, run, and validate tests across the entire Ark stack. It handles Docker Compose orchestration, manages test data, and can execute complex multi-service test scenarios with a single command.
+
+**Daily Workflow:**
+1. **Test planning:** "What tests should I run for this feature?" → get comprehensive test plan
+2. **Environment setup:** "Bring up arkd + wallet + simulator" → full stack ready in 30 seconds
+3. **Test execution:** "Run E2E tests for payment flow" → automated execution with results
+4. **Regression testing:** "Run all tests affected by PR #234" → smart test selection
+5. **Bug reproduction:** "Reproduce VTXO error from production logs" → automated repro steps
+
+**Typical Day:**
+- **8:00 AM:** Check overnight CI failures → Arkadian explains root cause
+- **9:00 AM:** Set up local stack for feature testing → 30 seconds vs 20 minutes manual
+- **10:00 AM:** Execute integration tests → automated with full coverage reporting
+- **2:00 PM:** Run load tests with ark-simulator → 50 concurrent clients, health checks
+- **4:00 PM:** Validate staging deployment → smoke tests + health validation
+
 #### Primary Use Cases
 
 **A. Test Execution & Validation**
@@ -149,6 +212,60 @@ Each agent is optimized for specific roles and workflows:
 ---
 
 ### 4. **Product Manager**
+
+**How Arkadian Helps:** Arkadian is your technical translator that bridges business requirements and engineering implementation. It creates structured specifications, breaks down features into actionable tasks, and provides stakeholder-friendly progress reports across all 12 Ark projects.
+
+**Daily Workflow:**
+1. **Feature ideation:** Describe feature in plain English → get technical feasibility analysis
+2. **Specification creation:** "Plan fraud detection feature" → structured spec.md with acceptance criteria
+3. **Progress tracking:** "Weekly progress report" → stakeholder-ready summary in 30 seconds
+4. **Sprint planning:** Get dependency-ordered task breakdown for accurate estimation
+5. **Stakeholder updates:** Business-friendly progress updates without manual PR review
+
+**Real-World Scenario:**
+
+**Monday (Feature Kickoff):**
+```
+You: "I want to add fraud detection alerts to arkd"
+
+Arkadian (ark-project-manager):
+📋 Creates spec.md:
+  - Problem statement
+  - Success criteria
+  - User stories
+  - Acceptance tests
+  - Non-functional requirements
+
+📐 Creates plan.md:
+  - Architecture design
+  - Data models
+  - API endpoints
+  - Integration points
+
+✅ Creates tasks.md:
+  - 12 dependency-ordered tasks
+  - Time estimates
+  - Required skills
+
+Time: 10 minutes vs 2-3 hours manual
+```
+
+**Friday (Progress Update):**
+```
+You: "Weekly progress report for executives"
+
+Arkadian (ark-progress-tracker):
+📊 Analyzes all 12 repos, last 7 days:
+  - 23 PRs merged (15 features, 8 bugs)
+  - Fraud detection: 90% complete
+  - Multi-DB support: 100% complete, deployed
+  - Nostr integration: Blocked on external API
+  - 5 contributors active
+  - Business value: $X saved in manual monitoring
+
+Format: Executive-friendly, no jargon
+Time: 2 minutes vs 2 hours manual
+```
 
 #### Primary Use Cases
 
@@ -191,6 +308,56 @@ Each agent is optimized for specific roles and workflows:
 
 ### 5. **DevOps / SRE Engineer**
 
+**How Arkadian Helps:** Arkadian is your infrastructure automation partner with deep knowledge of ark-infra, ark-telemetry, and deployment SOPs. It can generate Terraform configs, update monitoring dashboards, and troubleshoot production issues using telemetry data from Prometheus, Loki, and Jaeger.
+
+**Daily Workflow:**
+1. **Morning alerts:** Check overnight alerts → Arkadian correlates metrics + logs + traces
+2. **Deployment:** "Deploy arkd to staging" → follows SOP, validates health checks
+3. **Monitoring:** "Add alert for round failures" → generates Prometheus rules + Grafana dashboard
+4. **Incident response:** "High CPU on arkd" → analyzes Pyroscope flamegraphs + suggests fixes
+5. **Capacity planning:** "Analyze last week's resource usage" → trends and recommendations
+
+**On-Call Scenario:**
+
+**2:00 AM - Alert: ErrorRateHigh on arkd**
+```
+You: "Investigate high error rate on arkd in last hour"
+
+Arkadian (ark-observer):
+🔍 Queries Prometheus:
+  - Error rate: 15% (normal: <1%)
+  - Started at 01:23 AM
+  - Affected endpoint: /v1/getVtxo
+
+📋 Queries Loki:
+  - Found 1,234 "VTXO not found" errors
+  - Pattern: VTXOs created >24h ago
+  - Correlated with database migration at 01:20 AM
+
+🔎 Queries Jaeger:
+  - Slow traces in database.GetVTXO()
+  - New index not created after migration
+
+💡 Root cause identified:
+  - Missing database index from migration #034
+  - Fix: Add index on vtxos(created_at, status)
+
+Time to diagnosis: 3 minutes vs 30 minutes manual
+```
+
+**Follow-up:**
+```
+You: "Add index for vtxos table"
+
+Arkadian (ark-developer):
+✅ Creates migration file
+✅ Tests migration locally
+✅ Generates rollback procedure
+✅ Updates deployment checklist
+
+You apply migration → Error rate drops to 0.2% ✅
+```
+
 #### Primary Use Cases
 
 **A. Infrastructure Deployment**
@@ -223,6 +390,58 @@ Each agent is optimized for specific roles and workflows:
 ---
 
 ### 6. **Engineering Manager**
+
+**How Arkadian Helps:** Arkadian is your team productivity multiplier that provides real-time visibility across 12 repositories, 5+ teams, and hundreds of PRs. It translates technical work into business value, identifies blockers before they become critical, and generates stakeholder reports in seconds.
+
+**Weekly Management Routine:**
+
+**Monday (Sprint Planning):**
+```
+8:00 AM - "Show cross-project dependencies for this sprint"
+→ Identifies 3 coordination points between teams
+→ Schedules sync meetings proactively
+
+9:00 AM - Sprint planning with team
+→ Accurate estimates based on similar past work
+→ Risk assessment for each task
+```
+
+**Wednesday (Check-in):**
+```
+10:00 AM - "Which features are blocked?"
+→ Nostr integration waiting on external API approval
+→ Multi-DB work waiting on arkd PR #234 review
+→ Unblock by assigning reviewer
+
+2:00 PM - "Team velocity this week vs last week"
+→ 15 PRs merged (up from 12)
+→ Test coverage improved 82% → 85%
+→ 2 critical bugs fixed ahead of schedule
+```
+
+**Friday (Weekly Report):**
+```
+4:00 PM - "Generate weekly report for executives"
+
+Arkadian produces:
+📊 Executive Summary:
+  - 3 features completed (fraud detection, multi-DB, API v2)
+  - 2 features in progress (Nostr 60%, Lightning 40%)
+  - 1 blocker resolved (external API approved)
+  - Business impact: 40% faster settlement processing
+
+👥 Team Health:
+  - 5 active contributors
+  - Code review time: 4.2h avg (improved from 6.8h)
+  - PR merge time: 8.5h avg (target: <12h) ✅
+
+🎯 Next Week:
+  - Release v0.12.0 with fraud detection
+  - Begin Lightning payment integration
+  - Hire 1 senior developer (blockers identified)
+
+Time: 2 minutes vs 4 hours of manual data gathering
+```
 
 #### Primary Use Cases
 
@@ -257,6 +476,64 @@ Each agent is optimized for specific roles and workflows:
 ---
 
 ### 7. **Protocol Researcher / Bitcoin Developer**
+
+**How Arkadian Helps:** Arkadian is your Bitcoin/L2 research assistant that orchestrates parallel Claude agents to research complex protocol topics. It validates findings across multiple sources, provides confidence levels, and relates everything back to Ark protocol needs.
+
+**Research Workflow:**
+
+**Scenario: Evaluating New Covenant Proposal**
+```
+You: "Research OP_CTV (BIP-119) and how it could improve Ark"
+
+Arkadian (ark-researcher):
+Mode: Deep Research (12 agents, 10 min timeout)
+
+Phase 1: Query Decomposition (5 seconds)
+  - Agent 1-3: BIP-119 technical specification
+  - Agent 4-5: OP_CTV use cases and motivation
+  - Agent 6-7: Implementation status and consensus
+  - Agent 8-9: Security considerations and risks
+  - Agent 10-11: How Ark could use OP_CTV for VTXOs
+  - Agent 12: Comparison to current Ark architecture
+
+Phase 2: Parallel Execution (3 minutes)
+  [All 12 agents search in parallel using WebSearch]
+
+Phase 3: Synthesis (1 minute)
+  📊 Research Report:
+
+  HIGH CONFIDENCE (8 agents agree):
+  - OP_CTV enables non-recursive covenants
+  - Prevents certain rug pulls in Ark VTXOs
+  - Reduces trust in operator for certain paths
+  - ~40% smaller unilateral exit transactions
+
+  MEDIUM CONFIDENCE (5 agents agree):
+  - Could enable cooperative VTXO refreshing
+  - May improve privacy in certain scenarios
+
+  LOW CONFIDENCE (2 agents, needs validation):
+  - Interaction with future soft forks unclear
+
+  🎯 Recommendations for Ark:
+  1. Design backwards-compatible VTXO structure
+  2. Implement OP_CTV path as optional upgrade
+  3. Prototype on signet before mainnet
+
+  📚 Sources:
+  - github.com/bitcoin/bips/blob/master/bip-0119.mediawiki
+  - Bitcoin Optech Newsletter #48, #57, #75
+  - Lightning-dev mailing list discussions
+  - Academic paper: "Covenants in Bitcoin" (2022)
+
+  Time: 4 minutes vs 6 hours of manual research
+```
+
+**Daily Research Patterns:**
+- **Morning:** "What Bitcoin updates affect Ark?" → overnight BIPs, ML posts, releases
+- **Deep dives:** "Compare Ark to Mercury Layer" → full protocol comparison
+- **Quick checks:** "Explain Schnorr batch verification" → fast answers with sources
+- **Competitive analysis:** "How does Fedimint handle Lightning?" → strategic insights
 
 #### Primary Use Cases
 
@@ -320,6 +597,93 @@ Each agent is optimized for specific roles and workflows:
 
 ### 9. **Executive / Stakeholder**
 
+**How Arkadian Helps:** Arkadian is your technical-to-business translator that provides instant visibility into engineering progress across 12 repositories without requiring engineering time. It translates technical work into business value, identifies timeline risks early, and enables data-driven decisions.
+
+**Monthly Board Meeting Prep:**
+
+```
+You: "Generate monthly progress report for board meeting"
+
+Arkadian (ark-progress-tracker):
+
+📊 ENGINEERING METRICS (Last 30 Days)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Velocity:
+  • 87 PRs merged (↑ 23% vs previous month)
+  • 15 features completed, 8 in progress
+  • 23 bugs fixed (↓ 15% vs previous month)
+  • Test coverage: 84% (target: 80%) ✅
+
+  Team:
+  • 8 active contributors
+  • Average PR review time: 5.2 hours (improved)
+  • Code quality score: 8.7/10
+
+💼 BUSINESS VALUE DELIVERED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ Fraud Detection System
+     Impact: Prevents $50K-100K monthly fraud losses
+     Status: Deployed to production
+     Adoption: 100% of transactions monitored
+
+  ✅ Multi-Database Support
+     Impact: 99.99% uptime (up from 99.5%)
+     Status: Deployed, PostgreSQL + Redis
+     Customer: 3 enterprise clients migrated
+
+  🔄 Lightning Network Integration (80% complete)
+     Impact: Opens $2M addressable market
+     Timeline: On track for Q1 2025 launch
+     Risk: LOW - all blockers resolved
+
+  ⏸️ Nostr Integration (paused)
+     Impact: Community engagement feature
+     Status: Blocked on external API (vendor delay)
+     Mitigation: Alternative vendor identified
+
+🎯 Q1 2025 ROADMAP CONFIDENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HIGH CONFIDENCE (90%+): 4 features
+  MEDIUM CONFIDENCE (70-90%): 2 features
+  AT RISK (<70%): 1 feature (vendor dependency)
+
+💰 ESTIMATED BUSINESS IMPACT (Q1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  • Revenue enablement: $2M (Lightning integration)
+  • Cost savings: $180K/year (fraud prevention)
+  • Customer satisfaction: ↑ 15% (uptime improvement)
+
+⚠️ RISKS & DEPENDENCIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Nostr vendor delay - LOW impact, alternative ready
+  2. Hiring: Need 2 senior engineers for Q2 capacity
+  3. Infrastructure costs ↑ 20% (within budget)
+
+Time to generate: 90 seconds
+Manual effort saved: 8 hours
+```
+
+**Decision-Making Example:**
+```
+CFO: "Should we invest $200K in this new feature?"
+
+You to Arkadian: "Analyze ROI for multi-signature wallet support"
+
+Arkadian analyzes:
+✓ Engineering effort: 6 weeks (2 engineers)
+✓ Cost: $60K engineering + $15K infra
+✓ Dependencies: Requires go-sdk update + wallet changes
+✓ Market demand: 12 enterprise prospects waiting
+✓ Revenue potential: $500K ARR
+✓ Competitive advantage: Only Ark provider with this
+✓ Timeline risk: LOW (similar work completed before)
+
+ROI: 566% in year 1
+Recommendation: APPROVE - high confidence, clear market demand
+
+Decision made in 5 minutes with data backing
+```
+
 #### Primary Use Cases
 
 **A. High-Level Progress**
@@ -339,6 +703,250 @@ Each agent is optimized for specific roles and workflows:
   - "Enterprise value of new operator dashboard"
 - **Value**: Technical → business value translation
 - **Time Saved**: Immediate context for decision-making
+
+---
+
+## Day in the Life: Multi-Role Collaboration
+
+**Scenario:** Critical bug discovered in production, needs investigation → fix → deployment → verification
+
+### 8:00 AM - Bug Report (Customer Success → DevOps)
+
+**Customer Success:** Reports issue to Slack: "Enterprise client seeing VTXO errors"
+
+**DevOps Engineer (Sarah):**
+```
+Sarah to Arkadian: "Investigate VTXO errors in last 2 hours"
+
+Arkadian (ark-observer):
+🔍 Analysis complete:
+- 237 errors in last 2h (started 6:23 AM)
+- Pattern: VTXOs older than 48 hours
+- Correlation: Deployment at 6:15 AM
+- Root cause: Database migration #067 missing index
+- Affected users: 12 enterprise clients
+
+Sarah: "This is critical. Notifying team."
+Time: 2 minutes to diagnosis
+```
+
+### 8:15 AM - Team Coordination (Engineering Manager)
+
+**Engineering Manager (Mike):**
+```
+Mike to Arkadian: "Impact assessment for VTXO bug"
+
+Arkadian (ark-progress-tracker):
+📊 Business Impact:
+- Affected: 12 enterprise clients (40% of revenue)
+- User impact: Payment failures, degraded UX
+- SLA risk: 4 clients have 99.9% uptime SLA
+- Estimated revenue at risk: $15K/hour downtime
+
+⚡ Urgency: CRITICAL
+Recommended team: Senior dev (Alex) + DevOps (Sarah)
+
+Mike: Creates incident channel, assigns Alex
+Time: 1 minute
+```
+
+### 8:20 AM - Root Cause Analysis (Senior Developer)
+
+**Senior Developer (Alex):**
+```
+Alex to Arkadian: "Show me migration #067 and related code"
+
+Arkadian (ark-guru):
+📋 Migration #067 Analysis:
+- Added column: vtxos.last_settlement_attempt
+- Missing: Index on (created_at, status, last_settlement_attempt)
+- Impact: Full table scans on 2.3M rows
+- Query time: 15s (normal: 50ms)
+
+Related code:
+- internal/core/domain/vtxo_repository.go:234
+- application/vtxo_service.go:156
+
+Alex: "I see the problem. Creating fix."
+Time: 3 minutes
+```
+
+### 8:30 AM - Fix Implementation (Senior Developer)
+
+```
+Alex to Arkadian: "Create migration to add missing index for vtxos table"
+
+Arkadian (ark-developer):
+✅ Created files:
+1. db/migrations/068_add_vtxo_settlement_index.sql
+2. db/migrations/068_add_vtxo_settlement_index_rollback.sql
+3. Testing: integration_test.go updated
+4. Deployment checklist: Updated
+
+✅ Validated:
+- Index syntax correct for PostgreSQL
+- Backward compatible
+- Tested on staging dump
+- Rollback procedure tested
+
+Alex reviews → approves
+Time: 5 minutes for production-ready fix
+```
+
+### 8:45 AM - Testing & Validation (QA Engineer)
+
+**QA Engineer (Maria):**
+```
+Maria to Arkadian: "Test migration #068 on staging"
+
+Arkadian (ark-env-tester):
+🧪 Test Results:
+
+Staging Environment:
+✅ Migration applied successfully (0.8s)
+✅ Query performance: 15s → 45ms (99.7% improvement)
+✅ No errors in 1000 test transactions
+✅ Rollback tested successfully
+
+Load Test (ark-simulator):
+✅ 100 concurrent clients
+✅ VTXO query latency: p95 < 100ms
+✅ No errors in 10,000 requests
+
+✅ Approved for production
+Time: 8 minutes full validation
+```
+
+### 9:00 AM - Deployment Decision (Engineering Manager + DevOps)
+
+**Mike (Manager):**
+```
+Mike to Arkadian: "Risk assessment for deploying migration #068 to prod"
+
+Arkadian (ark-guru):
+⚠️ Deployment Risk Assessment:
+
+RISK LEVEL: LOW ✅
+- Change scope: Single index addition
+- Rollback: Tested and ready
+- Downtime: None (online DDL)
+- Testing: Passed on staging
+- Similar migrations: 15 successful in last 6 months
+
+RECOMMENDATION: PROCEED with deployment
+
+Prerequisites:
+✓ Staging validated
+✓ Rollback tested
+✓ On-call engineer ready (Sarah)
+✓ Customer success notified
+
+Mike: "Sarah, please deploy."
+```
+
+### 9:10 AM - Production Deployment (DevOps)
+
+**Sarah (DevOps):**
+```
+Sarah to Arkadian: "Deploy migration #068 to production"
+
+Arkadian (ark-developer):
+📋 Deployment Checklist:
+
+Pre-deployment:
+✅ Backup created
+✅ Rollback script ready
+✅ Monitoring dashboards open
+✅ Customer success standing by
+
+Executing:
+✅ Applied migration (1.2s)
+✅ Index created successfully
+✅ Health checks: PASSED
+
+Post-deployment validation:
+✅ Error rate: 237/hour → 0
+✅ Query latency: 15s → 42ms
+✅ No new errors in 5 minutes
+✅ All services healthy
+
+🎉 Deployment successful!
+Time: 4 minutes total
+```
+
+### 9:20 AM - Verification & Communication (All Roles)
+
+**Sarah (DevOps):**
+```
+Sarah to Arkadian: "Generate incident report for VTXO bug"
+
+Arkadian (ark-progress-tracker):
+📋 INCIDENT REPORT: VTXO-2025-01-07
+
+Timeline:
+• 6:15 AM: Deployment with missing index
+• 6:23 AM: Errors start (discovered by monitoring)
+• 8:02 AM: Customer report received
+• 8:05 AM: Investigation started
+• 8:30 AM: Root cause identified
+• 8:35 AM: Fix created and tested
+• 9:10 AM: Fix deployed to production
+• 9:15 AM: Incident resolved
+
+Impact:
+• Duration: 2h 52m
+• Affected users: 12 enterprise clients
+• Failed transactions: 237
+• SLA impact: None (under 4h threshold)
+
+Resolution:
+• Added missing database index
+• Query performance: 15s → 42ms (99.7% improvement)
+• All systems normal
+
+Prevention:
+• Migration checklist updated
+• Added automated index analysis
+• Enhanced staging validation
+
+Team Performance:
+• Response time: 3 minutes
+• Resolution time: 67 minutes
+• Excellent cross-team coordination
+```
+
+**Engineering Manager (Mike) to Executive Team:**
+```
+Mike (via Slack):
+"Production issue resolved in 67 minutes. No SLA breach.
+Root cause: Missing database index.
+Fix deployed and validated.
+No customer escalations.
+Post-mortem scheduled for tomorrow."
+
+[Arkadian incident report attached]
+```
+
+### Total Time Savings
+
+**Without Arkadian:**
+- Investigation: 30-60 min (manual log analysis)
+- Root cause: 45 min (code archaeology)
+- Fix creation: 30 min (manual testing)
+- Testing: 45 min (manual setup + execution)
+- Deployment: 20 min (manual checklist)
+- **Total: 3-4 hours**
+
+**With Arkadian:**
+- Investigation: 2 min
+- Root cause: 3 min
+- Fix creation: 5 min
+- Testing: 8 min
+- Deployment: 4 min
+- **Total: 22 minutes**
+
+**Efficiency gain: 91%**
+**Business impact: $45K revenue protected (3h downtime prevented)**
 
 ---
 

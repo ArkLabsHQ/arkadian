@@ -45,7 +45,9 @@ Step-by-step guides for telemetry operations:
 
 - **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/adding-alerts.md** — — How to add new alert rules
 - **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/adding-dashboards.md** — — How to create and modify dashboards
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/configuring-correlation.md** — — How configuring and using Grafana data source correlation
 - **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/monitoring-guide.md** — — Best practices for monitoring Ark
+- **${ARKADIAN_DIR}/docs/projects/ark-telemetry/sop/pyroscope-manual.md** — — Quick reference for querying Pyroscope profiles during investigation workflows
 
 ### `${ARKADIAN_DIR}/docs/projects/ark-telemetry/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.

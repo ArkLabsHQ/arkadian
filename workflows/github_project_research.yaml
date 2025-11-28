@@ -1,0 +1,210 @@
+name: "github_project_research"
+description: "Clone and analyze external GitHub projects to understand architecture, usage, and integration potential"
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-01-06"
+last_modified: "2025-01-06"
+
+applies_to:
+  primary_intent: "research"
+  sub_intent: ["github_analysis", "competitor_analysis", "library_evaluation"]
+  complexity: ["simple", "medium", "complex"]
+  urgency: ["low", "normal", "high"]
+  multi_project: false
+
+execution:
+  agents: ["ark-researcher"]
+  phases:
+    - id: "clone"
+      name: "Clone Repository"
+      agent: "ark-researcher"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Clone GitHub repository to temporary location"
+        - "Verify clone successful"
+        - "Record metadata: stars, forks, last update date, primary language"
+        - "Check repository size and file count"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>/clone-metadata.json"
+        required_for_next_phase: true
+      timeout_seconds: 300
+
+    - id: "analyze_structure"
+      name: "Analyze Repository Structure"
+      agent: "ark-researcher"
+      depends_on: "clone"
+      approval_required: false
+      actions:
+        - "Analyze directory structure and file organization"
+        - "Identify tech stack: languages, frameworks, build tools"
+        - "Find documentation: README, CONTRIBUTING, docs/, wiki"
+        - "Identify entry points: main.go, index.ts, package.json, setup.py"
+        - "List test directories and CI/CD configurations"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>/structure-analysis.json"
+        required_for_next_phase: true
+      timeout_seconds: 300
+
+    - id: "understand_purpose"
+      name: "Understand Project Purpose"
+      agent: "ark-researcher"
+      depends_on: "analyze_structure"
+      approval_required: false
+      actions:
+        - "Read README.md and core documentation files"
+        - "Parse package manifests: go.mod, package.json, requirements.txt, Cargo.toml"
+        - "Extract: project description, goals, key features, target audience"
+        - "Identify problem statement and solution approach"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>/purpose-summary.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "code_analysis"
+      name: "Analyze Code Architecture"
+      agent: "ark-researcher"
+      depends_on: "understand_purpose"
+      approval_required: false
+      actions:
+        - "Analyze ≤10 most important source files (based on LOC, imports, centrality)"
+        - "Identify core abstractions, design patterns, architecture style"
+        - "Find API surface: exported functions, REST endpoints, CLI commands"
+        - "Detect dependencies and integration points"
+        - "Note architectural decisions and trade-offs"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>/code-analysis.md"
+        required_for_next_phase: true
+      timeout_seconds: 900
+      constraints:
+        - "max_files_analyzed: 10"
+        - "focus_on_core_logic"
+
+    - id: "usage_guide"
+      name: "Extract Usage Information"
+      agent: "ark-researcher"
+      depends_on: "code_analysis"
+      approval_required: false
+      actions:
+        - "Extract installation and setup steps from README/docs"
+        - "Find usage examples from README, examples/ directory, or tests"
+        - "Document CLI commands or API endpoints"
+        - "Identify configuration options and environment variables"
+        - "Note prerequisites and system requirements"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>/usage-guide.md"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    - id: "generate_report"
+      name: "Generate Comprehensive Report"
+      agent: "ark-researcher"
+      depends_on: "usage_guide"
+      approval_required: false
+      actions:
+        - "Synthesize all phase outputs into comprehensive report"
+        - "Format as markdown with standardized sections"
+        - "Include integration guide for Ark ecosystem"
+        - "Compare/contrast with existing Ark projects where relevant"
+        - "Document potential use cases for Ark"
+        - "List unknowns and follow-up questions"
+        - "Save to: artifacts/research/github/<project-name>.md"
+      checkpoint:
+        path: "artifacts/research/github/<project-name>.md"
+        required_for_next_phase: false
+      timeout_seconds: 600
+
+success_criteria:
+  - "Repository successfully cloned and analyzed"
+  - "All 6 phases completed"
+  - "Comprehensive report generated with all required sections"
+  - "Report saved to artifacts/research/github/<project-name>.md"
+  - "Analysis respects 10-file limit for code review"
+  - "Handles multiple languages (Go, TypeScript, Python, Rust)"
+
+performance:
+  estimated_duration_seconds: 1800  # 30 minutes
+  max_duration_seconds: 3600        # 60 minutes
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"
+
+constraints:
+  - "clone_to_temp: true"  # Clone to /tmp or similar, not workspace
+  - "max_files_to_analyze: 10"
+  - "respect_large_repos: true"  # Don't try to analyze entire Linux kernel
+
+report_template: |
+  # GitHub Project Research: [Project Name]
+
+  **Repository**: github.com/org/repo
+  **Stars**: [count] | **Forks**: [count] | **Last Update**: [date]
+  **Language**: [primary] | **License**: [license]
+
+  ## Executive Summary
+  [1-2 paragraph overview]
+
+  ## Project Purpose
+  - **What it does**: [description]
+  - **Problem it solves**: [problem statement]
+  - **Target users**: [audience]
+
+  ## Architecture
+  - **Tech Stack**: [languages, frameworks, databases]
+  - **Key Components**: [main components]
+  - **Design Patterns**: [identified patterns]
+
+  ## Key Features
+  1. Feature 1
+  2. Feature 2
+  3. Feature 3
+
+  ## How It Works
+  [High-level workflow description]
+
+  ## Installation & Setup
+  [Setup commands]
+
+  ## Usage Examples
+  [Code examples or CLI commands]
+
+  ## API Reference
+  [Key functions/endpoints]
+
+  ## Integration Guide for Ark
+  - Integration point 1
+  - Integration point 2
+
+  ## Dependencies
+  [Key dependencies and purposes]
+
+  ## Comparison to Ark Projects
+  [Similarities/differences with ark-* projects]
+
+  ## Potential Use Cases for Ark
+  1. Use case 1
+  2. Use case 2
+
+  ## Unknowns & Follow-up Questions
+  - Question 1
+  - Question 2
+
+  ---
+  **Research Date**: [date]
+  **Cloned to**: [temp path]
+  **Analyzed by**: ark-researcher
+
+use_cases:
+  - "Research competitor protocols (Mercury Layer, Fedimint)"
+  - "Analyze Bitcoin libraries (btcd, bitcoin-core)"
+  - "Understand potential dependencies before integration"
+  - "Learn from similar projects' architectures"
+  - "Evaluate libraries for adoption (e.g., btcd, secp256k1 bindings)"
+
+notes:
+  - "Clones are temporary and should be cleaned up after research"
+  - "Respects large repositories by analyzing only key files"
+  - "Supports Go, TypeScript, Python, Rust out of the box"
+  - "Can be extended to support other languages"

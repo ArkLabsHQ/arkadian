@@ -301,3 +301,48 @@ notes: []
 * `env_ready:true`
 * Required suites executed within timebox
 * Success criteria satisfied or precise handover with repro and evidence
+
+---
+
+## ARTIFACT OUTPUT RULES
+
+**All generated artifacts MUST be written to session-specific folders:**
+
+```
+${ARKADIAN_DIR}/artifacts/<SESSION_ID>/<step_id>/
+```
+
+Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+
+**Before writing any artifact:**
+```bash
+SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
+mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}/${step_id}"
+```
+
+**Artifact structure:**
+```
+${ARKADIAN_DIR}/artifacts/<SESSION_ID>/<step_id>/
+├── env_report.json
+├── docker_ps.txt
+├── compose_config.yaml
+├── health_matrix.md
+├── logs/
+│   ├── arkd.log
+│   ├── nbxplorer.log
+│   └── ...
+├── coverage/
+│   └── <project>.out
+├── test_results/
+│   └── *.json
+└── screenshots/
+    └── *.png
+```
+
+**NEVER write artifacts to:**
+- Arkadian root (`${ARKADIAN_DIR}/env_report.json`)
+- Project repos (`${ARKD_REPO}/test_results/`)
+- Relative paths without session (`artifacts/<step_id>/`)
+
+**Exceptions (allowed elsewhere):**
+- Documentation updates → `${ARKADIAN_DIR}/docs/`

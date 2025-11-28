@@ -1,0 +1,270 @@
+name: "docs_website_research"
+description: "Scrape documentation websites and save locally as markdown for offline access"
+version: "1.0.0"
+author: "arkadian-system"
+created: "2025-01-06"
+last_modified: "2025-01-06"
+
+applies_to:
+  primary_intent: "research"
+  sub_intent: ["docs_scraping", "offline_docs", "documentation_archival"]
+  complexity: ["medium", "complex"]
+  urgency: ["low", "normal"]
+  multi_project: false
+
+execution:
+  agents: ["ark-researcher"]
+  phases:
+    - id: "discover"
+      name: "Discover Documentation Structure"
+      agent: "ark-researcher"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Fetch main documentation URL via WebFetch"
+        - "Identify documentation structure: sitemap.xml, navigation menu, links"
+        - "Detect documentation framework: Mintlify, Docusaurus, MkDocs, GitBook, Sphinx, VitePress"
+        - "Extract list of all documentation page URLs"
+        - "Record site metadata: title, description, total pages"
+      checkpoint:
+        path: "artifacts/docs/<site-name>/discovery-manifest.json"
+        required_for_next_phase: true
+      timeout_seconds: 300
+      constraints:
+        - "use_webfetch_tool: true"
+        - "no_curl_or_wget"
+
+    - id: "scrape"
+      name: "Scrape Documentation Pages"
+      agent: "ark-researcher"
+      depends_on: "discover"
+      approval_required: false
+      actions:
+        - "Fetch all documentation pages via WebFetch tool"
+        - "Extract markdown or HTML content from each page"
+        - "Download images and assets referenced in pages"
+        - "Respect rate limits: 1 page per second"
+        - "Honor max_pages limit: 100 pages per session"
+        - "Convert HTML to markdown where needed"
+        - "Track scraping progress and any errors"
+      checkpoint:
+        path: "artifacts/docs/<site-name>/scrape-log.json"
+        required_for_next_phase: true
+      timeout_seconds: 600
+      constraints:
+        - "rate_limit: 1 page/second"
+        - "max_pages: 100"
+        - "timebox: 10 minutes"
+        - "respect_robots_txt: true"
+        - "use_webfetch_tool: true"
+
+    - id: "save_locally"
+      name: "Save Content Locally"
+      agent: "ark-researcher"
+      depends_on: "scrape"
+      approval_required: false
+      actions:
+        - "Create artifacts/docs/<site-name>/ directory structure"
+        - "Save each page as markdown file: pages/<path>.md"
+        - "Preserve directory structure from website URL paths"
+        - "Download and save images to assets/images/"
+        - "Download and save diagrams to assets/diagrams/"
+        - "Convert HTML to clean markdown format"
+        - "Fix internal links to point to local files"
+      checkpoint:
+        path: "artifacts/docs/<site-name>/pages/"
+        required_for_next_phase: true
+      timeout_seconds: 600
+      constraints:
+        - "preserve_structure: true"
+        - "convert_html_to_markdown: true"
+        - "fix_internal_links: true"
+
+    - id: "create_index"
+      name: "Create Index and Search"
+      agent: "ark-researcher"
+      depends_on: "save_locally"
+      approval_required: false
+      actions:
+        - "Generate INDEX.md with complete site map"
+        - "Create search-index.json: keyword → file path mapping"
+        - "Generate hierarchical table of contents"
+        - "Add metadata: scrape date, total pages, total size, framework detected"
+        - "List all sections and subsections"
+        - "Include quick navigation links"
+      checkpoint:
+        path: "artifacts/docs/<site-name>/INDEX.md"
+        required_for_next_phase: true
+      timeout_seconds: 300
+      constraints:
+        - "include_metadata: true"
+        - "hierarchical_toc: true"
+        - "keyword_index: true"
+
+    - id: "usage_guide"
+      name: "Create Usage Guide"
+      agent: "ark-researcher"
+      depends_on: "create_index"
+      approval_required: false
+      actions:
+        - "Create USAGE.md with quick start guide"
+        - "Document how to search local docs using grep/ripgrep"
+        - "List key topics and their file locations"
+        - "Add tips for navigating documentation offline"
+        - "Include examples of common searches"
+        - "Note any missing pages or broken links"
+      checkpoint:
+        path: "artifacts/docs/<site-name>/USAGE.md"
+        required_for_next_phase: false
+      timeout_seconds: 300
+
+success_criteria:
+  - "All 5 phases completed successfully"
+  - "Documentation saved to artifacts/docs/<site-name>/"
+  - "INDEX.md generated with site map and metadata"
+  - "USAGE.md created with search guide"
+  - "search-index.json created for keyword search"
+  - "Rate limits respected (1 page/second)"
+  - "Max pages limit enforced (100 pages)"
+  - "HTML converted to markdown"
+  - "Images and assets downloaded"
+
+performance:
+  estimated_duration_seconds: 1200  # 20 minutes
+  max_duration_seconds: 2100        # 35 minutes
+
+recovery:
+  on_phase_failure: "retry_phase"
+  checkpoint_frequency: "per_phase"
+  resume_from: "last_checkpoint"
+
+constraints:
+  - "rate_limit: 1 request/second"
+  - "max_pages: 100"
+  - "timebox: 10 minutes for scraping phase"
+  - "respect_robots_txt: true"
+  - "use_webfetch_tool: true"
+  - "no_curl_wget_or_bash_http: true"
+
+output_structure: |
+  artifacts/docs/<site-name>/
+  ├── INDEX.md              # Site map and metadata
+  ├── USAGE.md              # How to use these docs
+  ├── search-index.json     # Keyword search index
+  ├── discovery-manifest.json  # Discovery phase output
+  ├── scrape-log.json       # Scraping phase log
+  ├── pages/
+  │   ├── getting-started.md
+  │   ├── api-reference.md
+  │   ├── guides/
+  │   │   ├── tutorial-1.md
+  │   │   └── tutorial-2.md
+  │   └── reference/
+  │       └── functions.md
+  └── assets/
+      ├── images/
+      │   ├── diagram-1.png
+      │   └── screenshot-1.jpg
+      └── diagrams/
+          └── architecture.svg
+
+index_template: |
+  # [Site Name] Documentation (Offline Copy)
+
+  **Source**: [original URL]
+  **Scraped**: [date]
+  **Total Pages**: [count]
+  **Total Size**: [MB]
+  **Framework**: [Mintlify/Docusaurus/etc]
+
+  ## Table of Contents
+
+  ### Getting Started
+  - [Installation](pages/getting-started.md)
+  - [Quick Start](pages/quick-start.md)
+
+  ### Guides
+  - [Tutorial 1](pages/guides/tutorial-1.md)
+  - [Tutorial 2](pages/guides/tutorial-2.md)
+
+  ### API Reference
+  - [Functions](pages/reference/functions.md)
+  - [Classes](pages/reference/classes.md)
+
+  ## Search Index
+  See [search-index.json](search-index.json) for keyword mappings.
+
+  ## Usage
+  See [USAGE.md](USAGE.md) for tips on searching and navigating.
+
+  ---
+  **Scraped by**: ark-researcher
+  **Missing pages**: [count, if any]
+  **Broken links**: [count, if any]
+
+usage_template: |
+  # How to Use This Offline Documentation
+
+  ## Quick Search
+
+  **Using grep**:
+  ```bash
+  grep -r "keyword" pages/
+  ```
+
+  **Using ripgrep (faster)**:
+  ```bash
+  rg "keyword" pages/
+  ```
+
+  ## Key Topics
+
+  - **Installation**: `pages/getting-started.md`
+  - **API Reference**: `pages/api-reference.md`
+  - **Troubleshooting**: `pages/troubleshooting.md`
+
+  ## Navigation Tips
+
+  1. Start with `INDEX.md` for the full site map
+  2. Use `search-index.json` for keyword → file lookups
+  3. All internal links point to local files
+  4. Images are in `assets/images/`
+
+  ## Common Searches
+
+  - Find all examples: `rg "example" pages/`
+  - Find API endpoints: `rg "endpoint|route" pages/`
+  - Find configuration: `rg "config|settings" pages/`
+
+  ## Notes
+
+  - Some pages may reference external resources
+  - JavaScript-heavy sites may have limited interactivity
+  - Check INDEX.md for any missing pages
+
+use_cases:
+  - "Save Claude Code documentation locally"
+  - "Archive Bitcoin Core documentation (bitcoincore.org)"
+  - "Keep Lightning Network specs (BOLTs) offline"
+  - "Store framework docs (Go, TypeScript, React)"
+  - "Archive developer.bitcoin.org for offline reference"
+  - "Save Rust documentation for embedded development"
+
+supported_frameworks:
+  - "Mintlify"
+  - "Docusaurus"
+  - "MkDocs"
+  - "GitBook"
+  - "Sphinx"
+  - "VitePress"
+  - "Jekyll"
+  - "Hugo"
+  - "Nextra"
+
+notes:
+  - "Respects robots.txt and site rate limits"
+  - "Uses WebFetch tool exclusively (no curl/wget)"
+  - "Converts HTML to markdown for better readability"
+  - "Preserves original URL structure in local paths"
+  - "Can handle documentation sites up to 100 pages"
+  - "For larger sites, consider splitting into multiple scrape sessions"

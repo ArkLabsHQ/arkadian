@@ -41,38 +41,26 @@
     "Notification": [],
     "SessionStart": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/session-start-hook.ts"
-          }
-        ]
+        "type": "command",
+        "command": "bun ${ARKADIAN_DIR}/hooks/session-start-hook.ts"
       }
     ],
     "UserPromptSubmit": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/update-tab-titles.ts"
-          },
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
-          }
-        ]
+        "type": "command",
+        "command": "bun ${ARKADIAN_DIR}/hooks/update-tab-titles.ts"
+      },
+      {
+        "type": "command",
+        "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
       }
     ],
     "Stop": [],
     "SubagentStop": [],
     "PreCompact": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/context-compression-hook.ts"
-          }
-        ]
+        "type": "command",
+        "command": "bun ${ARKADIAN_DIR}/hooks/context-compression-hook.ts"
       }
     ]
   }
