@@ -329,7 +329,46 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 - **debug**: `swap failed`, `htlc issues`, `boltz errors`
 
 **Dependencies**: `boltz-backend` (external swap provider), Bitcoin node (btcd/bitcoind)
-**Depended On By**: `wallet` (for Lightning swap functionality), users needing Lightning liquidity
+**Depended On By**: `wallet` (for Lightning swap functionality), users needing Lightning liquidity, `fulmine-simulator` (testing tool)
+
+---
+
+### fulmine-simulator
+**ID**: `fulmine-simulator`
+**Name**: Fulmine Swap Simulator
+**Type**: Testing/Simulation Tool
+**Language**: Go
+**Index**: `${ARKADIAN_DIR}/docs/projects/fulmine-simulator/INDEX.md`
+**Repository**: `${FULMINE_SIMULATOR_REPO}`
+**GitHub**: `${FULMINE_SIMULATOR_GITHUB}`
+
+**Description**:
+Lightning Network swap simulator that simulates multiple concurrent clients performing submarine and reverse swaps through a Fulmine/Boltz stack. Supports three networks (regtest, mutinynet, mainnet) with YAML-based configuration, automated fund management, comprehensive audit logging, and mainnet safety features. Uses orchestrator-client pattern for scalable load testing and validation of swap scenarios.
+
+**Key Capabilities**:
+- Multi-network support (regtest with Nigiri faucet, mutinynet testnet, mainnet production)
+- YAML-based configuration for simulation definitions
+- Automated fund distribution and collection with 100% recovery tracking
+- Comprehensive audit logging (JSON Lines format, crash-resistant)
+- Mainnet safety features (fund limits, confirmation prompts, mandatory recovery)
+- Concurrent client support (50+ clients)
+- Orchestrator-client pattern for scalability
+- Round-based execution coordination
+- Submarine and reverse submarine swap simulation
+- Integration with Fulmine gRPC API
+
+**Tags**: `simulator`, `testing`, `load-test`, `lightning`, `swap`, `submarine-swap`, `fulmine`, `boltz`, `orchestrator`, `yaml`, `audit-logging`, `concurrent`, `regtest`, `mainnet-safety`
+
+**Synonyms**: `swap-simulator`, `fulmine-tester`, `lightning-simulator`, `swap-load-test`
+
+**Triggers**:
+- **test_or_run**: `run simulation`, `load test fulmine`, `test swaps`, `simulate lightning swaps`, `orchestrator`
+- **develop**: `add simulation scenario`, `modify simulator config`, `new action type`
+- **monitor_or_alert**: `simulation metrics`, `swap throughput`, `fund recovery rate`
+- **debug**: `simulation failed`, `fund recovery issue`, `client timeout`, `swap stuck`
+
+**Dependencies**: `fulmine` (swap provider under test), `boltz-backend` (via fulmine), Nigiri (regtest funding), LND (Lightning integration)
+**Depended On By**: CI/CD pipelines for fulmine testing, performance validation workflows
 
 ---
 
