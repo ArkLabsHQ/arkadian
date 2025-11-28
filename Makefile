@@ -149,17 +149,21 @@ verify: ## Verify installation
 	else \
 		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
 	fi
-	@# Check agents
-	@if [ -d "$$HOME/.claude/agents" ] && [ $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l) -eq 7 ]; then \
-		echo "$(GREEN)✓ 7 agents installed in ~/.claude/agents$(NC)"; \
+	@# Check agents (compare installed vs source)
+	@src_agents=$$(ls -1 agents/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	installed_agents=$$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	if [ -d "$$HOME/.claude/agents" ] && [ "$$installed_agents" -ge "$$src_agents" ]; then \
+		echo "$(GREEN)✓ $$installed_agents agents installed in ~/.claude/agents$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  Agents not fully installed (run: make install-agents)$(NC)"; \
+		echo "$(YELLOW)⚠️  Agents not fully installed ($$installed_agents/$$src_agents - run: make install-agents)$(NC)"; \
 	fi
-	@# Check skills
-	@if [ -d "$$HOME/.claude/skills" ] && [ $$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l) -eq 8 ]; then \
-		echo "$(GREEN)✓ 8 skills installed in ~/.claude/skills$(NC)"; \
+	@# Check skills (compare installed vs source)
+	@src_skills=$$(ls -1d skills/*/ 2>/dev/null | wc -l | tr -d ' '); \
+	installed_skills=$$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l | tr -d ' '); \
+	if [ -d "$$HOME/.claude/skills" ] && [ "$$installed_skills" -ge "$$src_skills" ]; then \
+		echo "$(GREEN)✓ $$installed_skills skills installed in ~/.claude/skills$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  Skills not fully installed (run: make install-skills)$(NC)"; \
+		echo "$(YELLOW)⚠️  Skills not fully installed ($$installed_skills/$$src_skills - run: make install-skills)$(NC)"; \
 	fi
 	@# Check commands
 	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -ge 8 ]; then \
