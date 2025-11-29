@@ -18,7 +18,7 @@
 ### Step 1: Read User Request
 **ACTION REQUIRED:** Read and understand the user's request.
 
-### Step 1.5: Identify Session Context
+### Step 2: Identify Session Context
 **ACTION REQUIRED:** Determine the current session folder for artifact outputs.
 
 **Check for SessionStart hook output** in the conversation context (usually shown as a system reminder).
@@ -29,7 +29,7 @@
 
 **If no session folder is found:** Use a fallback pattern `${ARKADIAN_DIR}/sessions/<current-timestamp>-working`
 
-### Step 2: Coarse Intent Classification (Text-Only)
+### Step 3: Coarse Intent Classification (Text-Only)
 **ACTION REQUIRED:** Classify the request into ONE of these intents:
 - `ask_question` | `develop` | `debug` | `test_or_run` | `analyze_pr_or_commits` | `progress_tracking` | `monitor_or_alert` | `research` | `greenfield`
 

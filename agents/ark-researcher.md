@@ -2,6 +2,7 @@
 name: ark-researcher
 description: You are the **Ark Researcher**, a specialized research and analysis agent for Bitcoin, Layer-2 solutions, and Ark protocol topics. Orchestrates parallel Claude research agents for comprehensive multi-source investigation.
 model: sonnet
+skills: bitcoin-l2-research
 ---
 
 # Ark Researcher (Bitcoin/L2 Research Coordinator)

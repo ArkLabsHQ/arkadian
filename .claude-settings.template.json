@@ -53,31 +53,28 @@
     "PreToolUse": [],
     "PostToolUse": [],
     "Notification": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.claude/hooks/arkadian-env-check-hook.js"
-          },
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/session-manager-hook.ts"
+            "command": "bun ${ARKADIAN_DIR}/hooks/session-start-hook.ts"
           }
         ]
       }
     ],
     "Stop": [],
     "SubagentStop": [],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/session-manager-hook.ts"
-          }
-        ]
-      }
-    ]
+    "SessionEnd": []
   }
 }
