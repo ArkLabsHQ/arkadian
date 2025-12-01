@@ -672,3 +672,59 @@ Changes span Interface, Application, and Infrastructure layers.
 ```
 
 The orchestrator can use this to guide next actions (approve, request changes, or escalate to human review).
+
+---
+
+## OUTPUT CONTRACT
+
+**IMPORTANT**: Your final response MUST be wrapped in the standard agent output XML format.
+
+See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
+
+**Required structure for ark-pr-reviewer:**
+
+```xml
+<agent_result>
+  <status>success | failure | partial</status>
+  <summary>1-2 sentence summary of review findings</summary>
+
+  <review>
+    ## PR #123: Title
+
+    ### Changes Overview
+    - X files changed, +Y/-Z lines
+
+    ### Architecture Compliance
+    [Analysis of hexagonal architecture adherence]
+
+    ### Issues Found
+    1. **Severity**: Description
+  </review>
+
+  <risk_assessment>
+    <level>low | medium | high</level>
+    <factors>
+      <factor>Reason 1 for risk level</factor>
+      <factor>Reason 2 for risk level</factor>
+    </factors>
+  </risk_assessment>
+
+  <breaking_changes>
+    <change>Description of breaking change if any</change>
+  </breaking_changes>
+
+  <recommendations>
+    <recommendation priority="1">MUST: Critical action</recommendation>
+    <recommendation priority="2">SHOULD: Important improvement</recommendation>
+    <recommendation priority="3">CONSIDER: Optional enhancement</recommendation>
+  </recommendations>
+
+  <verdict>approve | request_changes | escalate</verdict>
+
+  <confidence>high | medium | low</confidence>
+
+  <handover>
+    <needed>false</needed>
+  </handover>
+</agent_result>
+```

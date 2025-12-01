@@ -30,8 +30,11 @@ const REQUIRED_VARS = [
   { name: "ARK_INFRA_REPO", description: "Ark Infrastructure repository", project: "ark-infra", type: "path" },
   { name: "KMS_UNLOCKER_REPO", description: "KMS Unlocker repository", project: "kms-unlocker", type: "path" },
   { name: "FULMINE_REPO", description: "Fulmine (Lightning) repository", project: "fulmine", type: "path" },
+  { name: "FULMINE_SIMULATOR_REPO", description: "Fulmine Simulator repository", project: "fulmine-simulator", type: "path" },
+  { name: "BOLTZ_BACKEND_REPO", description: "Boltz Backend repository", project: "boltz-backend", type: "path" },
   { name: "ARK_DOCS_REPO", description: "Ark Documentation repository", project: "ark-docs", type: "path" },
   { name: "ARKADE_ESCROW_REPO", description: "Arkade Escrow repository", project: "arkade-escrow", type: "path" },
+  { name: "ARKADE_EXPLORER_REPO", description: "Arkade Explorer repository", project: "arkade-explorer", type: "path" },
 ];
 
 /**
@@ -47,9 +50,11 @@ const GITHUB_VARS = [
   { name: "ARK_INFRA_GITHUB", description: "ark-infra GitHub URL (org/repo)", project: "ark-infra", type: "github" },
   { name: "KMS_UNLOCKER_GITHUB", description: "kms-unlocker GitHub URL (org/repo)", project: "kms-unlocker", type: "github" },
   { name: "FULMINE_GITHUB", description: "fulmine GitHub URL (org/repo)", project: "fulmine", type: "github" },
+  { name: "FULMINE_SIMULATOR_GITHUB", description: "fulmine-simulator GitHub URL (org/repo)", project: "fulmine-simulator", type: "github" },
   { name: "BOLTZ_BACKEND_GITHUB", description: "boltz-backend GitHub URL (org/repo)", project: "boltz-backend", type: "github" },
   { name: "ARK_DOCS_GITHUB", description: "ark-docs GitHub URL (org/repo)", project: "ark-docs", type: "github" },
   { name: "ARKADE_ESCROW_GITHUB", description: "arkade-escrow GitHub URL (org/repo)", project: "arkade-escrow", type: "github" },
+  { name: "ARKADE_EXPLORER_GITHUB", description: "arkade-explorer GitHub URL (org/repo)", project: "arkade-explorer", type: "github" },
 ];
 
 /**

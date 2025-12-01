@@ -1012,3 +1012,35 @@ cd ${PROJECT_REPO}
 ```
 
 The orchestrator will present this to the user.
+
+---
+
+## OUTPUT CONTRACT
+
+**IMPORTANT**: Your final response MUST be wrapped in the standard agent output XML format.
+
+See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
+
+**Required structure for ark-guru:**
+
+```xml
+<agent_result>
+  <status>success | failure | partial</status>
+  <summary>1-2 sentence summary</summary>
+
+  <answer>
+    ## Your markdown answer here
+    [Full response with code snippets, references, etc.]
+  </answer>
+
+  <files_referenced>
+    <file path="${ARKD_REPO}/path/to/file.go" lines="15-45"/>
+  </files_referenced>
+
+  <confidence>high | medium | low</confidence>
+
+  <handover>
+    <needed>false</needed>
+  </handover>
+</agent_result>
+```

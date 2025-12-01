@@ -29,8 +29,11 @@ const PROJECTS = [
   { id: 'ark-infra', envVar: 'ARK_INFRA_REPO' },
   { id: 'kms-unlocker', envVar: 'KMS_UNLOCKER_REPO' },
   { id: 'fulmine', envVar: 'FULMINE_REPO' },
+  { id: 'fulmine-simulator', envVar: 'FULMINE_SIMULATOR_REPO' },
+  { id: 'boltz-backend', envVar: 'BOLTZ_BACKEND_REPO' },
   { id: 'ark-docs', envVar: 'ARK_DOCS_REPO' },
   { id: 'arkade-escrow', envVar: 'ARKADE_ESCROW_REPO' },
+  { id: 'arkade-explorer', envVar: 'ARKADE_EXPLORER_REPO' },
 ];
 
 /**

@@ -354,3 +354,56 @@ ${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/<step_id>/
 
 **Exceptions (allowed elsewhere):**
 - Documentation updates → `${ARKADIAN_DIR}/docs/`
+
+---
+
+## OUTPUT CONTRACT
+
+**IMPORTANT**: Your final response MUST be wrapped in the standard agent output XML format.
+
+See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
+
+**Required structure for ark-env-tester:**
+
+```xml
+<agent_result>
+  <status>success | failure | partial</status>
+  <summary>1-2 sentence summary of test/environment results</summary>
+
+  <env_ready>true | false</env_ready>
+
+  <health_matrix>
+    <service name="bitcoin" status="healthy" port="18443"/>
+    <service name="nbxplorer" status="healthy" port="32838"/>
+    <service name="arkd" status="healthy" port="7070"/>
+  </health_matrix>
+
+  <tests>
+    <status>passed | failed | not-run</status>
+    <suites>
+      <suite name="unit" status="passed" duration="45s" tests="47"/>
+      <suite name="integration" status="passed" duration="120s" tests="23"/>
+    </suites>
+    <coverage>78.5%</coverage>
+  </tests>
+
+  <artifacts>
+    <artifact type="log" path="${ARTIFACTS_DIR}/docker-ps.txt"/>
+    <artifact type="log" path="${ARTIFACTS_DIR}/arkd.log"/>
+    <artifact type="coverage" path="${ARTIFACTS_DIR}/coverage.out"/>
+  </artifacts>
+
+  <cleanup>
+    <performed>partial</performed>
+    <preserved>volumes, logs</preserved>
+  </cleanup>
+
+  <confidence>high | medium | low</confidence>
+
+  <handover>
+    <needed>true | false</needed>
+    <to>ark-developer | ark-observer</to>
+    <reason>Reason for handover if needed</reason>
+  </handover>
+</agent_result>
+```

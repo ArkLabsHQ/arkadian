@@ -29,8 +29,11 @@ declare -A PROJECTS=(
   ["ark-infra"]="ARK_INFRA_REPO"
   ["kms-unlocker"]="KMS_UNLOCKER_REPO"
   ["fulmine"]="FULMINE_REPO"
+  ["fulmine-simulator"]="FULMINE_SIMULATOR_REPO"
+  ["boltz-backend"]="BOLTZ_BACKEND_REPO"
   ["ark-docs"]="ARK_DOCS_REPO"
   ["arkade-escrow"]="ARKADE_ESCROW_REPO"
+  ["arkade-explorer"]="ARKADE_EXPLORER_REPO"
 )
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

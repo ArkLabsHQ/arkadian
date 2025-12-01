@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-claude-md update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-claude-md install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -97,6 +97,15 @@ make-executable: ## Make hooks executable
 	@chmod +x hooks/*.ts hooks/*.js 2>/dev/null || true
 	@echo "$(GREEN)✓ Hooks are now executable$(NC)"
 
+install-claude-md: ## Install ORCHESTRATOR.md to ~/.claude/CLAUDE.md
+	@echo "$(YELLOW)Installing ORCHESTRATOR.md as ~/.claude/CLAUDE.md (orchestrator instructions)...$(NC)"
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(YELLOW)⚠️  Backing up existing CLAUDE.md to CLAUDE.md.backup$(NC)"; \
+		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.backup; \
+	fi
+	@cp ORCHESTRATOR.md $$HOME/.claude/CLAUDE.md
+	@echo "$(GREEN)✓ Installed ~/.claude/CLAUDE.md (from ORCHESTRATOR.md)$(NC)"
+
 install-agents: ## Install agents to ~/.claude/agents
 	@echo "$(YELLOW)Installing agents...$(NC)"
 	@./scripts/install-agents.sh
@@ -136,23 +145,33 @@ verify: ## Verify installation
 	else \
 		echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
 	fi
+	@# Check CLAUDE.md
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(GREEN)✓ CLAUDE.md installed (orchestrator instructions)$(NC)"; \
+	else \
+		echo "$(RED)❌ CLAUDE.md missing$(NC)"; exit 1; \
+	fi
 	@# Check hooks
 	@if [ -x "hooks/load-arkadian-context.ts" ]; then \
 		echo "$(GREEN)✓ Context loading hook is executable$(NC)"; \
 	else \
 		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
 	fi
-	@# Check agents
-	@if [ -d "$$HOME/.claude/agents" ] && [ $$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l) -eq 7 ]; then \
-		echo "$(GREEN)✓ 7 agents installed in ~/.claude/agents$(NC)"; \
+	@# Check agents - compare installed count with source count
+	@SOURCE_AGENTS=$$(ls -1 $(ARKADIAN_DIR)/agents/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	INSTALLED_AGENTS=$$(ls -1 $$HOME/.claude/agents/*.md 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$INSTALLED_AGENTS" -eq "$$SOURCE_AGENTS" ] && [ "$$INSTALLED_AGENTS" -gt 0 ]; then \
+		echo "$(GREEN)✓ $$INSTALLED_AGENTS agents installed in ~/.claude/agents$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  Agents not fully installed (run: make install-agents)$(NC)"; \
+		echo "$(YELLOW)⚠️  Agents not fully installed ($$INSTALLED_AGENTS/$$SOURCE_AGENTS) - run: make install-agents$(NC)"; \
 	fi
-	@# Check skills
-	@if [ -d "$$HOME/.claude/skills" ] && [ $$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l) -eq 8 ]; then \
-		echo "$(GREEN)✓ 8 skills installed in ~/.claude/skills$(NC)"; \
+	@# Check skills - compare installed count with source count
+	@SOURCE_SKILLS=$$(ls -1d $(ARKADIAN_DIR)/skills/*/ 2>/dev/null | wc -l | tr -d ' '); \
+	INSTALLED_SKILLS=$$(ls -1d $$HOME/.claude/skills/*/ 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$INSTALLED_SKILLS" -eq "$$SOURCE_SKILLS" ] && [ "$$INSTALLED_SKILLS" -gt 0 ]; then \
+		echo "$(GREEN)✓ $$INSTALLED_SKILLS skills installed in ~/.claude/skills$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  Skills not fully installed (run: make install-skills)$(NC)"; \
+		echo "$(YELLOW)⚠️  Skills not fully installed ($$INSTALLED_SKILLS/$$SOURCE_SKILLS) - run: make install-skills$(NC)"; \
 	fi
 	@# Check commands
 	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -ge 8 ]; then \
@@ -175,6 +194,13 @@ uninstall: ## Remove Arkadian installation
 		cp $$HOME/.claude/settings.json $$HOME/.claude/settings.json.pre-uninstall; \
 		rm $$HOME/.claude/settings.json; \
 		echo "$(GREEN)✓ Removed settings.json (backup saved)$(NC)"; \
+	fi
+	@# Backup and remove CLAUDE.md
+	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
+		echo "$(YELLOW)Backing up CLAUDE.md...$(NC)"; \
+		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.pre-uninstall; \
+		rm $$HOME/.claude/CLAUDE.md; \
+		echo "$(GREEN)✓ Removed CLAUDE.md (backup saved)$(NC)"; \
 	fi
 	@# Remove agents
 	@if [ -d "$$HOME/.claude/agents" ]; then \
