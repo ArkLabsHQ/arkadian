@@ -1,0 +1,358 @@
+# Arkadian Quality Test Suite
+# Run with: claude -p "$(cat tests/QUALITY_TESTS.yaml)" --output-format json
+# Or use the test runner: ./tests/run_quality_tests.sh
+
+version: "1.0"
+description: "Automated quality tests for Arkadian orchestrator and agents"
+
+# Test configuration
+config:
+  timeout_seconds: 120
+  parallel: false
+  output_dir: "./tests/results"
+
+# Test definitions
+tests:
+  # ============================================
+  # Level 1: Basic Agent Routing (Smoke Tests)
+  # ============================================
+
+  - id: T1.1
+    name: "ark-guru Q&A routing"
+    level: 1
+    category: "smoke"
+    role: "Developer"
+    expected_agent: "ark-guru"
+    prompt: "How does VTXO expiry work in arkd?"
+    validation:
+      - type: "agent_routed"
+        value: "ark-guru"
+      - type: "context_loaded"
+        value: "arkd"
+      - type: "contains_keywords"
+        values: ["VTXO", "expiry", "timelock", "unilateral exit"]
+      - type: "no_code_generation"
+        value: true
+    weight: 10
+
+  - id: T1.2
+    name: "ark-developer implementation"
+    level: 1
+    category: "smoke"
+    role: "Developer"
+    expected_agent: "ark-developer"
+    prompt: "Add a simple health check endpoint to arkd that returns the server version"
+    validation:
+      - type: "agent_routed"
+        value: "ark-developer"
+      - type: "context_loaded"
+        value: "arkd"
+      - type: "generates_code"
+        value: true
+      - type: "file_patterns"
+        values: ["*.proto", "*.go"]
+    weight: 10
+
+  - id: T1.3
+    name: "ark-progress-tracker weekly"
+    level: 1
+    category: "smoke"
+    role: "Engineering Manager"
+    expected_agent: "ark-progress-tracker"
+    prompt: "What did the team do this week in arkd?"
+    validation:
+      - type: "agent_routed"
+        value: "ark-progress-tracker"
+      - type: "contains_keywords"
+        values: ["PR", "commit", "merged", "author"]
+      - type: "business_language"
+        value: true
+    weight: 10
+
+  - id: T1.4
+    name: "ark-pr-reviewer analysis"
+    level: 1
+    category: "smoke"
+    role: "Tech Lead"
+    expected_agent: "ark-pr-reviewer"
+    prompt: "Review the latest merged PR in arkd for quality and risks"
+    validation:
+      - type: "agent_routed"
+        value: "ark-pr-reviewer"
+      - type: "contains_keywords"
+        values: ["PR", "review", "changes", "risk", "impact"]
+      - type: "uses_gh_cli"
+        value: true
+    weight: 10
+
+  - id: T1.5
+    name: "ark-env-tester execution"
+    level: 1
+    category: "smoke"
+    role: "QA Engineer"
+    expected_agent: "ark-env-tester"
+    prompt: "Run the unit tests for go-sdk and report results"
+    validation:
+      - type: "agent_routed"
+        value: "ark-env-tester"
+      - type: "executes_command"
+        pattern: "go test"
+      - type: "reports_results"
+        value: true
+    weight: 10
+
+  - id: T1.6
+    name: "ark-project-manager spec"
+    level: 1
+    category: "smoke"
+    role: "Product Manager"
+    expected_agent: "ark-project-manager"
+    prompt: "Create a specification for adding rate limiting to arkd gRPC endpoints"
+    validation:
+      - type: "agent_routed"
+        value: "ark-project-manager"
+      - type: "creates_artifact"
+        pattern: "spec.md"
+      - type: "contains_sections"
+        values: ["Problem", "User Stories", "Acceptance Criteria"]
+    weight: 10
+
+  - id: T1.7
+    name: "ark-researcher web search"
+    level: 1
+    category: "smoke"
+    role: "Protocol Researcher"
+    expected_agent: "ark-researcher"
+    prompt: "Research how Lightning Network handles channel capacity limitations compared to Ark"
+    validation:
+      - type: "agent_routed"
+        value: "ark-researcher"
+      - type: "uses_web_search"
+        value: true
+      - type: "cites_sources"
+        value: true
+      - type: "confidence_levels"
+        value: true
+    weight: 10
+
+  # ============================================
+  # Level 2: Cross-Project Intelligence
+  # ============================================
+
+  - id: T2.1
+    name: "Multi-repo progress tracking"
+    level: 2
+    category: "cross-project"
+    role: "Engineering Manager"
+    expected_agent: "ark-progress-tracker"
+    prompt: "Show me all work this week affecting arkd, go-sdk, and wallet"
+    validation:
+      - type: "analyzes_repos"
+        values: ["arkd", "go-sdk", "wallet"]
+      - type: "identifies_dependencies"
+        value: true
+      - type: "coordination_points"
+        value: true
+    weight: 15
+
+  - id: T2.2
+    name: "Breaking change detection"
+    level: 2
+    category: "cross-project"
+    role: "Tech Lead"
+    expected_agent: "ark-pr-reviewer"
+    prompt: "Are there any proto changes in arkd this week that would affect go-sdk or wallet?"
+    validation:
+      - type: "searches_proto_files"
+        value: true
+      - type: "identifies_breaking"
+        value: true
+      - type: "lists_downstream"
+        values: ["go-sdk", "wallet"]
+    weight: 15
+
+  - id: T2.3
+    name: "Feature tracking across repos"
+    level: 2
+    category: "cross-project"
+    role: "Product Manager"
+    expected_agent: "ark-progress-tracker"
+    prompt: "Track the status of Lightning integration across all Ark projects"
+    validation:
+      - type: "searches_all_repos"
+        value: true
+      - type: "feature_percentage"
+        value: true
+      - type: "identifies_blockers"
+        value: true
+    weight: 15
+
+  # ============================================
+  # Level 3: Complex Workflows
+  # ============================================
+
+  - id: T3.1
+    name: "Feature planning workflow"
+    level: 3
+    category: "workflow"
+    role: "Product Manager"
+    expected_agent: "ark-project-manager"
+    prompt: "Plan a comprehensive fraud detection alert system for arkd - create spec, plan, and tasks"
+    validation:
+      - type: "creates_artifacts"
+        values: ["spec.md", "plan.md", "tasks.md"]
+      - type: "consistent_terminology"
+        value: true
+      - type: "dependency_ordered"
+        value: true
+    weight: 20
+
+  - id: T3.2
+    name: "Bug investigation workflow"
+    level: 3
+    category: "workflow"
+    role: "Developer"
+    expected_agent: "ark-guru"
+    prompt: "Users are seeing 'VTXO not found' errors in production. Help me understand the VTXO lookup mechanism and find recent changes that might have caused this."
+    validation:
+      - type: "explains_mechanism"
+        value: true
+      - type: "searches_recent_changes"
+        value: true
+      - type: "suggests_investigation"
+        value: true
+    weight: 20
+
+  - id: T3.3
+    name: "Incident analysis"
+    level: 3
+    category: "workflow"
+    role: "DevOps"
+    expected_agent: "ark-progress-tracker"
+    prompt: "Investigate high error rate on arkd - correlate recent deployments, PRs, and code changes from the last 48 hours"
+    validation:
+      - type: "timeline_correlation"
+        value: true
+      - type: "lists_deployments"
+        value: true
+      - type: "root_cause_suggestions"
+        value: true
+    weight: 20
+
+  # ============================================
+  # Level 4: Edge Cases & Error Handling
+  # ============================================
+
+  - id: T4.1
+    name: "Ambiguous project reference"
+    level: 4
+    category: "edge-case"
+    role: "Developer"
+    expected_agent: "orchestrator"
+    prompt: "How do wallets work?"
+    validation:
+      - type: "asks_clarification"
+        value: true
+        or:
+          - type: "loads_multiple_contexts"
+            values: ["wallet", "go-sdk"]
+    weight: 10
+
+  - id: T4.2
+    name: "Non-existent feature"
+    level: 4
+    category: "edge-case"
+    role: "Developer"
+    expected_agent: "ark-guru"
+    prompt: "Show me the Ethereum bridge implementation in arkd"
+    validation:
+      - type: "reports_not_found"
+        value: true
+      - type: "no_hallucination"
+        value: true
+    weight: 10
+
+  - id: T4.3
+    name: "Research vs implementation ambiguity"
+    level: 4
+    category: "edge-case"
+    role: "Developer"
+    expected_agent: "orchestrator"
+    prompt: "OP_CTV in Ark"
+    validation:
+      - type: "clarifies_intent"
+        values: ["research", "implement"]
+    weight: 10
+
+  - id: T4.4
+    name: "Empty repo activity"
+    level: 4
+    category: "edge-case"
+    role: "Manager"
+    expected_agent: "ark-progress-tracker"
+    prompt: "What happened this week in kms-unlocker?"
+    validation:
+      - type: "reports_no_activity"
+        value: true
+      - type: "provides_context"
+        value: true
+    weight: 10
+
+  # ============================================
+  # Level 5: Role-Specific Output Quality
+  # ============================================
+
+  - id: T5.1
+    name: "Executive-friendly language"
+    level: 5
+    category: "role-quality"
+    role: "Executive"
+    expected_agent: "ark-progress-tracker"
+    prompt: "Generate a weekly progress summary for the executive team"
+    validation:
+      - type: "no_technical_jargon"
+        forbidden: ["gRPC", "proto", "hexagonal", "VTXO", "mutex"]
+      - type: "business_metrics"
+        required: ["features", "timeline", "risk", "impact"]
+      - type: "actionable_insights"
+        value: true
+    weight: 15
+
+  - id: T5.2
+    name: "Developer technical depth"
+    level: 5
+    category: "role-quality"
+    role: "Senior Developer"
+    expected_agent: "ark-guru"
+    prompt: "Explain the round settlement consensus mechanism in arkd with code references"
+    validation:
+      - type: "code_references"
+        value: true
+      - type: "technical_accuracy"
+        value: true
+      - type: "implementation_details"
+        value: true
+    weight: 15
+
+  - id: T5.3
+    name: "QA test completeness"
+    level: 5
+    category: "role-quality"
+    role: "QA Engineer"
+    expected_agent: "ark-env-tester"
+    prompt: "What tests should I run before the arkd v0.9.0 release?"
+    validation:
+      - type: "lists_test_types"
+        values: ["unit", "integration", "e2e"]
+      - type: "environment_requirements"
+        value: true
+      - type: "pass_criteria"
+        value: true
+    weight: 15
+
+# Scoring thresholds
+scoring:
+  production_ready: 180
+  beta_quality: 150
+  alpha_quality: 120
+  max_score: 200

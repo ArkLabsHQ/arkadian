@@ -1,0 +1,941 @@
+# Arkadian Comprehensive Test Suite
+# 75+ test cases covering all roles, agents, contracts, paths, and workflows
+#
+# Test Categories:
+#   L1: Agent Routing (basic)
+#   L2: Project Path Verification
+#   L3: Agent Contract Compliance
+#   L4: Cross-Project Intelligence
+#   L5: Workflow Compliance
+#   L6: Edge Cases & Error Handling
+#   L7: Role-Specific Output Quality
+#
+# Run: ./tests/run_comprehensive_tests.sh
+
+version: "2.0"
+description: "Comprehensive quality test suite for Arkadian orchestrator"
+total_tests: 78
+
+config:
+  timeout_per_test_seconds: 180
+  output_dir: "./tests/results"
+
+# Environment paths that must be validated
+required_env_vars:
+  - ARKADIAN_DIR
+  - ARKD_REPO
+  - GO_SDK_REPO
+  - WALLET_REPO
+  - ARK_FAUCET_REPO
+  - ARK_SIMULATOR_REPO
+  - ARK_TELEMETRY_REPO
+  - ARK_INFRA_REPO
+  - KMS_UNLOCKER_REPO
+  - FULMINE_REPO
+  - BOLTZ_BACKEND_REPO
+  - ARK_DOCS_REPO
+  - ARKADE_ESCROW_REPO
+
+# ============================================
+# LEVEL 1: BASIC AGENT ROUTING (14 tests)
+# Verify correct agent selection per intent
+# ============================================
+
+tests:
+  # --- ark-guru routing ---
+  - id: L1.01
+    category: agent_routing
+    name: "ark-guru: Protocol concept question"
+    prompt: "How does VTXO expiry work in arkd?"
+    expected_agent: ark-guru
+    expected_workflow: quick_question
+    validation:
+      - routes_to_agent: ark-guru
+      - does_not_write_code: true
+      - provides_citations: true
+      - loads_project: arkd
+    weight: 5
+
+  - id: L1.02
+    category: agent_routing
+    name: "ark-guru: Architecture question"
+    prompt: "Explain the hexagonal architecture in arkd"
+    expected_agent: ark-guru
+    validation:
+      - routes_to_agent: ark-guru
+      - mentions_keywords: [domain, application, infrastructure, ports, adapters]
+    weight: 5
+
+  # --- ark-developer routing ---
+  - id: L1.03
+    category: agent_routing
+    name: "ark-developer: Add endpoint"
+    prompt: "Add a GetServerInfo gRPC endpoint to arkd"
+    expected_agent: ark-developer
+    expected_workflow: small_feature
+    validation:
+      - routes_to_agent: ark-developer
+      - generates_code: true
+      - modifies_files: ["*.proto", "*.go"]
+    weight: 5
+
+  - id: L1.04
+    category: agent_routing
+    name: "ark-developer: Bug fix"
+    prompt: "Fix the race condition in arkd round finalization"
+    expected_agent: ark-developer
+    expected_workflow: quick_fix
+    validation:
+      - routes_to_agent: ark-developer
+      - loads_project: arkd
+    weight: 5
+
+  # --- ark-progress-tracker routing ---
+  - id: L1.05
+    category: agent_routing
+    name: "ark-progress-tracker: Weekly summary"
+    prompt: "What did the team do this week in arkd?"
+    expected_agent: ark-progress-tracker
+    validation:
+      - routes_to_agent: ark-progress-tracker
+      - uses_git_commands: true
+      - lists_commits_or_prs: true
+      - business_friendly: true
+    weight: 5
+
+  - id: L1.06
+    category: agent_routing
+    name: "ark-progress-tracker: Multi-project"
+    prompt: "Show progress across arkd, go-sdk, and wallet this week"
+    expected_agent: ark-progress-tracker
+    validation:
+      - routes_to_agent: ark-progress-tracker
+      - analyzes_multiple_repos: [arkd, go-sdk, wallet]
+    weight: 5
+
+  # --- ark-pr-reviewer routing ---
+  - id: L1.07
+    category: agent_routing
+    name: "ark-pr-reviewer: PR analysis"
+    prompt: "Review the latest merged PR in arkd"
+    expected_agent: ark-pr-reviewer
+    expected_workflow: pr_review_comprehensive
+    validation:
+      - routes_to_agent: ark-pr-reviewer
+      - uses_gh_cli: true
+      - provides_risk_assessment: true
+    weight: 5
+
+  - id: L1.08
+    category: agent_routing
+    name: "ark-pr-reviewer: Commit analysis"
+    prompt: "Analyze the last 5 commits in go-sdk for breaking changes"
+    expected_agent: ark-pr-reviewer
+    validation:
+      - routes_to_agent: ark-pr-reviewer
+      - checks_breaking_changes: true
+    weight: 5
+
+  # --- ark-env-tester routing ---
+  - id: L1.09
+    category: agent_routing
+    name: "ark-env-tester: Run tests"
+    prompt: "Run unit tests for arkd"
+    expected_agent: ark-env-tester
+    validation:
+      - routes_to_agent: ark-env-tester
+      - executes_tests: true
+      - reports_results: true
+    weight: 5
+
+  - id: L1.10
+    category: agent_routing
+    name: "ark-env-tester: Start stack"
+    prompt: "Start local arkd development stack"
+    expected_agent: ark-env-tester
+    validation:
+      - routes_to_agent: ark-env-tester
+      - uses_docker: true
+    weight: 5
+
+  # --- ark-project-manager routing ---
+  - id: L1.11
+    category: agent_routing
+    name: "ark-project-manager: Feature spec"
+    prompt: "Create a specification for fraud detection alerts in arkd"
+    expected_agent: ark-project-manager
+    expected_workflow: feature_full_lifecycle
+    validation:
+      - routes_to_agent: ark-project-manager
+      - creates_spec_artifact: true
+      - includes_user_stories: true
+    weight: 5
+
+  - id: L1.12
+    category: agent_routing
+    name: "ark-project-manager: Task breakdown"
+    prompt: "Break down the notification system feature into tasks"
+    expected_agent: ark-project-manager
+    validation:
+      - routes_to_agent: ark-project-manager
+      - creates_tasks: true
+      - dependency_ordered: true
+    weight: 5
+
+  # --- ark-researcher routing ---
+  - id: L1.13
+    category: agent_routing
+    name: "ark-researcher: Protocol comparison"
+    prompt: "Compare Ark to Lightning Network for payment scalability"
+    expected_agent: ark-researcher
+    validation:
+      - routes_to_agent: ark-researcher
+      - uses_web_search: true
+      - cites_sources: true
+    weight: 5
+
+  - id: L1.14
+    category: agent_routing
+    name: "ark-researcher: Bitcoin research"
+    prompt: "Research OP_CTV covenant proposal and its implications for Ark"
+    expected_agent: ark-researcher
+    validation:
+      - routes_to_agent: ark-researcher
+      - provides_confidence_levels: true
+    weight: 5
+
+  # ============================================
+  # LEVEL 2: PROJECT PATH VERIFICATION (12 tests)
+  # Verify all 12 projects are correctly accessible
+  # ============================================
+
+  - id: L2.01
+    category: project_paths
+    name: "Path: arkd repository"
+    prompt: "Show me the main.go file in arkd"
+    target_project: arkd
+    validation:
+      - loads_project: arkd
+      - uses_correct_path: "${ARKD_REPO}"
+      - file_exists: "cmd/arkd/main.go"
+    weight: 3
+
+  - id: L2.02
+    category: project_paths
+    name: "Path: go-sdk repository"
+    prompt: "Show the client interface in go-sdk"
+    target_project: go-sdk
+    validation:
+      - loads_project: go-sdk
+      - uses_correct_path: "${GO_SDK_REPO}"
+    weight: 3
+
+  - id: L2.03
+    category: project_paths
+    name: "Path: wallet repository"
+    prompt: "Show the App.tsx component in wallet"
+    target_project: wallet
+    validation:
+      - loads_project: wallet
+      - uses_correct_path: "${WALLET_REPO}"
+    weight: 3
+
+  - id: L2.04
+    category: project_paths
+    name: "Path: ark-faucet repository"
+    prompt: "Show the main handler in ark-faucet"
+    target_project: ark-faucet
+    validation:
+      - loads_project: ark-faucet
+      - uses_correct_path: "${ARK_FAUCET_REPO}"
+    weight: 3
+
+  - id: L2.05
+    category: project_paths
+    name: "Path: ark-simulator repository"
+    prompt: "How does ark-simulator create test clients?"
+    target_project: ark-simulator
+    validation:
+      - loads_project: ark-simulator
+      - uses_correct_path: "${ARK_SIMULATOR_REPO}"
+    weight: 3
+
+  - id: L2.06
+    category: project_paths
+    name: "Path: ark-telemetry repository"
+    prompt: "Show the Prometheus alert rules in ark-telemetry"
+    target_project: ark-telemetry
+    validation:
+      - loads_project: ark-telemetry
+      - uses_correct_path: "${ARK_TELEMETRY_REPO}"
+    weight: 3
+
+  - id: L2.07
+    category: project_paths
+    name: "Path: ark-infra repository"
+    prompt: "Show the Docker Compose configuration in ark-infra"
+    target_project: ark-infra
+    validation:
+      - loads_project: ark-infra
+      - uses_correct_path: "${ARK_INFRA_REPO}"
+    weight: 3
+
+  - id: L2.08
+    category: project_paths
+    name: "Path: kms-unlocker repository"
+    prompt: "How does kms-unlocker integrate with AWS?"
+    target_project: kms-unlocker
+    validation:
+      - loads_project: kms-unlocker
+      - uses_correct_path: "${KMS_UNLOCKER_REPO}"
+    weight: 3
+
+  - id: L2.09
+    category: project_paths
+    name: "Path: fulmine repository"
+    prompt: "Show the swap service in fulmine"
+    target_project: fulmine
+    validation:
+      - loads_project: fulmine
+      - uses_correct_path: "${FULMINE_REPO}"
+    weight: 3
+
+  - id: L2.10
+    category: project_paths
+    name: "Path: boltz-backend repository"
+    prompt: "Explain the swap API in boltz-backend"
+    target_project: boltz-backend
+    validation:
+      - loads_project: boltz-backend
+      - uses_correct_path: "${BOLTZ_BACKEND_REPO}"
+    weight: 3
+
+  - id: L2.11
+    category: project_paths
+    name: "Path: ark-docs repository"
+    prompt: "Show the VTXO documentation from ark-docs"
+    target_project: ark-docs
+    validation:
+      - loads_project: ark-docs
+      - uses_correct_path: "${ARK_DOCS_REPO}"
+    weight: 3
+
+  - id: L2.12
+    category: project_paths
+    name: "Path: arkade-escrow repository"
+    prompt: "Explain the escrow contract in arkade-escrow"
+    target_project: arkade-escrow
+    validation:
+      - loads_project: arkade-escrow
+      - uses_correct_path: "${ARKADE_ESCROW_REPO}"
+    weight: 3
+
+  # ============================================
+  # LEVEL 3: AGENT CONTRACT COMPLIANCE (12 tests)
+  # Verify agents return proper output format
+  # ============================================
+
+  - id: L3.01
+    category: agent_contracts
+    name: "Contract: ark-guru returns answer block"
+    prompt: "What is a VTXO in Ark protocol?"
+    expected_agent: ark-guru
+    validation:
+      - output_contains_section: answer
+      - output_contains_section: summary
+      - output_contains_section: confidence
+      - provides_file_references: true
+    weight: 8
+
+  - id: L3.02
+    category: agent_contracts
+    name: "Contract: ark-developer returns changes block"
+    prompt: "Add a comment to the main.go file in arkd explaining what it does"
+    expected_agent: ark-developer
+    validation:
+      - output_contains_section: changes
+      - output_contains_section: summary
+      - changes_list_files: true
+    weight: 8
+
+  - id: L3.03
+    category: agent_contracts
+    name: "Contract: ark-env-tester returns test results"
+    prompt: "Run go test for the domain package in arkd"
+    expected_agent: ark-env-tester
+    validation:
+      - output_contains_section: tests
+      - reports_pass_fail_count: true
+      - includes_coverage: true
+    weight: 8
+
+  - id: L3.04
+    category: agent_contracts
+    name: "Contract: ark-pr-reviewer returns review block"
+    prompt: "Review arkd PR #832"
+    expected_agent: ark-pr-reviewer
+    validation:
+      - output_contains_section: review
+      - output_contains_section: risk_assessment
+      - provides_verdict: true
+    weight: 8
+
+  - id: L3.05
+    category: agent_contracts
+    name: "Contract: ark-progress-tracker returns metrics"
+    prompt: "Generate weekly progress report for arkd with metrics"
+    expected_agent: ark-progress-tracker
+    validation:
+      - includes_commit_count: true
+      - includes_pr_count: true
+      - includes_contributor_list: true
+      - business_impact_section: true
+    weight: 8
+
+  - id: L3.06
+    category: agent_contracts
+    name: "Contract: ark-project-manager creates spec"
+    prompt: "Create a specification for adding rate limiting to arkd"
+    expected_agent: ark-project-manager
+    validation:
+      - creates_spec_file: true
+      - spec_has_user_stories: true
+      - spec_has_acceptance_criteria: true
+      - spec_has_success_criteria: true
+    weight: 8
+
+  - id: L3.07
+    category: agent_contracts
+    name: "Contract: Handover protocol"
+    prompt: "Implement GetHealth endpoint in arkd and run integration tests"
+    expected_agent: ark-developer
+    validation:
+      - handover_block_present: true
+      - handover_to_agent: ark-env-tester
+      - handover_has_context: true
+    weight: 8
+
+  - id: L3.08
+    category: agent_contracts
+    name: "Contract: Error handling format"
+    prompt: "Run tests for nonexistent package xyz in arkd"
+    expected_agent: ark-env-tester
+    validation:
+      - status_indicates_failure: true
+      - error_block_present: true
+      - recovery_suggestion: true
+    weight: 8
+
+  - id: L3.09
+    category: agent_contracts
+    name: "Contract: Verification against criteria"
+    prompt: "Add logging to arkd service.go and verify it works"
+    expected_agent: ark-developer
+    validation:
+      - verification_block_present: true
+      - criteria_marked_satisfied: true
+    weight: 8
+
+  - id: L3.10
+    category: agent_contracts
+    name: "Contract: Artifact paths use env vars"
+    prompt: "Create a patch file for arkd changes"
+    expected_agent: ark-developer
+    validation:
+      - artifact_paths_use_env_vars: true
+      - no_hardcoded_paths: true
+    weight: 8
+
+  - id: L3.11
+    category: agent_contracts
+    name: "Contract: ark-researcher sources"
+    prompt: "Research state channels vs Ark protocol"
+    expected_agent: ark-researcher
+    validation:
+      - cites_multiple_sources: true
+      - provides_confidence: true
+      - distinguishes_high_medium_low: true
+    weight: 8
+
+  - id: L3.12
+    category: agent_contracts
+    name: "Contract: Status enum values"
+    prompt: "Try to add a feature but make tests fail"
+    expected_agent: ark-developer
+    validation:
+      - status_is_valid_enum: [success, failure, partial]
+    weight: 8
+
+  # ============================================
+  # LEVEL 4: CROSS-PROJECT INTELLIGENCE (10 tests)
+  # Verify multi-project awareness
+  # ============================================
+
+  - id: L4.01
+    category: cross_project
+    name: "Cross: arkd + go-sdk dependency"
+    prompt: "Show how go-sdk uses arkd APIs"
+    validation:
+      - loads_multiple_projects: [arkd, go-sdk]
+      - identifies_api_contract: true
+    weight: 10
+
+  - id: L4.02
+    category: cross_project
+    name: "Cross: Proto changes impact"
+    prompt: "If I change arkd proto files, what other projects are affected?"
+    validation:
+      - identifies_downstream: [go-sdk, wallet]
+      - explains_impact: true
+    weight: 10
+
+  - id: L4.03
+    category: cross_project
+    name: "Cross: wallet + fulmine integration"
+    prompt: "How does wallet use fulmine for Lightning swaps?"
+    validation:
+      - loads_multiple_projects: [wallet, fulmine]
+      - explains_integration: true
+    weight: 10
+
+  - id: L4.04
+    category: cross_project
+    name: "Cross: telemetry + arkd monitoring"
+    prompt: "How does ark-telemetry monitor arkd metrics?"
+    validation:
+      - loads_multiple_projects: [ark-telemetry, arkd]
+      - identifies_metrics: true
+    weight: 10
+
+  - id: L4.05
+    category: cross_project
+    name: "Cross: infra deployment"
+    prompt: "What services does ark-infra deploy for a full stack?"
+    validation:
+      - loads_project: ark-infra
+      - lists_deployed_services: true
+      - references_other_projects: true
+    weight: 10
+
+  - id: L4.06
+    category: cross_project
+    name: "Cross: Progress across ecosystem"
+    prompt: "Summarize all activity this week across all Ark projects"
+    validation:
+      - analyzes_all_repos: true
+      - aggregates_metrics: true
+      - identifies_coordination: true
+    weight: 10
+
+  - id: L4.07
+    category: cross_project
+    name: "Cross: Breaking change cascade"
+    prompt: "What happens if I change the VTXO struct in arkd?"
+    validation:
+      - identifies_cascade: [arkd, go-sdk, ark-faucet, ark-simulator]
+      - explains_migration: true
+    weight: 10
+
+  - id: L4.08
+    category: cross_project
+    name: "Cross: Test coverage ecosystem"
+    prompt: "Which projects have the lowest test coverage?"
+    validation:
+      - analyzes_multiple_repos: true
+      - provides_coverage_comparison: true
+    weight: 10
+
+  - id: L4.09
+    category: cross_project
+    name: "Cross: Documentation sync"
+    prompt: "Is ark-docs in sync with arkd's current API?"
+    validation:
+      - compares_projects: [ark-docs, arkd]
+      - identifies_gaps: true
+    weight: 10
+
+  - id: L4.10
+    category: cross_project
+    name: "Cross: Feature tracking"
+    prompt: "Track Lightning integration progress across all projects"
+    validation:
+      - searches_all_repos: true
+      - provides_per_project_status: true
+      - identifies_blockers: true
+    weight: 10
+
+  # ============================================
+  # LEVEL 5: WORKFLOW COMPLIANCE (10 tests)
+  # Verify workflow phases are followed
+  # ============================================
+
+  - id: L5.01
+    category: workflow
+    name: "Workflow: quick_question phases"
+    prompt: "What is round settlement in Ark?"
+    expected_workflow: quick_question
+    validation:
+      - follows_workflow: quick_question
+      - single_phase: answer
+      - no_code_changes: true
+      - provides_citations: true
+    weight: 12
+
+  - id: L5.02
+    category: workflow
+    name: "Workflow: quick_fix phases"
+    prompt: "Fix the typo in arkd README.md"
+    expected_workflow: quick_fix
+    validation:
+      - follows_workflow: quick_fix
+      - phases_in_order: [fix, auto_test]
+      - changes_under_100_lines: true
+      - changes_under_3_files: true
+    weight: 12
+
+  - id: L5.03
+    category: workflow
+    name: "Workflow: small_feature phases"
+    prompt: "Add a GetVersion endpoint to arkd"
+    expected_workflow: small_feature
+    validation:
+      - follows_workflow: small_feature
+      - creates_branch: true
+      - runs_tests: true
+    weight: 12
+
+  - id: L5.04
+    category: workflow
+    name: "Workflow: feature_full_lifecycle phases"
+    prompt: "Plan and implement a notification system for arkd"
+    expected_workflow: feature_full_lifecycle
+    validation:
+      - follows_workflow: feature_full_lifecycle
+      - phases_in_order: [specify, clarify, plan, tasks, analyze, implement, test, pr]
+      - creates_spec_md: true
+      - creates_plan_md: true
+      - creates_tasks_md: true
+      - approval_required_phases: [specify, plan, tasks, pr]
+    weight: 12
+
+  - id: L5.05
+    category: workflow
+    name: "Workflow: pr_review_comprehensive"
+    prompt: "Do a comprehensive review of arkd PR #845"
+    expected_workflow: pr_review_comprehensive
+    validation:
+      - follows_workflow: pr_review_comprehensive
+      - phases_in_order: [review, test, aggregate]
+      - parallel_execution: [review, test]
+    weight: 12
+
+  - id: L5.06
+    category: workflow
+    name: "Workflow: Approval checkpoint"
+    prompt: "Create a specification for multi-database support"
+    expected_workflow: feature_full_lifecycle
+    validation:
+      - requests_approval: true
+      - approval_message_present: true
+      - checkpoint_created: true
+    weight: 12
+
+  - id: L5.07
+    category: workflow
+    name: "Workflow: Timeout handling"
+    prompt: "Run a very long operation that might timeout"
+    validation:
+      - respects_timeout: true
+      - timeout_seconds_defined: true
+    weight: 12
+
+  - id: L5.08
+    category: workflow
+    name: "Workflow: Recovery on failure"
+    prompt: "Implement feature but have tests fail, then recover"
+    validation:
+      - on_failure_retries: true
+      - checkpoint_preserved: true
+      - resume_from_checkpoint: true
+    weight: 12
+
+  - id: L5.09
+    category: workflow
+    name: "Workflow: Multi-agent handoff"
+    prompt: "Implement GetStatus endpoint and validate with integration tests"
+    validation:
+      - uses_multiple_agents: [ark-developer, ark-env-tester]
+      - proper_handover: true
+      - context_preserved: true
+    weight: 12
+
+  - id: L5.10
+    category: workflow
+    name: "Workflow: Success criteria verification"
+    prompt: "Add endpoint with criteria: tests pass, coverage 80%+"
+    validation:
+      - verifies_all_criteria: true
+      - reports_criteria_status: true
+    weight: 12
+
+  # ============================================
+  # LEVEL 6: EDGE CASES & ERROR HANDLING (10 tests)
+  # Verify graceful handling of edge cases
+  # ============================================
+
+  - id: L6.01
+    category: edge_cases
+    name: "Edge: Ambiguous project reference"
+    prompt: "How do wallets work?"
+    validation:
+      - asks_clarification: true
+      - or_loads_multiple: [wallet, go-sdk, arkd]
+    weight: 6
+
+  - id: L6.02
+    category: edge_cases
+    name: "Edge: Non-existent feature"
+    prompt: "Show me the Ethereum bridge in arkd"
+    validation:
+      - reports_not_found: true
+      - no_hallucination: true
+      - suggests_alternatives: true
+    weight: 6
+
+  - id: L6.03
+    category: edge_cases
+    name: "Edge: Dormant project"
+    prompt: "What happened this week in kms-unlocker?"
+    validation:
+      - reports_no_activity: true
+      - provides_historical_context: true
+      - no_invented_commits: true
+    weight: 6
+
+  - id: L6.04
+    category: edge_cases
+    name: "Edge: Invalid PR number"
+    prompt: "Review arkd PR #999999"
+    validation:
+      - reports_not_found: true
+      - graceful_error: true
+    weight: 6
+
+  - id: L6.05
+    category: edge_cases
+    name: "Edge: Vague research request"
+    prompt: "Tell me about Bitcoin"
+    validation:
+      - asks_clarification: true
+      - narrows_scope: true
+    weight: 6
+
+  - id: L6.06
+    category: edge_cases
+    name: "Edge: Mixed intent"
+    prompt: "Explain VTXOs and then add a new VTXO type"
+    validation:
+      - handles_both_intents: true
+      - or_asks_clarification: true
+    weight: 6
+
+  - id: L6.07
+    category: edge_cases
+    name: "Edge: Wrong project for task"
+    prompt: "Run Docker tests in ark-docs"
+    validation:
+      - identifies_mismatch: true
+      - suggests_correct_project: true
+    weight: 6
+
+  - id: L6.08
+    category: edge_cases
+    name: "Edge: Impossible request"
+    prompt: "Make arkd work without Bitcoin"
+    validation:
+      - explains_impossibility: true
+      - provides_alternatives: true
+    weight: 6
+
+  - id: L6.09
+    category: edge_cases
+    name: "Edge: Empty repository"
+    prompt: "Show progress in a brand new empty repository"
+    validation:
+      - handles_empty_gracefully: true
+      - no_crash: true
+    weight: 6
+
+  - id: L6.10
+    category: edge_cases
+    name: "Edge: Conflicting instructions"
+    prompt: "Add a feature but don't write any code"
+    validation:
+      - identifies_conflict: true
+      - asks_clarification: true
+    weight: 6
+
+  # ============================================
+  # LEVEL 7: ROLE-SPECIFIC OUTPUT QUALITY (10 tests)
+  # Verify output matches target audience
+  # ============================================
+
+  - id: L7.01
+    category: role_quality
+    name: "Role: Developer - technical depth"
+    role: Developer
+    prompt: "Explain arkd's round consensus with code references"
+    validation:
+      - includes_code_paths: true
+      - technical_terminology: true
+      - file_line_references: true
+    weight: 10
+
+  - id: L7.02
+    category: role_quality
+    name: "Role: Executive - no jargon"
+    role: Executive
+    prompt: "Weekly progress summary for the board"
+    validation:
+      - no_technical_jargon: true
+      - forbidden_terms: [gRPC, proto, VTXO, mutex, goroutine, hexagonal]
+      - includes_business_metrics: true
+      - timeline_risk_assessment: true
+    weight: 10
+
+  - id: L7.03
+    category: role_quality
+    name: "Role: QA Engineer - test focus"
+    role: QA Engineer
+    prompt: "What tests should I run before arkd release?"
+    validation:
+      - lists_test_types: [unit, integration, e2e]
+      - environment_requirements: true
+      - pass_criteria: true
+      - test_commands: true
+    weight: 10
+
+  - id: L7.04
+    category: role_quality
+    name: "Role: Product Manager - planning"
+    role: Product Manager
+    prompt: "Plan the fraud detection feature"
+    validation:
+      - structured_spec: true
+      - user_stories: true
+      - acceptance_criteria: true
+      - not_implementation_details: true
+    weight: 10
+
+  - id: L7.05
+    category: role_quality
+    name: "Role: DevOps - operational"
+    role: DevOps
+    prompt: "How do I deploy arkd to staging?"
+    validation:
+      - deployment_steps: true
+      - infrastructure_references: true
+      - monitoring_mentioned: true
+    weight: 10
+
+  - id: L7.06
+    category: role_quality
+    name: "Role: Tech Lead - architecture"
+    role: Tech Lead
+    prompt: "Review arkd architecture compliance"
+    validation:
+      - architecture_analysis: true
+      - pattern_compliance: true
+      - recommendations: true
+    weight: 10
+
+  - id: L7.07
+    category: role_quality
+    name: "Role: Researcher - academic"
+    role: Researcher
+    prompt: "Compare Ark cryptographic assumptions to Lightning"
+    validation:
+      - academic_tone: true
+      - citations: true
+      - confidence_levels: true
+      - multi_source: true
+    weight: 10
+
+  - id: L7.08
+    category: role_quality
+    name: "Role: Engineering Manager - coordination"
+    role: Engineering Manager
+    prompt: "Cross-team dependencies for next sprint"
+    validation:
+      - team_coordination: true
+      - dependency_graph: true
+      - blockers_identified: true
+      - actionable: true
+    weight: 10
+
+  - id: L7.09
+    category: role_quality
+    name: "Role: Technical Writer - documentation"
+    role: Technical Writer
+    prompt: "Document the GetVtxo API endpoint"
+    validation:
+      - documentation_format: true
+      - examples_included: true
+      - clear_language: true
+    weight: 10
+
+  - id: L7.10
+    category: role_quality
+    name: "Role: Junior Developer - explanatory"
+    role: Junior Developer
+    prompt: "Explain how to add a new gRPC endpoint to arkd step by step"
+    validation:
+      - step_by_step: true
+      - beginner_friendly: true
+      - explains_why: true
+      - no_assumed_knowledge: true
+    weight: 10
+
+# ============================================
+# SCORING
+# ============================================
+
+scoring:
+  weights:
+    L1_agent_routing: 70      # 14 tests × 5 pts
+    L2_project_paths: 36      # 12 tests × 3 pts
+    L3_agent_contracts: 96    # 12 tests × 8 pts
+    L4_cross_project: 100     # 10 tests × 10 pts
+    L5_workflow: 120          # 10 tests × 12 pts
+    L6_edge_cases: 60         # 10 tests × 6 pts
+    L7_role_quality: 100      # 10 tests × 10 pts
+
+  total_possible: 582
+
+  thresholds:
+    production_ready: 525     # 90%
+    beta_quality: 437         # 75%
+    alpha_quality: 349        # 60%
+
+# ============================================
+# QUICK TESTS (subset for fast validation)
+# ============================================
+
+quick_test_ids:
+  - L1.01  # ark-guru routing
+  - L1.05  # ark-progress-tracker routing
+  - L2.01  # arkd path
+  - L3.01  # agent contract compliance
+  - L4.01  # cross-project
+  - L5.01  # workflow compliance
+  - L6.02  # hallucination check
+  - L7.02  # executive language
+
+# ============================================
+# SMOKE TEST (minimal validation)
+# ============================================
+
+smoke_test_ids:
+  - L1.01  # Basic Q&A routing
+  - L1.05  # Progress tracking
+  - L6.02  # No hallucination
