@@ -9,7 +9,7 @@ Before making changes, familiarize yourself with:
 - **@README.md** - Project overview, what Arkadian does, architecture highlights
 - **@SETUP.md** - Installation guide, how the hook system works, environment variables
 - **@Makefile** - Build targets, installation process
-- **@ORCHESTRATOR.md** (root) - The global orchestrator prompt (what gets installed to ~/.claude/)
+- **@ORCHESTRATOR.md** - The global orchestrator prompt (gets installed to ~/.claude/CLAUDE.md)
 - **@CONFIGURATION_GUIDE.md** - How Claude Code configuration works as arkadian basically overrides default behaviour
 
 ## Key Directories

@@ -44,13 +44,17 @@
       "ARK_INFRA_REPO_PLACEHOLDER",
       "KMS_UNLOCKER_REPO_PLACEHOLDER",
       "FULMINE_REPO_PLACEHOLDER",
+      "FULMINE_SIMULATOR_REPO_PLACEHOLDER",
       "BOLTZ_BACKEND_REPO_PLACEHOLDER",
       "ARK_DOCS_REPO_PLACEHOLDER",
-      "ARKADE_ESCROW_REPO_PLACEHOLDER"
+      "ARKADE_ESCROW_REPO_PLACEHOLDER",
+      "ARKADE_EXPLORER_REPO_PLACEHOLDER"
     ]
   },
   "hooks": {
-    "PreToolUse": [],
+    "PreToolUse": [
+
+    ],
     "PostToolUse": [],
     "Notification": [],
     "UserPromptSubmit": [

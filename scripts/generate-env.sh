@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate .env file from user input
-# Prompts for paths to all 12 Ark repositories
+# Prompts for paths to all 14 Ark repositories
 
 set -e
 
@@ -66,7 +66,7 @@ prompt_path() {
   done
 }
 
-echo "# Project repositories (12 total)" >> "$ENV_FILE"
+echo "# Project repositories (14 total)" >> "$ENV_FILE"
 
 # Core repositories (required)
 echo "Core Repositories:"
@@ -84,9 +84,11 @@ prompt_path "ARK_TELEMETRY_REPO" "ark-telemetry (Monitoring)" false
 prompt_path "ARK_INFRA_REPO" "ark-infra (Infrastructure)" false
 prompt_path "KMS_UNLOCKER_REPO" "kms-unlocker (Key management)" false
 prompt_path "FULMINE_REPO" "fulmine (Lightning integration)" false
+prompt_path "FULMINE_SIMULATOR_REPO" "fulmine-simulator (Swap simulation)" false
 prompt_path "BOLTZ_BACKEND_REPO" "boltz-backend (Submarine swaps)" false
 prompt_path "ARK_DOCS_REPO" "ark-docs (Protocol documentation)" false
 prompt_path "ARKADE_ESCROW_REPO" "arkade-escrow (Escrow prototype)" false
+prompt_path "ARKADE_EXPLORER_REPO" "arkade-explorer (Block explorer)" false
 
 echo "" >> "$ENV_FILE"
 echo "# GitHub repository URLs (for progress tracking)" >> "$ENV_FILE"
@@ -130,9 +132,11 @@ prompt_github "ARK_TELEMETRY_GITHUB" "ark-telemetry" "ArkLabsHQ/ark-telemetry"
 prompt_github "ARK_INFRA_GITHUB" "ark-infra" "ArkLabsHQ/ark-infra"
 prompt_github "KMS_UNLOCKER_GITHUB" "kms-unlocker" "ArkLabsHQ/kms-unlocker"
 prompt_github "FULMINE_GITHUB" "fulmine" "ArkLabsHQ/fulmine"
+prompt_github "FULMINE_SIMULATOR_GITHUB" "fulmine-simulator" "ArkLabsHQ/fulmine-simulator"
 prompt_github "BOLTZ_BACKEND_GITHUB" "boltz-backend" "BoltzExchange/boltz-backend"
 prompt_github "ARK_DOCS_GITHUB" "ark-docs" "arkade-os/docs"
-prompt_github "ARKADE_ESCROW_GITHUB" "arkade-escrow" ""
+prompt_github "ARKADE_ESCROW_GITHUB" "arkade-escrow" "ArkLabsHQ/arkade-escrow"
+prompt_github "ARKADE_EXPLORER_GITHUB" "arkade-explorer" "ArkLabsHQ/arkade-explorer"
 
 echo ""
 echo "=========================================="
