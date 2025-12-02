@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Arkadian - Launch Claude Code with orchestrator system prompt
+# This ensures ORCHESTRATOR.md instructions are in the SYSTEM prompt (highest priority)
+# rather than as a user message (which Claude can ignore)
+
+ARKADIAN_DIR="${ARKADIAN_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+ORCHESTRATOR_FILE="${ARKADIAN_DIR}/ORCHESTRATOR.md"
+
+# Check if orchestrator file exists
+if [ ! -f "$ORCHESTRATOR_FILE" ]; then
+    echo "Error: ORCHESTRATOR.md not found at $ORCHESTRATOR_FILE"
+    exit 1
+fi
+
+# Read orchestrator content
+ORCHESTRATOR_CONTENT=$(cat "$ORCHESTRATOR_FILE")
+
+# Launch claude with orchestrator as system prompt
+exec claude --append-system-prompt "$ORCHESTRATOR_CONTENT" "$@"

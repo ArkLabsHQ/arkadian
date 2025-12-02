@@ -123,7 +123,7 @@ source ~/.zshrc  # or ~/.bashrc
 - ✅ Environment variables → `~/.claude/settings.json`
 - ✅ Global activation (works from any directory)
 
-See [SETUP.md](./SETUP.md) for detailed installation instructions and troubleshooting.
+See [SETUP.md](internal/SETUP.md) for detailed installation instructions and troubleshooting.
 
 ---
 
@@ -271,7 +271,7 @@ Arkadian knows about 12 Ark projects:
 
 ## Documentation
 
-- **[SETUP.md](./SETUP.md)** - Complete installation and configuration guide
+- **[SETUP.md](internal/SETUP.md)** - Complete installation and configuration guide
 - **[PRD.md](./PRD.md)** - Implementation reference (85% complete, 5/7 agents)
 - **[CLAUDE.md](./CLAUDE.md)** - Orchestrator prompt (loaded at SessionStart)
 - **[Makefile](./Makefile)** - Automation commands
@@ -340,7 +340,7 @@ All projects must be registered in `docs/INDEX.md` with:
 
 ## Support
 
-**Installation issues:** See [SETUP.md](./SETUP.md) Troubleshooting section
+**Installation issues:** See [SETUP.md](internal/SETUP.md) Troubleshooting section
 
 **Check status:**
 ```bash

@@ -1,42 +1,155 @@
 #!/usr/bin/env bun
 
-/**
- * Arkadian Session Start Hook
- *
- * Triggered once when Claude Code session starts.
- * Loads the orchestrator CLAUDE.md to establish Arkadian's role and capabilities.
- *
- * Hook Protocol:
- * - Input: JSON via stdin with { session_id, hook_event_name }
- * - Output: Markdown to stdout for Claude to process
- */
-
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { appendFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join, resolve } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
+const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
+const LOG_FILE = join(ARKADIAN_DIR, 'log/test.txt');
+
+interface HookInput {
+    session_id: string;
+    transcript_path: string;
+    cwd: string;
+    hook_event_name: string;
+    source?: string;
+}
+
+// Helper function for logging
+function log(label: string, data: any) {
+    const timestamp = new Date().toISOString();
+    let output = `\n[${timestamp}] ${label}:\n`;
+
+    if (typeof data === 'object') {
+        output += JSON.stringify(data, null, 2);
+    } else {
+        output += data;
+    }
+    output += '\n';
+
+    appendFileSync(LOG_FILE, output);
+}
+
+function getReadableTimestamp(): string {
+    return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function createSessionFolder(hookInput: HookInput): string {
+    const sessionId = hookInput.session_id;
+    const sessionDir = join(SESSIONS_DIR, sessionId);
+
+    // Create session directory structure
+    if (!existsSync(sessionDir)) {
+        mkdirSync(sessionDir, { recursive: true });
+        mkdirSync(join(sessionDir, 'artifacts'), { recursive: true });
+        mkdirSync(join(sessionDir, 'specs'), { recursive: true });
+
+        // Create session.md with minimal info (summary added on session end)
+        const sessionMd = `# Session
+
+**Started:** ${getReadableTimestamp()}
+**Directory:** ${hookInput.cwd}
+
+---
+
+_Summary will be generated when session ends._
+`;
+        writeFileSync(join(sessionDir, 'session.md'), sessionMd);
+    }
+
+    return sessionDir;
+}
 
 async function main() {
     try {
-        // Read hook input from stdin (required by protocol, even if unused)
-        await Bun.stdin.text();
+        writeFileSync(LOG_FILE, `=== New Session ${new Date().toISOString()} ===\n`);
 
-        // Load the orchestrator context
-        const orchestratorPath = join(ARKADIAN_DIR, 'CLAUDE.md');
-        const orchestratorContent = readFileSync(orchestratorPath, 'utf-8');
+        const input = await Bun.stdin.text();
+        log('Raw input', input);
 
-        // Remove the {{USER_REQUEST}} placeholder for session start
-        // (it will be filled in by UserPromptSubmit hook)
-        const sessionContext = orchestratorContent.replace(
-            '{{USER_REQUEST}}',
-            'Session started - awaiting user request'
-        );
+        const hookInput: HookInput = JSON.parse(input);
+        log('Parsed hookInput', hookInput);
 
-        // Output the orchestrator markdown
-        console.log(sessionContext);
+        const cwd = hookInput.cwd || process.cwd();
+        const normalizedCwd = resolve(cwd);
+        const normalizedArkadianDir = resolve(ARKADIAN_DIR);
 
+        log('Paths', { normalizedCwd, normalizedArkadianDir });
+
+        // Create session folder (for both dev and normal mode)
+        const sessionDir = createSessionFolder(hookInput);
+
+        const quickCommands = `
+I am Arkadian, your Ark Digital Assistant. I provide intelligent, context-aware assistance across the entire Ark protocol ecosystem (12+ repositories).
+
+Here's what I can help you with:
+
+Understanding & Research
+• "How does VTXO expiry work?" → Deep protocol & code explanations
+• "Research Bitcoin covenant proposals" → Multi-source research with confidence levels
+• "Compare Ark to Lightning" → Protocol comparisons and analysis
+
+Development & Implementation
+• "Add GetRoundStatus endpoint to arkd" → Full feature implementation with tests
+• "Fix race condition in round finalization" → Bug fixes following project patterns
+• "Document the new API endpoint" → Documentation updates
+
+Testing & Validation
+• "Run integration tests for arkd" → Automated test execution
+• "Start local arkd stack" → Environment setup with health checks
+• "Execute load test with 50 clients" → Performance testing via ark-simulator
+
+Code Review & Quality
+• "Review arkd PR #234" → Architecture compliance, security, cross-project impact
+• "Check hexagonal architecture compliance" → Quality and pattern verification
+
+Project Management & Reporting
+• "Plan fraud detection feature" → Specs, plans, and task breakdown
+• "Weekly progress report" → Stakeholder-friendly summaries across all repos
+• "Track Nostr integration status" → Feature progress across projects
+
+Observability & Troubleshooting
+• "Investigate high CPU on arkd" → Prometheus, Loki, Jaeger analysis
+• "Check production logs for errors" → Log queries and root cause identification
+• "AlertManager firing ErrorRateHigh" → Incident investigation with traces
+
+Just describe what you need - I'll route to the right specialist automatically. 🚀`;
+
+        // Session context to inject into orchestrator
+        const sessionContext = `
+# Session Context (Auto-Injected)
+
+**Session ID:** ${hookInput.session_id}
+**Session Directory:** ${sessionDir}
+**Artifacts Directory:** ${join(sessionDir, 'artifacts')}
+**Specs Directory:** ${join(sessionDir, 'specs')}
+
+All agent outputs MUST be written to the session directory above.
+`;
+
+        if (normalizedCwd === normalizedArkadianDir || normalizedCwd.startsWith(normalizedArkadianDir + '/')) {
+            log('Mode', 'Development mode - orchestrator skipped');
+            const output = {
+                systemMessage: `ARKADIAN DEV MODE`,
+            };
+            console.log(JSON.stringify(output));
+            process.exit(0);
+        }
+
+        // ORCHESTRATOR.md is now symlinked to ~/.claude/CLAUDE.md
+        // This gives it higher authority than hook-injected context
+        // We only need to inject the session-specific context here
+        const output = {
+            systemMessage: `${quickCommands}`,
+            hookSpecificOutput: {
+                hookEventName: "SessionStart",
+                additionalContext: sessionContext
+            }
+        };
+        console.log(JSON.stringify(output));
         process.exit(0);
     } catch (error) {
+        log('Error', error instanceof Error ? error.message : error);
         console.error('Error loading Arkadian orchestrator:', error);
         process.exit(1);
     }

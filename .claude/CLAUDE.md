@@ -10,7 +10,7 @@ Before making changes, familiarize yourself with:
 - **@SETUP.md** - Installation guide, how the hook system works, environment variables
 - **@Makefile** - Build targets, installation process
 - **@ORCHESTRATOR.md** - The global orchestrator prompt (gets installed to ~/.claude/CLAUDE.md)
-- **@CONFIGURATION_GUIDE.md** - How Claude Code configuration works as arkadian basically overrides default behaviour
+- **@/internal/CONFIGURATION_GUIDE.md** - How Claude Code configuration works as arkadian basically overrides default behaviour
 
 ## Key Directories
 

@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-claude-md update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-claude-md install-orchestrator install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-claude-md install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-orchestrator install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -37,7 +37,12 @@ install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env
 	@echo "$(YELLOW)IMPORTANT: Restart your terminal or run:$(NC)"
 	@echo "  source $(SHELL_CONFIG)"
 	@echo ""
-	@echo "$(YELLOW)Then restart Claude Code to activate Arkadian.$(NC)"
+	@echo "$(GREEN)Usage:$(NC)"
+	@echo "  $(GREEN)arkadian$(NC)  - Launch with orchestrator mode (recommended)"
+	@echo "             Uses --append-system-prompt for strict instruction following"
+	@echo ""
+	@echo "  $(YELLOW)claude$(NC)    - Standard mode with CLAUDE.md (less strict)"
+	@echo "             Instructions may be ignored as 'not relevant'"
 	@echo ""
 	@echo "Test with: make test-hook"
 
@@ -97,14 +102,27 @@ make-executable: ## Make hooks executable
 	@chmod +x hooks/*.ts hooks/*.js 2>/dev/null || true
 	@echo "$(GREEN)✓ Hooks are now executable$(NC)"
 
-install-claude-md: ## Install ORCHESTRATOR.md to ~/.claude/CLAUDE.md
-	@echo "$(YELLOW)Installing ORCHESTRATOR.md as ~/.claude/CLAUDE.md (orchestrator instructions)...$(NC)"
-	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
-		echo "$(YELLOW)⚠️  Backing up existing CLAUDE.md to CLAUDE.md.backup$(NC)"; \
-		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.backup; \
+install-claude-md: ## [DEPRECATED] Use install-orchestrator instead
+	@echo "$(YELLOW)⚠️  This target is deprecated. Use 'make install-orchestrator' instead.$(NC)"
+	@$(MAKE) install-orchestrator
+
+install-orchestrator: ## Install ORCHESTRATOR.md to ~/.claude/CLAUDE.md with resolved paths
+	@./scripts/install-orchestrator.sh
+
+install-arkadian-cmd: ## Install 'arkadian' command to ~/bin (uses --append-system-prompt)
+	@echo "$(YELLOW)Installing arkadian command...$(NC)"
+	@mkdir -p $$HOME/bin
+	@cp scripts/arkadian $$HOME/bin/arkadian
+	@chmod +x $$HOME/bin/arkadian
+	@# Add ~/bin to PATH if not already there
+	@if ! echo "$$PATH" | grep -q "$$HOME/bin"; then \
+		if ! grep -q 'export PATH="$$HOME/bin:$$PATH"' $(SHELL_CONFIG) 2>/dev/null; then \
+			echo 'export PATH="$$HOME/bin:$$PATH"' >> $(SHELL_CONFIG); \
+			echo "$(YELLOW)  Added ~/bin to PATH in $(SHELL_CONFIG)$(NC)"; \
+		fi; \
 	fi
-	@cp ORCHESTRATOR.md $$HOME/.claude/CLAUDE.md
-	@echo "$(GREEN)✓ Installed ~/.claude/CLAUDE.md (from ORCHESTRATOR.md)$(NC)"
+	@echo "$(GREEN)✓ Installed 'arkadian' command to ~/bin/arkadian$(NC)"
+	@echo "$(YELLOW)  Usage: arkadian (instead of claude) for orchestrator mode$(NC)"
 
 install-agents: ## Install agents to ~/.claude/agents
 	@echo "$(YELLOW)Installing agents...$(NC)"
@@ -145,11 +163,18 @@ verify: ## Verify installation
 	else \
 		echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
 	fi
-	@# Check CLAUDE.md
-	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
-		echo "$(GREEN)✓ CLAUDE.md installed (orchestrator instructions)$(NC)"; \
+	@# Check arkadian command (uses --append-system-prompt for strict instruction following)
+	@if [ -x "$$HOME/bin/arkadian" ]; then \
+		echo "$(GREEN)✓ 'arkadian' command installed (uses --append-system-prompt)$(NC)"; \
 	else \
-		echo "$(RED)❌ CLAUDE.md missing$(NC)"; exit 1; \
+		echo "$(RED)❌ 'arkadian' command not installed (run: make install-arkadian-cmd)$(NC)"; exit 1; \
+	fi
+	@# Warn if CLAUDE.md symlink exists (deprecated)
+	@if [ -L "$$HOME/.claude/CLAUDE.md" ]; then \
+		LINK_TARGET=$$(readlink $$HOME/.claude/CLAUDE.md); \
+		if echo "$$LINK_TARGET" | grep -q "arkadian"; then \
+			echo "$(YELLOW)⚠️  Old CLAUDE.md symlink exists - run: rm ~/.claude/CLAUDE.md$(NC)"; \
+		fi; \
 	fi
 	@# Check hooks
 	@if [ -x "hooks/load-arkadian-context.ts" ]; then \
@@ -195,12 +220,15 @@ uninstall: ## Remove Arkadian installation
 		rm $$HOME/.claude/settings.json; \
 		echo "$(GREEN)✓ Removed settings.json (backup saved)$(NC)"; \
 	fi
-	@# Backup and remove CLAUDE.md
+	@# Remove CLAUDE.md (orchestrator)
 	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
-		echo "$(YELLOW)Backing up CLAUDE.md...$(NC)"; \
-		cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.pre-uninstall; \
-		rm $$HOME/.claude/CLAUDE.md; \
-		echo "$(GREEN)✓ Removed CLAUDE.md (backup saved)$(NC)"; \
+		if grep -q "Arkadian Orchestrator" $$HOME/.claude/CLAUDE.md; then \
+			cp $$HOME/.claude/CLAUDE.md $$HOME/.claude/CLAUDE.md.pre-uninstall; \
+			rm $$HOME/.claude/CLAUDE.md; \
+			echo "$(GREEN)✓ Removed CLAUDE.md (backup saved)$(NC)"; \
+		else \
+			echo "$(YELLOW)⚠️  CLAUDE.md exists but is not Arkadian - skipping$(NC)"; \
+		fi; \
 	fi
 	@# Remove agents
 	@if [ -d "$$HOME/.claude/agents" ]; then \

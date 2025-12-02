@@ -48,12 +48,21 @@
       "BOLTZ_BACKEND_REPO_PLACEHOLDER",
       "ARK_DOCS_REPO_PLACEHOLDER",
       "ARKADE_ESCROW_REPO_PLACEHOLDER",
-      "ARKADE_EXPLORER_REPO_PLACEHOLDER"
+      "ARKADE_EXPLORER_REPO_PLACEHOLDER",
+      "/Users/dusansekulic/code/go"
     ]
   },
   "hooks": {
     "PreToolUse": [
-
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/validate-agent-input.ts"
+          }
+        ]
+      }
     ],
     "PostToolUse": [],
     "Notification": [],
@@ -79,6 +88,15 @@
     ],
     "Stop": [],
     "SubagentStop": [],
-    "SessionEnd": []
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/session-stop-hook.ts"
+          }
+        ]
+      }
+    ]
   }
 }
