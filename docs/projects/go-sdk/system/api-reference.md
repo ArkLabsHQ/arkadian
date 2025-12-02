@@ -372,6 +372,29 @@ func (client ArkClient) ListVtxos(ctx context.Context) (
 - `spendable`: Currently spendable offchain coins
 - `spent`: Previously spent VTXOs
 
+### ListSpendableVtxos
+
+List only spendable VTXOs (more efficient than ListVtxos when spent VTXOs are not needed).
+
+```go
+func (client ArkClient) ListSpendableVtxos(ctx context.Context) ([]types.Vtxo, error)
+```
+
+**Returns:**
+- Currently spendable offchain coins only
+
+**Example:**
+
+```go
+vtxos, err := client.ListSpendableVtxos(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+for _, vtxo := range vtxos {
+    fmt.Printf("VTXO: %s amount=%d\n", vtxo.Outpoint, vtxo.Amount)
+}
+```
+
 ### GetTransactionHistory
 
 Get complete transaction history.

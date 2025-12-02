@@ -1,5 +1,10 @@
 ---
 project_id: ark-infra
+version: 1.1.0
+last_sync_commit: 9b1ba0bbbdb201c3b2bf2708c94860ed3ad3110c
+last_sync_date: 2025-12-02T16:00:00Z
+repository_path: ${ARK_INFRA_REPO}
+documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/getting-started.md"]
   qa:         ["testing/getting-started.md", "testing/validation.md"]
@@ -117,6 +122,10 @@ Analysis and summaries of pull requests.
 cd docker-compose/opentofu
 tofu init
 
+# Unified environment setup (new recommended approach)
+make use ENV=regtest PROFILE=your-aws-profile
+
+# Or manual workspace management:
 # Create workspace
 make tofu-workspace-new NAME=regtest
 
@@ -172,6 +181,12 @@ make restore-state ENV=prod FILE=backup.tfstate
 # Update services
 make compose-pull ENV=prod
 make compose-up-recreate ENV=prod
+
+# Taint resource for recreation
+make taint ENV=prod RESOURCE=aws_instance.main
+
+# Clean local state (for collaborative work)
+make clean-local-state ENV=prod
 ```
 
 ---
@@ -184,6 +199,9 @@ make compose-up-recreate ENV=prod
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
 - **nbxplorer** — Bitcoin blockchain indexer (automatic)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
+
+### Administration
+- **ark-admin-app** — Go-based web application for managing AWS Ark infrastructure via SSM commands and port forwarding. Provides web UI for service deployment, port forwarding management, infrastructure overview, and health monitoring.
 
 ### Ingress & Routing
 - **cloudflared** — Cloudflare Tunnel for secure ingress

@@ -1,9 +1,21 @@
 # Feature Specification: [FEATURE NAME]
 
-**Feature Branch**: `[###-feature-name]`  
-**Created**: [DATE]  
-**Status**: Draft  
+**Feature Branch**: `[###-feature-name]`
+**Target Project**: `[PROJECT_ID]`
+**Target Repo**: `[REPO_PATH]`
+**Created**: [DATE]
+**Status**: Draft
 **Input**: User description: "$ARGUMENTS"
+
+<!--
+  TARGET PROJECT values:
+  - arkd, go-sdk, wallet, ark-faucet, ark-simulator, ark-telemetry
+  - ark-infra, kms-unlocker, fulmine, boltz-backend, ark-docs, arkade-escrow
+  - cross-project (for multi-project features)
+
+  This field ties the spec to a specific Ark ecosystem project.
+  The TARGET_REPO is resolved from environment variables.
+-->
 
 ## User Scenarios & Testing *(mandatory)*
 

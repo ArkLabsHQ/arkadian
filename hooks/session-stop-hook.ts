@@ -9,13 +9,14 @@
  * Folder naming: YYYY-MM-DD-<meaningful-title>
  */
 
-import { existsSync, readFileSync, writeFileSync, renameSync, appendFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, renameSync, appendFileSync, unlinkSync } from 'fs';
 import { join, basename } from 'path';
 import { spawn, spawnSync } from 'child_process';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
 const LOG_FILE = join(ARKADIAN_DIR, 'log/test.txt');
+const ORCHESTRATOR_SESSION_FILE = join(ARKADIAN_DIR, 'log/orchestrator-session.txt');
 
 // Helper function for logging
 function log(label: string, data: any) {
@@ -49,6 +50,24 @@ function getDatePrefix(): string {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+/**
+ * Clean up orchestrator session tracking file if this session matches.
+ * This allows the next arkadian session to register as orchestrator.
+ */
+function cleanupOrchestratorSession(sessionId: string): void {
+    try {
+        if (existsSync(ORCHESTRATOR_SESSION_FILE)) {
+            const storedSessionId = readFileSync(ORCHESTRATOR_SESSION_FILE, 'utf-8').trim();
+            if (storedSessionId === sessionId) {
+                unlinkSync(ORCHESTRATOR_SESSION_FILE);
+                log('Cleaned up orchestrator session file', sessionId);
+            }
+        }
+    } catch (e: any) {
+        log('Error cleaning orchestrator session', e.message);
+    }
 }
 
 function slugify(text: string): string {
@@ -245,6 +264,9 @@ async function main() {
         const sessionDir = join(SESSIONS_DIR, sessionId);
 
         log('Session info', { sessionId, transcriptPath, sessionDir });
+
+        // Clean up orchestrator session tracking (allows next arkadian to be orchestrator)
+        cleanupOrchestratorSession(sessionId);
 
         // Check if session folder exists
         if (!existsSync(sessionDir)) {

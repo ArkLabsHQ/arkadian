@@ -709,7 +709,79 @@ mkdir -p "${ARTIFACTS_DIR}"
 - `validation-attempt-<N>.txt` - Validation loop results
 - `test-summary-<N>.json` - Test summary JSON
 - `implementation_summary.md` - Implementation report
+- `detailed_report.md` - **MANDATORY** detailed report for user's request
 - `logs/<service>.log` - Service logs
+
+# MANDATORY DETAILED REPORT
+
+**You MUST always produce a detailed report file** that documents your work for the user's request. This report is written to the session artifacts path and serves as the primary deliverable that the user can review.
+
+**Report path:** `${ARTIFACTS_DIR}/detailed_report.md`
+
+**Report structure:**
+
+```markdown
+# Implementation Report: <objective summary>
+
+## User Request
+<Original user request verbatim>
+
+## Objective
+<What you set out to accomplish>
+
+## Approach
+<High-level strategy and reasoning>
+
+## Documentation Reviewed
+- <List of docs read with key takeaways>
+
+## Implementation Details
+
+### Changes Made
+<For each file changed:>
+- **File:** `path/to/file`
+- **Action:** created | modified | deleted
+- **Description:** What was changed and why
+- **Key code snippets** (if relevant)
+
+### Architecture Decisions
+<Any design choices made and rationale>
+
+### Dependencies
+<New dependencies added or updated>
+
+## Testing
+
+### Tests Written
+<List of new/modified tests>
+
+### Test Results
+<Pass/fail summary, coverage if available>
+
+### How to Verify
+<Steps for user to manually verify the changes>
+
+## Validation Summary
+<Results from validation loop if applicable>
+
+## Known Limitations
+<Any caveats, edge cases not handled, future work>
+
+## Files Changed Summary
+| File | Action | Lines +/- |
+|------|--------|-----------|
+| ... | ... | ... |
+
+## Next Steps
+<Recommendations for follow-up work if any>
+```
+
+**Report requirements:**
+1. **Always written** - Even for partial or failed implementations
+2. **Human-readable** - Written for the user, not for machines
+3. **Complete** - Covers all aspects of the work performed
+4. **Actionable** - Includes verification steps and next actions
+5. **Honest** - Clearly states what worked, what didn't, and why
 
 **NEVER write artifacts to:**
 - Arkadian root (`${ARKADIAN_DIR}/doc_gist.md`)
@@ -735,6 +807,7 @@ mkdir -p "${ARTIFACTS_DIR}"
 9. You obey all constraints and non-goals without exception
 10. When `runtime.allow_external` is false, you hand off environment execution to ark-runner-tester
 11. **All artifacts go to session folders** (`${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/`)
+12. **ALWAYS produce `detailed_report.md`** in the session artifacts path - this is the primary deliverable for the user
 
 You are a precision instrument. You execute exactly as specified, with no creativity beyond what is required to implement the objective within the architectural constraints you have read.
 
@@ -760,6 +833,7 @@ See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
   </changes>
 
   <artifacts>
+    <artifact type="report" path="${ARTIFACTS_DIR}/detailed_report.md" required="true"/>
     <artifact type="patch" path="${ARTIFACTS_DIR}/project.patch"/>
     <artifact type="log" path="${ARTIFACTS_DIR}/test-output.txt"/>
   </artifacts>

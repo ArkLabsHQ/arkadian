@@ -1,5 +1,7 @@
 ---
 project_id: wallet
+version: 1.0.0
+last_sync_commit: a1c45ff0ac7230ca1f39cc365edd82fc9e44c7c7
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -150,6 +152,8 @@ pnpm run format:check
 | `VITE_ARK_SERVER` | Arkd server URL (overrides default) | `http://localhost:7070` |
 | `VITE_BOLTZ_URL` | Boltz swap provider URL | `https://boltz.example.com` |
 | `VITE_SENTRY_DSN` | Sentry error tracking DSN | `https://...@sentry.io/...` |
+| `VITE_LENDASAT_IFRAME_URL` | LendaSat integration iframe URL | `https://iframe.lendasat.com` |
+| `VITE_MAX_PERCENTAGE` | Maximum fee percentage (default: 10) | `10` |
 | `CI` | CI environment flag | `true` |
 | `GENERATE_SOURCEMAP` | Generate source maps | `false` |
 
@@ -252,10 +256,16 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### Ark Protocol Features
 - **VTXOs management**: View and manage virtual UTXOs
+- **VTXO Manager**: Advanced VTXO lifecycle management
 - **Off-chain payments**: Instant Ark-to-Ark transfers
 - **Boarding**: Onboard Bitcoin to Ark
 - **Settlement**: Settle/renew VTXOs in rounds
+- **Soft settle**: Optimized settlement with database caching
 - **Redemption**: Collaborative exit to on-chain
+
+### DeFi Integration
+- **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
+- **PSBT signing**: Sign and finalize PSBTs for DeFi interactions
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning

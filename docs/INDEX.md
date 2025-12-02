@@ -112,7 +112,7 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - **test_or_run**: `start wallet dev server`, `build pwa`, `test components`
 
 **Dependencies**: `@arkade-os/sdk` (JavaScript SDK, separate from go-sdk), `@arkade-os/boltz-swap`, `arkd` (server connection)
-**Depended On By**: None (end-user application)
+**Depended On By**: `fulmine-simulator` (integration testing)
 
 ---
 
@@ -343,7 +343,7 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 **GitHub**: `${FULMINE_SIMULATOR_GITHUB}`
 
 **Description**:
-Lightning Network swap simulator that simulates multiple concurrent clients performing submarine and reverse swaps through a Fulmine/Boltz stack. Supports three networks (regtest, mutinynet, mainnet) with YAML-based configuration, automated fund management, comprehensive audit logging, and mainnet safety features. Uses orchestrator-client pattern for scalable load testing and validation of swap scenarios.
+Testing and simulation tool for validating the Fulmine/Boltz swap stack and Arkade wallet integration. Simulates multiple concurrent clients performing submarine and reverse swaps to stress-test the infrastructure, verify swap flows, and ensure fund recovery. Supports three networks (regtest, mutinynet, mainnet) with YAML-based configuration, automated fund management, comprehensive audit logging, and mainnet safety features. Uses orchestrator-client pattern for scalable load testing.
 
 **Key Capabilities**:
 - Multi-network support (regtest with Nigiri faucet, mutinynet testnet, mainnet production)
@@ -367,7 +367,7 @@ Lightning Network swap simulator that simulates multiple concurrent clients perf
 - **monitor_or_alert**: `simulation metrics`, `swap throughput`, `fund recovery rate`
 - **debug**: `simulation failed`, `fund recovery issue`, `client timeout`, `swap stuck`
 
-**Dependencies**: `fulmine` (swap provider under test), `boltz-backend` (via fulmine), Nigiri (regtest funding), LND (Lightning integration)
+**Dependencies**: `fulmine` (swap provider under test), `boltz-backend` (via fulmine), `wallet` (Arkade wallet under test), Nigiri (regtest funding), LND (Lightning integration)
 **Depended On By**: CI/CD pipelines for fulmine testing, performance validation workflows
 
 ---
@@ -567,7 +567,7 @@ arkd (core)
 
 ### Technology Groupings
 
-**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
+**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, fulmine-simulator
 **TypeScript/JavaScript Projects**: wallet, arkade-escrow, arkade-explorer, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs

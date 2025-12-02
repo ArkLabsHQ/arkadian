@@ -439,30 +439,39 @@ For whitepaper/spec analysis:
 
 ## ARTIFACT OUTPUT RULES
 
-**All generated reports MUST be written to session-specific folders:**
+**All generated reports MUST be written to session folders:**
 
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/
 ```
 
-Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+Where `SESSION_FOLDER` is provided by the orchestrator in `session_context.session_dir` or defaults to `YYYYMMDD-HHMMSS-<title>` format.
 
 **Before writing any report:**
 ```bash
-SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
-mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+# Use session dir from orchestrator context, or create new session folder
+SESSION_DIR="${SESSION_DIR:-${ARKADIAN_DIR}/sessions/$(date +%Y%m%d-%H%M%S)-research}"
+ARTIFACTS_DIR="${SESSION_DIR}/artifacts"
+mkdir -p "${ARTIFACTS_DIR}"
 ```
 
+**MANDATORY: You MUST always produce a research report file** that documents your findings for the user's request. This report is written to the session artifacts path and serves as the primary deliverable.
+
+**Report path:** `${ARTIFACTS_DIR}/research_report.md`
+
 **Artifact naming:**
-- `research_<topic>.md`
-- `comparison_<protocol_a>_vs_<protocol_b>.md`
-- `bip_analysis_<bip_number>.md`
-- `protocol_analysis_<protocol>.md`
-- `bitcoin_core_<version>_analysis.md`
+- `research_report.md` - **MANDATORY** main research report
+- `research_<topic>.md` - Topic-specific research
+- `comparison_<protocol_a>_vs_<protocol_b>.md` - Protocol comparison
+- `bip_analysis_<bip_number>.md` - BIP analysis
+- `protocol_analysis_<protocol>.md` - Protocol deep-dive
+- `bitcoin_core_<version>_analysis.md` - Bitcoin Core analysis
 
 **NEVER write reports to:**
 - Arkadian root (`${ARKADIAN_DIR}/research_taproot.md`)
+- Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/analysis.md`)
+- Relative paths without session (`./artifacts/`)
 - Random locations
 
 **Exceptions (allowed elsewhere):**
@@ -605,6 +614,7 @@ expected_outputs:
 5. **Ark Context**: Always relate findings back to Ark protocol needs
 6. **Trade-offs Not Silver Bullets**: Present honest pros/cons
 7. **Actionable Insights**: Research should enable decisions
+8. **ALWAYS produce `research_report.md`** in the session artifacts path - this is the primary deliverable for the user
 
 ---
 

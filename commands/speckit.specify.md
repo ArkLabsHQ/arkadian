@@ -16,6 +16,14 @@ The text the user typed after `/speckit.specify` in the triggering message **is*
 
 Given that feature description, do this:
 
+0. **Determine Target Project**:
+   - If the user explicitly mentions a project (e.g., "for arkd", "in wallet"), use that project ID
+   - If the feature description implies a specific project (e.g., "VTXO management" → arkd, "UI component" → wallet), infer the project
+   - If the feature spans multiple projects, use `cross-project`
+   - If unclear, ask the user which project this spec is for before proceeding
+
+   **Valid project IDs**: `arkd`, `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `ark-telemetry`, `ark-infra`, `kms-unlocker`, `fulmine`, `boltz-backend`, `ark-docs`, `arkade-escrow`, `cross-project`
+
 1. **Generate a concise short name** (2-4 words) for the branch:
    - Analyze the feature description and extract the most meaningful keywords
    - Create a 2-4 word short name that captures the essence of the feature
@@ -45,10 +53,11 @@ Given that feature description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   d. Run the script with the calculated number, short-name, and **session directory**:
-      - **IMPORTANT**: If a session directory is available (from orchestrator context or SESSION_DIR env), pass it with `--session-dir`
-      - Bash example: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" --session-dir "${SESSION_DIR}" "Add user authentication"`
-      - Without session: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" "Add user authentication"`
+   d. Run the script with the calculated number, short-name, **session directory**, and **target project**:
+      - **IMPORTANT**: Always pass `--project <project_id>` to scope specs to the target project
+      - If a session directory is available (from orchestrator context or SESSION_DIR env), pass it with `--session-dir`
+      - Bash example: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" --project arkd --session-dir "${SESSION_DIR}" "Add user authentication"`
+      - Without session: `${ARKADIAN_DIR}/.specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" --project wallet "Add user authentication"`
 
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, specs directories) to find the highest number
@@ -56,8 +65,8 @@ Given that feature description, do this:
    - If no existing branches/directories found with this short-name, start with number 1
    - You must only ever run this script once per feature
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
-   - The JSON output will contain BRANCH_NAME, SPEC_FILE, SESSION_DIR, and SPECS_DIR paths
-   - Specs are created in `${SESSION_DIR}/specs/<feature-id>/` (session-scoped)
+   - The JSON output will contain BRANCH_NAME, SPEC_FILE, SESSION_DIR, SPECS_DIR, TARGET_PROJECT, and TARGET_REPO
+   - Specs are created in `${SESSION_DIR}/specs/<project_id>/<feature-id>/` (session-scoped, project-organized)
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
 
 3. Load `${ARKADIAN_DIR}/.specify/templates/spec-template.md` to understand required sections.
@@ -189,10 +198,12 @@ Given that feature description, do this:
 ## Specification Complete
 
 **Branch:** <branch_name>
+**Target Project:** <project_id>
+**Target Repo:** <repo_path>
 **Session:** <session_dir>
 **Spec File:** <spec_file_path>
 
-Specs are stored in: `sessions/<session_folder>/specs/<feature-id>/`
+Specs are stored in: `sessions/<session_folder>/specs/<project_id>/<feature-id>/`
 ```
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.

@@ -128,29 +128,38 @@ git diff --name-only | grep "migration"
 
 ## ARTIFACT OUTPUT RULES
 
-**All generated reports MUST be written to session-specific folders:**
+**All generated reports MUST be written to session folders:**
 
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/
 ```
 
-Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+Where `SESSION_FOLDER` is provided by the orchestrator in `session_context.session_dir` or defaults to `YYYYMMDD-HHMMSS-<title>` format.
 
 **Before writing any report:**
 ```bash
-SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
-mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+# Use session dir from orchestrator context, or create new session folder
+SESSION_DIR="${SESSION_DIR:-${ARKADIAN_DIR}/sessions/$(date +%Y%m%d-%H%M%S)-review}"
+ARTIFACTS_DIR="${SESSION_DIR}/artifacts"
+mkdir -p "${ARTIFACTS_DIR}"
 ```
 
+**MANDATORY: You MUST always produce a review report file** that documents your code review findings. This report is written to the session artifacts path and serves as the primary deliverable.
+
+**Report path:** `${ARTIFACTS_DIR}/review_report.md`
+
 **Artifact naming:**
-- `pr_review_<repo>_<number>.md`
-- `weekly_commits_<week>.md`
-- `breaking_changes_analysis.md`
-- `commit_summary_<date>.md`
+- `review_report.md` - **MANDATORY** main review report
+- `pr_review_<repo>_<number>.md` - PR-specific review detail
+- `weekly_commits_<week>.md` - Weekly commit summary
+- `breaking_changes_analysis.md` - Breaking changes detail
+- `commit_summary_<date>.md` - Commit summary
 
 **NEVER write reports to:**
 - Arkadian root (`${ARKADIAN_DIR}/pr_review.md`)
+- Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/review.md`)
+- Relative paths without session (`./artifacts/`)
 - Random locations
 
 **Exceptions (allowed elsewhere):**
@@ -687,6 +696,11 @@ See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
 <agent_result>
   <status>success | failure | partial</status>
   <summary>1-2 sentence summary of review findings</summary>
+
+  <artifacts>
+    <artifact type="report" path="${ARTIFACTS_DIR}/review_report.md" required="true"/>
+    <artifact type="detail" path="${ARTIFACTS_DIR}/pr_review_<repo>_<number>.md"/>
+  </artifacts>
 
   <review>
     ## PR #123: Title

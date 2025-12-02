@@ -327,14 +327,25 @@ mkdir -p "${ARTIFACTS_DIR}/test_results"
 mkdir -p "${ARTIFACTS_DIR}/screenshots"
 ```
 
+**MANDATORY: You MUST always produce a test report file** that summarizes the test execution results. This report is written to the session artifacts path and serves as the primary deliverable.
+
+**Report path:** `${ARTIFACTS_DIR}/test_report.md`
+
+**CRITICAL: ALL logs MUST go to artifacts folder only:**
+- Service logs → `${ARTIFACTS_DIR}/logs/<service>.log`
+- Test output → `${ARTIFACTS_DIR}/test_results/`
+- Coverage → `${ARTIFACTS_DIR}/coverage/`
+- Screenshots → `${ARTIFACTS_DIR}/screenshots/`
+
 **Artifact structure:**
 ```
 ${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/<step_id>/
+├── test_report.md          # MANDATORY - main test report
 ├── env_report.json
 ├── docker_ps.txt
 ├── compose_config.yaml
 ├── health_matrix.md
-├── logs/
+├── logs/                   # ALL service logs go here
 │   ├── arkd.log
 │   ├── nbxplorer.log
 │   └── ...
@@ -346,11 +357,12 @@ ${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/<step_id>/
     └── *.png
 ```
 
-**NEVER write artifacts to:**
+**NEVER write artifacts or logs to:**
 - Arkadian root (`${ARKADIAN_DIR}/env_report.json`)
 - Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/test_results/`)
 - Relative paths without session (`artifacts/<step_id>/`)
+- Console output only (logs must be persisted to files)
 
 **Exceptions (allowed elsewhere):**
 - Documentation updates → `${ARKADIAN_DIR}/docs/`
@@ -369,6 +381,13 @@ See: `@orchestrator/OUTPUT_CONTRACT.md` for the full specification.
 <agent_result>
   <status>success | failure | partial</status>
   <summary>1-2 sentence summary of test/environment results</summary>
+
+  <artifacts>
+    <artifact type="report" path="${ARTIFACTS_DIR}/test_report.md" required="true"/>
+    <artifact type="log" path="${ARTIFACTS_DIR}/docker-ps.txt"/>
+    <artifact type="log" path="${ARTIFACTS_DIR}/logs/*.log"/>
+    <artifact type="coverage" path="${ARTIFACTS_DIR}/coverage/*.out"/>
+  </artifacts>
 
   <env_ready>true | false</env_ready>
 

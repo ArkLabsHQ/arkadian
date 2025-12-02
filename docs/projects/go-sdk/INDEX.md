@@ -1,5 +1,12 @@
 ---
 project_id: go-sdk
+version: 1.0.0
+last_sync_commit: 3fea8eb154d15147500a260860b755bd534545e5
+last_sync_date: 2025-12-02T12:00:00Z
+repository_path: ${GO_SDK_REPO}
+documentation_path: ${ARKADIAN_DOCS}/projects/go-sdk
+commits_behind_upstream: 0
+uncommitted_changes: false
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_develop.md"]

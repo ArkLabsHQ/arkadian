@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-claude-md install-orchestrator install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
 
 # Detect shell config file
 SHELL_CONFIG := $(shell \
@@ -28,7 +28,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-orchestrator install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -101,13 +101,6 @@ make-executable: ## Make hooks executable
 	@echo "$(YELLOW)Making hooks executable...$(NC)"
 	@chmod +x hooks/*.ts hooks/*.js 2>/dev/null || true
 	@echo "$(GREEN)✓ Hooks are now executable$(NC)"
-
-install-claude-md: ## [DEPRECATED] Use install-orchestrator instead
-	@echo "$(YELLOW)⚠️  This target is deprecated. Use 'make install-orchestrator' instead.$(NC)"
-	@$(MAKE) install-orchestrator
-
-install-orchestrator: ## Install ORCHESTRATOR.md to ~/.claude/CLAUDE.md with resolved paths
-	@./scripts/install-orchestrator.sh
 
 install-arkadian-cmd: ## Install 'arkadian' command to ~/bin (uses --append-system-prompt)
 	@echo "$(YELLOW)Installing arkadian command...$(NC)"

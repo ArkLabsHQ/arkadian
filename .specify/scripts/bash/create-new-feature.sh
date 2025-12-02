@@ -6,6 +6,7 @@ JSON_MODE=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
 SESSION_DIR=""
+TARGET_PROJECT=""
 ARGS=()
 i=1
 while [ $i -le $# ]; do
@@ -54,19 +55,34 @@ while [ $i -le $# ]; do
             fi
             SESSION_DIR="$next_arg"
             ;;
+        --project)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --project requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --project requires a value' >&2
+                exit 1
+            fi
+            TARGET_PROJECT="$next_arg"
+            ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--short-name <name>] [--number N] [--session-dir <path>] <feature_description>"
+            echo "Usage: $0 [--json] [--short-name <name>] [--number N] [--session-dir <path>] [--project <id>] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json                Output in JSON format"
             echo "  --short-name <name>   Provide a custom short name (2-4 words) for the branch"
             echo "  --number N            Specify branch number manually (overrides auto-detection)"
-            echo "  --session-dir <path>  Session directory for specs (default: \$REPO_ROOT/sessions/<timestamp>)"
+            echo "  --session-dir <path>  Session directory for specs (default: \$ARKADIAN_DIR/sessions/<timestamp>)"
+            echo "  --project <id>        Target project ID (arkd, wallet, go-sdk, etc.) or 'cross-project'"
             echo "  --help, -h            Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 'Add user authentication system' --short-name 'user-auth'"
-            echo "  $0 'Implement OAuth2 integration for API' --number 5"
+            echo "  $0 'Add user authentication system' --short-name 'user-auth' --project arkd"
+            echo "  $0 'Implement OAuth2 integration for API' --number 5 --project wallet"
+            echo "  $0 'Add cross-service VTXO sync' --project cross-project"
             echo "  $0 'Add feature' --session-dir /path/to/sessions/20251128-143052-feature"
             exit 0
             ;;
@@ -148,17 +164,49 @@ cd "$REPO_ROOT"
 
 # Determine specs directory - use session dir if provided, else create default session
 if [ -n "$SESSION_DIR" ]; then
-    SPECS_DIR="$SESSION_DIR/specs"
+    # Session dir provided - use it
+    if [ -n "$TARGET_PROJECT" ]; then
+        SPECS_DIR="$SESSION_DIR/specs/$TARGET_PROJECT"
+    else
+        SPECS_DIR="$SESSION_DIR/specs"
+    fi
 elif [ -n "$ARKADIAN_DIR" ]; then
     # Create a new session folder if not provided
     SESSION_TIMESTAMP=$(date +%Y%m%d-%H%M%S)
     SESSION_DIR="$ARKADIAN_DIR/sessions/${SESSION_TIMESTAMP}-spec"
-    SPECS_DIR="$SESSION_DIR/specs"
+    if [ -n "$TARGET_PROJECT" ]; then
+        SPECS_DIR="$SESSION_DIR/specs/$TARGET_PROJECT"
+    else
+        SPECS_DIR="$SESSION_DIR/specs"
+    fi
 else
     # Fallback to legacy behavior for non-Arkadian contexts
     SPECS_DIR="$REPO_ROOT/specs"
 fi
 mkdir -p "$SPECS_DIR"
+
+# Resolve target project repo path if specified
+TARGET_REPO=""
+if [ -n "$TARGET_PROJECT" ]; then
+    case "$TARGET_PROJECT" in
+        arkd)           TARGET_REPO="${ARKD_REPO:-}" ;;
+        go-sdk)         TARGET_REPO="${GO_SDK_REPO:-}" ;;
+        wallet)         TARGET_REPO="${WALLET_REPO:-}" ;;
+        ark-faucet)     TARGET_REPO="${ARK_FAUCET_REPO:-}" ;;
+        ark-simulator)  TARGET_REPO="${ARK_SIMULATOR_REPO:-}" ;;
+        ark-telemetry)  TARGET_REPO="${ARK_TELEMETRY_REPO:-}" ;;
+        ark-infra)      TARGET_REPO="${ARK_INFRA_REPO:-}" ;;
+        kms-unlocker)   TARGET_REPO="${KMS_UNLOCKER_REPO:-}" ;;
+        fulmine)        TARGET_REPO="${FULMINE_REPO:-}" ;;
+        boltz-backend)  TARGET_REPO="${BOLTZ_BACKEND_REPO:-}" ;;
+        ark-docs)       TARGET_REPO="${ARK_DOCS_REPO:-}" ;;
+        arkade-escrow)  TARGET_REPO="${ARKADE_ESCROW_REPO:-}" ;;
+        cross-project)  TARGET_REPO="MULTI" ;;
+        *)
+            >&2 echo "[specify] Warning: Unknown project '$TARGET_PROJECT'. Using generic specs directory."
+            ;;
+    esac
+fi
 
 # Function to generate branch name with stop word filtering and length filtering
 generate_branch_name() {
@@ -278,12 +326,15 @@ if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"
 export SPECIFY_FEATURE="$BRANCH_NAME"
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","SESSION_DIR":"%s","SPECS_DIR":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$SESSION_DIR" "$SPECS_DIR"
+    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","SESSION_DIR":"%s","SPECS_DIR":"%s","TARGET_PROJECT":"%s","TARGET_REPO":"%s"}\n' \
+        "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$SESSION_DIR" "$SPECS_DIR" "$TARGET_PROJECT" "$TARGET_REPO"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
     echo "SESSION_DIR: $SESSION_DIR"
     echo "SPECS_DIR: $SPECS_DIR"
+    [ -n "$TARGET_PROJECT" ] && echo "TARGET_PROJECT: $TARGET_PROJECT"
+    [ -n "$TARGET_REPO" ] && echo "TARGET_REPO: $TARGET_REPO"
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
 fi

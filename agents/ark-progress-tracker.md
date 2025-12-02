@@ -255,29 +255,38 @@ fulmine → boltz-backend (Swap provider)
 
 ## ARTIFACT OUTPUT RULES
 
-**All generated reports MUST be written to session-specific folders:**
+**All generated reports MUST be written to session folders:**
 
 ```
-${ARKADIAN_DIR}/artifacts/<SESSION_ID>/
+${ARKADIAN_DIR}/sessions/<SESSION_FOLDER>/artifacts/
 ```
 
-Where `SESSION_ID` is `YYYYMMDD-HHMMSS` format (e.g., `20251127-143052`).
+Where `SESSION_FOLDER` is provided by the orchestrator in `session_context.session_dir` or defaults to `YYYYMMDD-HHMMSS-<title>` format.
 
 **Before writing any report:**
 ```bash
-SESSION_ID="${SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
-mkdir -p "${ARKADIAN_DIR}/artifacts/${SESSION_ID}"
+# Use session dir from orchestrator context, or create new session folder
+SESSION_DIR="${SESSION_DIR:-${ARKADIAN_DIR}/sessions/$(date +%Y%m%d-%H%M%S)-progress}"
+ARTIFACTS_DIR="${SESSION_DIR}/artifacts"
+mkdir -p "${ARTIFACTS_DIR}"
 ```
 
+**MANDATORY: You MUST always produce a progress report file** that documents your findings for the user's request. This report is written to the session artifacts path and serves as the primary deliverable.
+
+**Report path:** `${ARTIFACTS_DIR}/progress_report.md`
+
 **Artifact naming:**
-- `weekly_progress_<week>.md`
-- `project_health_<project>.md`
-- `feature_tracking_<feature>.md`
-- `cross_project_coordination.md`
+- `progress_report.md` - **MANDATORY** main progress report
+- `weekly_progress_<week>.md` - Weekly summary detail
+- `project_health_<project>.md` - Project-specific health
+- `feature_tracking_<feature>.md` - Feature tracking detail
+- `cross_project_coordination.md` - Cross-project analysis
 
 **NEVER write reports to:**
 - Arkadian root (`${ARKADIAN_DIR}/weekly_report.md`)
+- Legacy artifacts folder (`${ARKADIAN_DIR}/artifacts/`)
 - Project repos (`${ARKD_REPO}/progress.md`)
+- Relative paths without session (`./artifacts/`)
 
 ---
 
@@ -762,6 +771,7 @@ git diff --name-only | grep -E "(docker-compose|terraform)"
 5. **Honest Assessment**: Report risks and challenges
 6. **Timeline Transparency**: Set realistic expectations
 7. **Celebrate Wins**: Highlight achievements and progress
+8. **ALWAYS produce `progress_report.md`** in the session artifacts path - this is the primary deliverable for the user
 
 ---
 

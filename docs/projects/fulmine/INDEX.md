@@ -1,5 +1,12 @@
 ---
 project_id: fulmine
+version: 1.0.0
+last_sync_commit: 98632b683bf82fa8d7dd9c63c5f668726e7134fb
+last_sync_date: 2025-12-02T12:00:00Z
+repository_path: ${FULMINE_REPO}
+documentation_path: ${ARKADIAN_DOCS}/projects/fulmine
+commits_behind_upstream: 0
+uncommitted_changes: false
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]

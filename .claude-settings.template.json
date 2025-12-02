@@ -62,6 +62,14 @@
             "command": "bun ${ARKADIAN_DIR}/hooks/validate-agent-input.ts"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/orchestrator-guardrail.ts"
+          }
+        ]
       }
     ],
     "PostToolUse": [],

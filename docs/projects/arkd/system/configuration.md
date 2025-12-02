@@ -39,8 +39,11 @@ arkd uses environment variables with the `ARKD_` prefix for configuration. The s
 ### Security Settings
 - `ARKD_VTXO_TREE_EXPIRY` (default: 604672) - VTXO tree expiration (7 days in seconds)
 - `ARKD_UNILATERAL_EXIT_DELAY` (default: 86400) - Exit delay (24 hours in seconds)
+- `ARKD_PUBLIC_UNILATERAL_EXIT_DELAY` (default: same as UNILATERAL_EXIT_DELAY) - Public unilateral exit delay
 - `ARKD_BOARDING_EXIT_DELAY` (default: 7776000) - Boarding delay (3 months in seconds)
 - `ARKD_ALLOW_CSV_BLOCK_TYPE` (default: false) - Allow block-height timelocks
+- `ARKD_VTXO_NO_CSV_VALIDATION_CUTOFF_DATE` (default: 0) - Skip CSV validation for VTXOs created before this Unix timestamp (disabled by default)
+- `ARKD_SETTLEMENT_MIN_EXPIRY_GAP` (default: 0) - Minimum expiry gap for settlement (disabled by default)
 
 ### Amount Limits
 - `ARKD_UTXO_MAX_AMOUNT` (default: -1) - Maximum UTXO amount (-1 = no limit)
@@ -48,10 +51,20 @@ arkd uses environment variables with the `ARKD_` prefix for configuration. The s
 - `ARKD_VTXO_MAX_AMOUNT` (default: -1) - Maximum VTXO amount (-1 = no limit)
 - `ARKD_VTXO_MIN_AMOUNT` (default: -1) - Minimum VTXO amount (-1 = dust limit)
 
+### Transaction Fees
+- `ARKD_ONCHAIN_OUTPUT_FEE` (default: 0) - Fee for collaborative exit outputs (in sats)
+
 ### Wallet Unlocking
 - `ARKD_UNLOCKER_TYPE` - Unlocker type: env, file
 - `ARKD_UNLOCKER_FILE_PATH` - File path for file-based unlocker
 - `ARKD_UNLOCKER_PASSWORD` - Password for env-based unlocker
+
+### Observability & Monitoring
+- `ARKD_OTEL_COLLECTOR_ENDPOINT` - OpenTelemetry collector endpoint
+- `ARKD_OTEL_PUSH_INTERVAL` (default: 10) - Push interval in seconds
+- `ARKD_PYROSCOPE_SERVER_URL` - Pyroscope profiling server URL
+- `ARKD_ALERT_MANAGER_URL` - AlertManager URL for alerts integration
+- `ARKD_ENABLE_PPROF` (default: false) - Enable pprof profiling endpoint
 
 ## Configuration Examples
 

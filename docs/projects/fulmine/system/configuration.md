@@ -134,6 +134,20 @@ Fulmine is configured entirely through environment variables, making it easy to 
 - **Example**: `FULMINE_NO_MACAROONS=true`
 - **Security**: Only use in trusted development environments
 
+#### FULMINE_ENABLE_PPROF
+- **Description**: Enable pprof profiling endpoint for performance debugging
+- **Default**: `false`
+- **Example**: `FULMINE_ENABLE_PPROF=true`
+- **Note**: Access profiling at http://localhost:7001/debug/pprof/
+
+### Database Options
+
+#### FULMINE_ENABLE_PERIODIC_REFRESH
+- **Description**: Enable periodic refresh of the database to keep VTXO state in sync
+- **Default**: `false`
+- **Example**: `FULMINE_ENABLE_PERIODIC_REFRESH=true`
+- **Note**: Useful when external events may update VTXO state
+
 ## Configuration Modes
 
 ### Docker Configuration (Recommended)
@@ -378,6 +392,8 @@ Fulmine validates configuration on startup:
 | FULMINE_DISABLE_TELEMETRY | `false` |
 | FULMINE_SWAP_TIMEOUT | `120` seconds |
 | FULMINE_NO_MACAROONS | `false` |
+| FULMINE_ENABLE_PPROF | `false` |
+| FULMINE_ENABLE_PERIODIC_REFRESH | `false` |
 
 ## Troubleshooting Configuration
 
