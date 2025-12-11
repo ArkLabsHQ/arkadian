@@ -6,6 +6,12 @@
  * PreToolUse hook that validates Task tool inputs to ensure they follow
  * the Execution Specification format before invoking any agent.
  *
+ * Key validations:
+ * - Required fields present (step_id, agent, objective, etc.)
+ * - parent_session_id is REQUIRED (for sub-agent tracking)
+ * - Valid agent type
+ * - Valid context intent
+ *
  * Specification format defined in: templates/sub_agent_input_spec.md
  *
  * Exit codes:
@@ -13,18 +19,13 @@
  * - 2: Invalid input, block the tool call (error shown to orchestrator)
  */
 
-import { appendFileSync, readFileSync, existsSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 
 // Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
-// macOS: ~/Library/Application Support/Arkadian
-// Linux: ~/.arkadian
-// Falls back to ARKADIAN_DIR/log for backward compatibility
 const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
-
-const LOG_FILE = join(ARKADIAN_DATA_DIR, 'validate-agent.txt');
 
 // List of Arkadian agents that require validated input
 const ARKADIAN_AGENTS = [
@@ -45,6 +46,7 @@ const REQUIRED_FIELDS = [
     'objective',
     'user_request',
     'context_intent',
+    'parent_session_id',  // NEW: Required for sub-agent tracking
     'session_context',
     'projects'
 ];
@@ -78,19 +80,33 @@ interface ValidationResult {
     warnings: string[];
 }
 
-function log(label: string, data: any) {
-    const timestamp = new Date().toISOString();
-    let output = `\n[${timestamp}] [validate-agent] ${label}:\n`;
+/**
+ * Ensure data directory exists
+ */
+function ensureDataDir(): void {
+    if (!existsSync(ARKADIAN_DATA_DIR)) {
+        mkdirSync(ARKADIAN_DATA_DIR, { recursive: true });
+    }
+}
 
+/**
+ * Log to per-session log file
+ */
+function log(sessionId: string, label: string, data: any) {
+    const timestamp = new Date().toISOString();
+    const logFile = join(ARKADIAN_DATA_DIR, `${sessionId}_log.txt`);
+
+    let output = `[${timestamp}] [validate-agent] ${label}: `;
     if (typeof data === 'object') {
-        output += JSON.stringify(data, null, 2);
+        output += JSON.stringify(data);
     } else {
         output += data;
     }
     output += '\n';
 
     try {
-        appendFileSync(LOG_FILE, output);
+        ensureDataDir();
+        appendFileSync(logFile, output);
     } catch (e) {
         // Ignore logging errors
     }
@@ -127,7 +143,6 @@ function parseSimpleYaml(yamlContent: string): Record<string, any> {
     const lines = yamlContent.split('\n');
 
     let currentKey = '';
-    let inArray = false;
     let arrayKey = '';
 
     for (const line of lines) {
@@ -158,7 +173,6 @@ function parseSimpleYaml(yamlContent: string): Record<string, any> {
                     result[key] = {};
                 }
                 arrayKey = '';
-                inArray = false;
             } else if (indentLevel === 2 && currentKey) {
                 if (typeof result[currentKey] !== 'object') {
                     result[currentKey] = {};
@@ -208,6 +222,13 @@ function validateExecutionSpec(prompt: string): ValidationResult {
         warnings.push(`Unknown context_intent: "${spec.context_intent}". Expected one of: ${VALID_INTENTS.join(', ')}`);
     }
 
+    // Validate parent_session_id format (should be a UUID-like string)
+    if (spec.parent_session_id) {
+        if (spec.parent_session_id.length < 8) {
+            errors.push('parent_session_id appears invalid (too short). Must be the orchestrator session ID.');
+        }
+    }
+
     // Validate session_context
     if (spec.session_context) {
         if (!spec.session_context.session_dir) {
@@ -255,18 +276,18 @@ async function main() {
         const subagentType = hookInput.tool_input?.subagent_type || '';
         const prompt = hookInput.tool_input?.prompt || '';
 
-        log('Validating agent input', { subagentType, promptLength: prompt.length });
+        log(hookInput.session_id, 'validating', { subagentType, promptLength: prompt.length });
 
         // Only validate for Arkadian agents
         if (!ARKADIAN_AGENTS.includes(subagentType)) {
-            log('Skipping validation', `Agent "${subagentType}" is not an Arkadian agent`);
+            log(hookInput.session_id, 'skipping', `Agent "${subagentType}" is not an Arkadian agent`);
             process.exit(0);
         }
 
         // Validate the execution specification
         const result = validateExecutionSpec(prompt);
 
-        log('Validation result', result);
+        log(hookInput.session_id, 'validation-result', result);
 
         if (!result.valid) {
             // Block the tool call with error message
@@ -293,6 +314,7 @@ agent: "${subagentType}"
 objective: "<1-2 action-focused sentences>"
 user_request: "<original request>"
 context_intent: "<qna|dev|qa|debug|monitoring|pr_review|research|progress_tracking>"
+parent_session_id: "<YOUR_SESSION_ID>"  # ◄── REQUIRED: Your orchestrator session ID
 
 session_context:
   session_dir: "<from auto-injected Session Context>"
@@ -326,6 +348,9 @@ artifacts_in: []
 artifacts_out: []
 # --- END AGENT INPUT ---
 \`\`\`
+
+**IMPORTANT**: parent_session_id must be your current session ID.
+This is required for sub-agent tracking and logging.
 `;
             console.error(errorMessage);
             process.exit(2); // Exit code 2 = block tool call
@@ -333,12 +358,19 @@ artifacts_out: []
 
         // Valid - log warnings if any
         if (result.warnings.length > 0) {
-            log('Validation warnings', result.warnings);
+            log(hookInput.session_id, 'validation-warnings', result.warnings);
         }
 
         process.exit(0);
     } catch (error: any) {
-        log('Validation error', { message: error.message, stack: error.stack });
+        // Try to log error
+        try {
+            const input = await Bun.stdin.text();
+            const hookInput = JSON.parse(input);
+            log(hookInput.session_id, 'error', { message: error.message, stack: error.stack });
+        } catch (e) {
+            // Ignore
+        }
         // Don't block on hook errors - let the tool call proceed
         process.exit(0);
     }

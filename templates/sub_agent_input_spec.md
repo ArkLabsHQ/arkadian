@@ -27,6 +27,7 @@ agent: "<agent_name>"
 objective: "<1-2 sentences, action-focused>"
 user_request: "<original or narrowed user message>"
 context_intent: "<intent_type>"
+parent_session_id: "<orchestrator_session_id>"  # REQUIRED for sub-agent tracking
 
 session_context:
   session_dir: "<absolute path to session directory>"
@@ -78,6 +79,7 @@ artifacts_out: []
 | `objective` | string | 1-2 action-focused sentences |
 | `user_request` | string | Original or narrowed user message |
 | `context_intent` | string | Intent classification |
+| `parent_session_id` | string | Orchestrator session ID (for sub-agent tracking) |
 | `session_context` | object | Session directory paths |
 | `projects` | array | List of relevant projects |
 
@@ -106,6 +108,20 @@ artifacts_out: []
 | `pr_review` | Pull request review |
 | `research` | Research, analysis |
 | `progress_tracking` | Progress reports, status updates |
+
+## Parent Session ID
+
+The `parent_session_id` field is **required** for sub-agent tracking. It must contain the orchestrator's session ID, which connects sub-agents to their parent orchestrator for:
+
+- **Logging**: Sub-agent logs are written to the parent's log file
+- **State tracking**: Sub-agents are registered with their parent for lifecycle management
+- **Artifact tracing**: Outputs can be traced back to the originating session
+
+```yaml
+parent_session_id: "abc123-def456-789"  # Your orchestrator session ID
+```
+
+**Important**: This is the session ID from the auto-injected Session Context, NOT a generated value.
 
 ## Session Context
 
@@ -178,8 +194,9 @@ The `validate-agent-input.ts` hook validates all Task tool calls against this sp
 2. **Required Fields**: All fields in the Required Fields table must be present
 3. **Valid Agent**: Agent name must be one of the valid agents
 4. **Valid Intent**: Context intent must be one of the valid intents
-5. **Session Context**: `session_context.session_dir` must be present
-6. **Step ID Format**: Should follow pattern `S1`, `S2`, `S3`, etc.
+5. **Parent Session ID**: `parent_session_id` must be present and at least 8 characters
+6. **Session Context**: `session_context.session_dir` must be present
+7. **Step ID Format**: Should follow pattern `S1`, `S2`, `S3`, etc.
 
 ## Example
 
@@ -199,6 +216,7 @@ agent: "ark-guru"
 objective: "Explain how VTXO expiry works in the Ark protocol"
 user_request: "How does VTXO expiry work?"
 context_intent: "qna"
+parent_session_id: "abc123"
 
 session_context:
   session_dir: "/Users/user/code/arkadian/sessions/abc123"

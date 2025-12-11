@@ -3,39 +3,30 @@
 /**
  * Orchestrator Guardrail Hook
  *
- * PreToolUse hook that enforces orchestrator boundaries using DEFAULT DENY:
+ * PreToolUse hook that enforces orchestrator boundaries using per-session state files.
+ *
+ * Detection Strategy:
+ * - Orchestrator sessions have {session_id}_state.txt created by SessionStart
+ * - Sub-agents do NOT have state files (they don't trigger SessionStart)
+ * - Sub-agents are connected to parents via pending-spawns.json
+ *
+ * State Files:
+ * - {DATA_DIR}/{session_id}_state.txt - Session state (type, parent, etc.)
+ * - {DATA_DIR}/{session_id}_log.txt - Per-session log file
+ * - {DATA_DIR}/pending-spawns.json - Maps pending spawns to parents
+ *
+ * Rules:
  * 1. Orchestrator can use: Task, Read, Write, Edit (ONLY within ARKADIAN_DIR)
- * 2. ALL paths outside ARKADIAN_DIR are blocked - no exceptions
- * 3. Relative paths are resolved to absolute before checking
- * 4. Blocks Bash commands - orchestrator doesn't run code
- *
- * PATH RESOLUTION:
- * - Tilde paths (~/...) are expanded to $HOME
- * - Relative paths (pkg/..., ./...) are resolved against CWD
- * - Symlinks are resolved to real paths
- * - This prevents bypassing via relative or symlinked paths
- *
- * ARKADIAN_DIR PRIVILEGES (the ONLY allowed locations):
- * - ${ARKADIAN_DIR}/docs/ (project documentation)
- * - ${ARKADIAN_DIR}/sessions/ (session artifacts)
- * - ${ARKADIAN_DIR}/templates/ (workflow templates)
- * - ${ARKADIAN_DIR}/ORCHESTRATOR.md (instructions)
- *
- * IMPORTANT: Only active when ARKADIAN_ORCHESTRATOR_MODE=1
- * This is set by the `arkadian` launcher script.
- * Regular `claude` sessions are not affected.
- *
- * SUB-AGENT HANDLING:
- * Sub-agents spawned via Task tool inherit env vars but have different session IDs.
- * We track the orchestrator's session ID in a file and only enforce guardrails
- * for that specific session. Sub-agents are free to use any tools.
+ * 2. ALL paths outside ARKADIAN_DIR are blocked for orchestrator
+ * 3. Sub-agents have full tool access (no restrictions)
+ * 4. Blocks Bash commands for orchestrator
  *
  * Exit codes:
  * - 0: Allow tool call
  * - 2: Block tool call with error message
  */
 
-import { appendFileSync, readFileSync, existsSync, realpathSync, writeFileSync } from 'fs';
+import { appendFileSync, readFileSync, existsSync, realpathSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 
 // Only enforce guardrails in orchestrator mode
@@ -44,14 +35,9 @@ const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 
 // Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
-// macOS: ~/Library/Application Support/Arkadian
-// Linux: ~/.arkadian
-// Falls back to ARKADIAN_DIR/log for backward compatibility
 const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
 
-const LOG_FILE = join(ARKADIAN_DATA_DIR, 'orchestrator-guardrail.txt');
-const ORCHESTRATOR_SESSION_FILE = join(ARKADIAN_DATA_DIR, 'orchestrator-session.txt');
-const TASK_DEPTH_FILE = join(ARKADIAN_DATA_DIR, 'task-depth.txt');
+const PENDING_SPAWNS_FILE = join(ARKADIAN_DATA_DIR, 'pending-spawns.json');
 
 // Tools the orchestrator is ALLOWED to use (some restricted to ARKADIAN_DIR)
 const ALLOWED_TOOLS = [
@@ -76,7 +62,6 @@ const BLOCKED_TOOLS = [
 ];
 
 // Allowed sub-agent types for Task tool
-// Orchestrator MUST use Arkadian agents, not default Claude agents
 const ALLOWED_SUBAGENT_TYPES = [
     // Arkadian specialist agents
     'ark-guru',              // Q&A, explanations
@@ -93,7 +78,6 @@ const ALLOWED_SUBAGENT_TYPES = [
 ];
 
 // Default Claude agents that are BLOCKED for orchestrator
-// These bypass Arkadian workflow and should not be used
 const BLOCKED_SUBAGENT_TYPES = [
     'Explore',         // Use ark-guru instead
     'Plan',            // Use ark-project-manager instead
@@ -134,76 +118,270 @@ interface HookInput {
     hook_event_name: string;
 }
 
+interface SessionState {
+    type: 'orchestrator' | 'subagent';
+    started: string;
+    pid?: number;
+    parent_session_id?: string;
+    agent_type?: string;
+}
+
+interface PendingSpawn {
+    parent_session_id: string;
+    agent_type: string;
+    timestamp: string;
+}
+
+interface PendingSpawns {
+    entries: PendingSpawn[];
+}
+
 /**
- * Get the current task depth (how many Task calls deep we are).
- * depth=0 means we're at the orchestrator level.
- * depth>=1 means we're inside a sub-agent.
+ * Ensure data directory exists
  */
-function getTaskDepth(): number {
-    try {
-        if (existsSync(TASK_DEPTH_FILE)) {
-            const content = readFileSync(TASK_DEPTH_FILE, 'utf-8').trim();
-            const depth = parseInt(content, 10);
-            return isNaN(depth) ? 0 : depth;
-        }
-    } catch (e) {
-        // Ignore
+function ensureDataDir(): void {
+    if (!existsSync(ARKADIAN_DATA_DIR)) {
+        mkdirSync(ARKADIAN_DATA_DIR, { recursive: true });
     }
-    return 0;
 }
 
 /**
- * Increment task depth when orchestrator calls Task.
+ * Log to per-session log file.
+ * If session has a parent, also log to parent's file.
  */
-function incrementTaskDepth(): void {
-    const current = getTaskDepth();
-    writeFileSync(TASK_DEPTH_FILE, String(current + 1));
-    log('Task depth incremented', { from: current, to: current + 1 });
-}
-
-/**
- * Check if the current invocation is from the orchestrator (vs a sub-agent).
- *
- * Detection strategy:
- * We use a "task depth" counter:
- * - depth=0: We're at the orchestrator level → enforce restrictions
- * - depth>=1: We're inside a Task call (sub-agent) → allow everything
- *
- * The depth is incremented when the orchestrator calls Task,
- * and sub-agents inherit this incremented depth.
- *
- * NOTE: We don't decrement because sub-agents run in parallel and
- * we can't reliably track when they complete. Instead, the session-start
- * hook resets depth to 0 at the beginning of each orchestrator session.
- */
-function isOrchestratorCall(): boolean {
-    const depth = getTaskDepth();
-
-    if (depth > 0) {
-        log('Sub-agent detected', `Task depth = ${depth}`);
-        return false;
-    }
-
-    // depth=0 means we're at orchestrator level
-    return true;
-}
-
-function log(label: string, data: any) {
+function log(sessionId: string, label: string, data: any) {
     const timestamp = new Date().toISOString();
-    let output = `\n[${timestamp}] [orchestrator-guardrail] ${label}:\n`;
 
+    let output = `[${timestamp}] [guardrail] ${label}: `;
     if (typeof data === 'object') {
-        output += JSON.stringify(data, null, 2);
+        output += JSON.stringify(data);
     } else {
         output += data;
     }
     output += '\n';
 
     try {
-        appendFileSync(LOG_FILE, output);
+        ensureDataDir();
+
+        // Log to this session's file
+        const logFile = join(ARKADIAN_DATA_DIR, `${sessionId}_log.txt`);
+        appendFileSync(logFile, output);
+
+        // If this is a sub-agent, also log to parent's file
+        const state = getSessionState(sessionId);
+        if (state?.parent_session_id) {
+            const parentLogFile = join(ARKADIAN_DATA_DIR, `${state.parent_session_id}_log.txt`);
+            const parentOutput = `[${timestamp}] [guardrail] [subagent:${sessionId}] ${label}: ${typeof data === 'object' ? JSON.stringify(data) : data}\n`;
+            appendFileSync(parentLogFile, parentOutput);
+        }
     } catch (e) {
         // Ignore logging errors
     }
+}
+
+/**
+ * Parse state file content
+ */
+function parseState(content: string): SessionState {
+    const state: SessionState = { type: 'orchestrator', started: '' };
+
+    for (const line of content.split('\n')) {
+        const [key, ...valueParts] = line.split(':');
+        const value = valueParts.join(':').trim();
+
+        if (key === 'type') state.type = value as 'orchestrator' | 'subagent';
+        if (key === 'started') state.started = value;
+        if (key === 'pid') state.pid = parseInt(value, 10);
+        if (key === 'parent_session_id') state.parent_session_id = value;
+        if (key === 'agent_type') state.agent_type = value;
+    }
+
+    return state;
+}
+
+/**
+ * Get session state from state file
+ */
+function getSessionState(sessionId: string): SessionState | null {
+    const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.txt`);
+
+    if (!existsSync(stateFile)) {
+        return null;
+    }
+
+    try {
+        const content = readFileSync(stateFile, 'utf-8');
+        return parseState(content);
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Load pending spawns
+ */
+function loadPendingSpawns(): PendingSpawns {
+    try {
+        if (existsSync(PENDING_SPAWNS_FILE)) {
+            const content = readFileSync(PENDING_SPAWNS_FILE, 'utf-8');
+            return JSON.parse(content);
+        }
+    } catch (e) {
+        // Ignore errors
+    }
+    return { entries: [] };
+}
+
+/**
+ * Save pending spawns
+ */
+function savePendingSpawns(spawns: PendingSpawns): void {
+    try {
+        ensureDataDir();
+        writeFileSync(PENDING_SPAWNS_FILE, JSON.stringify(spawns, null, 2));
+    } catch (e) {
+        // Ignore errors
+    }
+}
+
+/**
+ * Add a pending spawn entry (called when orchestrator invokes Task)
+ */
+function addPendingSpawn(parentSessionId: string, agentType: string): void {
+    const spawns = loadPendingSpawns();
+
+    // Clean up old entries (> 10 minutes)
+    // Matches the detection window in hasPendingSpawnsForSession
+    const now = Date.now();
+    spawns.entries = spawns.entries.filter(e => {
+        const age = now - new Date(e.timestamp).getTime();
+        return age < 600000; // Keep entries less than 10 minutes old
+    });
+
+    // Add new entry
+    spawns.entries.push({
+        parent_session_id: parentSessionId,
+        agent_type: agentType,
+        timestamp: new Date().toISOString()
+    });
+
+    savePendingSpawns(spawns);
+    log(parentSessionId, 'pending-spawn-added', { agentType });
+}
+
+/**
+ * Try to match this session to a pending spawn.
+ * Returns the parent session ID if matched, null otherwise.
+ */
+function tryMatchPendingSpawn(sessionId: string): PendingSpawn | null {
+    const spawns = loadPendingSpawns();
+    const now = Date.now();
+
+    // Find the most recent pending spawn (within 30 seconds)
+    for (const entry of spawns.entries.reverse()) {
+        const age = now - new Date(entry.timestamp).getTime();
+        if (age < 30000) { // Within 30 seconds
+            // Remove this entry (consumed)
+            spawns.entries = spawns.entries.filter(e => e !== entry);
+            savePendingSpawns(spawns);
+            return entry;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Register a sub-agent session with its parent
+ */
+function registerSubagent(sessionId: string, parentSessionId: string, agentType: string): void {
+    const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.txt`);
+    const stateContent = `type: subagent
+started: ${new Date().toISOString()}
+parent_session_id: ${parentSessionId}
+agent_type: ${agentType}
+`;
+
+    ensureDataDir();
+    writeFileSync(stateFile, stateContent);
+    log(sessionId, 'registered-subagent', { parentSessionId, agentType });
+}
+
+/**
+ * Check if there are any pending spawns for this session (as parent).
+ * If there are pending spawns, a sub-agent might be active.
+ *
+ * Uses a 10-minute window to allow for long-running sub-agent tasks.
+ */
+function hasPendingSpawnsForSession(sessionId: string): boolean {
+    const spawns = loadPendingSpawns();
+    const now = Date.now();
+
+    // Check if any pending spawn has this session as parent and is recent (within 10 minutes)
+    // 10 minutes allows for most sub-agent tasks to complete
+    for (const entry of spawns.entries) {
+        if (entry.parent_session_id === sessionId) {
+            const age = now - new Date(entry.timestamp).getTime();
+            if (age < 600000) { // Within 10 minutes
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if the current session is an orchestrator.
+ *
+ * Detection:
+ * 1. If state file exists → check its type
+ * 2. IMPORTANT: If type=orchestrator but there are pending spawns, a sub-agent
+ *    may be running with the SAME session_id (Claude Code behavior).
+ *    In this case, we ALLOW the call since it's likely from the sub-agent.
+ * 3. If no state file → try to match pending spawn (sub-agent)
+ * 4. If no match → unknown session (allow, might be regular Claude session)
+ */
+function isOrchestratorCall(sessionId: string): boolean {
+    // Check if this session already has a state file
+    const state = getSessionState(sessionId);
+
+    if (state) {
+        // State file exists - check its type
+        if (state.type === 'orchestrator') {
+            // CRITICAL FIX: Claude Code sub-agents share the same session_id as parent!
+            // If there are pending spawns for this orchestrator, a sub-agent might be active.
+            // We must allow these calls through since they're likely from the sub-agent.
+            if (hasPendingSpawnsForSession(sessionId)) {
+                log(sessionId, 'subagent-same-session', 'Orchestrator session but has pending spawns - allowing (sub-agent active)');
+                return false; // Allow - sub-agent is active
+            }
+            return true;
+        } else {
+            // It's a registered sub-agent
+            return false;
+        }
+    }
+
+    // No state file - this could be:
+    // 1. A new sub-agent (spawned by Task tool)
+    // 2. A regular Claude session (not arkadian)
+
+    // Try to match to a pending spawn
+    const pendingSpawn = tryMatchPendingSpawn(sessionId);
+
+    if (pendingSpawn) {
+        // This is a sub-agent! Register it.
+        registerSubagent(sessionId, pendingSpawn.parent_session_id, pendingSpawn.agent_type);
+        log(sessionId, 'matched-pending-spawn', pendingSpawn);
+        return false; // Sub-agent - no restrictions
+    }
+
+    // No state, no pending spawn match
+    // This is likely a regular Claude session (not started via arkadian)
+    // Or a sub-agent that didn't match timing (edge case)
+    // Be permissive: allow it
+    log(sessionId, 'unknown-session', 'No state file, no pending spawn match - allowing');
+    return false;
 }
 
 function expandTilde(filePath: string): string {
@@ -214,32 +392,25 @@ function expandTilde(filePath: string): string {
 }
 
 /**
- * Resolve a path to absolute, handling:
- * - Tilde expansion (~/)
- * - Relative paths (resolved against CWD)
- * - Symlinks (resolved to real path)
+ * Resolve a path to absolute, handling tilde, relative paths, and symlinks
  */
 function resolveToAbsolute(filePath: string): string {
     if (!filePath) return '';
 
-    // Step 1: Expand tilde
     let resolved = expandTilde(filePath);
 
-    // Step 2: If not absolute, resolve against CWD
     if (!resolved.startsWith('/')) {
         resolved = resolve(process.cwd(), resolved);
     }
 
-    // Step 3: Normalize multiple slashes
     resolved = resolved.replace(/\/+/g, '/');
 
-    // Step 4: Try to resolve symlinks (but don't fail if path doesn't exist yet)
     try {
         if (existsSync(resolved)) {
             resolved = realpathSync(resolved);
         }
     } catch (e) {
-        // Path doesn't exist or can't be resolved - use as-is
+        // Path doesn't exist - use as-is
     }
 
     return resolved;
@@ -247,23 +418,19 @@ function resolveToAbsolute(filePath: string): string {
 
 /**
  * Check if a path is allowed for orchestrator access.
- * DEFAULT DENY: Only explicitly allowed paths within ARKADIAN_DIR pass.
  */
 function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
-    // Empty/missing path = DENY (not allow!)
     if (!filePath) {
-        return { allowed: false, reason: 'Empty path not allowed - orchestrator must specify explicit paths' };
+        return { allowed: false, reason: 'Empty path not allowed' };
     }
 
     const absolutePath = resolveToAbsolute(filePath);
     const arkadianDir = resolveToAbsolute(ARKADIAN_DIR);
 
-    // Check if path is within ARKADIAN_DIR
     if (absolutePath === arkadianDir || absolutePath.startsWith(arkadianDir + '/')) {
         return { allowed: true, reason: 'Within ARKADIAN_DIR' };
     }
 
-    // Check against known repo paths for better error messages
     for (let i = 0; i < BLOCKED_PATHS.length; i++) {
         const repoPath = resolveToAbsolute(BLOCKED_PATHS[i]);
         if (absolutePath === repoPath || absolutePath.startsWith(repoPath + '/')) {
@@ -274,7 +441,6 @@ function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
         }
     }
 
-    // Default: DENY anything outside ARKADIAN_DIR
     return {
         allowed: false,
         reason: `Path outside ARKADIAN_DIR: ${absolutePath}`
@@ -307,25 +473,16 @@ You are the **Arkadian Orchestrator**. Your role is to:
 2. Build an Execution Specification
 3. Delegate to the appropriate agent (ark-guru for Q&A, ark-developer for code)
 
-The agent will read the code and provide the answer.
-
 📄 Review your instructions: \${ARKADIAN_DIR}/ORCHESTRATOR.md
 `;
 }
 
 async function main() {
     try {
-        // Always log for debugging
-        log('Hook invoked', {
-            ORCHESTRATOR_MODE,
-            ARKADIAN_DIR,
-            cwd: process.cwd(),
-            env_ARKADIAN_ORCHESTRATOR_MODE: process.env.ARKADIAN_ORCHESTRATOR_MODE
-        });
+        ensureDataDir();
 
         // Skip guardrails if not in orchestrator mode
         if (!ORCHESTRATOR_MODE) {
-            log('Skipping guardrails', 'ARKADIAN_ORCHESTRATOR_MODE not set to 1');
             process.exit(0);
         }
 
@@ -336,23 +493,19 @@ async function main() {
         const toolName = hookInput.tool_name;
         const toolInput = hookInput.tool_input || {};
 
-        // Check if this is the orchestrator or a sub-agent using task depth
-        const isOrchestrator = isOrchestratorCall();
-        const currentDepth = getTaskDepth();
+        log(sessionId, 'hook-invoked', { tool: toolName, ORCHESTRATOR_MODE });
 
-        log('Orchestrator check', {
-            sessionId,
-            isOrchestrator,
-            taskDepth: currentDepth,
-            tool: toolName
-        });
+        // Check if this is the orchestrator or a sub-agent
+        const isOrchestrator = isOrchestratorCall(sessionId);
+
+        log(sessionId, 'session-check', { isOrchestrator });
 
         if (!isOrchestrator) {
-            log('Sub-agent detected - allowing full access', { sessionId, tool: toolName, taskDepth: currentDepth });
+            log(sessionId, 'allowing-subagent', { tool: toolName });
             process.exit(0); // Allow sub-agents full access
         }
 
-        log('Orchestrator tool call - enforcing restrictions', { sessionId, tool: toolName, input: toolInput });
+        log(sessionId, 'enforcing-restrictions', { tool: toolName, input: toolInput });
 
         // Check if tool is explicitly blocked
         if (BLOCKED_TOOLS.includes(toolName)) {
@@ -366,28 +519,16 @@ ${getOrchestratorReminder()}
 
         // Check if tool is allowed
         if (!ALLOWED_TOOLS.includes(toolName)) {
-            // Unknown tool - allow but warn
-            log('Unknown tool', `Tool "${toolName}" not in allow/block list, allowing`);
+            log(sessionId, 'unknown-tool-allowing', toolName);
             process.exit(0);
         }
 
-        // For path-restricted tools (Read, Write, Edit, Glob, Grep) - check path restrictions
-        // Using DEFAULT DENY: only explicitly allowed paths pass
+        // For path-restricted tools - check path restrictions
         if (PATH_RESTRICTED_TOOLS.includes(toolName)) {
             const filePath = toolInput.file_path || toolInput.path || '';
-            const resolvedPath = resolveToAbsolute(filePath);
-
-            log('Path check', {
-                tool: toolName,
-                originalPath: filePath,
-                resolvedPath,
-                arkadianDir: resolveToAbsolute(ARKADIAN_DIR),
-                cwd: process.cwd()
-            });
-
-            // Use the new strict path checking (default deny)
             const pathCheck = isPathAllowed(filePath);
-            log('isPathAllowed result', pathCheck);
+
+            log(sessionId, 'path-check', { tool: toolName, path: filePath, result: pathCheck });
 
             if (!pathCheck.allowed) {
                 const resolvedPath = resolveToAbsolute(filePath);
@@ -399,10 +540,10 @@ Resolved to: ${resolvedPath}
 Tool: ${toolName}
 
 Orchestrator can ONLY access files within ARKADIAN_DIR:
-- ${ARKADIAN_DIR}/docs/ (project documentation indexes)
-- ${ARKADIAN_DIR}/sessions/ (session artifacts)
-- ${ARKADIAN_DIR}/templates/ (workflow templates)
-- ${ARKADIAN_DIR}/ORCHESTRATOR.md (your instructions)
+- ${ARKADIAN_DIR}/docs/
+- ${ARKADIAN_DIR}/sessions/
+- ${ARKADIAN_DIR}/templates/
+- ${ARKADIAN_DIR}/ORCHESTRATOR.md
 
 ${getOrchestratorReminder()}
 
@@ -414,11 +555,9 @@ ${getOrchestratorReminder()}
                 console.error(errorMessage);
                 process.exit(2);
             }
-
-            log('Path allowed', { path: filePath, reason: pathCheck.reason });
         }
 
-        // Task tool - validate sub-agent type
+        // Task tool - validate sub-agent type and add pending spawn
         if (toolName === 'Task') {
             const subagentType = toolInput.subagent_type || '';
 
@@ -436,11 +575,6 @@ Orchestrator must use Arkadian specialist agents instead:
 - ark-observer: For telemetry, debugging
 - ark-researcher: For Bitcoin/L2 research
 - ark-progress-tracker: For progress reports
-
-**Suggested replacement for "${subagentType}":**
-${subagentType === 'Explore' ? '→ Use "ark-guru" for codebase exploration and Q&A' : ''}
-${subagentType === 'Plan' ? '→ Use "ark-project-manager" for planning and specs' : ''}
-${subagentType === 'general-purpose' ? '→ Choose a specific Arkadian agent based on the task' : ''}
 
 ${getOrchestratorReminder()}
 `;
@@ -462,19 +596,23 @@ ${getOrchestratorReminder()}
                 process.exit(2);
             }
 
-            // Valid agent type - increment depth for sub-agent detection
-            log('Task agent validated', { subagentType });
-            incrementTaskDepth();
+            // Valid agent type - add pending spawn for sub-agent detection
+            log(sessionId, 'task-agent-validated', { subagentType });
+            addPendingSpawn(sessionId, subagentType);
         }
 
-        // TodoWrite is always allowed (state tracking)
-        // AskUserQuestion is always allowed (clarification)
-
-        log('Allowed', { tool: toolName });
+        log(sessionId, 'allowed', { tool: toolName });
         process.exit(0);
 
     } catch (error: any) {
-        log('Hook error', { message: error.message, stack: error.stack });
+        // Try to log the error
+        try {
+            const input = await Bun.stdin.text();
+            const hookInput = JSON.parse(input);
+            log(hookInput.session_id, 'error', { message: error.message, stack: error.stack });
+        } catch (e) {
+            // Ignore
+        }
         // Don't block on hook errors
         process.exit(0);
     }

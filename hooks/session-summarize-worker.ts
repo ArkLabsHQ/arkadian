@@ -6,10 +6,12 @@
  * Background worker that summarizes a session transcript using Claude.
  * This runs as a detached process so it survives the parent hook termination.
  *
+ * Logs to per-session log file: {ARKADIAN_DATA_DIR}/{session_id}_log.txt
+ *
  * Usage: bun session-summarize-worker.ts <sessionId> <transcriptPath> <sessionDir>
  */
 
-import { existsSync, readFileSync, writeFileSync, renameSync, appendFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, renameSync, appendFileSync, mkdirSync } from 'fs';
 import { join, basename } from 'path';
 import { spawnSync } from 'child_process';
 
@@ -22,22 +24,36 @@ const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
 // Falls back to ARKADIAN_DIR/log for backward compatibility
 const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
 
-const LOG_FILE = join(ARKADIAN_DATA_DIR, 'summarize-worker.txt');
+// Global session ID - set in main()
+let CURRENT_SESSION_ID = 'unknown';
 
-// Helper function for logging
+/**
+ * Ensure data directory exists
+ */
+function ensureDataDir(): void {
+    if (!existsSync(ARKADIAN_DATA_DIR)) {
+        mkdirSync(ARKADIAN_DATA_DIR, { recursive: true });
+    }
+}
+
+/**
+ * Log to per-session log file
+ */
 function log(label: string, data: any) {
     const timestamp = new Date().toISOString();
-    let output = `\n[${timestamp}] [summarize-worker] ${label}:\n`;
+    const logFile = join(ARKADIAN_DATA_DIR, `${CURRENT_SESSION_ID}_log.txt`);
 
+    let output = `[${timestamp}] [summarize-worker] ${label}: `;
     if (typeof data === 'object') {
-        output += JSON.stringify(data, null, 2);
+        output += JSON.stringify(data);
     } else {
         output += data;
     }
     output += '\n';
 
     try {
-        appendFileSync(LOG_FILE, output);
+        ensureDataDir();
+        appendFileSync(logFile, output);
     } catch (e) {
         // Ignore logging errors
     }
@@ -201,23 +217,26 @@ async function main() {
     const args = process.argv.slice(2);
 
     if (args.length < 3) {
-        log('Invalid arguments', args);
+        console.error('Invalid arguments:', args);
         process.exit(1);
     }
 
     const [sessionId, transcriptPath, sessionDir] = args;
 
-    log('=== Summarize Worker Started ===', { sessionId, transcriptPath, sessionDir });
+    // Set global session ID for logging
+    CURRENT_SESSION_ID = sessionId;
+
+    log('worker-started', { transcriptPath, sessionDir });
 
     try {
         // Verify paths exist
         if (!existsSync(sessionDir)) {
-            log('Session folder not found', sessionDir);
+            log('session-folder-not-found', sessionDir);
             process.exit(1);
         }
 
         if (!existsSync(transcriptPath)) {
-            log('Transcript not found', transcriptPath);
+            log('transcript-not-found', transcriptPath);
             process.exit(1);
         }
 
@@ -225,7 +244,7 @@ async function main() {
         const result = summarizeWithClaude(transcriptPath);
 
         if (result) {
-            log('Summarization successful', { title: result.title });
+            log('summarization-successful', { title: result.title });
 
             // Update session.md with summary
             updateSessionMd(sessionDir, result.summary);
@@ -234,10 +253,10 @@ async function main() {
             const newPath = renameSessionFolder(sessionId, result.title);
 
             if (newPath) {
-                log('Session complete', basename(newPath));
+                log('session-complete', basename(newPath));
             }
         } else {
-            log('Summarization failed, using fallback', null);
+            log('summarization-failed', 'Using fallback');
 
             // Fallback: just add end time to session.md
             const sessionMdPath = join(sessionDir, 'session.md');
@@ -245,17 +264,17 @@ async function main() {
                 const existingContent = readFileSync(sessionMdPath, 'utf-8');
                 const endTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
                 writeFileSync(sessionMdPath, `${existingContent}\n\n---\n\n**Ended:** ${endTime}\n\n_Automatic summary generation failed. View transcript for details._\n`);
-                log('Fallback session.md updated', sessionMdPath);
+                log('fallback-session.md-updated', sessionMdPath);
             }
 
             // Rename with generic title
             renameSessionFolder(sessionId, 'session');
         }
 
-        log('=== Summarize Worker Completed ===', new Date().toISOString());
+        log('worker-completed', new Date().toISOString());
         process.exit(0);
     } catch (error: any) {
-        log('FATAL ERROR', { message: error.message, stack: error.stack });
+        log('fatal-error', { message: error.message, stack: error.stack });
         process.exit(1);
     }
 }
