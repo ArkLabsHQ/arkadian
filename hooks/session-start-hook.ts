@@ -5,7 +5,19 @@ import { join, resolve } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
-const LOG_FILE = join(ARKADIAN_DIR, 'log/test.txt');
+
+// Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
+// macOS: ~/Library/Application Support/Arkadian
+// Linux: ~/.arkadian
+// Falls back to ARKADIAN_DIR/log for backward compatibility
+const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
+
+const LOG_FILE = join(ARKADIAN_DATA_DIR, 'session-start.txt');
+const ORCHESTRATOR_SESSION_FILE = join(ARKADIAN_DATA_DIR, 'orchestrator-session.txt');
+const TASK_DEPTH_FILE = join(ARKADIAN_DATA_DIR, 'task-depth.txt');
+
+// Only register as orchestrator in orchestrator mode
+const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
 
 interface HookInput {
     session_id: string;
@@ -32,6 +44,27 @@ function log(label: string, data: any) {
 
 function getReadableTimestamp(): string {
     return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+/**
+ * Register this session as the orchestrator session.
+ * This MUST be done in session-start, not in the guardrail hook,
+ * to ensure the correct session ID is registered before any tool calls.
+ */
+function registerOrchestratorSession(sessionId: string): void {
+    if (!ORCHESTRATOR_MODE) {
+        log('Not registering orchestrator session', 'ORCHESTRATOR_MODE not set');
+        return;
+    }
+
+    // Always overwrite - this is a new orchestrator session
+    writeFileSync(ORCHESTRATOR_SESSION_FILE, sessionId);
+    log('Registered orchestrator session', sessionId);
+
+    // Reset task depth to 0 for new orchestrator session
+    // This ensures sub-agent detection works correctly
+    writeFileSync(TASK_DEPTH_FILE, '0');
+    log('Reset task depth to 0', sessionId);
 }
 
 function createSessionFolder(hookInput: HookInput): string {
@@ -78,6 +111,10 @@ async function main() {
 
         // Create session folder (for both dev and normal mode)
         const sessionDir = createSessionFolder(hookInput);
+
+        // Register this session as orchestrator (only in orchestrator mode)
+        // This MUST happen here, not in the guardrail, to avoid race conditions
+        registerOrchestratorSession(hookInput.session_id);
 
         const quickCommands = `
 I am Arkadian, your Ark Digital Assistant. I provide intelligent, context-aware assistance across the entire Ark protocol ecosystem (12+ repositories).

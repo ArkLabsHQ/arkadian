@@ -84,7 +84,7 @@ This builds fresh images for:
 Start all required services:
 
 ```bash
-make up-test-env
+docker compose -f test.docker-compose.yml up -d
 ```
 
 This starts the following services via Docker Compose:
@@ -143,7 +143,7 @@ For repeated test runs after initial setup:
 ```bash
 # First time only
 make build-test-env
-make up-test-env
+docker compose -f test.docker-compose.yml up -d
 make setup-test-env
 
 # Run tests (can repeat)
@@ -296,7 +296,7 @@ set -e
 
 # Build and start
 make build-test-env
-make up-test-env
+docker compose -f test.docker-compose.yml up -d
 
 # Wait for services (adjust timing as needed)
 sleep 30

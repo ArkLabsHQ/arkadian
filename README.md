@@ -24,10 +24,12 @@ source ~/.zshrc   # or open new terminal
 ## Usage
 
 ```bash
-# Launch with orchestrator (recommended)
+# Launch with orchestrator
 arkadian
 
-# Standard claude (less strict)
+# To use standard Claude without Ark knowledge:
+
+make uninstall 
 claude
 ```
 

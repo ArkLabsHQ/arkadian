@@ -1,17 +1,32 @@
-.PHONY: install uninstall check-prereqs setup-dirs copy-settings export-env make-executable install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs install-data-dir copy-settings export-env make-executable install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
 
-# Detect shell config file
-SHELL_CONFIG := $(shell \
-	if [ -n "$$ZSH_VERSION" ] || [ -f "$$HOME/.zshrc" ]; then \
+# Detect shell config file based on user's actual SHELL
+# Priority: 1) Check $SHELL variable, 2) Fall back to checking files
+SHELL_CONFIG := $(shell bash -c '\
+	user_shell=$$(basename "$$SHELL" 2>/dev/null); \
+	if [ "$$user_shell" = "zsh" ]; then \
+		echo "$$HOME/.zshrc"; \
+	elif [ "$$user_shell" = "bash" ]; then \
+		if [ -f "$$HOME/.bash_profile" ]; then echo "$$HOME/.bash_profile"; \
+		elif [ -f "$$HOME/.bashrc" ]; then echo "$$HOME/.bashrc"; \
+		else echo "$$HOME/.profile"; fi; \
+	elif [ "$$user_shell" = "fish" ]; then \
+		echo "$$HOME/.config/fish/config.fish"; \
+	elif [ "$$user_shell" = "ksh" ]; then \
+		echo "$$HOME/.kshrc"; \
+	elif [ -f "$$HOME/.zshrc" ]; then \
 		echo "$$HOME/.zshrc"; \
 	elif [ -f "$$HOME/.bashrc" ]; then \
 		echo "$$HOME/.bashrc"; \
 	else \
 		echo "$$HOME/.profile"; \
-	fi)
+	fi')
 
 # Get absolute path to arkadian directory
 ARKADIAN_DIR := $(shell pwd)
+
+# Get OS-specific data directory (~/Library/Application Support/Arkadian on macOS, ~/.arkadian on Linux)
+ARKADIAN_DATA_DIR := $(shell bash $(ARKADIAN_DIR)/scripts/get-data-dir.sh)
 
 # Colors for output
 GREEN := \033[0;32m
@@ -28,14 +43,21 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs generate-env copy-settings-with-env export-env make-executable install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-with-env export-env make-executable install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
 	@echo "$(GREEN)========================================$(NC)"
 	@echo ""
-	@echo "$(YELLOW)IMPORTANT: Restart your terminal or run:$(NC)"
-	@echo "  source $(SHELL_CONFIG)"
+	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \
+	if [ "$$is_fish" = "yes" ]; then \
+		echo "$(YELLOW)IMPORTANT: Restart your terminal or run:$(NC)"; \
+		echo "  source $(SHELL_CONFIG)"; \
+		echo "  $(YELLOW)(or just open a new terminal tab)$(NC)"; \
+	else \
+		echo "$(YELLOW)IMPORTANT: Restart your terminal or run:$(NC)"; \
+		echo "  source $(SHELL_CONFIG)"; \
+	fi
 	@echo ""
 	@echo "$(GREEN)Usage:$(NC)"
 	@echo "  $(GREEN)arkadian$(NC)  - Launch with orchestrator mode (recommended)"
@@ -57,6 +79,11 @@ setup-dirs: ## Create necessary directories
 	@echo "$(YELLOW)Creating directories...$(NC)"
 	@mkdir -p $$HOME/.claude
 	@echo "$(GREEN)✓ Created ~/.claude/$(NC)"
+
+install-data-dir: ## Create OS-specific data directory for runtime state
+	@echo "$(YELLOW)Creating data directory...$(NC)"
+	@mkdir -p "$(ARKADIAN_DATA_DIR)"
+	@echo "$(GREEN)✓ Created data directory: $(ARKADIAN_DATA_DIR)$(NC)"
 
 generate-env: ## Generate .env from user prompts
 	@if [ -f ".env" ]; then \
@@ -81,21 +108,28 @@ copy-settings: ## Copy settings.json to ~/.claude/ (legacy - use copy-settings-w
 	@echo "$(GREEN)✓ Installed ~/.claude/settings.json$(NC)"
 	@echo "$(GREEN)  ARKADIAN_DIR set to: $(ARKADIAN_DIR)$(NC)"
 
-export-env: ## Add ARKADIAN_DIR to shell config
+export-env: ## Add ARKADIAN_DIR and ARKADIAN_DATA_DIR to shell config
 	@echo "$(YELLOW)Configuring environment variables...$(NC)"
 	@echo "$(YELLOW)  Shell config: $(SHELL_CONFIG)$(NC)"
-	@# Check if ARKADIAN_DIR already exists in shell config
-	@if grep -q "export ARKADIAN_DIR=" $(SHELL_CONFIG) 2>/dev/null; then \
-		echo "$(YELLOW)⚠️  ARKADIAN_DIR already exists in $(SHELL_CONFIG)$(NC)"; \
-		echo "$(YELLOW)  Updating to: $(ARKADIAN_DIR)$(NC)"; \
-		sed -i.bak '/export ARKADIAN_DIR=/d' $(SHELL_CONFIG); \
+	@# Remove old entries first (handles both fish and bash/zsh)
+	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \
+	if [ "$$is_fish" = "yes" ]; then \
+		sed -i.bak '/# Arkadian Assistant Configuration/d; /set -gx ARKADIAN_DIR/d; /set -gx ARKADIAN_DATA_DIR/d' $(SHELL_CONFIG) 2>/dev/null || true; \
+		mkdir -p $$(dirname $(SHELL_CONFIG)); \
+		echo "" >> $(SHELL_CONFIG); \
+		echo "# Arkadian Assistant Configuration" >> $(SHELL_CONFIG); \
+		echo "set -gx ARKADIAN_DIR \"$(ARKADIAN_DIR)\"" >> $(SHELL_CONFIG); \
+		echo "set -gx ARKADIAN_DATA_DIR \"$(ARKADIAN_DATA_DIR)\"" >> $(SHELL_CONFIG); \
+	else \
+		sed -i.bak '/# Arkadian Assistant Configuration/d; /export ARKADIAN_DIR=/d; /export ARKADIAN_DATA_DIR=/d' $(SHELL_CONFIG) 2>/dev/null || true; \
+		echo "" >> $(SHELL_CONFIG); \
+		echo "# Arkadian Assistant Configuration" >> $(SHELL_CONFIG); \
+		echo "export ARKADIAN_DIR=\"$(ARKADIAN_DIR)\"" >> $(SHELL_CONFIG); \
+		echo "export ARKADIAN_DATA_DIR=\"$(ARKADIAN_DATA_DIR)\"" >> $(SHELL_CONFIG); \
 	fi
-	@# Add ARKADIAN_DIR export
-	@echo "" >> $(SHELL_CONFIG)
-	@echo "# Arkadian Assistant Configuration" >> $(SHELL_CONFIG)
-	@echo "export ARKADIAN_DIR=\"$(ARKADIAN_DIR)\"" >> $(SHELL_CONFIG)
 	@echo "$(GREEN)✓ Added ARKADIAN_DIR to $(SHELL_CONFIG)$(NC)"
-	@echo "$(YELLOW)  Run 'source $(SHELL_CONFIG)' to load the variable$(NC)"
+	@echo "$(GREEN)✓ Added ARKADIAN_DATA_DIR to $(SHELL_CONFIG)$(NC)"
+	@echo "$(YELLOW)  Run 'source $(SHELL_CONFIG)' to load the variables$(NC)"
 
 make-executable: ## Make hooks executable
 	@echo "$(YELLOW)Making hooks executable...$(NC)"
@@ -107,11 +141,19 @@ install-arkadian-cmd: ## Install 'arkadian' command to ~/bin (uses --append-syst
 	@mkdir -p $$HOME/bin
 	@cp scripts/arkadian $$HOME/bin/arkadian
 	@chmod +x $$HOME/bin/arkadian
-	@# Add ~/bin to PATH if not already there
-	@if ! echo "$$PATH" | grep -q "$$HOME/bin"; then \
-		if ! grep -q 'export PATH="$$HOME/bin:$$PATH"' $(SHELL_CONFIG) 2>/dev/null; then \
-			echo 'export PATH="$$HOME/bin:$$PATH"' >> $(SHELL_CONFIG); \
-			echo "$(YELLOW)  Added ~/bin to PATH in $(SHELL_CONFIG)$(NC)"; \
+	@# Add ~/bin to PATH if not already there (handle fish shell separately)
+	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \
+	if ! echo "$$PATH" | grep -q "$$HOME/bin"; then \
+		if [ "$$is_fish" = "yes" ]; then \
+			if ! grep -q 'fish_add_path.*bin' $(SHELL_CONFIG) 2>/dev/null && ! grep -q 'set.*PATH.*bin' $(SHELL_CONFIG) 2>/dev/null; then \
+				echo 'fish_add_path $$HOME/bin' >> $(SHELL_CONFIG); \
+				echo "$(YELLOW)  Added ~/bin to PATH in $(SHELL_CONFIG)$(NC)"; \
+			fi; \
+		else \
+			if ! grep -q 'export PATH="$$HOME/bin:$$PATH"' $(SHELL_CONFIG) 2>/dev/null; then \
+				echo 'export PATH="$$HOME/bin:$$PATH"' >> $(SHELL_CONFIG); \
+				echo "$(YELLOW)  Added ~/bin to PATH in $(SHELL_CONFIG)$(NC)"; \
+			fi; \
 		fi; \
 	fi
 	@echo "$(GREEN)✓ Installed 'arkadian' command to ~/bin/arkadian$(NC)"
@@ -135,6 +177,10 @@ install-commands: ## Install commands to ~/.claude/commands
 update-shell: ## Source shell config (run in new shell)
 	@echo "$(YELLOW)To activate environment variables, run:$(NC)"
 	@echo "  source $(SHELL_CONFIG)"
+	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \
+	if [ "$$is_fish" = "yes" ]; then \
+		echo "$(YELLOW)(or just open a new terminal tab)$(NC)"; \
+	fi
 
 test-hook: ## Test the context loading hook
 	@echo "$(YELLOW)Testing hook...$(NC)"
@@ -197,11 +243,22 @@ verify: ## Verify installation
 	else \
 		echo "$(YELLOW)⚠️  Commands not fully installed (run: make install-commands)$(NC)"; \
 	fi
-	@# Check shell config
-	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
+	@# Check shell config (handles both fish and bash/zsh syntax)
+	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG) 2>/dev/null; then \
 		echo "$(GREEN)✓ ARKADIAN_DIR in $(SHELL_CONFIG)$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠️  ARKADIAN_DIR not in shell config (run: make export-env)$(NC)"; \
+	fi
+	@if grep -q "ARKADIAN_DATA_DIR" $(SHELL_CONFIG) 2>/dev/null; then \
+		echo "$(GREEN)✓ ARKADIAN_DATA_DIR in $(SHELL_CONFIG)$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  ARKADIAN_DATA_DIR not in shell config (run: make export-env)$(NC)"; \
+	fi
+	@# Check data directory exists
+	@if [ -d "$(ARKADIAN_DATA_DIR)" ]; then \
+		echo "$(GREEN)✓ Data directory exists: $(ARKADIAN_DATA_DIR)$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Data directory missing (run: make install-data-dir)$(NC)"; \
 	fi
 
 uninstall: ## Remove Arkadian installation
@@ -238,11 +295,20 @@ uninstall: ## Remove Arkadian installation
 		rm -rf $$HOME/.claude/commands; \
 		echo "$(GREEN)✓ Removed commands$(NC)"; \
 	fi
-	@# Remove ARKADIAN_DIR from shell config
-	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
-		sed -i.bak '/# Arkadian Assistant Configuration/d; /export ARKADIAN_DIR=/d' $(SHELL_CONFIG); \
+	@# Remove ARKADIAN_DIR and ARKADIAN_DATA_DIR from shell config (handle fish shell separately)
+	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \
+	if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG); then \
+		if [ "$$is_fish" = "yes" ]; then \
+			sed -i.bak '/# Arkadian Assistant Configuration/d; /set -gx ARKADIAN_DIR/d; /set -gx ARKADIAN_DATA_DIR/d' $(SHELL_CONFIG); \
+		else \
+			sed -i.bak '/# Arkadian Assistant Configuration/d; /export ARKADIAN_DIR=/d; /export ARKADIAN_DATA_DIR=/d' $(SHELL_CONFIG); \
+		fi; \
 		echo "$(GREEN)✓ Removed ARKADIAN_DIR from $(SHELL_CONFIG)$(NC)"; \
+		echo "$(GREEN)✓ Removed ARKADIAN_DATA_DIR from $(SHELL_CONFIG)$(NC)"; \
 	fi
+	@# Note: Data directory at $(ARKADIAN_DATA_DIR) is preserved (may contain user data)
+	@echo "$(YELLOW)ℹ️  Data directory preserved: $(ARKADIAN_DATA_DIR)$(NC)"
+	@echo "$(YELLOW)   To remove manually: rm -rf \"$(ARKADIAN_DATA_DIR)\"$(NC)"
 	@echo "$(GREEN)✓ Uninstall complete$(NC)"
 	@echo "$(YELLOW)Restart your terminal to complete uninstall$(NC)"
 
@@ -263,15 +329,19 @@ status: ## Show installation status
 	@echo ""
 	@echo "$(YELLOW)Configuration:$(NC)"
 	@echo "  Arkadian directory: $(ARKADIAN_DIR)"
+	@echo "  Data directory: $(ARKADIAN_DATA_DIR)"
 	@echo "  Shell config: $(SHELL_CONFIG)"
 	@echo ""
 	@echo "$(YELLOW)Installation:$(NC)"
 	@[ -f "$$HOME/.claude/settings.json" ] && echo "$(GREEN)✓ settings.json installed$(NC)" || echo "$(RED)✗ settings.json missing$(NC)"
+	@[ -d "$(ARKADIAN_DATA_DIR)" ] && echo "$(GREEN)✓ Data directory exists$(NC)" || echo "$(RED)✗ Data directory missing$(NC)"
 	@grep -q "ARKADIAN_DIR" $(SHELL_CONFIG) 2>/dev/null && echo "$(GREEN)✓ ARKADIAN_DIR in shell config$(NC)" || echo "$(RED)✗ ARKADIAN_DIR not in shell config$(NC)"
+	@grep -q "ARKADIAN_DATA_DIR" $(SHELL_CONFIG) 2>/dev/null && echo "$(GREEN)✓ ARKADIAN_DATA_DIR in shell config$(NC)" || echo "$(RED)✗ ARKADIAN_DATA_DIR not in shell config$(NC)"
 	@[ -x "hooks/load-arkadian-context.ts" ] && echo "$(GREEN)✓ Hooks executable$(NC)" || echo "$(RED)✗ Hooks not executable$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Current ARKADIAN_DIR value:$(NC)"
-	@echo "  $$ARKADIAN_DIR"
-	@if [ -z "$$ARKADIAN_DIR" ]; then \
-		echo "$(YELLOW)  (Not set - restart terminal or run: source $(SHELL_CONFIG))$(NC)"; \
+	@echo "$(YELLOW)Current Environment:$(NC)"
+	@echo "  ARKADIAN_DIR=$$ARKADIAN_DIR"
+	@echo "  ARKADIAN_DATA_DIR=$$ARKADIAN_DATA_DIR"
+	@if [ -z "$$ARKADIAN_DIR" ] || [ -z "$$ARKADIAN_DATA_DIR" ]; then \
+		echo "$(YELLOW)  (Some vars not set - restart terminal or run: source $(SHELL_CONFIG))$(NC)"; \
 	fi

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Arkadian - Launch Claude Code with orchestrator system prompt
 # This ensures ORCHESTRATOR.md instructions are in the SYSTEM prompt (highest priority)

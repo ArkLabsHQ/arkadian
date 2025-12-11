@@ -16,15 +16,24 @@ echo "This script will prompt you for the paths to all Ark repositories."
 echo "Press Enter to skip optional repositories."
 echo ""
 
-# Start with ARKADIAN_DIR (auto-detected)
+# Get OS-specific data directory
+ARKADIAN_DATA_DIR=$("$SCRIPT_DIR/get-data-dir.sh")
+
+# Start with ARKADIAN_DIR and ARKADIAN_DATA_DIR (auto-detected)
 echo "# Arkadian Environment Variables" > "$ENV_FILE"
 echo "# Generated on $(date)" >> "$ENV_FILE"
 echo "" >> "$ENV_FILE"
 echo "# Core Arkadian directory (this repository)" >> "$ENV_FILE"
 echo "ARKADIAN_DIR=$ARKADIAN_DIR" >> "$ENV_FILE"
 echo "" >> "$ENV_FILE"
+echo "# Runtime data directory (OS-specific)" >> "$ENV_FILE"
+echo "# macOS: ~/Library/Application Support/Arkadian" >> "$ENV_FILE"
+echo "# Linux: ~/.arkadian" >> "$ENV_FILE"
+echo "ARKADIAN_DATA_DIR=$ARKADIAN_DATA_DIR" >> "$ENV_FILE"
+echo "" >> "$ENV_FILE"
 
 echo "✓ ARKADIAN_DIR set to: $ARKADIAN_DIR"
+echo "✓ ARKADIAN_DATA_DIR set to: $ARKADIAN_DATA_DIR"
 echo ""
 
 # Function to prompt for path

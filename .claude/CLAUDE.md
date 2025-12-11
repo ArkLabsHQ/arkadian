@@ -23,6 +23,7 @@ Arkadian is a **Claude Code plugin** that provides an AI orchestration system fo
 | Workflow templates | `templates/` |
 | Session artifacts | `sessions/` |
 | Installation scripts | `scripts/` |
+| Claude Code reference docs | `internal/claude-code-ref/INDEX.md` |
 
 ## Architecture Overview
 

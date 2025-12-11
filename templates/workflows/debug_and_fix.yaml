@@ -12,55 +12,32 @@ applies_to:
   multi_project: false
 
 execution:
-  agents: ["ark-debugger", "ark-developer", "ark-tester"]
+  agents: ["ark-developer"]
   phases:
-    - id: "isolate"
-      name: "Isolate Fault"
-      agent: "ark-debugger"
+    - id: "debug_and_fix"
+      name: "Debug and Fix"
+      agent: "ark-developer"
       depends_on: null
       approval_required: false
       actions:
         - "Analyze error logs and stack traces"
         - "Identify root cause of failure"
         - "Create minimal reproduction case"
-        - "Document findings in troubleshooting.md"
-      checkpoint:
-        path: "repro-steps-or-test-case.md"
-        required_for_next_phase: true
-      timeout_seconds: 900
-      # Orchestrator: bind to selected project and load testing/troubleshooting.md
-
-    - id: "fix"
-      name: "Apply Fix"
-      agent: "ark-developer"
-      depends_on: "isolate"
-      condition: "if urgency is critical, skip approval; else require approval"
-      approval_required: false
-      approval_message: "Fix ready. Proceed with implementation?"
-      actions:
         - "Create branch: fix/<area>-<slug>"
-        - "Implement fix based on debugger findings"
+        - "Implement fix"
         - "Add regression test"
+        - "Use ark-ops skill for manual verification"
+        - "Run full test suite directly (internal validation loop with retries)"
+        - "Verify original issue is resolved"
         - "Commit with conventional commit message"
       checkpoint:
         path: "git-commit-SHA"
-        required_for_next_phase: true
-      timeout_seconds: 1200
-      auto_retry: false
-
-    - id: "validate"
-      name: "Validate Fix"
-      agent: "ark-tester"
-      depends_on: "fix"
-      approval_required: false
-      actions:
-        - "Run regression test"
-        - "Verify original issue is resolved"
-        - "Run full test suite"
-        - "Check for side effects"
-      timeout_seconds: 600
+        required_for_next_phase: false
+      timeout_seconds: 1800
       auto_retry: true
-      max_retries: 2
+      max_retries: 3
+      # Orchestrator: bind to selected project and load testing/troubleshooting.md
+      # NOTE: ark-developer handles debugging + fixing + testing in one pass
 
 success_criteria:
   - "Root cause identified and documented"

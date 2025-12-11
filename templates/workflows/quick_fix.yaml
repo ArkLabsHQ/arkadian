@@ -13,7 +13,7 @@ applies_to:
   multi_project: false
 
 execution:
-  agents: ["ark-developer", "ark-tester"]
+  agents: ["ark-developer"]
   phases:
     - id: "fix"
       name: "Apply Quick Fix"
@@ -23,31 +23,20 @@ execution:
       actions:
         - "Create branch: fix/<area>-<slug>"
         - "Apply code/documentation fix (≤3 files, <100 lines)"
-        - "Run unit tests"
+        - "Use ark-ops skill for manual verification"
+        - "Run unit tests directly (internal validation loop)"
         - "Commit with conventional commit message"
       checkpoint:
         path: "git commit SHA"
-        required_for_next_phase: true
-      timeout_seconds: 300
+        required_for_next_phase: false
+      timeout_seconds: 600
       auto_retry: true
-      max_retries: 1
+      max_retries: 3
       # Orchestrator:
       # - bind to exactly 1 selected project (plus depends_on)
       # - docs: take default_sections_by_intent.dev from that project's INDEX.md
       # - inject scripts_hint from project INDEX.md (make test, make integrationtest)
-
-    - id: "auto_test"
-      name: "Auto-Validate Fix"
-      agent: "ark-tester"
-      depends_on: "fix"
-      approval_required: false
-      actions:
-        - "Run test suite (unit tests)"
-        - "Validate no regressions"
-        - "Check code coverage maintained"
-      timeout_seconds: 300
-      auto_retry: true
-      max_retries: 2
+      # NOTE: ark-developer handles testing internally via ark-ops skill
 
 success_criteria:
   - "Fix applied to ≤3 files"

@@ -269,7 +269,11 @@ curl -s -X POST http://localhost:4040/querier.v1.QuerierService/Diff \
 ### Get Memory Allocation Profile
 
 ```bash
+# Memory allocation rate (total allocated over time)
 curl -s "http://localhost:4040/pyroscope/render?query=memory:alloc_space:bytes:space:bytes{service_name=\"arkd\"}&from=now-1h&until=now&format=json" | jq '.flamebearer.numTicks'
+
+# Memory currently in-use (heap snapshot)
+curl -s "http://localhost:4040/pyroscope/render?query=memory:inuse_space:bytes:space:bytes{service_name=\"arkd\"}&from=now-1h&until=now&format=json" | jq '.flamebearer.numTicks'
 ```
 
 ### List All Profile Types Available
@@ -314,7 +318,128 @@ curl -s -X POST http://localhost:4040/querier.v1.QuerierService/SelectSeries \
 
 ---
 
+## Working with Grafana Datasource Queries
+
+### Query Format for Grafana Integration
+
+When querying Pyroscope through Grafana (via the pyroscope datasource), use this format:
+
+```
+memory:inuse_space:bytes:space:bytes-service_name="arkd"-no-group-by
+```
+
+**Query Structure:**
+- Profile type: `memory:inuse_space:bytes:space:bytes`
+- Filters: `-service_name="arkd"` (dash-separated)
+- Grouping: `-no-group-by` (prevents automatic aggregation)
+
+**Common Query Patterns:**
+
+```bash
+# Memory currently in-use by arkd service (snapshot)
+memory:inuse_space:bytes:space:bytes-service_name="arkd"-no-group-by
+
+# Memory allocation rate for arkd service (over time)
+memory:alloc_space:bytes:space:bytes-service_name="arkd"-no-group-by
+
+# CPU time for arkd service
+process_cpu:cpu:nanoseconds:cpu:nanoseconds-service_name="arkd"-no-group-by
+
+# Goroutine count for arkd service
+goroutines:goroutine:count:goroutine:count-service_name="arkd"-no-group-by
+```
+
+### Timestamp Format
+
+Pyroscope uses **Unix milliseconds** for time ranges:
+
+```bash
+# Example time range (1 hour window)
+FROM="1764530324411"  # 2025-11-30 20:18:44 UTC
+TO="1764533971164"    # 2025-11-30 21:19:31 UTC
+
+# Convert from human-readable (requires GNU date)
+FROM=$(date -u -d "2025-11-30 20:18:44" +%s%3N)
+TO=$(date -u -d "2025-11-30 21:19:31" +%s%3N)
+
+# Convert from relative time
+FROM=$(date -u -d "1 hour ago" +%s%3N)
+TO=$(date -u +%s%3N)
+```
+
+### Flame Graph Interpretation
+
+**Top Table:**
+- Shows functions sorted by **Self** (direct allocations) or **Total** (including callees)
+- Click column headers to sort by different metrics
+
+**Call Stack Panel:**
+- Right panel shows complete call chain from root to allocation site
+- Read from top (caller) to bottom (actual allocation)
+
+**Tooltip Information:**
+- Hover over flame graph bars to see:
+  - RAM total: Total memory attributed to this function
+  - Self: Memory directly allocated by this function
+  - Percentage: % of total memory
+  - Sample count: Number of profiling samples
+
+**Common Allocators to Watch:**
+
+```
+github.com/lib/pq.textDecode
+  → PostgreSQL text column decoding (strings, UUIDs, JSON)
+  → High values indicate large query result sets
+
+internal/runtime/maps.newarray
+  → Go map allocations
+  → High values indicate map growth or many small maps
+
+github.com/btcsuite/btcd/wire.*
+  → Bitcoin protocol serialization
+  → High values during transaction processing
+
+github.com/klauspost/compress/flate.NewWriter
+  → Compression buffer allocations
+  → Expected during response encoding
+```
+
+### Investigation Workflow
+
+**Step 1: Identify memory spike in timeline**
+```bash
+# Query memory:inuse_space for 1-hour window
+# Look for spikes above baseline
+```
+
+**Step 2: Zoom into spike time range**
+```bash
+# Narrow time range to spike duration (e.g., 3-minute window)
+# FROM: spike start timestamp (ms)
+# TO: spike end timestamp (ms)
+```
+
+**Step 3: Analyze flame graph**
+```bash
+# Look for functions with high Self percentage (>10%)
+# Trace call stack to identify root cause
+# Check if allocations are in:
+#   - Database queries (pq.textDecode)
+#   - Map/slice growth (runtime.newarray)
+#   - External libraries (btcd, compress, etc.)
+```
+
+**Step 4: Compare allocation profiles**
+```bash
+# Compare memory:inuse_space (snapshot) vs memory:alloc_space (rate)
+# inuse_space shows what's live at peak
+# alloc_space shows allocation hot paths
+```
+
+---
+
 ## References
 
 - [Pyroscope API Reference](https://grafana.com/docs/pyroscope/latest/reference-server-api/)
 - [Pyroscope Go SDK](https://github.com/grafana/pyroscope-go)
+- [Grafana Pyroscope Datasource](https://grafana.com/docs/grafana/latest/datasources/pyroscope/)

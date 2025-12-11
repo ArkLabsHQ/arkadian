@@ -15,8 +15,15 @@ import { spawn, spawnSync } from 'child_process';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
-const LOG_FILE = join(ARKADIAN_DIR, 'log/test.txt');
-const ORCHESTRATOR_SESSION_FILE = join(ARKADIAN_DIR, 'log/orchestrator-session.txt');
+
+// Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
+// macOS: ~/Library/Application Support/Arkadian
+// Linux: ~/.arkadian
+// Falls back to ARKADIAN_DIR/log for backward compatibility
+const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
+
+const LOG_FILE = join(ARKADIAN_DATA_DIR, 'session-stop.txt');
+const ORCHESTRATOR_SESSION_FILE = join(ARKADIAN_DATA_DIR, 'orchestrator-session.txt');
 
 // Helper function for logging
 function log(label: string, data: any) {

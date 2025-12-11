@@ -27,10 +27,11 @@ git clone https://github.com/ark-network/fulmine-simulator
 cd fulmine-simulator
 
 # Download dependencies
-make deps
+go mod download
 
-# Build all binaries
-make build-all
+# Build orchestrator binary
+make build
+# Binary created at: ./orchestrator/bin/orchestrator
 ```
 
 ## Running on Regtest
@@ -57,10 +58,10 @@ make run-regtest
 
 ```bash
 # Use example regtest config
-make run CONFIG=configs/regtest-5-clients.yaml
+make run ARGS="--sim ./configs/fulmine-endpoints-test.yaml"
 
-# Or custom config
-./bin/orchestrator --config my-config.yaml
+# Or run binary directly
+./orchestrator/bin/orchestrator --sim ./configs/fulmine-endpoints-test.yaml
 ```
 
 ## Running on Mutinynet
@@ -86,7 +87,7 @@ rounds:
 ### 2. Run Simulation
 
 ```bash
-./bin/orchestrator --config configs/mutinynet-test.yaml
+./orchestrator/bin/orchestrator --sim ./configs/mutinynet-test.yaml
 ```
 
 ## Running on Mainnet
@@ -97,7 +98,7 @@ Mainnet requires explicit acknowledgment:
 
 ```bash
 # Will prompt for confirmation
-./bin/orchestrator --config configs/mainnet-production.yaml
+./orchestrator/bin/orchestrator --sim ./configs/mainnet-production.yaml
 # Type: I ACKNOWLEDGE MAINNET
 ```
 
@@ -123,7 +124,7 @@ For mainnet, fund the orchestrator wallet before running:
 
 ```bash
 # Get orchestrator address
-./bin/orchestrator --config mainnet.yaml --show-address
+./orchestrator/bin/orchestrator --sim mainnet.yaml --show-address
 
 # Send Bitcoin to this address
 # Wait for confirmations
@@ -135,7 +136,7 @@ For mainnet, fund the orchestrator wallet before running:
 ### Verbose Logging
 
 ```bash
-./bin/orchestrator --config test.yaml --verbose
+./orchestrator/bin/orchestrator --sim test.yaml --verbose
 ```
 
 ### Dry Run
@@ -143,7 +144,7 @@ For mainnet, fund the orchestrator wallet before running:
 Validate configuration without executing:
 
 ```bash
-./bin/orchestrator --config test.yaml --dry-run
+./orchestrator/bin/orchestrator --sim test.yaml --dry-run
 ```
 
 ## Environment Variables
@@ -162,8 +163,8 @@ Validate configuration without executing:
 # Clean build artifacts
 make clean
 
-# Kill lingering processes
-make clean-processes
+# Kill lingering processes (manual)
+pkill -f orchestrator || true
 ```
 
 ### Docker Cleanup
@@ -176,18 +177,18 @@ docker ps -a | grep lnd-client | awk '{print $1}' | xargs docker rm -f
 ## Common Commands
 
 ```bash
-# Build
+# Build orchestrator
 make build
 
-# Run with default config
-make run
-
 # Run with custom config
-make run CONFIG=path/to/config.yaml
+make run ARGS="--sim ./configs/your-config.yaml"
 
-# Run tests
-make test
+# Run vet (static analysis)
+make vet
 
-# Clean everything
-make clean && make clean-processes
+# Clean build artifacts
+make clean
+
+# Show help
+make help
 ```

@@ -17,7 +17,14 @@ import { appendFileSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
-const LOG_FILE = join(ARKADIAN_DIR, 'log/test.txt');
+
+// Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
+// macOS: ~/Library/Application Support/Arkadian
+// Linux: ~/.arkadian
+// Falls back to ARKADIAN_DIR/log for backward compatibility
+const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
+
+const LOG_FILE = join(ARKADIAN_DATA_DIR, 'validate-agent.txt');
 
 // List of Arkadian agents that require validated input
 const ARKADIAN_AGENTS = [

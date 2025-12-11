@@ -13,7 +13,7 @@ applies_to:
   multi_project: false
 
 execution:
-  agents: ["ark-project-manager", "ark-developer", "ark-tester"]
+  agents: ["ark-project-manager", "ark-developer"]
   phases:
     - id: "specify"
       name: "Create Specification"
@@ -97,31 +97,22 @@ execution:
         - "Use dev-implement skill to execute tasks.md"
         - "Create branch: feat/<area>-<slug>"
         - "Write code, tests, documentation"
-        - "Run tests locally"
+        - "Use ark-ops skill for manual verification"
+        - "Run full test suite directly (internal validation loop with retries)"
+        - "Check success criteria from spec.md"
         - "Commit changes with conventional commits"
       checkpoint:
         path: "git commit SHA"
         required_for_next_phase: true
       timeout_seconds: 3600
-
-    - id: "test"
-      name: "Validate Implementation"
-      agent: "ark-tester"
-      depends_on: "implement"
-      approval_required: false
-      actions:
-        - "Run test suite (unit + integration)"
-        - "Validate deployment health"
-        - "Check success criteria from spec.md"
-        - "Verify performance benchmarks"
-      timeout_seconds: 900
       auto_retry: true
-      max_retries: 2
+      max_retries: 3
+      # NOTE: ark-developer handles testing internally via ark-ops skill
 
     - id: "pr"
       name: "Create Pull Request"
       agent: "ark-developer"
-      depends_on: "test"
+      depends_on: "implement"
       approval_required: true
       approval_message: "Tests pass. Create pull request and push?"
       actions:

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # Install Arkadian commands to ~/.claude/commands
@@ -15,7 +15,7 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Installing Arkadian commands...${NC}"
+printf "${YELLOW}Installing Arkadian commands...${NC}\n"
 
 # Get ARKADIAN_DIR from environment or use default
 ARKADIAN_DIR="${ARKADIAN_DIR:-$(pwd)}"
@@ -24,27 +24,27 @@ COMMANDS_DEST="${HOME}/.claude/commands"
 
 # Verify source directory exists
 if [ ! -d "$COMMANDS_SOURCE" ]; then
-    echo -e "${RED}❌ Error: Commands source directory not found: $COMMANDS_SOURCE${NC}"
+    printf "${RED}Error: Commands source directory not found: $COMMANDS_SOURCE${NC}\n"
     exit 1
 fi
 
 # Create destination directory
 mkdir -p "$COMMANDS_DEST"
-echo -e "${GREEN}✓ Created $COMMANDS_DEST${NC}"
+printf "${GREEN}Created $COMMANDS_DEST${NC}\n"
 
 # Copy command files
-echo -e "${YELLOW}Copying command files...${NC}"
+printf "${YELLOW}Copying command files...${NC}\n"
 cp -v "$COMMANDS_SOURCE"/*.md "$COMMANDS_DEST/"
 
 # Count installed commands
 COMMAND_COUNT=$(ls -1 "$COMMANDS_DEST"/*.md 2>/dev/null | wc -l | tr -d ' ')
 
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}✅ Installed $COMMAND_COUNT commands to ~/.claude/commands${NC}"
-echo -e "${GREEN}========================================${NC}"
+printf "${GREEN}========================================${NC}\n"
+printf "${GREEN}Installed $COMMAND_COUNT commands to ~/.claude/commands${NC}\n"
+printf "${GREEN}========================================${NC}\n"
 echo ""
-echo -e "${YELLOW}Available commands:${NC}"
+printf "${YELLOW}Available commands:${NC}\n"
 ls -1 "$COMMANDS_DEST"/*.md | xargs -n 1 basename | sed 's/\.md$//' | sed 's/^/  - /'
 echo ""
-echo -e "${YELLOW}Commands are now available for manual invocation (e.g., /speckit.specify).${NC}"
+printf "${YELLOW}Commands are now available for manual invocation (e.g., /speckit.specify).${NC}\n"

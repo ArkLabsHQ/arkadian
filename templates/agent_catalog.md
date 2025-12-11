@@ -6,8 +6,8 @@
 |-------|---------|
 | `ark-guru` | Q&A, concepts, internal docs, explanations |
 | `ark-project-manager` | specs, scoping, task trees, multi-agent workflows, acceptance criteria |
-| `ark-developer` | code changes, fixes, implementation, unit/integration tests, SOP creation |
-| `ark-env-tester` | environment setup, Docker Compose, simulations, integration/E2E/regression tests, smoke checks |
+| `ark-developer` | **Full-stack implementation agent**: code changes, fixes, debugging, implementation, AND testing. Uses `ark-ops` skill for commands. Runs tests internally with retry loop (up to 10 attempts). **Does NOT delegate to ark-env-tester for development workflows.** |
+| `ark-env-tester` | **STANDALONE environment tasks only**: stack bootstrap, running simulations, environment health checks. **NOT used for development workflows** - ark-developer handles testing internally. |
 | `ark-researcher` | external research, prior art, API/library evaluation (fallback: ark-guru) |
 | `ark-pr-reviewer` | PR/commit/diff analysis, architecture consistency, test coverage, risk notes |
 | `ark-progress-tracker` | progress reports across 12 Ark projects, PR tracking via GitHub CLI, business value translation, cross-project coordination (has 4 modes: weekly, project-specific, feature, cross-project) |
@@ -49,8 +49,9 @@ Use this mapping to select doc sections from `@templates/doc_intake_defaults.md`
 
 | Condition | Action |
 |-----------|--------|
-| Environment setup, cross-stack validation, simulations | Include `ark-env-tester` |
-| Monitor/alert requests | Include `ark-telemetry` project, route execution to `ark-env-tester` |
+| **Development workflows** (code changes, fixes, features) | Route to `ark-developer` - it handles implement+test internally |
+| **Standalone environment setup** (no code changes) | Route to `ark-env-tester` |
+| **Run simulations** (standalone, no code changes) | Route to `ark-env-tester` |
 | Telemetry investigation, anomaly detection, performance troubleshooting | Route to `ark-observer` |
 | High CPU/memory, error spikes, latency issues | `ark-observer` for investigation, `ark-developer` for fixes |
 | Progress tracking, weekly reports, PR activity | Route to `ark-progress-tracker` |
@@ -59,9 +60,29 @@ Use this mapping to select doc sections from `@templates/doc_intake_defaults.md`
 | `develop` on infra/deploy | Always add `ark-infra` project |
 | `greenfield` | Consider: `arkd`, `go-sdk`, `ark-infra`, `ark-telemetry` + user-named projects |
 
+## When to Use Each Agent
+
+### Use `ark-developer` for:
+- Implementing features (handles testing internally)
+- Fixing bugs (handles testing internally)
+- Code changes of any kind
+- Debugging + fixing in single pass
+
+### Use `ark-env-tester` ONLY for:
+- "Set up the arkd stack" (standalone environment)
+- "Run a simulation with 100 clients" (standalone task)
+- "Bootstrap the full stack" (no code changes)
+- Environment health checks (standalone)
+
+### Do NOT use `ark-env-tester` for:
+- Testing after code changes (ark-developer does this)
+- Validation of implementations (ark-developer does this)
+- Any workflow where code was just modified
+
 ## Backward Compatibility
 
 | Legacy Name | Maps To |
 |-------------|---------|
 | `ark-runner` | `ark-env-tester` |
 | `ark-tester` | `ark-env-tester` |
+| `ark-debugger` | `ark-developer` |

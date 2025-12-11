@@ -13,7 +13,7 @@ applies_to:
   multi_project: false
 
 execution:
-  agents: ["ark-developer", "ark-tester"]
+  agents: ["ark-developer"]
   phases:
     - id: "implement"
       name: "Implement Small Feature"
@@ -25,27 +25,18 @@ execution:
         - "Create branch: feat/<area>-<slug>"
         - "Implement feature (≤10 files, <500 lines)"
         - "Write unit tests"
-        - "Run tests locally"
+        - "Use ark-ops skill for manual verification"
+        - "Run full test suite directly (internal validation loop with retries)"
+        - "Verify no regressions"
         - "Commit with conventional commit message"
       checkpoint:
         path: "git commit SHA"
-        required_for_next_phase: true
-      timeout_seconds: 900
-
-    - id: "test"
-      name: "Validate Feature"
-      agent: "ark-tester"
-      depends_on: "implement"
-      approval_required: false
-      actions:
-        - "Run full test suite (unit + integration)"
-        - "Validate feature behavior"
-        - "Check code coverage"
-        - "Verify no regressions"
-      timeout_seconds: 600
+        required_for_next_phase: false
+      timeout_seconds: 1200
       auto_retry: true
-      max_retries: 2
+      max_retries: 3
       # Orchestrator: inject scripts_hint from project INDEX.md
+      # NOTE: ark-developer handles testing internally via ark-ops skill
 
 success_criteria:
   - "Feature implemented in ≤10 files"

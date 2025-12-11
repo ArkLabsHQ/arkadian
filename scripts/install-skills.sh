@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # Install Arkadian skills to ~/.claude/skills
@@ -15,7 +15,7 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Installing Arkadian skills...${NC}"
+printf "${YELLOW}Installing Arkadian skills...${NC}\n"
 
 # Get ARKADIAN_DIR from environment or use default
 ARKADIAN_DIR="${ARKADIAN_DIR:-$(pwd)}"
@@ -24,20 +24,20 @@ SKILLS_DEST="${HOME}/.claude/skills"
 
 # Verify source directory exists
 if [ ! -d "$SKILLS_SOURCE" ]; then
-    echo -e "${RED}❌ Error: Skills source directory not found: $SKILLS_SOURCE${NC}"
+    printf "${RED}Error: Skills source directory not found: $SKILLS_SOURCE${NC}\n"
     exit 1
 fi
 
 # Create destination directory
 mkdir -p "$SKILLS_DEST"
-echo -e "${GREEN}✓ Created $SKILLS_DEST${NC}"
+printf "${GREEN}Created $SKILLS_DEST${NC}\n"
 
 # Copy skill directories
-echo -e "${YELLOW}Copying skill directories...${NC}"
+printf "${YELLOW}Copying skill directories...${NC}\n"
 for skill_dir in "$SKILLS_SOURCE"/*; do
     if [ -d "$skill_dir" ]; then
         skill_name=$(basename "$skill_dir")
-        echo -e "  Copying $skill_name..."
+        printf "  Copying $skill_name...\n"
         cp -r "$skill_dir" "$SKILLS_DEST/"
     fi
 done
@@ -46,11 +46,11 @@ done
 SKILL_COUNT=$(ls -1d "$SKILLS_DEST"/*/ 2>/dev/null | wc -l | tr -d ' ')
 
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}✅ Installed $SKILL_COUNT skills to ~/.claude/skills${NC}"
-echo -e "${GREEN}========================================${NC}"
+printf "${GREEN}========================================${NC}\n"
+printf "${GREEN}Installed $SKILL_COUNT skills to ~/.claude/skills${NC}\n"
+printf "${GREEN}========================================${NC}\n"
 echo ""
-echo -e "${YELLOW}Available skills:${NC}"
+printf "${YELLOW}Available skills:${NC}\n"
 ls -1d "$SKILLS_DEST"/*/ 2>/dev/null | xargs -n 1 basename | sed 's/^/  - /'
 echo ""
-echo -e "${YELLOW}Skills are now available for Claude Code agents to use.${NC}"
+printf "${YELLOW}Skills are now available for Claude Code agents to use.${NC}\n"
