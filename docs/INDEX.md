@@ -222,6 +222,45 @@ OpenTelemetry-based observability stack for Ark protocol monitoring. Provides me
 
 ---
 
+### arkade-assets
+**ID**: `arkade-assets`
+**Name**: Arkade Assets
+**Type**: Protocol Specification
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-assets/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/go/arkade-assets`
+**GitHub**: `https://github.com/ArkLabsHQ/arkade-assets`
+
+**Description**:
+UTXO-native asset system for Bitcoin transactions designed to operate seamlessly within the Ark protocol. Provides complete specification and reference implementation for creating, transferring, and managing digital assets (fungible and non-fungible) both on-chain (Bitcoin) and off-chain (Ark VTXOs). Features teleport transfers for asset continuity across Ark batch swaps, control assets for reissuance, metadata management with Merkle-based verification, and introspection opcodes for smart contract capabilities via Arkade Script.
+
+**Key Capabilities**:
+- UTXO-native asset protocol inspired by Runes and Liquid Assets
+- Hybrid on-chain/off-chain operation with unified state view
+- Teleport transfers for seamless asset movement across Ark batches
+- Control assets for token reissuance and metadata updates
+- Flexible metadata system with Merkle root verification
+- Arkade Script introspection opcodes for smart contracts
+- Reference codec implementation in TypeScript
+- Indexer for tracking asset state across blockchain
+- CLI tools for transaction creation and testing
+- Complete examples including NFT game (ArkadeKitties)
+
+**Tags**: `arkade`, `assets`, `protocol`, `specification`, `bitcoin`, `utxo`, `nft`, `tokens`, `teleport`, `metadata`, `smart-contracts`, `arkade-script`, `codec`, `indexer`
+
+**Synonyms**: `arkass`, `arkade-asset-protocol`, `arkade-assets-v1`, `asset-protocol`, `arkade-nft`, `arkade-tokens`, `vtxo-assets`, `teleport-transfers`
+
+**Triggers**:
+- **ask_question**: `arkade assets`, `asset protocol`, `teleport`, `control asset`, `metadata`, `arkade script`, `asset id`, `reissuance`, `op_return`, `tlv`, `packet format`, `asset group`, `arkadekitties`
+- **develop**: `implement asset`, `create asset`, `add teleport`, `metadata update`, `encode packet`, `decode packet`, `arkade script contract`
+- **test_or_run**: `test codec`, `run indexer`, `build docs`, `example transaction`, `cli`
+- **debug**: `invalid packet`, `asset not found`, `teleport failed`, `indexer error`, `metadata mismatch`
+
+**Dependencies**: `arkd` (protocol implementation), `wallet` (asset UI)
+**Depended On By**: `wallet`, `arkade-explorer` (asset features)
+
+---
+
 ### ark-infra
 **ID**: `ark-infra`
 **Name**: Ark Infrastructure
@@ -562,17 +601,23 @@ arkd (core)
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
 | ark-docs | All | Documentation-Reference |
+| arkade-assets | arkd | Protocol-Implementation |
+| arkade-assets | wallet | Asset-UI-Provider |
+| arkade-assets | arkade-explorer | Asset-Visualization-Provider |
 | arkade-explorer | arkd | Client-Server (via Indexer API) |
 | arkade-explorer | wallet | Sibling Frontend (same @arkade-os/sdk) |
+| arkade-explorer | arkade-assets | Asset-Consumer |
+| wallet | arkade-assets | Asset-Consumer |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, fulmine-simulator
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow, arkade-explorer, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-escrow, arkade-explorer, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
 **Frontend Applications**: wallet (PWA), arkade-explorer (Web App)
+**Protocol Specifications**: arkade-assets
 
 ---
 
@@ -587,6 +632,7 @@ arkd (core)
 - Lightning swaps � `wallet`, `fulmine`, `ark-docs`
 - Escrow system � `arkade-escrow`
 - Security model � `ark-docs`, `arkd`
+- Asset protocol, NFTs, tokens � `arkade-assets`, `ark-docs`
 
 **Development Tasks**:
 - Add arkd feature � `arkd`
@@ -594,6 +640,7 @@ arkd (core)
 - Escrow development � `arkade-escrow`
 - Lightning integration � `fulmine`, `wallet`
 - Infrastructure changes � `ark-infra`
+- Asset implementation � `arkade-assets`, `arkd`
 
 **Testing & QA**:
 - Integration testing � `arkd`, `ark-simulator`
@@ -662,6 +709,7 @@ For conceptual questions, prioritize documentation loading order:
 | kms-unlocker | Stable |  | Production-ready with AWS |
 | fulmine | Active Dev | � Alpha | Lightning wallet, under development |
 | ark-docs | Active |  | Documentation site, continuously updated |
+| arkade-assets | Specification | N/A | Protocol spec + reference implementation |
 | arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 
@@ -676,6 +724,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha � beta � stable)
 
-**Last Updated**: 2025-11-27
-**Version**: 1.1.0
+**Last Updated**: 2026-01-12
+**Version**: 1.2.0
 **Maintained By**: Arkadian Documentation Team
