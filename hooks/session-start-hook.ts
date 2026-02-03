@@ -7,25 +7,34 @@
  * registers orchestrator sessions with per-session state files.
  *
  * State Management:
- * - Orchestrator: Creates {DATA_DIR}/{session_id}_state.txt
+ * - Orchestrator: Creates {DATA_DIR}/{session_id}_state.json
  * - Sub-agents: Do NOT trigger SessionStart (only SubagentStop exists)
  * - Logs: Creates {DATA_DIR}/{session_id}_log.txt
  *
- * State File Format (orchestrator):
- * ```
- * type: orchestrator
- * started: 2025-12-11T10:00:00.000Z
- * pid: 12345
+ * State File Format (JSON):
+ * ```json
+ * {
+ *   "session_id": "abc-123",
+ *   "type": "orchestrator",
+ *   "started_at": "2025-12-14T10:00:00.000Z",
+ *   "pid": 12345,
+ *   "workflow": { "id": null, "status": "initializing", ... },
+ *   "phases": {},
+ *   "active_agent": null,
+ *   "approvals": {}
+ * }
  * ```
  *
  * This approach:
  * - Isolates each session's state (no race conditions)
  * - Preserves logs for debugging
  * - Supports multiple concurrent orchestrator sessions
+ * - Tracks workflow state and active sub-agents
  */
 
 import { appendFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
+import { createSessionEpic, isBeadsAvailable, logBeadsOperation } from './beads-bridge';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
@@ -48,11 +57,56 @@ interface HookInput {
 }
 
 interface SessionState {
-    type: 'orchestrator' | 'subagent';
-    started: string;
-    pid?: number;
-    parent_session_id?: string;
-    agent_type?: string;
+    session_id: string;
+    type: 'orchestrator';
+    started_at: string;
+    pid: number;
+    workflow: {
+        id: string | null;
+        status: 'initializing' | 'awaiting_plan_approval' | 'executing' | 'completed';
+        current_phase: string | null;
+        file: string;
+        file_created: boolean;
+        plan_approved: boolean;
+        plan_approved_at: string | null;
+    };
+    phases: Record<string, PhaseState>;
+    active_agent: ActiveAgent | null;
+    approvals: Record<string, ApprovalRecord>;
+    beads?: {
+        session_epic_id: string | null;
+        feature_epics: Record<string, string>;  // feature_id -> epic_id
+        enabled: boolean;
+    };
+}
+
+interface PhaseState {
+    status: 'pending' | 'awaiting_spec_approval' | 'in_progress' | 'completed' | 'failed' | 'skipped';
+    agent: string;
+    started_at?: string;
+    completed_at?: string;
+    artifacts_expected?: string[];
+    artifacts_created?: string[];
+    validation?: {
+        passed: boolean;
+        missing: string[];
+    };
+    skip_reason?: string;
+}
+
+interface ActiveAgent {
+    agent_type: string;
+    spec_id: string;
+    invoked_at: string;
+    expected_artifacts: string[];
+    allowed_tools: string[];
+    allowed_paths: string[];
+    blocked_paths: string[];
+}
+
+interface ApprovalRecord {
+    approved: boolean;
+    at: string;
 }
 
 // Helper function for per-session logging
@@ -95,15 +149,29 @@ function isPidRunning(pid: number): boolean {
  * Clean up stale state files from crashed sessions.
  * Called on each SessionStart to prevent accumulation.
  */
-function cleanupStaleStateFfiles(currentSessionId: string): void {
+function cleanupStaleStateFiles(currentSessionId: string): void {
     try {
-        const files = readdirSync(ARKADIAN_DATA_DIR).filter(f => f.endsWith('_state.txt'));
+        // Clean up both old .txt and new .json state files
+        const txtFiles = readdirSync(ARKADIAN_DATA_DIR).filter(f => f.endsWith('_state.txt'));
+        const jsonFiles = readdirSync(ARKADIAN_DATA_DIR).filter(f => f.endsWith('_state.json'));
 
-        for (const file of files) {
+        // Remove old .txt files (migration)
+        for (const file of txtFiles) {
+            const filePath = join(ARKADIAN_DATA_DIR, file);
+            try {
+                unlinkSync(filePath);
+                log(currentSessionId, 'cleanup', `Removed old txt state file: ${file}`);
+            } catch (e) {
+                // Ignore
+            }
+        }
+
+        // Clean up stale .json files
+        for (const file of jsonFiles) {
             const filePath = join(ARKADIAN_DATA_DIR, file);
             try {
                 const content = readFileSync(filePath, 'utf-8');
-                const state = parseState(content);
+                const state: SessionState = JSON.parse(content);
 
                 // Only clean up orchestrator state files with dead PIDs
                 if (state.type === 'orchestrator' && state.pid) {
@@ -122,47 +190,53 @@ function cleanupStaleStateFfiles(currentSessionId: string): void {
 }
 
 /**
- * Parse state file content
+ * Create initial state for orchestrator session.
  */
-function parseState(content: string): SessionState {
-    const state: SessionState = { type: 'orchestrator', started: '' };
-
-    for (const line of content.split('\n')) {
-        const [key, ...valueParts] = line.split(':');
-        const value = valueParts.join(':').trim();
-
-        if (key === 'type') state.type = value as 'orchestrator' | 'subagent';
-        if (key === 'started') state.started = value;
-        if (key === 'pid') state.pid = parseInt(value, 10);
-        if (key === 'parent_session_id') state.parent_session_id = value;
-        if (key === 'agent_type') state.agent_type = value;
-    }
-
-    return state;
+function createInitialState(sessionId: string, sessionEpicId: string | null): SessionState {
+    return {
+        session_id: sessionId,
+        type: 'orchestrator',
+        started_at: new Date().toISOString(),
+        pid: process.ppid,
+        workflow: {
+            id: null,
+            status: 'initializing',
+            current_phase: null,
+            file: 'workflow.yaml',
+            file_created: false,
+            plan_approved: false,
+            plan_approved_at: null
+        },
+        phases: {},
+        active_agent: null,
+        approvals: {},
+        beads: {
+            session_epic_id: sessionEpicId,
+            feature_epics: {},
+            enabled: sessionEpicId !== null
+        }
+    };
 }
 
 /**
  * Register this session as the orchestrator session.
  * Creates per-session state and log files.
  */
-function registerOrchestratorSession(sessionId: string): void {
+function registerOrchestratorSession(sessionId: string, sessionEpicId: string | null): void {
     if (!ORCHESTRATOR_MODE) {
         log(sessionId, 'skip-registration', 'ORCHESTRATOR_MODE not set');
         return;
     }
 
     // Clean up stale state files from crashed sessions
-    cleanupStaleStateFfiles(sessionId);
+    cleanupStaleStateFiles(sessionId);
 
     // Create state file for this orchestrator session
-    const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.txt`);
-    const stateContent = `type: orchestrator
-started: ${new Date().toISOString()}
-pid: ${process.ppid}
-`;
+    const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
+    const state = createInitialState(sessionId, sessionEpicId);
 
-    writeFileSync(stateFile, stateContent);
-    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid });
+    writeFileSync(stateFile, JSON.stringify(state, null, 2));
+    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid, beads_enabled: sessionEpicId !== null });
 }
 
 function createSessionFolder(hookInput: HookInput): string {
@@ -174,6 +248,13 @@ function createSessionFolder(hookInput: HookInput): string {
         mkdirSync(sessionDir, { recursive: true });
         mkdirSync(join(sessionDir, 'artifacts'), { recursive: true });
         mkdirSync(join(sessionDir, 'specs'), { recursive: true });
+
+        // Create common artifact subdirectories for workflows
+        mkdirSync(join(sessionDir, 'artifacts', 'explore'), { recursive: true });
+        mkdirSync(join(sessionDir, 'artifacts', 'plan'), { recursive: true });
+        mkdirSync(join(sessionDir, 'artifacts', 'implement'), { recursive: true });
+        mkdirSync(join(sessionDir, 'artifacts', 'test'), { recursive: true });
+        mkdirSync(join(sessionDir, 'artifacts', 'qna'), { recursive: true });  // For ark-guru Q&A
 
         // Create session.md with minimal info (summary added on session end)
         const sessionMd = `# Session
@@ -212,7 +293,7 @@ async function main() {
         const logFile = join(ARKADIAN_DATA_DIR, `${hookInput.session_id}_log.txt`);
         writeFileSync(logFile, `=== Session Start: ${new Date().toISOString()} ===\n`);
 
-        log(hookInput.session_id, 'input', hookInput);
+        log(hookInput.session_id, 'session-start input:', hookInput);
 
         const cwd = hookInput.cwd || process.cwd();
         const normalizedCwd = resolve(cwd);
@@ -235,8 +316,24 @@ async function main() {
         // Create session folder (for orchestrator mode)
         const sessionDir = createSessionFolder(hookInput);
 
+        // Create beads session epic if beads is enabled
+        let sessionEpicId: string | null = null;
+        if (ORCHESTRATOR_MODE && isBeadsAvailable()) {
+            try {
+                sessionEpicId = await createSessionEpic(hookInput.session_id);
+                if (sessionEpicId) {
+                    log(hookInput.session_id, 'beads-session-epic-created', {
+                        epic_id: sessionEpicId
+                    });
+                }
+            } catch (error: any) {
+                log(hookInput.session_id, 'beads-session-epic-error', error.message);
+                // Don't fail session start on beads error
+            }
+        }
+
         // Register this session as orchestrator (only in orchestrator mode, NOT in dev mode)
-        registerOrchestratorSession(hookInput.session_id);
+        registerOrchestratorSession(hookInput.session_id, sessionEpicId);
 
         const quickCommands = `
 I am Arkadian, your Ark Digital Assistant. I provide intelligent, context-aware assistance across the entire Ark protocol ecosystem (12+ repositories).
@@ -290,7 +387,7 @@ All agent outputs MUST be written to the session directory above.
         // This gives it higher authority than hook-injected context
         // We only need to inject the session-specific context here
         const output = {
-            systemMessage: `${quickCommands}`,
+            systemMessage: quickCommands + '\n\n' + sessionContext,
             hookSpecificOutput: {
                 hookEventName: "SessionStart",
                 additionalContext: sessionContext
