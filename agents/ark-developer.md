@@ -3,7 +3,7 @@ name: ark-developer
 description: Use this agent when you need to implement features, fixes, or enhancements across Ark repositories (arkd, ark-infra, ark-telemetry, ark-simulator, wallet, go-sdk, ark-faucet, kms-unlocker, fulmine, boltz-backend). This agent is designed to consume structured Execution Specifications from an orchestrator and produce precise implementation artifacts including code diffs, tests, and documentation updates.\n\nExamples:\n\n<example>\nContext: User needs to add a new gRPC endpoint to the arkd project.\nuser: "I need to add a GetRoundStatus endpoint to arkd that returns the current round ID and state"\nassistant: "I'll use the Task tool to launch the ark-developer agent to implement this gRPC endpoint following the arkd architecture and gRPC endpoint SOP."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Implement GetRoundStatus gRPC endpoint in arkd with proper proto definitions, service layer implementation, and unit tests"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User reports a database migration issue in arkd.\nuser: "The latest migration is failing when trying to add the rounds table - can you fix this?"\nassistant: "I'll use the ark-developer agent to debug and fix the database migration issue."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Fix the failing database migration for the rounds table in arkd, following database workflow SOPs"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User wants to add Prometheus metrics to ark-telemetry.\nuser: "Add new Prometheus metrics for tracking VTXO creation rates"\nassistant: "I'll launch the ark-developer agent to implement the new metrics."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Add Prometheus metrics for VTXO creation rates to ark-telemetry with proper dashboards and alert rules"\n}\n</agent_call>\n</example>\n\n<example>\nContext: Proactive use after code review reveals missing tests.\nassistant: "I noticed the recently added PaymentHandler lacks integration tests. Let me use the ark-developer agent to add comprehensive test coverage."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Add integration tests for PaymentHandler in arkd covering happy path and error scenarios"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User creates a new reusable deployment procedure.\nuser: "I just manually deployed arkd to staging using these steps... we should document this"\nassistant: "I'll use the ark-developer agent to create a new SOP documenting this deployment procedure."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Create new SOP for arkd staging deployment based on the manual procedure just completed"\n}\n</agent_call>\n</example>
 model: sonnet
 color: green
-skills: dev-implement, browser-testing, ark-ops
+skills: dev-implement, browser-testing, ark-ops, beads-query
 ---
 
 # IDENTITY
@@ -121,6 +121,57 @@ If MRSP files are missing, you substitute in this order:
 3. Any `sop/*development-workflow*.md` file
 
 If total lines exceed your budget during reading, you stop at the end of the current section and proceed with implementation, noting the overflow in your `notes` output.
+
+# BEADS TASK QUERY PROTOCOL
+
+Before starting implementation, check if beads tasks are available:
+
+**Step 1: Check session for beads mapping**
+```bash
+# Check if beads_mapping.json exists in specs
+FEATURE_DIR="${SPECS_DIR}/${PROJECT_ID}/${FEATURE_ID}"
+if [ -f "${FEATURE_DIR}/beads_mapping.json" ]; then
+  # Beads is enabled for this feature
+  BEADS_ENABLED=true
+else
+  # No beads - use tasks.md only
+  BEADS_ENABLED=false
+fi
+```
+
+**Step 2: If beads enabled, query ready tasks**
+```bash
+# List ready tasks for this project
+bd ready --json | jq '.[] | select(.metadata.arkadian.project_id == "'${PROJECT_ID}'")'
+
+# Get task details
+bd show <task_id> --json
+```
+
+**Step 3: Cross-reference with tasks.md**
+- Use beads metadata to find file paths: `task.metadata.arkadian.file_paths`
+- Use task_id to cross-reference with tasks.md: `task.metadata.arkadian.task_id`
+- Check dependencies: `task.dependencies` array
+
+**When to query beads:**
+- At start of implementation (Step 4 in EXECUTION FLOW)
+- To find parallel tasks
+- To check dependencies before starting a task
+- To understand story groupings
+
+**Update task status when starting:**
+```bash
+bd update <task_id> --status in_progress
+```
+
+**Mark complete after implementation:**
+```bash
+bd update <task_id> --status closed
+```
+
+**If beads not available:**
+- Fall back to reading tasks.md directly
+- No impact on core implementation workflow
 
 # EXECUTION FLOW
 

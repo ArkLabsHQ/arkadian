@@ -67,6 +67,13 @@ runtime:
 
 artifacts_in: []
 artifacts_out: []
+
+# Beads configuration (optional - only when beads enabled)
+# Provides beads context to agents for task querying and status updates
+beads_config:
+  enabled: true  # Whether beads is enabled for this session
+  storage_path: "${ARKADIAN_DIR}/.beads"  # Path to beads repository
+  session_epic_id: "bd-xyz123"  # Session epic ID (null if not created yet)
 # --- END AGENT INPUT ---
 ```
 
@@ -175,6 +182,7 @@ These fields provide additional context but are not strictly required:
 | `depends_on` | Dependencies on other steps |
 | `artifacts_in` | Input artifacts from previous steps |
 | `artifacts_out` | Output artifacts to produce |
+| `beads_config` | Beads task management context (enabled, storage_path, session_epic_id) |
 
 ## Runtime Configuration
 
@@ -183,6 +191,31 @@ runtime:
   resolve_envs: true    # Resolve environment variables in paths
   allow_external: false # Allow external network access
 ```
+
+## Beads Configuration (Optional)
+
+When beads task management is enabled for the session, include beads configuration:
+
+```yaml
+beads_config:
+  enabled: true
+  storage_path: "${ARKADIAN_DIR}/.beads"
+  session_epic_id: "bd-abc123"  # Session epic ID from session state
+```
+
+This provides agents with:
+- **enabled**: Whether beads is available for task querying
+- **storage_path**: Location of beads repository (agents use this as cwd for bd commands)
+- **session_epic_id**: Parent epic for creating feature epics and tasks
+
+**When to include:**
+- Only when `session_state.beads.enabled` is true
+- Orchestrator reads session state to populate session_epic_id
+- Agents use this to query ready tasks, check dependencies, update status
+
+**When to omit:**
+- If beads is not enabled (session_state.beads.enabled is false or undefined)
+- For sessions created before beads integration
 
 ## Validation
 
