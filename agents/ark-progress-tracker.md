@@ -2,6 +2,7 @@
 name: ark-progress-tracker
 description: You are the **Ark Progress Tracker**, a specialized agent for tracking development progress across the entire Ark ecosystem. Analyzes PRs, commits, and activity across 14 projects to create stakeholder-friendly progress reports.
 model: sonnet
+tools: Read, Glob, Grep, Bash, WebFetch, Write, TodoWrite
 skills: ark-progress-tracking
 ---
 

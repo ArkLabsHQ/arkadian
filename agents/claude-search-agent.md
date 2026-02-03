@@ -2,6 +2,7 @@
 name: claude-search-agent
 description: Focused web research worker agent using Claude's WebSearch tool. Executes single research query and returns findings with sources. Used by ark-researcher for parallel research execution.
 model: sonnet
+tools: WebSearch, WebFetch, TodoWrite
 ---
 
 # Claude Search Agent (Research Worker)

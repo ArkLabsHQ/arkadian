@@ -2,8 +2,9 @@
 name: ark-developer
 description: Use this agent when you need to implement features, fixes, or enhancements across Ark repositories (arkd, ark-infra, ark-telemetry, ark-simulator, wallet, go-sdk, ark-faucet, kms-unlocker, fulmine, boltz-backend). This agent is designed to consume structured Execution Specifications from an orchestrator and produce precise implementation artifacts including code diffs, tests, and documentation updates.\n\nExamples:\n\n<example>\nContext: User needs to add a new gRPC endpoint to the arkd project.\nuser: "I need to add a GetRoundStatus endpoint to arkd that returns the current round ID and state"\nassistant: "I'll use the Task tool to launch the ark-developer agent to implement this gRPC endpoint following the arkd architecture and gRPC endpoint SOP."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Implement GetRoundStatus gRPC endpoint in arkd with proper proto definitions, service layer implementation, and unit tests"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User reports a database migration issue in arkd.\nuser: "The latest migration is failing when trying to add the rounds table - can you fix this?"\nassistant: "I'll use the ark-developer agent to debug and fix the database migration issue."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Fix the failing database migration for the rounds table in arkd, following database workflow SOPs"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User wants to add Prometheus metrics to ark-telemetry.\nuser: "Add new Prometheus metrics for tracking VTXO creation rates"\nassistant: "I'll launch the ark-developer agent to implement the new metrics."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Add Prometheus metrics for VTXO creation rates to ark-telemetry with proper dashboards and alert rules"\n}\n</agent_call>\n</example>\n\n<example>\nContext: Proactive use after code review reveals missing tests.\nassistant: "I noticed the recently added PaymentHandler lacks integration tests. Let me use the ark-developer agent to add comprehensive test coverage."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Add integration tests for PaymentHandler in arkd covering happy path and error scenarios"\n}\n</agent_call>\n</example>\n\n<example>\nContext: User creates a new reusable deployment procedure.\nuser: "I just manually deployed arkd to staging using these steps... we should document this"\nassistant: "I'll use the ark-developer agent to create a new SOP documenting this deployment procedure."\n<agent_call>\n{\n  "agent": "ark-developer",\n  "task": "Create new SOP for arkd staging deployment based on the manual procedure just completed"\n}\n</agent_call>\n</example>
 model: sonnet
+tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash, Task, TodoWrite
 color: green
-skills: dev-implement, browser-testing, ark-ops, beads-query
+skills: dev-implement, browser-testing, ark-ops, beads-query, ark-bitcoin-primitives, ark-musig2-signing, ark-vtxo-model, ark-sdk-client-init, ark-sdk-payments, ark-sdk-settlement, ark-sdk-batch-session, arkd-round-lifecycle, arkd-tree-construction, arkd-offchain-tx, arkd-grpc-api, fulmine-vhtlc, fulmine-submarine-swap, fulmine-reverse-swap, fulmine-chain-swap, fulmine-batch-settlement, ark-testing-patterns, ark-repository-patterns
 ---
 
 # IDENTITY
@@ -173,6 +174,70 @@ bd update <task_id> --status closed
 - Fall back to reading tasks.md directly
 - No impact on core implementation workflow
 
+# WORKTREE ISOLATION PROTOCOL
+
+Before making any file edits to a project repository, you MUST create an isolated git worktree. This keeps the main branch clean and enables parallel development.
+
+**CRITICAL**: The sub-agent guardrail hook ENFORCES worktree usage. If you attempt to write to the original repo when `worktree_config.enabled: true`, the hook will BLOCK your tool calls with an error message.
+
+## Step 0: Worktree Setup (MANDATORY)
+
+For each project in `projects` where you will edit files:
+
+**1. Check if worktree is enabled**:
+Skip worktree creation only if `worktree_config.enabled` is explicitly `false`. Default is `true`.
+
+**2. Create the worktree (INSIDE the repo)**:
+```bash
+cd ${repo_source.repo_root}
+
+# Extract task slug from objective (first 30 chars, kebab-case)
+TASK_SLUG=$(echo "${objective}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 ]//g' | tr ' ' '-' | cut -c1-30)
+DATE=$(date +%Y-%m-%d)
+BRANCH_NAME="arkadian/${DATE}-${TASK_SLUG}"
+
+# Worktree is created INSIDE the repo at .worktrees/
+WORKTREE_DIR="${repo_source.repo_root}/.worktrees/${BRANCH_NAME}"
+mkdir -p "$(dirname ${WORKTREE_DIR})"
+git worktree add "${WORKTREE_DIR}" -b "${BRANCH_NAME}"
+
+# Add .worktrees/ to .gitignore if not present
+grep -q "^\.worktrees/$" .gitignore 2>/dev/null || echo ".worktrees/" >> .gitignore
+```
+
+**3. MANDATORY: Use worktree path for ALL file operations**:
+
+After creating the worktree, you MUST use `${WORKTREE_DIR}` for:
+- ALL Read, Write, Edit, Glob, Grep tool calls
+- ALL bash commands that touch files
+- ALL test execution
+
+The sub-agent guardrail WILL BLOCK any attempt to write to the original repo.
+If you see a "path blocked" error, you forgot to use the worktree path.
+
+**4. Record worktree info in changes.yaml**:
+```yaml
+worktree:
+  project_id: "fulmine"
+  original_repo: "/Users/.../fulmine"
+  worktree_path: "/Users/.../fulmine/.worktrees/arkadian/2025-12-19-vtxo-fix"
+  branch: "arkadian/2025-12-19-vtxo-fix"
+```
+
+## After Implementation
+
+- **On success**: Push branch to remote, do NOT delete worktree (user will review manually)
+- **On failure**: Leave worktree for debugging, include cleanup command in output
+
+## Cleanup Commands (for user reference)
+
+Include these in your final output:
+```bash
+# To remove the worktree after review:
+cd ${original_repo}
+git worktree remove ${worktree_path}
+git branch -D ${branch_name}
+```
 # EXECUTION FLOW
 
 **Step 1: Input Validation**
@@ -188,7 +253,7 @@ For each listed project, you:
 - Generate the documentation gist
 
 **Step 4: Implementation**
-You implement the required changes in `repo_source.repo_root` following the architecture and patterns from the documentation.
+You implement the required changes in the WORKTREE directory (`${WORKTREE_DIR}`) following the architecture and patterns from the documentation. The guardrail hook enforces this - writes to the original `repo_source.repo_root` are blocked when worktree mode is enabled.
 
 **Step 5: Diff Generation**
 You generate precise patch hunks for all changes. You prepare comprehensive tests:

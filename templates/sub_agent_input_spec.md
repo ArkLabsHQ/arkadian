@@ -50,6 +50,13 @@ projects:
 docs_hint:
   project_index_path: "${ARKADIAN_DIR}/docs/INDEX.md"
 
+# Reference documentation for clarifying Ark concepts
+# - For protocol concepts (VTXOs, rounds, connectors, ASP): check arkd docs
+# - For client-side wallet development patterns: check go-sdk docs
+reference_docs:
+  ark_protocol: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  wallet_client: "${ARKADIAN_DIR}/docs/projects/go-sdk/INDEX.md"
+
 problem_context: {}
 repo_navigation_hint: {}
 success_criteria: []
@@ -64,6 +71,12 @@ depends_on: []
 runtime:
   resolve_envs: true
   allow_external: false
+
+# Worktree configuration (ark-developer only)
+# Instructs ark-developer to create an isolated git worktree before editing files
+# Worktrees are created INSIDE the repo at ${repo_root}/.worktrees/<branch>
+worktree_config:
+  enabled: true  # Default: true for ark-developer
 
 artifacts_in: []
 artifacts_out: []
@@ -180,9 +193,85 @@ These fields provide additional context but are not strictly required:
 | `constraints` | Limitations or restrictions |
 | `expected_outputs` | Expected artifacts/outputs |
 | `depends_on` | Dependencies on other steps |
-| `artifacts_in` | Input artifacts from previous steps |
+| `artifacts_in` | Input artifacts from previous steps (IMPORTANT - see below) |
 | `artifacts_out` | Output artifacts to produce |
+| `worktree_config` | Worktree isolation settings (ark-developer only) |
 | `beads_config` | Beads task management context (enabled, storage_path, session_epic_id) |
+
+## Artifact Passing (CRITICAL for Multi-Step Workflows)
+
+When steps depend on previous steps, the orchestrator MUST pass artifact paths so agents can read them:
+
+```yaml
+# S3 depends on S1 - pass S1's output artifact
+artifacts_in:
+  - path: "artifacts/explore/assessment.yaml"
+    from_step: "S1"
+    description: "Exploration findings with complexity, affected files, fix approach"
+
+# S4 depends on S1 and S3 - pass ALL prior artifacts
+artifacts_in:
+  - path: "artifacts/explore/assessment.yaml"
+    from_step: "S1"
+    description: "Exploration findings"
+  - path: "artifacts/implement/changes.yaml"
+    from_step: "S3"
+    description: "Implementation changes with files modified, branch, commits"
+```
+
+**Why this is critical:**
+- Agents are stateless and cannot access previous agent outputs automatically
+- The orchestrator must explicitly tell each agent which artifacts to read
+- Without `artifacts_in`, agents lose context from previous phases
+- Do NOT manually summarize artifacts in the spec - pass the path and let agents read the full file
+
+## Resume Context (Optional)
+
+When continuing from a previous session, include the `resume_context` field to provide context about the previous work:
+
+```yaml
+resume_context:
+  parent_session_id: "<session_id of resumed session>"
+  parent_session_dir: "<absolute path to previous session folder>"
+  resume_reason: "<explanation of why resuming>"
+  previous_iteration: <number>  # How many times this task has been attempted
+```
+
+### When to Use Resume Context
+
+Use `resume_context` when:
+- Resuming a session where tests failed and user wants to continue
+- Continuing work from a previous day's session
+- Re-attempting a task with learnings from previous attempt
+
+### Artifacts from Previous Sessions
+
+When including artifacts from a previous session (cross-session resume):
+1. Use **absolute paths** (not session-relative)
+2. Include the `from_session` field to distinguish from current session artifacts
+
+```yaml
+artifacts_in:
+  # From previous session - absolute path + from_session field
+  - path: "/Users/.../sessions/2025-12-16-.../artifacts/explore/assessment.yaml"
+    from_session: "2025-12-16-fix-fulmine-expired-vtxo-settlement-bug"
+    from_step: "S1"
+    description: "Exploration assessment from previous attempt"
+
+  # From current session - relative path (no from_session)
+  - path: "artifacts/plan/implementation_plan.yaml"
+    from_step: "S2"
+    description: "Current session's plan"
+```
+
+### Agent Behavior with Resume Context
+
+When `resume_context` is present, agents should:
+1. Read ALL artifacts in `artifacts_in`, including those from previous sessions
+2. Understand what was tried before and why it may have failed
+3. Build upon previous work rather than starting from scratch
+4. If previous implementation exists, analyze it before making changes
+5. Reference previous attempts in output artifacts
 
 ## Runtime Configuration
 
@@ -191,6 +280,23 @@ runtime:
   resolve_envs: true    # Resolve environment variables in paths
   allow_external: false # Allow external network access
 ```
+
+## Worktree Configuration (ark-developer only)
+
+When invoking `ark-developer` for code changes, include worktree configuration to isolate edits:
+
+```yaml
+worktree_config:
+  enabled: true  # Worktrees created at ${repo_root}/.worktrees/<branch>
+```
+
+This instructs the agent to:
+1. Create a new git worktree INSIDE the repo at `.worktrees/<branch>`
+2. Work in the isolated worktree (not the main repo)
+3. Create branch: `arkadian/{date}-{task-slug}`
+4. The sub-agent guardrail ENFORCES this - writes to main repo are blocked
+
+Set `enabled: false` only if you explicitly want changes made directly to the main repo.
 
 ## Beads Configuration (Optional)
 
@@ -229,7 +335,9 @@ The `validate-agent-input.ts` hook validates all Task tool calls against this sp
 4. **Valid Intent**: Context intent must be one of the valid intents
 5. **Parent Session ID**: `parent_session_id` must be present and at least 8 characters
 6. **Session Context**: `session_context.session_dir` must be present
-7. **Step ID Format**: Should follow pattern `S1`, `S2`, `S3`, etc.
+7. **Step ID Format**: Should follow pattern `S1`, `S2`, `S3`, etc. (or `QA-1`, `QA-2` for ad-hoc questions)
+8. **Resume Context Validation**: If `resume_context` is present, `parent_session_dir` must exist
+9. **Cross-Session Artifacts**: If `artifacts_in[].from_session` is present, the path must be absolute
 
 ## Example
 
@@ -271,6 +379,13 @@ projects:
 
 docs_hint:
   project_index_path: "${ARKADIAN_DIR}/docs/INDEX.md"
+
+# Reference documentation for clarifying Ark concepts
+# - For protocol concepts (VTXOs, rounds, connectors, ASP): check arkd docs
+# - For client-side wallet development patterns: check go-sdk docs
+reference_docs:
+  ark_protocol: "${ARKADIAN_DIR}/docs/projects/arkd/INDEX.md"
+  wallet_client: "${ARKADIAN_DIR}/docs/projects/go-sdk/INDEX.md"
 
 problem_context: {}
 repo_navigation_hint: {}
