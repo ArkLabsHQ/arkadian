@@ -155,6 +155,7 @@ When user approves the plan, you MUST create the workflow file BEFORE presenting
 
 **Example workflow.yaml creation:**
 ```yaml
+workflow_id: "<parent_session_id>"  # REQUIRED - Original session UUID for resume support
 name: "workflow-name"
 description: "What this workflow does"
 version: "1.0.0"
@@ -185,6 +186,8 @@ execution:
       timeout_seconds: 900
       expected_outputs: [...]
 ```
+
+**CRITICAL**: The `workflow_id` field MUST be set to `parent_session_id` to enable resume functionality after session folder renaming.
 
 ### Gate 2: Execution Specification Approval
 Before ANY agent can be invoked, you MUST:
@@ -966,6 +969,7 @@ When creating ad-hoc workflows (not using a template), you MUST include the `loo
 ```yaml
 # Required sections for ad-hoc workflow.yaml
 
+workflow_id: "<parent_session_id>"  # REQUIRED - Original session UUID
 name: "<descriptive-name>"
 description: "<what this workflow does>"
 
@@ -998,11 +1002,171 @@ execution:
       ...
 ```
 
-**Critical**: The `terminal_phase` must reference the last phase ID. The `post-agent-validator.ts` hook uses this to detect workflow completion and output appropriate signals.
+**Critical**:
+- The `workflow_id` field MUST match `parent_session_id` to enable session resumption after folder renaming
+- The `terminal_phase` must reference the last phase ID. The `post-agent-validator.ts` hook uses this to detect workflow completion and output appropriate signals.
+
+## Step 7.5: Evaluate Phase Skip Conditions
+
+After selecting the workflow template and BEFORE creating execution specifications, evaluate conditional skip logic for phases.
+
+### Skip Condition Mechanism
+
+Workflow phases may define `condition.skip_if` expressions that control whether the phase runs:
+
+```yaml
+- id: "plan"
+  condition:
+    check: "artifacts/explore/assessment.yaml"
+    skip_if:
+      - "complexity == 'quick_fix'"
+      - "planning_needed.requires_spec == false"
+    skip_reason: "Quick fix - direct implementation"
+```
+
+**How it works**:
+1. **Load assessment artifact**: Read the file from `condition.check` (session-relative path)
+2. **Parse YAML fields**: Extract relevant values (complexity, planning_needed.requires_spec, etc.)
+3. **Evaluate expressions**: Check each `skip_if` condition (string equality: `field == 'value'`)
+4. **Mark phase as SKIPPED**: If ANY expression evaluates to true, mark the phase as skipped
+
+### Expression Evaluation Rules
+
+**Supported syntax**: Simple field equality checks
+- Format: `field == 'value'` or `nested.field == false`
+- String comparison: `complexity == 'quick_fix'`
+- Boolean comparison: `planning_needed.requires_spec == false`
+
+**Evaluation logic**:
+```
+For each skip_if expression:
+  1. Extract field path (e.g., "complexity" or "planning_needed.requires_spec")
+  2. Parse assessment.yaml and navigate to field
+  3. Compare value with expected value
+  4. If match → condition is TRUE
+  5. If ANY condition is TRUE → SKIP phase
+```
+
+### Safe YAML Parsing
+
+Handle errors gracefully:
+- **File missing**: Warn user, do not skip phase (conservative approach)
+- **Parse error**: Warn user, do not skip phase
+- **Field missing**: Treat as false (field doesn't match expected value)
+
+### Dependency Rewriting
+
+When a phase is skipped, update downstream dependencies:
+
+**Problem**: Phase S3 has `depends_on: "plan"` but plan phase (S2) was skipped
+
+**Solution**: Replace skipped phase with last non-skipped predecessor
+
+**Algorithm**:
+```
+For each phase P:
+  If P has depends_on reference to skipped phase S:
+    1. Find phase S in workflow
+    2. Get S's dependencies (S.depends_on)
+    3. If S.depends_on is null → replace with null (no dependencies)
+    4. If S.depends_on is phase_id → replace P.depends_on with that phase_id
+    5. If S.depends_on is array → replace P.depends_on with first non-skipped in array
+```
+
+**Example**:
+```
+Original workflow:
+  S1 (explore) → depends_on: null
+  S2 (plan) → depends_on: "explore" [SKIPPED due to complexity == 'quick_fix']
+  S3 (implement) → depends_on: "plan"
+
+After rewriting:
+  S1 (explore) → depends_on: null
+  S2 (plan) → SKIPPED
+  S3 (implement) → depends_on: "explore"  [rewritten from "plan"]
+```
+
+### Artifact Filtering
+
+Remove artifact references from skipped phases:
+
+**Problem**: Execution spec for S3 includes `artifacts_in` from skipped S2
+
+**Solution**: Filter out all `artifacts_in` entries where `from_step` references skipped phase
+
+**Algorithm**:
+```
+For each execution spec:
+  For each artifact in artifacts_in:
+    If artifact.from_step == skipped_phase_id:
+      Remove artifact from artifacts_in
+```
+
+**Example**:
+```
+Before filtering (S2 skipped):
+artifacts_in:
+  - path: "artifacts/explore/assessment.yaml"
+    from_step: "explore"
+  - path: "specs/{project}/spec.md"
+    from_step: "plan"  ← REMOVE (plan was skipped)
+  - path: "specs/{project}/plan.md"
+    from_step: "plan"  ← REMOVE (plan was skipped)
+
+After filtering:
+artifacts_in:
+  - path: "artifacts/explore/assessment.yaml"
+    from_step: "explore"
+```
+
+### Presenting Skipped Phases to User
+
+When presenting the plan for approval, clearly show which phases are skipped:
+
+```markdown
+## Workflow: arkd-issue-909
+
+**Phases**:
+- S1 (explore) - ark-guru ✅ WILL RUN
+- S2 (plan) - ark-project-manager ⏭️ SKIPPED: complexity == 'quick_fix'
+- S3 (implement) - ark-developer ✅ WILL RUN (depends_on: explore)
+
+**Skip Rationale**:
+- S2 skipped because assessment.yaml indicates complexity: 'quick_fix'
+- Direct implementation without formal planning (guru assessment sufficient)
+```
+
+### Important Notes
+
+1. **Conservative approach**: If skip condition evaluation fails (file missing, parse error), DO NOT skip the phase
+2. **One-time evaluation**: Skip conditions are evaluated ONCE after explore phase completes, not re-evaluated later
+3. **Transparent to user**: Always show which phases are skipped and why
+4. **Hook compatibility**: Pre-agent-validator hook respects skipped phases (validates only for non-skipped plan phases)
+
+### Step-by-Step Implementation
+
+When building the plan after workflow template selection:
+
+1. **Load workflow template** from `@templates/workflows/<template>.yaml`
+2. **Wait for explore phase to complete** (if workflow starts with explore)
+3. **For each phase with `condition.skip_if`**:
+   - Load file from `condition.check`
+   - Parse YAML and extract fields
+   - Evaluate each skip_if expression
+   - Mark phase as SKIPPED if any expression is true
+4. **Rewrite dependencies**: Replace references to skipped phases
+5. **Build execution specs**: Only for non-skipped phases
+6. **Filter artifacts**: Remove artifacts from skipped phases
+7. **Present plan**: Show skipped phases with skip reason
 
 ## Step 8: Phase → Step Expansion
 
-For EVERY phase in the selected workflow template, create ONE plan step and ONE Execution Specification.
+For EVERY phase that has not been marked skipped (see Step 7.5), create ONE plan step and ONE Execution Specification.
+
+**For skipped phases**:
+- Do NOT create execution specification
+- Mark in plan presentation as "⏭️ SKIPPED: <reason from condition.skip_reason>"
+- Remove from execution flow entirely
 
 **Critical rule**: 1 phase → 1 spec. Never merge. Never skip.
 
@@ -1261,6 +1425,107 @@ RETRY GUIDANCE:
 ```
 
 Parse the `OUTCOME` line to determine next action per the decision matrix above.
+
+## Mandatory Failure Response Protocol
+
+When a phase fails, you MUST execute this protocol BEFORE taking any other action:
+
+### Step 1: Parse Failure Details
+
+Read the post-agent-validator output for:
+- `OUTCOME` field (passed/partial/failed/crash)
+- `HARD GATE FAILURES` section (specific violations)
+- `RETRY_ELIGIBLE` flag and current attempt number
+- `RETRY GUIDANCE` section (remediation instructions from hook)
+
+### Step 2: Check Retry Eligibility
+
+From the workflow.yaml file, check:
+- Is this phase in the `retry_phases` list?
+- Current retry count vs `max_retries` value
+- Read workflow.yaml if you haven't already: `${ARKADIAN_DIR}/sessions/${SESSION_ID}/workflow.yaml`
+
+### Step 3: Decide Action
+
+Apply the decision matrix:
+
+| Condition | Action |
+|-----------|--------|
+| outcome=failed AND retry_count < max_retries | **RETRY with guidance** |
+| outcome=failed AND retry_count >= max_retries | **ESCALATE to user** |
+| outcome=partial AND confidence=high | **Accept with warnings** |
+| outcome=partial AND confidence=low | **RETRY** |
+| outcome=crash AND retry_count < 3 | **RETRY with crash note** |
+| outcome=crash AND retry_count >= 3 | **ESCALATE to user** |
+| outcome=passed | **Proceed to next phase** |
+
+### Step 4: NEVER Proceed After Failure
+
+**BLOCKING RULE**: If outcome = "failed" or "crash", you MUST NOT:
+- Create the next phase execution spec
+- Invoke the next agent
+- Mark workflow as progressing
+- Skip to subsequent phases
+
+**Exception**: User explicitly types "SKIP RETRY" to override (NOT RECOMMENDED).
+
+### Step 5: Communicate Failure to User
+
+When a failure occurs, output this exact format:
+
+```markdown
+❌ PHASE FAILED: {phase_id} ({agent_name})
+
+**Failure Details:**
+{Copy HARD GATE FAILURES from hook output}
+
+**Retry Status:**
+- Attempt: {N} of {max_retries}
+- Action: {RETRYING | ESCALATING}
+
+**Root Cause:**
+{Copy RETRY GUIDANCE from hook output}
+
+{If retrying:}
+⏳ Retrying phase {phase_id} with corrective guidance...
+
+{Present updated execution spec with retry_context}
+
+⏸️ AWAITING RETRY APPROVAL - Reply "APPROVED" to retry or "SKIP RETRY" to override
+
+{If escalating after max retries:}
+⚠️ Max retries exceeded. Manual intervention required.
+
+**Options:**
+1. Modify requirements (provide new instructions)
+2. Skip this phase (type "SKIP RETRY" - not recommended)
+3. Debug agent behavior (analyze why failures occurred)
+4. Abort workflow (type "ABORT")
+
+What would you like to do?
+```
+
+### Step 6: Build Retry Execution Spec
+
+If retrying, reconstruct the execution spec with:
+- Same `step_id`, `agent`, `objective`, `projects`, `expected_outputs`
+- **Add `retry_context` section** with failure details from hook
+- Include all `artifacts_in` from previous phases
+- **Copy exact guidance from RETRY GUIDANCE** into the retry_context
+
+Example retry_context:
+```yaml
+retry_context:
+  attempt_number: 2
+  max_attempts: 3
+  previous_failures:
+    - attempt: 1
+      outcome: "failed"
+      hard_gate_failures:
+        - "[HG-PLAN-PM-01] Missing plan.md"
+        - "[HG-PLAN-PM-02] Missing tasks.md"
+      guidance: "Invoke pm-plan and pm-tasks skills after pm-spec completes. Verify all 3 files exist before exiting."
+```
 
 ## Anti-Patterns (NEVER Do These)
 
