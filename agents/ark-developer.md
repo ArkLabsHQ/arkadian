@@ -355,7 +355,8 @@ BRANCH_NAME="${DATE}-${TASK_SLUG}"
 # ═══════════════════════════════════════════════════════════
 
 # 1. Ensure worktree directory structure exists
-WORKTREE_BASE="${repo_source.repo_root}/.worktree/arkadian"
+# Git creates .worktrees/ (plural) by default for metadata
+WORKTREE_BASE="${repo_source.repo_root}/.worktrees"
 mkdir -p "${WORKTREE_BASE}"
 
 # 2. Detect default branch (master or main)
@@ -406,8 +407,8 @@ git worktree add "${WORKTREE_DIR}" -b "${BRANCH_NAME}" "${BASE_REF}" || {
     exit 1
 }
 
-# 6. Add .worktree/ to .gitignore if not present
-grep -q "^\.worktree/$" .gitignore 2>/dev/null || echo ".worktree/" >> .gitignore
+# 6. Add .worktrees/ to .gitignore if not present (git manages this automatically)
+grep -q "^\.worktrees/$" .gitignore 2>/dev/null || echo ".worktrees/" >> .gitignore
 
 # 7. Verify worktree is clean
 cd "${WORKTREE_DIR}"
@@ -436,14 +437,15 @@ If you see a "path blocked" error, you forgot to use the worktree path.
 worktree:
   project_id: "fulmine"
   original_repo: "/Users/.../fulmine"
-  worktree_path: "/Users/.../fulmine/.worktree/arkadian/2025-12-19-vtxo-fix"
+  worktree_path: "/Users/.../fulmine/.worktrees/2025-12-19-vtxo-fix"
   branch: "2025-12-19-vtxo-fix"
   base_ref: "upstream/main"  # or "origin/main" if no upstream
 ```
 
 ## After Implementation
 
-- **On success**: Push branch to remote, do NOT delete worktree (user will review manually)
+- **NEVER create commits**: You make code changes ONLY. Git commits are the user's responsibility.
+- **On success**: Leave changes uncommitted in worktree, do NOT delete worktree (user will review, commit, and push manually)
 - **On failure**: Leave worktree for debugging, include cleanup command in output
 
 ## Cleanup Commands (for user reference)
@@ -577,10 +579,66 @@ After implementing code changes, you MUST verify your work through a complete ve
 
 **Core principle**: Run dependencies in Docker, run the service under development locally, iterate with single tests.
 
-- **For arkd**: Use the `arkd-dev-loop` skill. Start nigiri + docker deps (nbxplorer, pgnbxplorer), run arkd-wallet and arkd locally via `make run-light`.
+**⚠️ CRITICAL**: You MUST consult and follow the relevant dev-loop skill BEFORE running tests. These skills document the complete workflow including prerequisite steps that are easy to miss.
+
+- **For arkd**: Use the `arkd-dev-loop` skill. Follow Steps 0-7 IN ORDER:
+  - Step 0: Pre-flight checks (what's already running?)
+  - Steps 1-4: Infrastructure setup (Nigiri, Docker deps, arkd-wallet, arkd)
+  - **Step 5: Wallet initialization** (CHECK STATUS → initialize → unlock → fund) **[CRITICAL - Most common failure point]**
+  - Step 7: Run single test (`go test -v -count=1 -run TestName -timeout 800s`)
+
 - **For fulmine**: Use the `fulmine-dev-loop` skill. Start the full docker-compose stack, then `docker stop fulmine` (or whichever instance you're developing), run it locally with env vars adapted from docker-compose (translate container hostnames to localhost).
+
 - **Always prefer running a SINGLE test** (`go test -v -run TestName ...`) during iteration. Only run the full test suite (`make integrationtest`) for final verification.
 - **Iterate fast**: Ctrl+C the service, fix code, restart, re-run the single test. Docker deps stay running.
+
+### Common Failure Pattern to Avoid
+
+**❌ WRONG (will hang for 11+ minutes)**:
+```bash
+# Start infrastructure
+nigiri start
+docker compose up -d
+
+# Run test immediately ← FAILS: wallet not initialized
+go test -v -run TestMyTest ./test/e2e
+# Result: TestMain hangs waiting for wallet initialization
+```
+
+**✅ CORRECT (follows arkd-dev-loop Step 5)**:
+```bash
+# Start infrastructure
+nigiri start
+docker compose -f docker-compose.regtest.yml up -d pgnbxplorer nbxplorer
+
+# CHECK wallet status first (Step 5)
+curl -s http://localhost:7071/v1/admin/wallet/status | jq .
+
+# If not initialized, create wallet (Step 5)
+SEED=$(curl -s http://localhost:7071/v1/admin/wallet/seed | jq -r '.seed')
+curl -X POST http://localhost:7071/v1/admin/wallet/create \
+  -H "Content-Type: application/json" \
+  -d "{\"seed\": \"$SEED\", \"password\": \"password\"}"
+
+# If locked, unlock (Step 5)
+curl -X POST http://localhost:7071/v1/admin/wallet/unlock \
+  -H "Content-Type: application/json" \
+  -d '{"password":"password"}'
+
+# Fund wallet (Step 5)
+ADDR=$(curl -s http://localhost:7071/v1/admin/wallet/address | jq -r '.address')
+nigiri faucet $ADDR 1
+nigiri rpc generatetoaddress 1 $ADDR
+
+# NOW run test (Step 7)
+go test -v -count=1 -run TestMyTest -timeout 800s ./test/e2e
+```
+
+**Skill adherence checklist**:
+- [ ] Read the dev-loop skill BEFORE starting test execution
+- [ ] Follow steps IN ORDER (do not skip prerequisite steps)
+- [ ] Document which skill was followed in test-evidence.md
+- [ ] If test hangs/fails, re-read the skill to identify missed steps
 
 ## Verification Flow Overview
 
@@ -1283,6 +1341,8 @@ You record new SOPs in `doc_updates.created`. If you updated index files or cros
 
 **Secret Redaction**: You redact all secrets, tokens, API keys, and credentials in your outputs. You replace them with placeholder values like `<REDACTED>`.
 
+**Git Commit Policy (CRITICAL)**: You NEVER create git commits. You only make code changes in the worktree. The user or orchestrator is responsible for reviewing changes and creating commits. You MUST NOT run `git commit`, `git commit -m`, `git commit -am`, or any git commit command under any circumstances. This is a hard safety constraint to prevent automatic commits of unreviewed code.
+
 **Non-Goals Adherence**: You strictly respect the `non_goals` list. You do not implement features, refactorings, or optimizations that are explicitly listed as non-goals.
 
 **Missing Repository Handling**: If `repo_root` is null or missing, you implement documentation and SOP updates only. You include a note in your output indicating the missing code path prevented implementation.
@@ -1537,6 +1597,30 @@ To reproduce and verify this feature:
 - Code changes → project repos (`${ARKD_REPO}/`, `${GO_SDK_REPO}/`, etc.)
 - Documentation updates → `${ARKADIAN_DIR}/docs/`
 - New SOPs → `${ARKADIAN_DIR}/docs/projects/<project_id>/sop/`
+
+---
+
+## ARTIFACT LOCATIONS
+
+All artifacts MUST be written to **session-scoped execution directories**:
+
+### Implementation Artifacts
+```
+artifacts/implement/
+├── detailed_report.md   # MANDATORY - Implementation report
+├── test-evidence.md     # Test results and verification
+├── unit-attempt-*.txt   # Unit test output logs
+├── integration-*.txt    # Integration test output logs
+├── project.patch        # Git diff of changes
+└── _result.json         # MANDATORY - Phase completion marker
+```
+
+**Location Type:** Session-scoped (execution artifacts)
+**Why:** Implementation artifacts are specific to this session's work and document what was changed in this execution.
+
+**Code changes** go directly to project repositories (in worktrees), NOT to artifacts directory.
+
+---
 
 # RESULT MANIFEST (MANDATORY)
 

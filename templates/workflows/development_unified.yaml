@@ -183,33 +183,27 @@ execution:
           description: "Guru exploration findings — complexity, affected files, risks"
 
       outputs:
-        - path: "specs/{feature-id}/spec.md"
+        - path: "specs/{project-id}/{feature-id}/spec.md"
           condition: "complexity in ['medium_feature', 'large_feature']"
-        - path: "specs/{feature-id}/plan.md"
+        - path: "specs/{project-id}/{feature-id}/plan.md"
           condition: "complexity in ['medium_feature', 'large_feature']"
-        - path: "specs/{feature-id}/tasks.md"
+        - path: "specs/{project-id}/{feature-id}/tasks.md"
           condition: "complexity in ['medium_feature', 'large_feature']"
-        - path: "artifacts/plan/implementation_plan.yaml"
+        - path: "specs/{project-id}/{feature-id}/_result.json"
           schema: |
-            approach: "<summary>"
-            input_verification:
-              assessment_read: true
-              files_verified: <count>
-              complexity_agreement: true | false
-            tasks:
-              - id: "T1"
-                description: "<task>"
-                files: [<affected files>]
-            test_strategy:
-              type: "<from explore recommendation>"
-              commands: [<test commands>]
-              manual_steps: [<if manual testing>]
-            success_criteria:
-              - "<criterion 1>"
-              - "<criterion 2>"
+            status: "success | partial | failure"
+            phase_completed: "plan"
+            agent: "ark-project-manager"
+            completed_at: "<ISO timestamp>"
+            artifacts_produced: [
+              { path: "spec.md", type: "spec" },
+              { path: "plan.md", type: "plan" },
+              { path: "tasks.md", type: "tasks" }
+            ]
+            summary: "<brief summary>"
 
       checkpoint:
-        path: "artifacts/plan/implementation_plan.yaml"
+        path: "specs/{project-id}/{feature-id}/_result.json"
         required_for_next_phase: true
       timeout_seconds: 900
 
@@ -241,10 +235,14 @@ execution:
         # Testing (same session — do NOT defer to a separate phase)
         - "Write unit tests for new/changed code"
         - "Run unit tests (make test / go test)"
-        - "Run integration tests if test_strategy requires (make integrationtest)"
-        - "For infra_setup: Start required services, then test"
+        - "CRITICAL: Follow dev-loop skill for integration tests (arkd-dev-loop or fulmine-dev-loop)"
+        - "For arkd: Follow arkd-dev-loop Steps 0-7 IN ORDER (especially Step 5: wallet init)"
+        - "For fulmine: Follow fulmine-dev-loop for full stack setup"
+        - "Run integration tests if test_strategy requires (make integrationtest OR single test)"
+        - "For infra_setup: Start required services per dev-loop skill, verify prerequisites, then test"
+        - "Document which dev-loop skill was followed in test-evidence.md"
         - "Fix any test failures before finishing"
-        - "Write test-evidence.md with all commands, raw output, and key log lines"
+        - "Write test-evidence.md with all commands, raw output, key log lines, and skill adherence"
         - "Output implementation report with test results"
 
       # Full artifact chain from ALL prior phases (MANDATORY)
@@ -267,7 +265,15 @@ execution:
           required: true
         - path: "artifacts/implement/test-evidence.md"
           required: true
-          description: "Test commands, raw output, key log lines, and reproduction steps"
+          description: |
+            Test commands, raw output, key log lines, and reproduction steps.
+            MUST include:
+            - Which dev-loop skill was followed (arkd-dev-loop, fulmine-dev-loop, etc.)
+            - Steps executed from the skill (e.g., "Steps 0, 1, 2, 5, 7")
+            - Wallet initialization status (for arkd: initialized/unlocked/funded)
+            - Infrastructure setup commands and their output
+            - Test execution commands with full output
+            - Any deviations from the skill's documented procedure
         - path: "artifacts/implement/changes.yaml"
           required: true
           schema: |
