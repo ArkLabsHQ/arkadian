@@ -50,7 +50,7 @@ Claude Code Session (Orchestrator)
 |------|------|---------|
 | PreToolUse | `orchestrator-guardrail.ts` | Blocks orchestrator from accessing project repos |
 | PreToolUse | `validate-agent-input.ts` | Validates Task tool Execution Specifications |
-| UserPromptSubmit | `load-arkadian-context.ts` | Injects orchestrator compliance reminder |
+| UserPromptSubmit | `user-submit-reminder.ts` | Injects orchestrator compliance reminder |
 | SessionStart | `session-start-hook.ts` | Creates session folder structure |
 | SessionEnd | `session-stop-hook.ts` | Cleanup, summarization |
 
@@ -72,8 +72,7 @@ BLOCKED_TOOLS = ['Bash', 'NotebookEdit', 'MultiEdit']
 | Agent | Purpose | Output |
 |-------|---------|--------|
 | `ark-guru` | Q&A, explanations | Report in `artifacts/` |
-| `ark-developer` | Code changes | `detailed_report.md` + code |
-| `ark-env-tester` | Testing, QA | `test_report.md` + logs |
+| `ark-developer` | Code changes + testing | `detailed_report.md` + code |
 | `ark-project-manager` | Specs, planning | `spec.md`, `plan.md`, `tasks.md` |
 | `ark-pr-reviewer` | PR analysis | `review_report.md` |
 | `ark-observer` | Telemetry debugging | `investigation_report.md` |

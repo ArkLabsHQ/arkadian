@@ -3,9 +3,18 @@
 # Arkadian - Launch Claude Code with orchestrator system prompt
 # This ensures ORCHESTRATOR.md instructions are in the SYSTEM prompt (highest priority)
 # rather than as a user message (which Claude can ignore)
+#
+# Usage:
+#   arkadian "your task"                           # Interactive mode
+#   arkadian -d "your task"                        # Detached mode (auto-approves all gates)
+#   arkadian --resume SESSION_ID                   # Resume from previous session
+
+set -euo pipefail
 
 ARKADIAN_DIR="${ARKADIAN_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 ORCHESTRATOR_FILE="${ARKADIAN_DIR}/ORCHESTRATOR.md"
+DATA_DIR="${ARKADIAN_DATA_DIR:-${ARKADIAN_DIR}/log}"
+SESSIONS_DIR="${ARKADIAN_DIR}/sessions"
 
 # Check if orchestrator file exists
 if [ ! -f "$ORCHESTRATOR_FILE" ]; then
@@ -19,5 +28,623 @@ ORCHESTRATOR_CONTENT=$(cat "$ORCHESTRATOR_FILE")
 # Enable orchestrator mode for guardrail hooks
 export ARKADIAN_ORCHESTRATOR_MODE=1
 
-# Launch claude with orchestrator as system prompt
-exec claude --append-system-prompt "$ORCHESTRATOR_CONTENT" "$@"
+DETACHED=false
+RESUME_SESSION=""
+
+# Show help
+show_help() {
+    echo "Arkadian - AI Orchestrator for Ark Protocol Ecosystem"
+    echo ""
+    echo "Usage:"
+    echo "  arkadian [options] \"your task\""
+    echo "  arkadian --resume <session_id>"
+    echo "  arkadian status [session_id]"
+    echo "  arkadian logs <session_id>"
+    echo ""
+    echo "Commands:"
+    echo "  status            List active and recent sessions"
+    echo "  status <id>       Show detailed status for a session"
+    echo "  logs <id>         Tail session hook log"
+    echo ""
+    echo "Options:"
+    echo "  -d, --detached    Run autonomously in background (auto-approve all gates)"
+    echo "  --resume <id>     Resume a previous session from its last completed phase"
+    echo "  --help, -h        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  arkadian \"Fix the VTXO expiry bug in fulmine\""
+    echo "  arkadian -d \"Add GetRoundMetrics RPC to arkd\""
+    echo "  arkadian --resume 3191f042-a27d-4a6e-b6a8-f2fe0f41bc9a"
+    echo "  arkadian status"
+    echo "  arkadian logs abc123-def456"
+}
+
+# ── Helpers for status/logs ──────────────────────────────────────────
+
+# Human-readable relative time from ISO timestamp
+relative_time() {
+    local ts="$1"
+    local now
+    now=$(date +%s)
+    local then
+    # Handle both ISO and epoch formats
+    if [[ "$ts" =~ ^[0-9]+$ ]]; then
+        then="$ts"
+    else
+        then=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${ts%%.*}" +%s 2>/dev/null || date -d "$ts" +%s 2>/dev/null || echo "$now")
+    fi
+    local diff=$(( now - then ))
+    if (( diff < 60 )); then
+        echo "${diff}s ago"
+    elif (( diff < 3600 )); then
+        echo "$(( diff / 60 ))m ago"
+    elif (( diff < 86400 )); then
+        echo "$(( diff / 3600 ))h ago"
+    else
+        echo "$(( diff / 86400 ))d ago"
+    fi
+}
+
+# ── status subcommand ────────────────────────────────────────────────
+
+cmd_status() {
+    local detail_id="${1:-}"
+    mkdir -p "$DATA_DIR"
+
+    if [ -n "$detail_id" ]; then
+        cmd_status_detail "$detail_id"
+        return
+    fi
+
+    # ── Active sessions ──
+    local found_active=false
+    for state_file in "$DATA_DIR"/*_state.json; do
+        [ -f "$state_file" ] || continue
+
+        local sid
+        sid=$(jq -r '.session_id' "$state_file" 2>/dev/null) || continue
+        local pid
+        pid=$(jq -r '.pid' "$state_file" 2>/dev/null)
+        local started
+        started=$(jq -r '.started_at' "$state_file" 2>/dev/null)
+        local phase
+        phase=$(jq -r '.workflow.current_phase // "initializing"' "$state_file" 2>/dev/null)
+        local agent
+        agent=$(jq -r '.active_agent.agent_type // "-"' "$state_file" 2>/dev/null)
+
+        local status_label="RUNNING"
+        if ! kill -0 "$pid" 2>/dev/null; then
+            status_label="STALE (PID $pid dead)"
+        fi
+
+        if [ "$found_active" = false ]; then
+            echo "ACTIVE SESSIONS:"
+            found_active=true
+        fi
+
+        local rel
+        rel=$(relative_time "$started")
+        printf "  %-20s %-10s %-28s %s\n" "${sid:0:20}" "$status_label" "$phase ($agent)" "$rel"
+    done
+
+    if [ "$found_active" = false ]; then
+        echo "No active sessions."
+    fi
+
+    # ── Recent completed sessions ──
+    local manifest="${ARKADIAN_DIR}/sessions/.index/manifest.json"
+    if [ -f "$manifest" ]; then
+        echo ""
+        echo "RECENT (last 5):"
+        # jq: pick first 5 entries, format as table
+        jq -r '.[0:5] | .[] | "  \(.session_id)\t\(.project)\t\(.outcome)\t\(.created_at)"' "$manifest" 2>/dev/null | \
+        while IFS=$'\t' read -r sid project outcome created; do
+            local rel
+            rel=$(relative_time "$created")
+            printf "  %-52s %-12s %-10s %s\n" "$sid" "$project" "$outcome" "$rel"
+        done
+    fi
+}
+
+cmd_status_detail() {
+    local id="$1"
+
+    # Try active state file first
+    local state_file="$DATA_DIR/${id}_state.json"
+    if [ -f "$state_file" ]; then
+        local sid pid started phase wf_status
+        sid=$(jq -r '.session_id' "$state_file")
+        pid=$(jq -r '.pid' "$state_file")
+        started=$(jq -r '.started_at' "$state_file")
+        phase=$(jq -r '.workflow.current_phase // "initializing"' "$state_file")
+        wf_status=$(jq -r '.workflow.status' "$state_file")
+
+        local status_label="RUNNING (PID $pid)"
+        if ! kill -0 "$pid" 2>/dev/null; then
+            status_label="STALE (PID $pid dead)"
+        fi
+
+        local rel
+        rel=$(relative_time "$started")
+
+        echo "Session: $sid"
+        echo "Status:  $status_label"
+        echo "Started: ${started%%.*} ($rel)"
+
+        # Session dir from active pointer
+        local active_file="$DATA_DIR/${id}_active.txt"
+        if [ -f "$active_file" ]; then
+            echo "Dir:     $(cat "$active_file" | tr -d '\n')"
+        fi
+
+        echo ""
+        echo "Workflow: $wf_status"
+        echo "Current:  $phase"
+        echo ""
+
+        # Show phases
+        local phases
+        phases=$(jq -r '.phases | to_entries[] | "\(.key)\t\(.value.agent // "-")\t\(.value.status)"' "$state_file" 2>/dev/null)
+        if [ -n "$phases" ]; then
+            echo "Phases:"
+            echo "$phases" | while IFS=$'\t' read -r pname pagent pstatus; do
+                printf "  %-16s %-20s %s\n" "$pname" "$pagent" "$pstatus"
+            done
+        fi
+
+        # Show artifacts
+        local session_dir=""
+        if [ -f "$active_file" ]; then
+            session_dir=$(cat "$active_file" | tr -d '\n')
+        fi
+        if [ -n "$session_dir" ] && [ -d "$session_dir/artifacts" ]; then
+            echo ""
+            local artifacts
+            artifacts=$(find "$session_dir/artifacts" -type f \( -name '*.yaml' -o -name '*.md' -o -name '*.json' \) 2>/dev/null)
+            if [ -n "$artifacts" ]; then
+                local count
+                count=$(echo "$artifacts" | wc -l | tr -d ' ')
+                echo "Artifacts: $count files"
+                echo "$artifacts" | while read -r f; do
+                    echo "  ${f#"$session_dir"/}"
+                done
+            fi
+        fi
+        return
+    fi
+
+    # Try ended session — check log file
+    local log_file="$DATA_DIR/${id}_log.txt"
+    if [ -f "$log_file" ]; then
+        echo "Session: $id (ended)"
+        echo "Log:     $log_file"
+        echo ""
+
+        # Extract start time from log
+        local start_line
+        start_line=$(head -1 "$log_file")
+        echo "Started: $start_line"
+        echo ""
+
+        # Look for phase transitions in log
+        echo "Phase events (from log):"
+        grep -E '\[session-start\]|\[orchestrator-guardrail\].*phase|workflow|agent' "$log_file" 2>/dev/null | tail -20
+        return
+    fi
+
+    # Try manifest for renamed session
+    local manifest="${ARKADIAN_DIR}/sessions/.index/manifest.json"
+    if [ -f "$manifest" ]; then
+        local entry
+        entry=$(jq -r --arg id "$id" '.[] | select(.session_id == $id or (.session_id | contains($id)))' "$manifest" 2>/dev/null)
+        if [ -n "$entry" ]; then
+            echo "$entry" | jq -r '"Session: \(.session_id)\nProject: \(.project)\nOutcome: \(.outcome)\nDir:     \(.session_dir)\nCreated: \(.created_at)\n\nArtifacts:\n\(.artifacts | map("  " + .) | join("\n"))"'
+            return
+        fi
+    fi
+
+    # Try searching by UUID in workflow.yaml files (for renamed sessions)
+    local session_dir=""
+    for workflow in $(find "${ARKADIAN_DIR}/sessions" -maxdepth 3 -name "workflow.yaml" 2>/dev/null); do
+        local workflow_id
+        workflow_id=$(grep -m1 "^workflow_id:" "$workflow" 2>/dev/null | awk '{print $2}')
+        if [ -n "$workflow_id" ] && [[ "$workflow_id" == "$id"* ]]; then
+            session_dir=$(dirname "$workflow")
+            echo "Session found by UUID: $(basename "$session_dir")"
+            echo "Dir:     $session_dir"
+            echo ""
+
+            # Show workflow status
+            echo "Workflow:"
+            grep -E "^(status|template):" "$workflow" | sed 's/^/  /'
+            echo ""
+
+            # Show phase completion
+            echo "Phases:"
+            for phase_dir in "$session_dir/artifacts"/*; do
+                if [ -d "$phase_dir" ]; then
+                    local phase_name
+                    phase_name=$(basename "$phase_dir")
+                    local result_file="${phase_dir}/_result.json"
+
+                    if [ -f "$result_file" ]; then
+                        local status agent
+                        status=$(jq -r '.status // "unknown"' "$result_file" 2>/dev/null)
+                        agent=$(jq -r '.agent // "unknown"' "$result_file" 2>/dev/null)
+                        printf "  %-16s %-20s %s\n" "$phase_name" "$agent" "$status"
+                    else
+                        printf "  %-16s %-20s %s\n" "$phase_name" "-" "pending/failed"
+                    fi
+                fi
+            done
+
+            # Check planning artifacts separately
+            if [ -d "$session_dir/specs" ]; then
+                for spec_dir in "$session_dir/specs"/*/*/; do
+                    if [ -f "${spec_dir}_result.json" ]; then
+                        local feature_name
+                        feature_name=$(basename "$(dirname "$spec_dir")")
+                        local status agent
+                        status=$(jq -r '.status // "unknown"' "${spec_dir}_result.json" 2>/dev/null)
+                        agent=$(jq -r '.agent // "unknown"' "${spec_dir}_result.json" 2>/dev/null)
+                        printf "  %-16s %-20s %s\n" "plan:$feature_name" "$agent" "$status"
+                    fi
+                done
+            fi
+
+            return
+        fi
+    done
+
+    echo "Session '$id' not found."
+    echo "Try: arkadian status   (to list sessions)"
+}
+
+# ── logs subcommand ──────────────────────────────────────────────────
+
+cmd_logs() {
+    local id="${1:-}"
+    if [ -z "$id" ]; then
+        echo "Usage: arkadian logs <session_id>"
+        exit 1
+    fi
+
+    local log_file="$DATA_DIR/${id}_log.txt"
+    if [ ! -f "$log_file" ]; then
+        echo "No log file found for session '$id'"
+        echo "  Expected: $log_file"
+        exit 1
+    fi
+
+    # If session is active (state file exists), follow the log
+    local state_file="$DATA_DIR/${id}_state.json"
+    if [ -f "$state_file" ]; then
+        local pid
+        pid=$(jq -r '.pid' "$state_file" 2>/dev/null)
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "=== Following active session log (Ctrl+C to stop) ==="
+            tail -f "$log_file"
+            return
+        fi
+    fi
+
+    # Ended session — show last 50 lines
+    echo "=== Session log (last 50 lines) ==="
+    tail -50 "$log_file"
+}
+
+# Dispatch subcommands before flag parsing
+case "${1:-}" in
+    status)
+        shift
+        cmd_status "$@"
+        exit 0
+        ;;
+    logs)
+        shift
+        cmd_logs "$@"
+        exit 0
+        ;;
+    --resume)
+        # Handle --resume as both subcommand and flag
+        if [ -n "${2:-}" ]; then
+            RESUME_SESSION="$2"
+            shift 2
+        else
+            echo "Error: --resume requires a session ID"
+            echo "Usage: arkadian --resume <session_id>"
+            exit 1
+        fi
+        ;;
+esac
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -d|--detached)
+            DETACHED=true
+            shift
+            ;;
+        --resume)
+            if [ -n "${2:-}" ]; then
+                RESUME_SESSION="$2"
+                shift 2
+            else
+                echo "Error: --resume requires a session ID"
+                exit 1
+            fi
+            ;;
+        *)
+            # Remaining args go to claude
+            break
+            ;;
+    esac
+done
+
+# Detached mode prompt override
+DETACHED_PROMPT='## Detached Mode (AUTO-APPROVE)
+
+You are running in DETACHED mode. There is no human operator to approve gates.
+
+**Override to Approval Gates:**
+- All 3 approval gates (Plan, Spec, Subsequent Call) are PRE-APPROVED.
+- Do NOT output "AWAITING PLAN APPROVAL" or "AWAITING SPEC APPROVAL" prompts.
+- Do NOT stop and wait for user input between phases.
+- After generating a plan → immediately create workflow.yaml → proceed to first spec.
+- After generating each spec → immediately invoke the agent.
+- After each agent completes → immediately proceed to next phase.
+
+**What stays the same:**
+- Follow the FULL orchestrator workflow (all 10 steps).
+- Create ALL artifacts: workflow.yaml, execution specs, session state.
+- Run ALL phases: explore → plan → implement → test.
+- Log every decision, every spec, every artifact — exactly as in interactive mode.
+- Write all specs to sessions/{session_id}/specs/ as normal.
+- Respect hook enforcement (pre-agent, post-agent validators).
+- Retry on agent failure (up to 3x) as normal.
+
+**Resolving agent decisions:**
+- If an agent (e.g., ark-guru) presents multiple options with a recommendation, accept the recommendation.
+- If an agent flags an "architectural decision needed", treat the agent'\''s preferred option as decided.
+- Do NOT surface agent questions to the user — there is no user. Resolve them using the agent'\''s stated preference.
+- Record all auto-resolved decisions in the orchestrator log for post-hoc review.
+
+**In summary:** Execute the entire pipeline end-to-end without pausing. Produce identical artifacts to interactive mode.'
+
+# ── Resume Mode Validation and Setup ─────────────────────────────────
+
+RESUME_PROMPT=""
+if [ -n "$RESUME_SESSION" ]; then
+    # Validate session exists
+    SESSION_DIR=""
+
+    # Try to find session directory by matching prefix or exact ID
+    # Sessions can be in sessions/{session_id} or sessions/{project}/{session_id}
+    if [ -d "${SESSIONS_DIR}/${RESUME_SESSION}" ]; then
+        SESSION_DIR="${SESSIONS_DIR}/${RESUME_SESSION}"
+    else
+        # Try matching in nested project directories (sessions/arkd/, sessions/fulmine/, etc.)
+        MATCHING_DIRS=$(find "$SESSIONS_DIR" -maxdepth 2 -type d -name "${RESUME_SESSION}*" 2>/dev/null)
+        DIR_COUNT=$(echo "$MATCHING_DIRS" | grep -v '^$' | wc -l | tr -d ' ')
+
+        if [ "$DIR_COUNT" -eq 1 ]; then
+            SESSION_DIR="$MATCHING_DIRS"
+        elif [ "$DIR_COUNT" -gt 1 ]; then
+            echo "Error: Multiple sessions match '${RESUME_SESSION}':"
+            echo "$MATCHING_DIRS" | sed 's/^/  /'
+            echo ""
+            echo "Please provide a more specific session ID."
+            exit 1
+        fi
+    fi
+
+    # If still not found, try searching by original UUID in workflow.yaml files
+    # (sessions get renamed after completion, but workflow_id preserves original UUID)
+    if [ -z "$SESSION_DIR" ]; then
+        echo "Searching for session by UUID in workflow files..."
+        for workflow in $(find "$SESSIONS_DIR" -maxdepth 3 -name "workflow.yaml" 2>/dev/null); do
+            WORKFLOW_ID=$(grep -m1 "^workflow_id:" "$workflow" 2>/dev/null | awk '{print $2}')
+            if [ -n "$WORKFLOW_ID" ] && [[ "$WORKFLOW_ID" == "$RESUME_SESSION"* ]]; then
+                SESSION_DIR=$(dirname "$workflow")
+                echo "Found session by UUID: $(basename "$SESSION_DIR")"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$SESSION_DIR" ] || [ ! -d "$SESSION_DIR" ]; then
+        echo "Error: Session '${RESUME_SESSION}' not found in ${SESSIONS_DIR}"
+        echo ""
+        echo "Searched for:"
+        echo "  - Directory name matching: ${RESUME_SESSION}"
+        echo "  - UUID in workflow.yaml files"
+        echo ""
+        echo "Available sessions (use 'arkadian status' for full list):"
+        find "$SESSIONS_DIR" -maxdepth 2 -type d ! -name ".*" ! -name "sessions" 2>/dev/null | tail -10 | sed 's|.*/||' | sed 's/^/  /'
+        exit 1
+    fi
+
+    # Extract actual session ID from directory name
+    RESUME_SESSION=$(basename "$SESSION_DIR")
+
+    echo "Resuming session: $RESUME_SESSION"
+    echo "  Directory: $SESSION_DIR"
+    echo ""
+
+    # Check if workflow.yaml exists
+    if [ ! -f "${SESSION_DIR}/workflow.yaml" ]; then
+        echo "Error: No workflow.yaml found in session directory"
+        echo "  This session may not be resumable (orchestration not started)"
+        exit 1
+    fi
+
+    # Export session info for orchestrator
+    export ARKADIAN_RESUME_SESSION="$RESUME_SESSION"
+    export ARKADIAN_RESUME_SESSION_DIR="$SESSION_DIR"
+
+    # Build resume prompt
+    RESUME_PROMPT="## Resume Mode
+
+You are resuming an existing orchestrator session.
+
+**Session Information:**
+- Session ID: ${RESUME_SESSION}
+- Session Directory: ${SESSION_DIR}
+- Workflow: ${SESSION_DIR}/workflow.yaml
+
+**Instructions:**
+
+1. **Read session state:**
+   - Read workflow.yaml to understand the workflow structure
+   - Check each phase directory in artifacts/ for _result.json
+   - Identify which phases are COMPLETE and which are PENDING
+
+2. **Determine next phase:**
+   - Phases with artifacts/{phase}/_result.json and status=complete → SKIP
+   - First phase without _result.json or status≠complete → RESUME FROM HERE
+
+3. **Load execution spec:**
+   - Read specs/S{N}.yaml for the next pending phase
+   - This spec contains all context and instructions for the agent
+
+4. **Invoke agent:**
+   - Use the Task tool with the agent specified in the execution spec
+   - Pass the full execution spec as the prompt
+   - The spec already includes all input artifacts from previous phases
+
+5. **Continue workflow:**
+   - After agent completes, continue to next phase as normal
+   - Follow standard orchestration workflow for remaining phases
+
+**Critical:**
+- Do NOT re-run completed phases (S1, S2, etc. if already done)
+- Do NOT ask the user what to do - the session state tells you
+- The execution spec contains ALL context needed for the agent
+- Treat this as if you're continuing from where the previous orchestrator left off
+
+**Example for this session:**
+If S1 (explore) and S2 (plan) show _result.json with status=complete,
+then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
+"
+
+    echo "Session state analysis:"
+    echo ""
+
+    # Show phase status
+    for phase_dir in "${SESSION_DIR}/artifacts"/*; do
+        if [ -d "$phase_dir" ]; then
+            phase_name=$(basename "$phase_dir")
+            result_file="${phase_dir}/_result.json"
+
+            if [ -f "$result_file" ]; then
+                status=$(jq -r '.status // "unknown"' "$result_file" 2>/dev/null)
+                agent=$(jq -r '.agent // "unknown"' "$result_file" 2>/dev/null)
+                echo "  ✅ ${phase_name}: COMPLETE (${agent})"
+            else
+                echo "  ⏸️  ${phase_name}: IN PROGRESS or FAILED (no _result.json)"
+            fi
+        fi
+    done
+
+    # Find next spec to execute
+    NEXT_SPEC=""
+    for spec_file in "${SESSION_DIR}/specs"/S*.yaml; do
+        if [ -f "$spec_file" ]; then
+            spec_name=$(basename "$spec_file" .yaml)
+            phase_name=$(echo "$spec_name" | tr '[:upper:]' '[:lower:]')
+            result_file="${SESSION_DIR}/artifacts/${phase_name}/_result.json"
+
+            if [ ! -f "$result_file" ]; then
+                NEXT_SPEC="$spec_file"
+                break
+            fi
+        fi
+    done
+
+    echo ""
+    if [ -n "$NEXT_SPEC" ]; then
+        echo "Next phase to execute: $(basename "$NEXT_SPEC")"
+        echo "  Spec: $NEXT_SPEC"
+    else
+        echo "⚠️  All phases appear complete or no specs found"
+        echo "  Review session manually to determine state"
+    fi
+
+    echo ""
+    echo "Starting orchestrator in resume mode..."
+    echo ""
+fi
+
+# Build claude command args
+CLAUDE_ARGS=(--append-system-prompt "$ORCHESTRATOR_CONTENT")
+
+# Resume mode setup
+RESUME_INITIAL_MESSAGE=""
+if [ -n "$RESUME_PROMPT" ]; then
+    CLAUDE_ARGS+=(--append-system-prompt "$RESUME_PROMPT")
+    # Inject initial message to trigger orchestrator resume workflow
+    # This message references the resume mode instructions in the system prompt
+    RESUME_INITIAL_MESSAGE="RESUME MODE DETECTED. Execute the Resume Mode Workflow:
+1. Read workflow.yaml to understand phase structure
+2. Check phase completion via _result.json files
+3. Identify the next pending phase
+4. Present the resume state summary
+5. Load and show the execution spec for approval
+
+Session directory: ${SESSION_DIR}
+
+Begin now."
+fi
+
+if [ "$DETACHED" = true ]; then
+    CLAUDE_ARGS+=(-p)
+    CLAUDE_ARGS+=(--append-system-prompt "$DETACHED_PROMPT")
+    CLAUDE_ARGS+=(--dangerously-skip-permissions)
+
+    # Create a timestamp marker to find the new session
+    MARKER=$(mktemp)
+
+    # Start claude in background, fully detached
+    mkdir -p "$DATA_DIR"
+    LOG_FILE="${DATA_DIR}/arkadian_$$.log"
+    nohup claude "${CLAUDE_ARGS[@]}" "$@" > "$LOG_FILE" 2>&1 &
+    PID=$!
+    disown "$PID" 2>/dev/null
+
+    # Wait for session-start hook to create _active.txt (max 30s)
+    SESSION_DIR=""
+    for _ in $(seq 1 30); do
+        NEW_ACTIVE=$(find "$DATA_DIR" -maxdepth 1 -name "*_active.txt" -newer "$MARKER" 2>/dev/null | head -1)
+        if [ -n "$NEW_ACTIVE" ]; then
+            SESSION_DIR=$(tr -d '\n' < "$NEW_ACTIVE")
+            break
+        fi
+        sleep 1
+    done
+    rm -f "$MARKER"
+
+    if [ -n "$SESSION_DIR" ]; then
+        # Symlink log into session folder (can't move — fd still open)
+        ln -sf "$LOG_FILE" "${SESSION_DIR}/output.log" 2>/dev/null || true
+        echo "Arkadian detached (PID ${PID})"
+        echo "  ${SESSION_DIR}"
+    else
+        echo "Arkadian detached (PID ${PID})"
+        echo "  ${LOG_FILE}"
+    fi
+
+    exit 0
+fi
+
+# Interactive mode
+if [ -n "$RESUME_INITIAL_MESSAGE" ]; then
+    # Resume mode: inject initial message to trigger orchestrator
+    exec claude "${CLAUDE_ARGS[@]}" "$RESUME_INITIAL_MESSAGE"
+else
+    # Normal mode: pass through any user arguments
+    exec claude "${CLAUDE_ARGS[@]}" "$@"
+fi

@@ -136,25 +136,25 @@ tests:
       - checks_breaking_changes: true
     weight: 5
 
-  # --- ark-env-tester routing ---
+  # --- ark-developer routing ---
   - id: L1.09
     category: agent_routing
-    name: "ark-env-tester: Run tests"
+    name: "ark-developer: Run tests"
     prompt: "Run unit tests for arkd"
-    expected_agent: ark-env-tester
+    expected_agent: ark-developer
     validation:
-      - routes_to_agent: ark-env-tester
+      - routes_to_agent: ark-developer
       - executes_tests: true
       - reports_results: true
     weight: 5
 
   - id: L1.10
     category: agent_routing
-    name: "ark-env-tester: Start stack"
+    name: "ark-developer: Start stack"
     prompt: "Start local arkd development stack"
-    expected_agent: ark-env-tester
+    expected_agent: ark-developer
     validation:
-      - routes_to_agent: ark-env-tester
+      - routes_to_agent: ark-developer
       - uses_docker: true
     weight: 5
 
@@ -360,9 +360,9 @@ tests:
 
   - id: L3.03
     category: agent_contracts
-    name: "Contract: ark-env-tester returns test results"
+    name: "Contract: ark-developer returns test results"
     prompt: "Run go test for the domain package in arkd"
-    expected_agent: ark-env-tester
+    expected_agent: ark-developer
     validation:
       - output_contains_section: tests
       - reports_pass_fail_count: true
@@ -411,7 +411,7 @@ tests:
     expected_agent: ark-developer
     validation:
       - handover_block_present: true
-      - handover_to_agent: ark-env-tester
+      - handover_to_agent: ark-developer
       - handover_has_context: true
     weight: 8
 
@@ -419,7 +419,7 @@ tests:
     category: agent_contracts
     name: "Contract: Error handling format"
     prompt: "Run tests for nonexistent package xyz in arkd"
-    expected_agent: ark-env-tester
+    expected_agent: ark-developer
     validation:
       - status_indicates_failure: true
       - error_block_present: true
@@ -664,7 +664,7 @@ tests:
     name: "Workflow: Multi-agent handoff"
     prompt: "Implement GetStatus endpoint and validate with integration tests"
     validation:
-      - uses_multiple_agents: [ark-developer, ark-env-tester]
+      - uses_multiple_agents: [ark-developer, ark-developer]
       - proper_handover: true
       - context_preserved: true
     weight: 12

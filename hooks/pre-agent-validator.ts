@@ -23,7 +23,7 @@
  * - 2: Invalid input, block the tool call (error shown to orchestrator)
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
@@ -39,7 +39,6 @@ const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
 const ARKADIAN_AGENTS = [
     'ark-guru',
     'ark-developer',
-    'ark-env-tester',
     'ark-project-manager',
     'ark-pr-reviewer',
     'ark-progress-tracker',
@@ -75,7 +74,6 @@ const VALID_INTENTS = [
 const AGENT_ALLOWED_TOOLS: Record<string, string[]> = {
     'ark-guru': ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Write', 'TodoWrite'],
     'ark-developer': ['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'Bash', 'TodoWrite', 'Task'],
-    'ark-env-tester': ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'TodoWrite'],
     'ark-project-manager': ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'TodoWrite', 'AskUserQuestion', 'Skill'],
     'ark-pr-reviewer': ['Read', 'Glob', 'Grep', 'Bash', 'WebFetch', 'Write', 'TodoWrite'],
     'ark-progress-tracker': ['Read', 'Glob', 'Grep', 'Bash', 'WebFetch', 'Write', 'TodoWrite'],
@@ -109,6 +107,7 @@ interface ActiveAgent {
     allowed_tools: string[];
     allowed_paths: string[];
     blocked_paths: string[];
+    context_intent?: string;
 }
 
 interface SessionState {
@@ -252,7 +251,7 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
 
     // Check if worktree mode is enabled (default: true for ark-developer)
     const worktreeEnabled = spec.worktree_config?.enabled !== false;
-    const isCodeAgent = agentType === 'ark-developer' || agentType === 'ark-env-tester';
+    const isCodeAgent = agentType === 'ark-developer';
 
     // Add project repo paths from projects array
     if (spec.projects && Array.isArray(spec.projects)) {
@@ -349,7 +348,8 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
         expected_artifacts: expectedArtifacts,
         allowed_tools: AGENT_ALLOWED_TOOLS[agentType] || [],
         allowed_paths: allowedPaths,
-        blocked_paths: blockedPaths
+        blocked_paths: blockedPaths,
+        context_intent: spec.context_intent || undefined,
     };
 
     return updateSessionState(sessionId, { active_agent: activeAgent });
@@ -605,8 +605,23 @@ function validateExecutionSpec(sessionId: string, prompt: string): ValidationRes
             errors.push('parent_session_id appears invalid (too short). Must be the orchestrator session ID.');
         }
         // Check it matches current session
-        if (spec.parent_session_id !== sessionId) {
-            errors.push(`parent_session_id "${spec.parent_session_id}" doesn't match current session "${sessionId}"`);
+        // In RESUME MODE, allow parent_session_id from the original session
+        const resumeSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
+        if (resumeSessionDir) {
+            // In resume mode, parent_session_id can be either:
+            // - The current session ID (new session created by Claude)
+            // - The original session ID from workflow.yaml
+            const isCurrentSession = spec.parent_session_id === sessionId;
+            const isOriginalSession = resumeSessionDir.includes(spec.parent_session_id);
+
+            if (!isCurrentSession && !isOriginalSession) {
+                errors.push(`parent_session_id "${spec.parent_session_id}" doesn't match current session "${sessionId}" or resumed session directory "${resumeSessionDir}"`);
+            }
+        } else {
+            // Normal mode: must match exactly
+            if (spec.parent_session_id !== sessionId) {
+                errors.push(`parent_session_id "${spec.parent_session_id}" doesn't match current session "${sessionId}"`);
+            }
         }
     }
 
@@ -745,6 +760,86 @@ function validateExecutionSpec(sessionId: string, prompt: string): ValidationRes
         warnings,
         spec
     };
+}
+
+/**
+ * Validate pipeline prerequisites before agent invocation.
+ * Enforces the mandatory guru → PM → developer pipeline for dev workflows.
+ *
+ * This is the PRIMARY enforcement mechanism — hooks BLOCK if prerequisites are missing.
+ */
+function validatePipelinePrerequisites(
+    sessionId: string,
+    spec: Record<string, any>,
+    state: SessionState
+): { errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const agent = spec.agent;
+    const intent = spec.context_intent;
+
+    // In RESUME MODE, check artifacts in the original session directory
+    const resumeSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
+    const sessionDir = resumeSessionDir || join(SESSIONS_DIR, sessionId);
+    const artifactsDir = join(sessionDir, 'artifacts');
+
+    // ═══════════════════════════════════════════
+    // RULE 1: PM requires guru assessment first
+    // ═══════════════════════════════════════════
+    if (agent === 'ark-project-manager' && intent === 'dev') {
+        const assessmentPath = join(artifactsDir, 'explore', 'assessment.yaml');
+        if (!existsSync(assessmentPath)) {
+            errors.push(
+                'ark-project-manager requires guru exploration first. ' +
+                'Missing: artifacts/explore/assessment.yaml. ' +
+                'Invoke ark-guru with context_intent: dev before ark-project-manager.'
+            );
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // RULE 2: Developer requires both guru + PM artifacts
+    // ═══════════════════════════════════════════
+    if (agent === 'ark-developer' && intent === 'dev') {
+        // Must have guru assessment
+        const assessmentPath = join(artifactsDir, 'explore', 'assessment.yaml');
+        if (!existsSync(assessmentPath)) {
+            errors.push(
+                'ark-developer requires guru exploration first. ' +
+                'Missing: artifacts/explore/assessment.yaml.'
+            );
+        }
+
+        // Check if plan phase was required (read assessment to check)
+        // If assessment exists and says planning_needed, check for plan artifacts
+        if (existsSync(assessmentPath)) {
+            try {
+                const assessment = readFileSync(assessmentPath, 'utf-8');
+                const needsPlan = assessment.includes('requires_spec: true') ||
+                    assessment.includes("complexity: 'medium_feature'") ||
+                    assessment.includes("complexity: 'large_feature'") ||
+                    assessment.includes('complexity: "medium_feature"') ||
+                    assessment.includes('complexity: "large_feature"');
+                if (needsPlan) {
+                    // Check that plan artifacts exist (specs dir should have something)
+                    const specsDir = join(sessionDir, 'specs');
+                    const hasSpecs = existsSync(specsDir) &&
+                        readdirSync(specsDir).length > 0;
+                    if (!hasSpecs) {
+                        errors.push(
+                            'Guru assessment indicates planning is needed but no specs found. ' +
+                            'Invoke ark-project-manager before ark-developer.'
+                        );
+                    }
+                }
+            } catch (e) {
+                warnings.push('Could not read assessment.yaml to check planning requirements.');
+            }
+        }
+
+    }
+
+    return { errors, warnings };
 }
 
 async function main() {
@@ -893,6 +988,32 @@ artifacts_out: []
 `;
             console.error(errorMessage);
             process.exit(2);
+        }
+
+        // ═══════════════════════════════════════════
+        // Pipeline prerequisite validation
+        // ═══════════════════════════════════════════
+        if (result.spec) {
+            const pipelineResult = validatePipelinePrerequisites(hookInput.session_id, result.spec, state);
+            if (pipelineResult.errors.length > 0) {
+                const pipelineErrorMessage = `
+❌ PIPELINE PREREQUISITE FAILURE
+
+${pipelineResult.errors.map(e => `  • ${e}`).join('\n')}
+
+${pipelineResult.warnings.length > 0 ? `Warnings:\n${pipelineResult.warnings.map(w => `  ⚠️ ${w}`).join('\n')}` : ''}
+
+The mandatory pipeline is: ark-guru (explore) → ark-project-manager (plan) → ark-developer (implement).
+Each phase must complete and produce its artifacts before the next can start.
+`;
+                console.error(pipelineErrorMessage);
+                log(hookInput.session_id, 'pipeline-prerequisite-failure', pipelineResult.errors);
+                process.exit(2);
+            }
+            // Merge pipeline warnings into result warnings
+            if (pipelineResult.warnings.length > 0) {
+                result.warnings.push(...pipelineResult.warnings);
+            }
         }
 
         // Valid specification - proceed with agent setup

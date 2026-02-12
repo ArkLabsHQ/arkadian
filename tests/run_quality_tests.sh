@@ -102,7 +102,7 @@ TEST_AGENTS["T1.4"]="ark-pr-reviewer"
 TEST_WEIGHTS["T1.4"]=10
 
 TESTS["T1.5"]="Run the unit tests for go-sdk and report results"
-TEST_AGENTS["T1.5"]="ark-env-tester"
+TEST_AGENTS["T1.5"]="ark-developer"
 TEST_WEIGHTS["T1.5"]=10
 
 TESTS["T1.6"]="Create a specification for adding rate limiting to arkd gRPC endpoints"
@@ -166,7 +166,7 @@ TEST_AGENTS["T5.2"]="ark-guru"
 TEST_WEIGHTS["T5.2"]=15
 
 TESTS["T5.3"]="What tests should I run before the arkd v0.9.0 release?"
-TEST_AGENTS["T5.3"]="ark-env-tester"
+TEST_AGENTS["T5.3"]="ark-developer"
 TEST_WEIGHTS["T5.3"]=15
 
 get_level() {

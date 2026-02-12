@@ -56,7 +56,7 @@ Arkadian is a Claude Code plugin that provides three operating modes:
 
 ## Hooks
 
-### 1. UserPromptSubmit Hook (`load-arkadian-context.ts`)
+### 1. UserPromptSubmit Hook (`user-submit-reminder.ts`)
 
 Runs on every user message. Injects orchestrator compliance reminder.
 
@@ -227,8 +227,7 @@ Tokens: ~3k (vs ~50k for all 12 projects)
 | Agent | Purpose | Doc Intent |
 |-------|---------|------------|
 | ark-guru | Q&A, explanations | qna |
-| ark-developer | Code changes | dev |
-| ark-env-tester | Testing, QA | qa |
+| ark-developer | Code changes + testing | dev |
 | ark-project-manager | Specs, planning | dev |
 | ark-pr-reviewer | PR analysis | pr_review |
 | ark-observer | Telemetry debugging | debug |
@@ -268,7 +267,7 @@ arkadian/
 ├── hooks/
 │   ├── orchestrator-guardrail.ts
 │   ├── validate-agent-input.ts
-│   ├── load-arkadian-context.ts
+│   ├── user-submit-reminder.ts
 │   ├── session-start-hook.ts
 │   └── session-stop-hook.ts
 ├── agents/                # Agent sources

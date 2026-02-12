@@ -34,7 +34,7 @@
 
 import { appendFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
-import { createSessionEpic, isBeadsAvailable, logBeadsOperation } from './beads-bridge';
+
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
@@ -61,6 +61,7 @@ interface SessionState {
     type: 'orchestrator';
     started_at: string;
     pid: number;
+    transcript_path: string;
     workflow: {
         id: string | null;
         status: 'initializing' | 'awaiting_plan_approval' | 'executing' | 'completed';
@@ -73,11 +74,6 @@ interface SessionState {
     phases: Record<string, PhaseState>;
     active_agent: ActiveAgent | null;
     approvals: Record<string, ApprovalRecord>;
-    beads?: {
-        session_epic_id: string | null;
-        feature_epics: Record<string, string>;  // feature_id -> epic_id
-        enabled: boolean;
-    };
 }
 
 interface PhaseState {
@@ -146,42 +142,69 @@ function isPidRunning(pid: number): boolean {
 }
 
 /**
- * Clean up stale state files from crashed sessions.
+ * Clean up stale state files and active pointers from crashed sessions.
  * Called on each SessionStart to prevent accumulation.
  */
-function cleanupStaleStateFiles(currentSessionId: string): void {
+function cleanupStaleFiles(currentSessionId: string): void {
     try {
-        // Clean up both old .txt and new .json state files
-        const txtFiles = readdirSync(ARKADIAN_DATA_DIR).filter(f => f.endsWith('_state.txt'));
-        const jsonFiles = readdirSync(ARKADIAN_DATA_DIR).filter(f => f.endsWith('_state.json'));
+        const allFiles = readdirSync(ARKADIAN_DATA_DIR);
 
-        // Remove old .txt files (migration)
-        for (const file of txtFiles) {
-            const filePath = join(ARKADIAN_DATA_DIR, file);
+        // Clean up old .txt state files (migration)
+        const txtStateFiles = allFiles.filter(f => f.endsWith('_state.txt'));
+        for (const file of txtStateFiles) {
             try {
-                unlinkSync(filePath);
+                unlinkSync(join(ARKADIAN_DATA_DIR, file));
                 log(currentSessionId, 'cleanup', `Removed old txt state file: ${file}`);
             } catch (e) {
                 // Ignore
             }
         }
 
-        // Clean up stale .json files
-        for (const file of jsonFiles) {
+        // Clean up stale .json state files (dead PIDs)
+        const jsonStateFiles = allFiles.filter(f => f.endsWith('_state.json'));
+        for (const file of jsonStateFiles) {
             const filePath = join(ARKADIAN_DATA_DIR, file);
             try {
                 const content = readFileSync(filePath, 'utf-8');
                 const state: SessionState = JSON.parse(content);
 
-                // Only clean up orchestrator state files with dead PIDs
                 if (state.type === 'orchestrator' && state.pid) {
                     if (!isPidRunning(state.pid)) {
                         unlinkSync(filePath);
                         log(currentSessionId, 'cleanup', `Removed stale state file: ${file} (PID ${state.pid} not running)`);
+
+                        // Also clean up matching active pointer
+                        const activeFile = file.replace('_state.json', '_active.txt');
+                        const activePath = join(ARKADIAN_DATA_DIR, activeFile);
+                        if (existsSync(activePath)) {
+                            unlinkSync(activePath);
+                            log(currentSessionId, 'cleanup', `Removed stale active pointer: ${activeFile}`);
+                        }
                     }
                 }
             } catch (e) {
                 // If we can't read/parse the file, skip it
+            }
+        }
+
+        // Clean up orphaned _active.txt files (no matching state file or log activity in 24h)
+        const activeFiles = allFiles.filter(f => f.endsWith('_active.txt'));
+        for (const file of activeFiles) {
+            const sessionId = file.replace('_active.txt', '');
+            if (sessionId === currentSessionId) continue; // Don't clean current session
+
+            const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
+            const hasState = existsSync(stateFile);
+
+            if (!hasState) {
+                // No state file means session ended (stop hook cleans state but may miss active pointer)
+                // or was never an orchestrator session — either way, safe to clean
+                try {
+                    unlinkSync(join(ARKADIAN_DATA_DIR, file));
+                    log(currentSessionId, 'cleanup', `Removed orphaned active pointer: ${file}`);
+                } catch (e) {
+                    // Ignore
+                }
             }
         }
     } catch (e) {
@@ -192,12 +215,13 @@ function cleanupStaleStateFiles(currentSessionId: string): void {
 /**
  * Create initial state for orchestrator session.
  */
-function createInitialState(sessionId: string, sessionEpicId: string | null): SessionState {
+function createInitialState(sessionId: string, transcriptPath: string): SessionState {
     return {
         session_id: sessionId,
         type: 'orchestrator',
         started_at: new Date().toISOString(),
         pid: process.ppid,
+        transcript_path: transcriptPath,
         workflow: {
             id: null,
             status: 'initializing',
@@ -210,11 +234,6 @@ function createInitialState(sessionId: string, sessionEpicId: string | null): Se
         phases: {},
         active_agent: null,
         approvals: {},
-        beads: {
-            session_epic_id: sessionEpicId,
-            feature_epics: {},
-            enabled: sessionEpicId !== null
-        }
     };
 }
 
@@ -222,21 +241,18 @@ function createInitialState(sessionId: string, sessionEpicId: string | null): Se
  * Register this session as the orchestrator session.
  * Creates per-session state and log files.
  */
-function registerOrchestratorSession(sessionId: string, sessionEpicId: string | null): void {
+function registerOrchestratorSession(sessionId: string, transcriptPath: string): void {
     if (!ORCHESTRATOR_MODE) {
         log(sessionId, 'skip-registration', 'ORCHESTRATOR_MODE not set');
         return;
     }
 
-    // Clean up stale state files from crashed sessions
-    cleanupStaleStateFiles(sessionId);
-
     // Create state file for this orchestrator session
     const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
-    const state = createInitialState(sessionId, sessionEpicId);
+    const state = createInitialState(sessionId, transcriptPath);
 
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
-    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid, beads_enabled: sessionEpicId !== null });
+    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid });
 }
 
 function createSessionFolder(hookInput: HookInput): string {
@@ -249,12 +265,11 @@ function createSessionFolder(hookInput: HookInput): string {
         mkdirSync(join(sessionDir, 'artifacts'), { recursive: true });
         mkdirSync(join(sessionDir, 'specs'), { recursive: true });
 
-        // Create common artifact subdirectories for workflows
+        // Create common artifact subdirectories for dev workflow phases
+        // Each phase gets its own directory. Agents write all outputs (including _result.json) here.
         mkdirSync(join(sessionDir, 'artifacts', 'explore'), { recursive: true });
         mkdirSync(join(sessionDir, 'artifacts', 'plan'), { recursive: true });
         mkdirSync(join(sessionDir, 'artifacts', 'implement'), { recursive: true });
-        mkdirSync(join(sessionDir, 'artifacts', 'test'), { recursive: true });
-        mkdirSync(join(sessionDir, 'artifacts', 'qna'), { recursive: true });  // For ark-guru Q&A
 
         // Create session.md with minimal info (summary added on session end)
         const sessionMd = `# Session
@@ -289,6 +304,9 @@ async function main() {
         // Ensure data directory exists
         ensureDataDir();
 
+        // Clean up stale files from crashed sessions (runs for ALL sessions, not just orchestrator)
+        cleanupStaleFiles(hookInput.session_id);
+
         // Initialize log file with session start marker
         const logFile = join(ARKADIAN_DATA_DIR, `${hookInput.session_id}_log.txt`);
         writeFileSync(logFile, `=== Session Start: ${new Date().toISOString()} ===\n`);
@@ -313,27 +331,44 @@ async function main() {
             process.exit(0);
         }
 
-        // Create session folder (for orchestrator mode)
-        const sessionDir = createSessionFolder(hookInput);
+        // Check for RESUME MODE - use existing session directory instead of creating new one
+        const resumeSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
+        const resumeSession = process.env.ARKADIAN_RESUME_SESSION;
 
-        // Create beads session epic if beads is enabled
-        let sessionEpicId: string | null = null;
-        if (ORCHESTRATOR_MODE && isBeadsAvailable()) {
-            try {
-                sessionEpicId = await createSessionEpic(hookInput.session_id);
-                if (sessionEpicId) {
-                    log(hookInput.session_id, 'beads-session-epic-created', {
-                        epic_id: sessionEpicId
-                    });
+        let sessionDir: string;
+
+        if (resumeSessionDir && existsSync(resumeSessionDir)) {
+            // RESUME MODE: Use the existing session directory
+            sessionDir = resumeSessionDir;
+            log(hookInput.session_id, 'resume-mode', {
+                resume_session: resumeSession,
+                resume_dir: resumeSessionDir,
+                new_session_id: hookInput.session_id
+            });
+
+            // Create symlink from new session ID to old session directory
+            // This allows validators to find the session by either ID
+            const newSessionLink = join(SESSIONS_DIR, hookInput.session_id);
+            if (!existsSync(newSessionLink)) {
+                try {
+                    // Use relative path for portability
+                    const relPath = join('..', resumeSessionDir.replace(SESSIONS_DIR + '/', ''));
+                    require('fs').symlinkSync(relPath, newSessionLink, 'dir');
+                    log(hookInput.session_id, 'symlink-created', { from: newSessionLink, to: resumeSessionDir });
+                } catch (e: any) {
+                    log(hookInput.session_id, 'symlink-failed', { error: e.message });
                 }
-            } catch (error: any) {
-                log(hookInput.session_id, 'beads-session-epic-error', error.message);
-                // Don't fail session start on beads error
             }
+        } else {
+            // NORMAL MODE: Create new session folder
+            sessionDir = createSessionFolder(hookInput);
         }
 
+        // Write active session pointer to data dir (parallel-safe: one file per session)
+        writeFileSync(join(ARKADIAN_DATA_DIR, `${hookInput.session_id}_active.txt`), `${sessionDir}\n`);
+
         // Register this session as orchestrator (only in orchestrator mode, NOT in dev mode)
-        registerOrchestratorSession(hookInput.session_id, sessionEpicId);
+        registerOrchestratorSession(hookInput.session_id, hookInput.transcript_path);
 
         const quickCommands = `
 I am Arkadian, your Ark Digital Assistant. I provide intelligent, context-aware assistance across the entire Ark protocol ecosystem (12+ repositories).
@@ -377,10 +412,16 @@ Just describe what you need - I'll route to the right specialist automatically.`
 
 **Session ID:** ${hookInput.session_id}
 **Session Directory:** ${sessionDir}
-**Artifacts Directory:** ${join(sessionDir, 'artifacts')}
+**Artifacts Directory:** ${join(sessionDir, 'artifacts')}/<phase>
 **Specs Directory:** ${join(sessionDir, 'specs')}
 
-All agent outputs MUST be written to the session directory above.
+IMPORTANT: When generating execution specs, set artifacts_dir to the phase subdirectory:
+- ark-guru (explore): artifacts_dir = ${join(sessionDir, 'artifacts')}/explore
+- ark-project-manager (plan): artifacts_dir = ${join(sessionDir, 'artifacts')}/plan
+- ark-developer (implement): artifacts_dir = ${join(sessionDir, 'artifacts')}/implement
+- ark-guru (qna): artifacts_dir = ${join(sessionDir, 'artifacts')}/qna
+
+All agent outputs (including _result.json) go into their phase-specific artifacts directory.
 `;
 
         // ORCHESTRATOR.md is now symlinked to ~/.claude/CLAUDE.md

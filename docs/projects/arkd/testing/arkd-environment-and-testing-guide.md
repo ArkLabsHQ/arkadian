@@ -2,7 +2,7 @@
 
 Complete guide for setting up arkd environments, running tests, and troubleshooting. This guide covers everything needed to bring up services, validate health, execute tests, and debug issues.
 
-**Target Audience**: ark-env-tester agent, QA engineers, testers
+**Target Audience**: ark-developer agent, QA engineers, testers
 **For Code Patterns**: See [arkd Development Reference](./arkd-development-reference.md)
 
 ---
@@ -970,4 +970,4 @@ docker stats
 ---
 
 **Last Updated**: 2025-01-16
-**For**: ark-env-tester agent (environment setup, testing, troubleshooting)
+**For**: ark-developer agent (environment setup, testing, troubleshooting)

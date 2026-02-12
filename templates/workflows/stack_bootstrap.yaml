@@ -12,15 +12,11 @@ applies_to:
   multi_project: true
 
 execution:
-  # NOTE: This workflow uses ark-env-tester because it's STANDALONE environment setup
-  # with NO code changes. ark-env-tester is appropriate for:
-  # - Stack bootstrap/setup
-  # - Running simulations standalone
-  # - Environment health checks (without code changes)
-  # For development workflows (with code changes), ark-developer handles testing internally.
+  # ark-developer handles both code changes AND standalone environment setup
+  # using dev-loop skills (arkd-dev-loop, fulmine-dev-loop).
   agents:
     - "ark-guru"
-    - "ark-env-tester"
+    - "ark-developer"
 
   phases:
     - id: "plan_stack"
@@ -39,7 +35,7 @@ execution:
 
     - id: "start_stack"
       name: "Start Local Stack"
-      agent: "ark-env-tester"
+      agent: "ark-developer"
       depends_on: "plan_stack"
       approval_required: false
       actions:

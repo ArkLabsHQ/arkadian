@@ -319,7 +319,7 @@ Launch multiple agents simultaneously:
 ```
 I'll launch three agents in parallel:
 1. ark-developer for implementation
-2. ark-env-tester for testing
+2. ark-developer for testing
 3. ark-pr-reviewer for code review
 ```
 
@@ -331,7 +331,7 @@ I'll launch three agents in parallel:
 |-------|---------|-------|--------|
 | `ark-guru` | Q&A, explanations | Read, Grep, Glob | - |
 | `ark-developer` | Code implementation | All | dev-implement, browser-testing |
-| `ark-env-tester` | Testing, validation | All | browser-testing |
+| `ark-developer` | Testing, validation | All | browser-testing |
 | `ark-project-manager` | Specs, planning | All | pm-* skills |
 | `ark-researcher` | External research | WebSearch, WebFetch | bitcoin-l2-research |
 | `ark-pr-reviewer` | PR analysis | Read, Grep, Bash(git) | - |
@@ -398,7 +398,7 @@ description: >
 | `pm-plan` | ark-project-manager | Implementation planning |
 | `pm-tasks` | ark-project-manager | Task breakdown |
 | `dev-implement` | ark-developer | Execute implementation |
-| `browser-testing` | ark-developer, ark-env-tester | Playwright automation |
+| `browser-testing` | ark-developer, ark-developer | Playwright automation |
 | `bitcoin-l2-research` | ark-researcher | L2 protocol research |
 | `ark-progress-tracking` | ark-progress-tracker | Cross-project reporting |
 
@@ -520,7 +520,7 @@ You coordinate specialist agents but NEVER implement directly.
 <agent_routing>
 - Questions about code → ark-guru
 - Implementation tasks → ark-developer
-- Testing/validation → ark-env-tester
+- Testing/validation → ark-developer
 - PR reviews → ark-pr-reviewer
 </agent_routing>
 ```
@@ -664,7 +664,7 @@ Reframe the orchestrator rules:
 
 # Use:
 - DELEGATE all code edits to ark-developer
-- ROUTE all testing to ark-env-tester
+- ROUTE all testing to ark-developer
 - PRESENT plans for user approval before execution
 ```
 
@@ -895,11 +895,11 @@ nodes:
     depends_on: [isolate]
 
   - id: test
-    agent: ark-env-tester
+    agent: ark-developer
     depends_on: [fix]
 
   - id: validate
-    agent: ark-env-tester
+    agent: ark-developer
     depends_on: [test]
     condition: tests_passed
 
@@ -1592,7 +1592,7 @@ You are the Arkadian orchestrator. You coordinate, never implement.
 cat << 'EOF'
 <arkadian_context>
 Registry: ${ARKADIAN_DIR}/docs/INDEX.md
-Agents: ark-guru, ark-developer, ark-env-tester, ark-project-manager,
+Agents: ark-guru, ark-developer, ark-developer, ark-project-manager,
         ark-researcher, ark-pr-reviewer, ark-progress-tracker, ark-observer
 
 Use /memory to see full orchestrator protocol.
@@ -1776,11 +1776,11 @@ Verify your response followed all orchestrator rules.
 | Question | ark-guru | ark-researcher |
 | Implement | ark-developer | - |
 | Debug | ark-guru → ark-developer | ark-observer |
-| Test | ark-env-tester | - |
+| Test | ark-developer | - |
 | Review | ark-pr-reviewer | ark-guru |
 | Research | ark-researcher | ark-guru |
 | Progress | ark-progress-tracker | - |
-| Monitor | ark-observer | ark-env-tester |
+| Monitor | ark-observer | ark-developer |
 
 ### File Reference
 

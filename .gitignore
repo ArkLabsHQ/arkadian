@@ -17,4 +17,5 @@ specs/
 
 sessions/
 
-log/
+log/.worktrees/
+.worktrees/

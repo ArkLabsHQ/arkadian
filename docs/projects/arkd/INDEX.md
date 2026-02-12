@@ -48,7 +48,7 @@ Core technical documentation about how arkd is structured and operates:
 Practical guides for running, testing, and debugging arkd:
 
 - **${ARKADIAN_DIR}/docs/projects/arkd/testing/arkd-development-reference.md** —  Development guide for ark-developer (architecture, code patterns, building)
-- **${ARKADIAN_DIR}/docs/projects/arkd/testing/arkd-environment-and-testing-guide.md** —  Complete guide for ark-env-tester (setup, running, testing, debugging)
+- **${ARKADIAN_DIR}/docs/projects/arkd/testing/arkd-environment-and-testing-guide.md** —  Complete guide for environment setup, running, testing, debugging
 
 ### `${ARKADIAN_DIR}/docs/projects/arkd/sop/`  Standard Operating Procedures
 Step-by-step guides for common development tasks:

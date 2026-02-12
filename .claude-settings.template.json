@@ -9,6 +9,7 @@
       "Bash",
       "Read(*)",
       "Write(*)",
+      "Write(/ARKADIAN_DIR_PLACEHOLDER/sessions/**)",
       "Edit(*)",
       "MultiEdit(*)",
       "Glob(*)",
@@ -60,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/validate-agent-input.ts"
+            "command": "bun ${ARKADIAN_DIR}/hooks/pre-agent-validator.ts"
           }
         ]
       },
@@ -69,6 +70,14 @@
           {
             "type": "command",
             "command": "bun ${ARKADIAN_DIR}/hooks/orchestrator-guardrail.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/subagent-guardrail.ts"
           }
         ]
       }
@@ -80,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun ${ARKADIAN_DIR}/hooks/load-arkadian-context.ts"
+            "command": "bun ${ARKADIAN_DIR}/hooks/user-submit-reminder.ts"
           }
         ]
       }
@@ -96,7 +105,16 @@
       }
     ],
     "Stop": [],
-    "SubagentStop": [],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/post-agent-validator.ts"
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

@@ -269,7 +269,7 @@ run_test() {
     local score=0
 
     # Check for agent invocation
-    if echo "$output" | grep -qi "Task tool\|subagent\|ark-guru\|ark-developer\|ark-progress\|ark-pr-reviewer\|ark-env-tester\|ark-project-manager\|ark-researcher"; then
+    if echo "$output" | grep -qi "Task tool\|subagent\|ark-guru\|ark-developer\|ark-progress\|ark-pr-reviewer\|ark-project-manager\|ark-researcher"; then
         score=$((score + weight / 3))
     fi
 

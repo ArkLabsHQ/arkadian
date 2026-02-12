@@ -86,15 +86,15 @@ tests:
     weight: 10
 
   - id: T1.5
-    name: "ark-env-tester execution"
+    name: "ark-developer execution"
     level: 1
     category: "smoke"
     role: "QA Engineer"
-    expected_agent: "ark-env-tester"
+    expected_agent: "ark-developer"
     prompt: "Run the unit tests for go-sdk and report results"
     validation:
       - type: "agent_routed"
-        value: "ark-env-tester"
+        value: "ark-developer"
       - type: "executes_command"
         pattern: "go test"
       - type: "reports_results"
@@ -339,7 +339,7 @@ tests:
     level: 5
     category: "role-quality"
     role: "QA Engineer"
-    expected_agent: "ark-env-tester"
+    expected_agent: "ark-developer"
     prompt: "What tests should I run before the arkd v0.9.0 release?"
     validation:
       - type: "lists_test_types"

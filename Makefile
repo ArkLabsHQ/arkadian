@@ -216,8 +216,8 @@ verify: ## Verify installation
 		fi; \
 	fi
 	@# Check hooks
-	@if [ -x "hooks/load-arkadian-context.ts" ]; then \
-		echo "$(GREEN)✓ Context loading hook is executable$(NC)"; \
+	@if [ -x "hooks/user-submit-reminder.ts" ]; then \
+		echo "$(GREEN)✓ User submit reminder hook is executable$(NC)"; \
 	else \
 		echo "$(RED)❌ Hook not executable$(NC)"; exit 1; \
 	fi

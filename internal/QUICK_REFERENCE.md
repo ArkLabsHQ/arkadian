@@ -3,7 +3,7 @@
 ## Who Should Use What?
 
 ### 👨‍💻 **Developer**
-**Primary Agents**: `ark-developer`, `ark-guru`, `ark-env-tester`
+**Primary Agents**: `ark-developer`, `ark-guru`, `ark-developer`
 
 **Common Commands**:
 - "Add GetRoundStatus endpoint to arkd" → Implementation
@@ -42,7 +42,7 @@
 ---
 
 ### 🧪 **QA Engineer**
-**Primary Agents**: `ark-env-tester`
+**Primary Agents**: `ark-developer`
 
 **Common Commands**:
 - "Run E2E tests for arkd" → Test execution
@@ -55,7 +55,7 @@
 ---
 
 ### ⚙️ **DevOps / SRE**
-**Primary Agents**: `ark-developer`, `ark-env-tester`, `ark-guru`
+**Primary Agents**: `ark-developer`, `ark-developer`, `ark-guru`
 
 **Common Commands**:
 - "Deploy arkd to staging" → Deployment
@@ -125,7 +125,7 @@
 |-------|---------|---------|---------|
 | **ark-guru** | Q&A, understanding | All roles | "How does round settlement work?" |
 | **ark-developer** | Implementation | Developers, DevOps | "Add gRPC endpoint to arkd" |
-| **ark-env-tester** | Testing, environments | Developers, QA, DevOps | "Run integration tests" |
+| **ark-developer** | Testing, environments | Developers, QA, DevOps | "Run integration tests" |
 | **ark-pr-reviewer** | Code review | Tech Leads, Managers | "Review arkd PR #234" |
 | **ark-progress-tracker** | Progress reporting | PMs, Managers, Execs | "Weekly progress report" |
 | **ark-project-manager** | Feature planning | PMs, Tech Leads | "Plan fraud detection feature" |
@@ -139,7 +139,7 @@
 ```
 1. PM: "Plan fraud detection feature" → ark-project-manager
 2. Dev: "Implement fraud detection" → ark-developer
-3. QA: "Test fraud detection" → ark-env-tester
+3. QA: "Test fraud detection" → ark-developer
 4. Lead: "Review fraud detection PR" → ark-pr-reviewer
 5. Manager: "Include in weekly report" → ark-progress-tracker
 ```
@@ -149,7 +149,7 @@
 1. Dev: "Users seeing VTXO not found" → ark-guru (understand)
 2. Dev: "Debug VTXO lookup" → ark-guru (query patterns)
 3. Dev: "Fix VTXO race condition" → ark-developer (implement)
-4. QA: "Test VTXO fix" → ark-env-tester (validate)
+4. QA: "Test VTXO fix" → ark-developer (validate)
 ```
 
 ### Weekly Reporting
@@ -164,7 +164,7 @@ Output: 5 minutes vs 2 hours manual (96% time saved)
 
 ### For Developers
 - Use `ark-guru` before implementing to understand context
-- Use `ark-env-tester` for quick validation before PR
+- Use `ark-developer` for quick validation before PR
 - Ask for "architecture compliance" in reviews
 
 ### For Product Managers
@@ -178,7 +178,7 @@ Output: 5 minutes vs 2 hours manual (96% time saved)
 - Review "architecture compliance" regularly
 
 ### For QA Engineers
-- Use `ark-env-tester` for all environment setup
+- Use `ark-developer` for all environment setup
 - Request "test coverage analysis" for new features
 - Automate regression testing with saved workflows
 
@@ -200,7 +200,7 @@ Output: 5 minutes vs 2 hours manual (96% time saved)
    → ark-developer
 
 3. "Test Nostr integration"
-   → ark-env-tester
+   → ark-developer
 
 4. "Track Nostr completion"
    → ark-progress-tracker (feature tracking)
@@ -233,7 +233,7 @@ Output: 5 minutes vs 2 hours manual (96% time saved)
    → ark-developer (hotfix)
 
 4. "Deploy hotfix to staging"
-   → ark-env-tester (validate before prod)
+   → ark-developer (validate before prod)
 ```
 
 ---
@@ -302,7 +302,7 @@ Arkadian uses environment variables for repo paths and GitHub URLs:
 | Feature Implementation | ark-developer | 30-50% | High |
 | Bug Fixing | ark-developer | 40-60% | High |
 | Code Understanding | ark-guru | 80%+ | High |
-| Testing | ark-env-tester | 70-80% | High |
+| Testing | ark-developer | 70-80% | High |
 | Code Review | ark-pr-reviewer | 50% | High |
 | Feature Planning | ark-project-manager | 60% | Medium |
 | Progress Tracking | ark-progress-tracker | 90%+ | High |

@@ -21,7 +21,7 @@ Each agent is optimized for specific roles and workflows:
 1. **ark-guru** - Knowledge & Q&A
 2. **ark-project-manager** - Feature planning & specifications
 3. **ark-developer** - Code implementation
-4. **ark-env-tester** - Testing & validation
+4. **ark-developer** - Testing & validation
 5. **ark-pr-reviewer** - Code review (technical)
 6. **ark-progress-tracker** - Progress reporting (business)
 7. **ark-researcher** - Research & analysis
@@ -73,7 +73,7 @@ Result: Production-ready feature in 15 minutes vs 2 hours manual
 ```
 
 **B. Bug Fixing**
-- **Agent**: `ark-developer` + `ark-env-tester`
+- **Agent**: `ark-developer` + `ark-developer`
 - **Workflow**: Debug → Fix → Test → Verify
 - **Examples**:
   - "Latest migration failing when adding rounds table"
@@ -92,7 +92,7 @@ Result: Production-ready feature in 15 minutes vs 2 hours manual
 - **Time Saved**: Instant answers vs hours of code reading
 
 **D. Testing**
-- **Agent**: `ark-env-tester`
+- **Agent**: `ark-developer`
 - **Examples**:
   - "Run integration tests for arkd with PostgreSQL"
   - "Start local arkd stack and validate health"
@@ -181,7 +181,7 @@ Result: Production-ready feature in 15 minutes vs 2 hours manual
 #### Primary Use Cases
 
 **A. Test Execution & Validation**
-- **Agent**: `ark-env-tester`
+- **Agent**: `ark-developer`
 - **Examples**:
   - "Run E2E tests for arkd → wallet integration"
   - "Execute ark-simulator load test with 100 clients"
@@ -193,7 +193,7 @@ Result: Production-ready feature in 15 minutes vs 2 hours manual
 - **Time Saved**: 80% faster test execution vs manual steps
 
 **B. Test Environment Setup**
-- **Agent**: `ark-env-tester`
+- **Agent**: `ark-developer`
 - **Examples**:
   - "Bring up local arkd stack with PostgreSQL + Redis"
   - "Start regtest Bitcoin network for testing"
@@ -361,7 +361,7 @@ You apply migration → Error rate drops to 0.2% ✅
 #### Primary Use Cases
 
 **A. Infrastructure Deployment**
-- **Agent**: `ark-developer` + `ark-env-tester`
+- **Agent**: `ark-developer` + `ark-developer`
 - **Examples**:
   - "Deploy arkd to staging with Terraform"
   - "Update ark-infra Docker Compose stack"
@@ -379,7 +379,7 @@ You apply migration → Error rate drops to 0.2% ✅
 - **Time Saved**: 60% faster with templates
 
 **C. Troubleshooting**
-- **Agent**: `ark-guru` + `ark-env-tester`
+- **Agent**: `ark-guru` + `ark-developer`
 - **Examples**:
   - "Check arkd logs for round failures"
   - "Validate health of production deployment"
@@ -799,7 +799,7 @@ Time: 5 minutes for production-ready fix
 ```
 Maria to Arkadian: "Test migration #068 on staging"
 
-Arkadian (ark-env-tester):
+Arkadian (ark-developer):
 🧪 Test Results:
 
 Staging Environment:
@@ -954,11 +954,11 @@ Post-mortem scheduled for tomorrow."
 
 | Role | Primary Agents | Top Use Cases | Time Saved |
 |------|----------------|---------------|------------|
-| **Developer** | ark-developer, ark-guru, ark-env-tester | Feature implementation, bug fixing, testing | 30-60% |
+| **Developer** | ark-developer, ark-guru, ark-developer | Feature implementation, bug fixing, testing | 30-60% |
 | **Tech Lead** | ark-pr-reviewer, ark-guru | Code review, architecture guidance | 40-50% |
-| **QA Engineer** | ark-env-tester | Test execution, environment setup | 70-80% |
+| **QA Engineer** | ark-developer | Test execution, environment setup | 70-80% |
 | **Product Manager** | ark-project-manager, ark-progress-tracker | Feature planning, progress tracking | 60-90% |
-| **DevOps/SRE** | ark-developer, ark-env-tester | Deployment, monitoring, troubleshooting | 40-60% |
+| **DevOps/SRE** | ark-developer, ark-developer | Deployment, monitoring, troubleshooting | 40-60% |
 | **Engineering Manager** | ark-progress-tracker, ark-pr-reviewer | Team coordination, reporting, oversight | 70-95% |
 | **Protocol Researcher** | ark-researcher, ark-guru | Protocol research, comparative analysis | 70-80% |
 | **Technical Writer** | ark-developer, ark-guru | Documentation, technical understanding | 50-60% |
@@ -989,7 +989,7 @@ Post-mortem scheduled for tomorrow."
    - **Output**: PR analysis, risk assessment, blockers
 
 5. **QA**: "Test fraud detection feature"
-   - **Agent**: `ark-env-tester`
+   - **Agent**: `ark-developer`
    - **Output**: Test results, coverage report
 
 6. **Manager**: "Include fraud detection in weekly report"
@@ -1022,7 +1022,7 @@ Post-mortem scheduled for tomorrow."
    - **Output**: Fix implementation + tests
 
 5. **DevOps**: "Deploy hotfix to production"
-   - **Agent**: `ark-env-tester` (staging validation)
+   - **Agent**: `ark-developer` (staging validation)
    - **Output**: Validated deployment
 
 **Total Time**: ~4 hours (vs ~8 hours manual)
@@ -1101,7 +1101,7 @@ Based on time saved percentages:
 ```
 "How does VTXO expiry work?"              → ark-guru
 "Add GetRoundStatus endpoint to arkd"     → ark-developer
-"Run integration tests for arkd"          → ark-env-tester
+"Run integration tests for arkd"          → ark-developer
 ```
 
 ### Product Managers
@@ -1120,9 +1120,9 @@ Based on time saved percentages:
 
 ### QA Engineers
 ```
-"Run E2E tests for arkd"                  → ark-env-tester
-"Start local arkd stack"                  → ark-env-tester
-"Execute load test with 50 clients"       → ark-env-tester
+"Run E2E tests for arkd"                  → ark-developer
+"Start local arkd stack"                  → ark-developer
+"Execute load test with 50 clients"       → ark-developer
 ```
 
 ### DevOps/SRE
@@ -1164,7 +1164,7 @@ Based on time saved percentages:
 │  Knowledge   │      │ Development  │      │   Business   │
 ├──────────────┤      ├──────────────┤      ├──────────────┤
 │ ark-guru     │      │ ark-developer│      │ark-progress  │
-│ ark-researcher│      │ ark-env-tester│     │  -tracker    │
+│ ark-researcher│      │ ark-developer│     │  -tracker    │
 │              │      │ark-pr-reviewer│     │ark-project   │
 │              │      │              │      │  -manager    │
 └──────────────┘      └──────────────┘      └──────────────┘

@@ -78,13 +78,13 @@ Review the latest merged PR in arkd
 
 ---
 
-### T1.5 - ark-env-tester (10 pts)
+### T1.5 - ark-developer (10 pts)
 **Prompt:**
 ```
 Run the unit tests for go-sdk
 ```
 **Validation:**
-- [ ] Routes to ark-env-tester
+- [ ] Routes to ark-developer
 - [ ] Executes `go test` or make target
 - [ ] Reports test results
 - [ ] Summarizes pass/fail counts

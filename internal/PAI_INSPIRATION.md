@@ -173,7 +173,7 @@ ark_routing:
 
   testing:
     triggers: ["test", "verify", "check", "run tests"]
-    agent: ark-env-tester
+    agent: ark-developer
 ```
 
 ---
@@ -402,7 +402,7 @@ hooks: [
 
 **Arkadian Current Hooks**:
 - `orchestrator-guardrail.ts` - PreToolUse
-- `load-arkadian-context.ts` - UserPromptSubmit
+- `user-submit-reminder.ts` - UserPromptSubmit
 - `session-start-hook.ts` - SessionStart
 - `session-stop-hook.ts` - SessionEnd
 

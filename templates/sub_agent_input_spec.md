@@ -31,7 +31,7 @@ parent_session_id: "<orchestrator_session_id>"  # REQUIRED for sub-agent trackin
 
 session_context:
   session_dir: "<absolute path to session directory>"
-  artifacts_dir: "<session_dir>/artifacts"
+  artifacts_dir: "<session_dir>/artifacts/<phase>"  # Phase-specific: explore, plan, implement, qna, review, etc.
   specs_dir: "<session_dir>/specs"
 
 projects:
@@ -81,12 +81,17 @@ worktree_config:
 artifacts_in: []
 artifacts_out: []
 
-# Beads configuration (optional - only when beads enabled)
-# Provides beads context to agents for task querying and status updates
-beads_config:
-  enabled: true  # Whether beads is enabled for this session
-  storage_path: "${ARKADIAN_DIR}/.beads"  # Path to beads repository
-  session_epic_id: "bd-xyz123"  # Session epic ID (null if not created yet)
+# Retry context (optional - added by orchestrator on retry)
+# retry_context:
+#   attempt_number: 2
+#   max_attempts: 3
+#   previous_failures:
+#     - attempt: 1
+#       outcome: "failed"
+#       hard_gate_failures:
+#         - "tests.failed = 3 (expected 0)"
+#       guidance: "Fix the 3 failing tests before proceeding"
+
 # --- END AGENT INPUT ---
 ```
 
@@ -109,10 +114,9 @@ beads_config:
 |-------|---------|
 | `ark-guru` | Q&A, concepts, internal docs, explanations |
 | `ark-project-manager` | Specs, scoping, task trees, acceptance criteria |
-| `ark-developer` | Code changes, fixes, implementation, tests |
-| `ark-env-tester` | Environment setup, testing, validation |
+| `ark-developer` | Code changes, fixes, implementation, testing, environment setup |
 | `ark-researcher` | External research, prior art, API evaluation |
-| `ark-pr-reviewer` | PR/commit analysis, architecture consistency |
+| `ark-pr-reviewer` | PR review assistant: analysis, attention ranking, draft comments, risk assessment |
 | `ark-progress-tracker` | Progress reports, PR tracking, cross-project coordination |
 | `ark-observer` | Telemetry analysis, observability, anomaly detection |
 
@@ -145,14 +149,19 @@ parent_session_id: "abc123-def456-789"  # Your orchestrator session ID
 
 ## Session Context
 
-The `session_context` object must contain paths from the auto-injected Session Context:
+The `session_context` object must contain paths from the auto-injected Session Context.
+
+**IMPORTANT:** `artifacts_dir` MUST be phase-specific. The orchestrator sets this to the phase subdirectory so agents write all outputs (including `_result.json`) into the correct location.
 
 ```yaml
+# Phase mapping: explore → artifacts/explore/, plan → artifacts/plan/, implement → artifacts/implement/
 session_context:
   session_dir: "/path/to/arkadian/sessions/<session_id>"
-  artifacts_dir: "/path/to/arkadian/sessions/<session_id>/artifacts"
+  artifacts_dir: "/path/to/arkadian/sessions/<session_id>/artifacts/<phase>"
   specs_dir: "/path/to/arkadian/sessions/<session_id>/specs"
 ```
+
+Valid phase directories: `explore`, `plan`, `implement`, `qna`, `review`, `research`, `investigate`, `progress`
 
 ## Projects Array
 
@@ -196,7 +205,7 @@ These fields provide additional context but are not strictly required:
 | `artifacts_in` | Input artifacts from previous steps (IMPORTANT - see below) |
 | `artifacts_out` | Output artifacts to produce |
 | `worktree_config` | Worktree isolation settings (ark-developer only) |
-| `beads_config` | Beads task management context (enabled, storage_path, session_epic_id) |
+| `retry_context` | Retry information when re-invoking after validation failure (attempt_number, max_attempts, previous_failures) |
 
 ## Artifact Passing (CRITICAL for Multi-Step Workflows)
 
@@ -298,30 +307,64 @@ This instructs the agent to:
 
 Set `enabled: false` only if you explicitly want changes made directly to the main repo.
 
-## Beads Configuration (Optional)
+## Result Manifest (`_result.json`)
 
-When beads task management is enabled for the session, include beads configuration:
+Every agent MUST write a `_result.json` file as its **absolute last action**. This file is validated by the `post-agent-validator.ts` hook and determines whether the agent's work is accepted, retried, or escalated.
 
-```yaml
-beads_config:
-  enabled: true
-  storage_path: "${ARKADIAN_DIR}/.beads"
-  session_epic_id: "bd-abc123"  # Session epic ID from session state
+**Path:** `${ARTIFACTS_DIR}/_result.json`
+
+**Universal schema:**
+
+```json
+{
+  "schema_version": "1.0",
+  "agent": "<agent_name>",
+  "step_id": "<from execution spec>",
+  "status": "success | failure | partial",
+  "completed_at": "<ISO timestamp>",
+  "confidence": "high | medium | low",
+  "summary": "1-2 sentence summary",
+  "artifacts_produced": [
+    { "path": "<filename>", "type": "report | patch | spec | plan | tasks" }
+  ],
+  "success_criteria_met": [
+    { "id": "1", "description": "...", "satisfied": true }
+  ],
+  "issues_encountered": [],
+  "handover": { "needed": false, "to": "none", "reason": "" },
+  "agent_specific": {}
+}
 ```
 
-This provides agents with:
-- **enabled**: Whether beads is available for task querying
-- **storage_path**: Location of beads repository (agents use this as cwd for bd commands)
-- **session_epic_id**: Parent epic for creating feature epics and tasks
+The `agent_specific` field contains agent-type-specific data. See each agent's RESULT MANIFEST section for the expected fields.
 
-**When to include:**
-- Only when `session_state.beads.enabled` is true
-- Orchestrator reads session state to populate session_epic_id
-- Agents use this to query ready tasks, check dependencies, update status
+**Validation outcomes:**
+- `passed` — all hard gates pass, orchestrator proceeds
+- `partial` — agent reported partial completion, no hard gate failures
+- `failed` — one or more hard gate failures, orchestrator retries (up to 3x)
+- `crash` — no `_result.json` found, orchestrator retries (up to 3x)
 
-**When to omit:**
-- If beads is not enabled (session_state.beads.enabled is false or undefined)
-- For sessions created before beads integration
+## Retry Context (Optional)
+
+When the orchestrator retries an agent after validation failure, it includes `retry_context`:
+
+```yaml
+retry_context:
+  attempt_number: 2
+  max_attempts: 3
+  previous_failures:
+    - attempt: 1
+      outcome: "failed"
+      hard_gate_failures:
+        - "tests.failed = 3 (expected 0)"
+      guidance: "Fix the 3 failing tests before proceeding"
+```
+
+When `retry_context` is present, agents should:
+1. Read the previous failure details
+2. Focus on resolving the specific hard gate failures
+3. Not start from scratch — build on previous work
+4. Still write `_result.json` as last action
 
 ## Validation
 
@@ -361,7 +404,7 @@ parent_session_id: "abc123"
 
 session_context:
   session_dir: "/Users/user/code/arkadian/sessions/abc123"
-  artifacts_dir: "/Users/user/code/arkadian/sessions/abc123/artifacts"
+  artifacts_dir: "/Users/user/code/arkadian/sessions/abc123/artifacts/qna"  # Phase-specific
   specs_dir: "/Users/user/code/arkadian/sessions/abc123/specs"
 
 projects:

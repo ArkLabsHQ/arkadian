@@ -6,10 +6,9 @@
 |-------|---------|
 | `ark-guru` | Q&A, concepts, internal docs, explanations |
 | `ark-project-manager` | specs, scoping, task trees, multi-agent workflows, acceptance criteria |
-| `ark-developer` | **Full-stack implementation agent**: code changes, fixes, debugging, implementation, AND testing. Uses `ark-ops` skill for commands. Runs tests internally with retry loop (up to 10 attempts). **Does NOT delegate to ark-env-tester for development workflows.** |
-| `ark-env-tester` | **STANDALONE environment tasks only**: stack bootstrap, running simulations, environment health checks. **NOT used for development workflows** - ark-developer handles testing internally. |
+| `ark-developer` | **Full-stack implementation agent**: code changes, fixes, debugging, implementation, AND testing. Uses `ark-ops` skill for commands. Uses `arkd-dev-loop` and `fulmine-dev-loop` skills for fast iteration. Runs tests internally with retry loop (up to 10 attempts). |
 | `ark-researcher` | external research, prior art, API/library evaluation (fallback: ark-guru) |
-| `ark-pr-reviewer` | PR/commit/diff analysis, architecture consistency, test coverage, risk notes |
+| `ark-pr-reviewer` | Reviewer's assistant: PR analysis, attention ranking, draft review comments, Ark-specific context, risk assessment. Prepares briefings for human reviewers. |
 | `ark-progress-tracker` | progress reports across 12 Ark projects, PR tracking via GitHub CLI, business value translation, cross-project coordination (has 4 modes: weekly, project-specific, feature, cross-project) |
 | `ark-observer` | telemetry analysis, observability investigation, anomaly detection (queries Prometheus, Loki, Jaeger, AlertManager, Pyroscope; correlates data; identifies hot paths) |
 
@@ -21,7 +20,7 @@ When workflow templates use short names, map to full agent names:
 |------------|-----------------|
 | `guru` | `ark-guru` |
 | `developer` | `ark-developer` |
-| `tester` | `ark-env-tester` |
+| `tester` | `ark-developer` |
 | `project-manager` | `ark-project-manager` |
 | `researcher` | `ark-researcher` |
 | `pr-reviewer` | `ark-pr-reviewer` |
@@ -35,8 +34,7 @@ When determining which documentation sections to include:
 | Agent | Doc Intent | Fallback |
 |-------|------------|----------|
 | `ark-guru` | `qna` | - |
-| `ark-developer` | `dev` | - |
-| `ark-env-tester` | `qa` | - |
+| `ark-developer` | `dev` | `qa` |
 | `ark-project-manager` | `dev` | - |
 | `ark-pr-reviewer` | `pr_review` | `dev` |
 | `ark-researcher` | `research` | - |
@@ -50,12 +48,12 @@ Use this mapping to select doc sections from `@templates/doc_intake_defaults.md`
 | Condition | Action |
 |-----------|--------|
 | **Development workflows** (code changes, fixes, features) | Route to `ark-developer` - it handles implement+test internally |
-| **Standalone environment setup** (no code changes) | Route to `ark-env-tester` |
-| **Run simulations** (standalone, no code changes) | Route to `ark-env-tester` |
+| **Testing requests** (run tests, test a feature, validate) | Route to `ark-developer` - it handles testing with dev-loop skills |
+| **Environment setup** (start stack, run simulation) | Route to `ark-developer` - it knows how via dev-loop skills |
 | Telemetry investigation, anomaly detection, performance troubleshooting | Route to `ark-observer` |
 | High CPU/memory, error spikes, latency issues | `ark-observer` for investigation, `ark-developer` for fixes |
 | Progress tracking, weekly reports, PR activity | Route to `ark-progress-tracker` |
-| Large/critical PR analysis | `ark-pr-reviewer` + `ark-progress-tracker` in parallel |
+| Large/critical PR analysis | `ark-pr-reviewer` (review briefing) + `ark-progress-tracker` (business context) in parallel |
 | `monitor_or_alert` intent | Always add `ark-telemetry` project |
 | `develop` on infra/deploy | Always add `ark-infra` project |
 | `greenfield` | Consider: `arkd`, `go-sdk`, `ark-infra`, `ark-telemetry` + user-named projects |
@@ -67,22 +65,15 @@ Use this mapping to select doc sections from `@templates/doc_intake_defaults.md`
 - Fixing bugs (handles testing internally)
 - Code changes of any kind
 - Debugging + fixing in single pass
-
-### Use `ark-env-tester` ONLY for:
-- "Set up the arkd stack" (standalone environment)
-- "Run a simulation with 100 clients" (standalone task)
-- "Bootstrap the full stack" (no code changes)
-- Environment health checks (standalone)
-
-### Do NOT use `ark-env-tester` for:
-- Testing after code changes (ark-developer does this)
-- Validation of implementations (ark-developer does this)
-- Any workflow where code was just modified
+- Running tests (uses arkd-dev-loop / fulmine-dev-loop skills)
+- Setting up test environments
+- Running simulations
 
 ## Backward Compatibility
 
 | Legacy Name | Maps To |
 |-------------|---------|
-| `ark-runner` | `ark-env-tester` |
-| `ark-tester` | `ark-env-tester` |
+| `ark-runner` | `ark-developer` |
+| `ark-tester` | `ark-developer` |
+| `ark-env-tester` | `ark-developer` |
 | `ark-debugger` | `ark-developer` |

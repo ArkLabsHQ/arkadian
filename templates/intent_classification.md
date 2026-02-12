@@ -32,6 +32,20 @@
 | `test_or_run` | `stack_setup` | Stack/environment setup |
 | `test_or_run` | `bootstrap` | Bootstrap new environment |
 
+### Development Sub-Intent Notes
+
+For `develop` intent, sub-intents are **dynamically determined** by the explore phase:
+
+1. **Initial classification**: Classify as `develop` with a best-guess sub-intent
+2. **Workflow routing**: Always route to `development_unified.yaml` regardless of sub-intent
+3. **Explore phase**: `ark-guru` analyzes the codebase and outputs `complexity` in `artifacts/explore/assessment.yaml`
+4. **Adaptation**: The workflow adapts based on the explore output:
+   - `quick_fix`: Skip planning, direct to implementation
+   - `small_feature`: Lightweight inline plan
+   - `medium_feature` / `large_feature`: Full spec → plan → tasks workflow
+
+This ensures complexity is determined by code analysis, not pre-guessed by intent classification.
+
 ## Intent Classification Format
 
 ```yaml

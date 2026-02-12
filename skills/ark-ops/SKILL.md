@@ -1,3 +1,8 @@
+---
+name: ark-ops
+description: Operational hub for Ark ecosystem tasks. Routes to ark-developer for environment/testing/debugging, or handles simple queries directly.
+---
+
 # Ark Operations Skill
 
 ## SKILL TYPE: Hybrid Router
@@ -18,8 +23,7 @@ User requests related to:
 
 This skill analyzes the request and either:
 1. **Handles directly** - For simple queries, status checks, and documentation references
-2. **Routes to ark-env-tester** - For environment provisioning, testing, and validation
-3. **Routes to ark-developer** - For code changes or debugging
+2. **Routes to ark-developer** - For environment provisioning, testing, validation, code changes, or debugging
 
 ## DECISION TREE
 
@@ -29,10 +33,7 @@ User Request
 ├─ Documentation/Info Query?
 │  └─ Handle directly → Provide docs/commands
 │
-├─ Setup/Test/Validate?
-│  └─ Route to ark-env-tester
-│
-└─ Code Issue/Bug?
+└─ Setup/Test/Validate/Code Issue/Bug?
    └─ Route to ark-developer
 ```
 
@@ -74,7 +75,7 @@ Or provide inline summary:
 
 ## ROUTING SCENARIOS
 
-### Route to ark-env-tester
+### Route to ark-developer
 
 When user requests involve:
 - Setting up test environments
@@ -83,25 +84,6 @@ When user requests involve:
 - Environment health checks
 - Performance testing
 - Simulation runs
-
-**Example requests**:
-- "Set up and test the arkd environment"
-- "Run integration tests for fulmine"
-- "Validate the arkd configuration"
-- "Run a simulation with 50 clients"
-- "Test the full stack"
-
-**How to route**:
-```
-The user is requesting [environment setup/testing/validation].
-I will route this to ark-env-tester.
-
-Invoking ark-env-tester with execution specification...
-```
-
-### Route to ark-developer
-
-When user requests involve:
 - Code issues or bugs
 - Implementation changes
 - Debugging failures
@@ -494,7 +476,7 @@ kill -9 <PID>
 
 ### Issue: Tests failing
 
-For complex test failures, route to **ark-env-tester** for comprehensive analysis.
+For complex test failures, route to **ark-developer** for comprehensive analysis (uses dev-loop skills for fast iteration).
 
 ## EXAMPLE INTERACTIONS
 
@@ -514,16 +496,16 @@ This uses SQLite database and in-memory cache for fast development.
 See: ${ARKADIAN_DIR}/docs/projects/arkd/testing/how_to_run.md
 ```
 
-### Example 2: Testing Request (Route to ark-env-tester)
+### Example 2: Testing Request (Route to ark-developer)
 
 **User**: "Set up and run tests for arkd"
 
 **ark-ops (router)**:
 ```
 This requires environment provisioning and test execution.
-Routing to ark-env-tester...
+Routing to ark-developer (uses arkd-dev-loop skill for fast iteration)...
 
-[Creates execution specification for ark-env-tester]
+[Creates execution specification for ark-developer]
 ```
 
 ### Example 3: Debugging Request (Route to ark-developer)
@@ -567,7 +549,7 @@ When invoked:
 
 1. **Analyze request type**:
    - Simple query/command → Handle directly
-   - Complex setup/testing → Route to ark-env-tester
+   - Complex setup/testing → Route to ark-developer
    - Debugging/code issue → Route to ark-developer
 
 2. **Provide immediate value**:

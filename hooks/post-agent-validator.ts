@@ -7,13 +7,18 @@
  *
  * Responsibilities:
  * 1. Check expected artifacts were created (from active_agent.expected_artifacts)
- * 2. Update phase status in session state
- * 3. Clear active_agent from session state
- * 4. Output structured result for orchestrator
+ * 2. Load and validate _result.json (agent result manifest)
+ * 3. Run per-agent contract validation (hard gates + warnings)
+ * 4. Inspect artifact content (size, headings)
+ * 5. Compute outcome (passed/partial/failed/crash)
+ * 6. Track retry eligibility
+ * 7. Update phase status in session state
+ * 8. Clear active_agent from session state
+ * 9. Output structured result for orchestrator
  *
  * State Interaction:
  * - Reads: {DATA_DIR}/{session_id}_state.json → active_agent
- * - Writes: phases[spec_id].validation, active_agent = null
+ * - Writes: phases[spec_id].validation (extended), active_agent = null
  *
  * Hook Input (SubagentStop):
  * - session_id: string
@@ -23,19 +28,23 @@
  * - stop_hook_active: boolean
  *
  * Output (to stderr, for orchestrator visibility):
- * - Structured completion message with status
+ * - Structured validation message with outcome, failures, warnings, retry guidance
  *
  * Exit codes:
  * - 0: Always (SubagentStop cannot block, only log)
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import {
-  convertTasksMdToBeads,
-  createFeatureEpic,
-  logBeadsOperation
-} from './beads-bridge';
+  AGENT_CONTRACTS,
+  validateAgentResult,
+  computeRetryGuidance,
+  formatSize,
+  type ResultJson,
+  type ExtendedValidationResult,
+  type ValidationOutcome,
+} from './validation-contracts';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
@@ -45,6 +54,8 @@ const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'l
 
 // Only process in orchestrator mode
 const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
+
+const MAX_RETRY_ATTEMPTS = 3;
 
 interface HookInput {
     session_id: string;
@@ -62,6 +73,7 @@ interface ActiveAgent {
     allowed_tools: string[];
     allowed_paths: string[];
     blocked_paths: string[];
+    context_intent?: string;
 }
 
 interface PhaseValidation {
@@ -79,9 +91,9 @@ interface PhaseState {
     artifacts_expected?: string[];
     artifacts_created?: string[];
     validation?: PhaseValidation;
+    extended_validation?: ExtendedValidationResult;
+    retry_count?: number;
     skip_reason?: string;
-    beads_issues?: Record<string, string>;  // task_id -> beads_id
-    beads_feature_epic_id?: string;
 }
 
 interface SessionState {
@@ -206,52 +218,7 @@ function getArtifactPath(artifact: ExpectedArtifact): string {
 }
 
 /**
- * Extract feature ID from spec ID
- * Example: "S3" or "pm-phase-3" -> "003"
- */
-function extractFeatureId(specId: string): string {
-    // For ark-project-manager, feature ID is in specs path
-    // Default: use spec ID or extract from session context
-    return specId.replace(/^S/, '').padStart(3, '0');  // S3 -> "003"
-}
-
-/**
- * Extract project ID from session directory structure
- * Look for specs/<project_id>/<feature_id>/ pattern
- */
-function extractProjectId(sessionDir: string, featureId: string): string {
-    const specsDir = join(sessionDir, 'specs');
-    if (existsSync(specsDir)) {
-        const projects = readdirSync(specsDir);
-        for (const project of projects) {
-            const featureDir = join(specsDir, project, featureId);
-            if (existsSync(featureDir)) {
-                return project;
-            }
-        }
-    }
-    return 'misc';  // Fallback
-}
-
-/**
- * Extract feature name from tasks.md title
- * Read first line: "# Tasks: Feature Name" -> "Feature Name"
- */
-function extractFeatureName(tasksMdPath: string): string {
-    try {
-        const content = readFileSync(tasksMdPath, 'utf-8');
-        const match = content.match(/^#\s*Tasks:\s*(.+)$/m);
-        if (match) {
-            return match[1].trim();
-        }
-    } catch (e) {
-        // Ignore
-    }
-    return 'Unnamed Feature';
-}
-
-/**
- * Check if expected artifacts exist
+ * Check if expected artifacts exist (Tier 1 - file existence)
  */
 function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifact[]): PhaseValidation {
     const missing: string[] = [];
@@ -281,6 +248,130 @@ function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifac
         found,
         validated_at: new Date().toISOString()
     };
+}
+
+/**
+ * Load _result.json from the session artifacts directory.
+ * Searches multiple locations: artifacts root, per-step subfolder, and direct paths.
+ */
+function loadResultJson(sessionId: string, specId: string): ResultJson | null {
+    const artifactsDir = join(SESSIONS_DIR, sessionId, 'artifacts');
+
+    // Search locations for _result.json
+    const searchPaths = [
+        join(artifactsDir, '_result.json'),
+        join(artifactsDir, specId.toLowerCase(), '_result.json'),
+        join(artifactsDir, 'implement', '_result.json'),
+        join(artifactsDir, 'explore', '_result.json'),
+        join(artifactsDir, 'qna', '_result.json'),
+        join(artifactsDir, 'review', '_result.json'),
+        join(artifactsDir, 'research', '_result.json'),
+        join(artifactsDir, 'investigate', '_result.json'),
+        join(artifactsDir, 'progress', '_result.json'),
+    ];
+
+    for (const searchPath of searchPaths) {
+        if (existsSync(searchPath)) {
+            try {
+                const content = readFileSync(searchPath, 'utf-8');
+                const parsed = JSON.parse(content);
+                log(sessionId, 'result-json-found', { path: searchPath });
+                return parsed as ResultJson;
+            } catch (e: any) {
+                log(sessionId, 'result-json-parse-error', { path: searchPath, error: e.message });
+            }
+        }
+    }
+
+    log(sessionId, 'result-json-not-found', { searched: searchPaths.length });
+    return null;
+}
+
+/**
+ * Build the structured stderr message for the orchestrator.
+ */
+function buildValidationMessage(
+    agentType: string,
+    specId: string,
+    extResult: ExtendedValidationResult,
+    artifactValidation: PhaseValidation
+): string {
+    const lines: string[] = [];
+    lines.push('================================================================');
+    lines.push(`AGENT_VALIDATION: ${agentType} (${specId})`);
+    lines.push(`OUTCOME: ${extResult.outcome}`);
+
+    if (extResult.retry_eligible) {
+        lines.push(`RETRY_ELIGIBLE: true (attempt ${extResult.retry_attempt} of ${MAX_RETRY_ATTEMPTS})`);
+    } else if (extResult.outcome === 'failed' || extResult.outcome === 'crash') {
+        lines.push(`RETRY_ELIGIBLE: false (attempt ${extResult.retry_attempt} of ${MAX_RETRY_ATTEMPTS})`);
+    }
+
+    if (extResult.agent_status) {
+        lines.push(`AGENT_STATUS: ${extResult.agent_status}`);
+    }
+    if (extResult.agent_confidence) {
+        lines.push(`AGENT_CONFIDENCE: ${extResult.agent_confidence}`);
+    }
+
+    // Hard gate failures
+    if (extResult.hard_gate_failures.length > 0) {
+        lines.push('');
+        lines.push(`HARD GATE FAILURES (${extResult.hard_gate_failures.length}):`);
+        for (const f of extResult.hard_gate_failures) {
+            lines.push(`  [${f.check.id}] ${f.message}`);
+            lines.push(`              -> ${f.check.remediation}`);
+        }
+    }
+
+    // Warnings
+    if (extResult.warnings.length > 0) {
+        lines.push('');
+        lines.push(`WARNINGS (${extResult.warnings.length}):`);
+        for (const w of extResult.warnings) {
+            lines.push(`  [${w.check.id}] ${w.message}`);
+        }
+    }
+
+    // Artifact summary
+    const totalExpected = artifactValidation.found.length + artifactValidation.missing.length;
+    lines.push('');
+    lines.push(`ARTIFACTS: ${artifactValidation.found.length} of ${totalExpected} expected found`);
+    for (const f of artifactValidation.found) {
+        const resolved = resolveArtifactPath('', f);  // Just for size display
+        let sizeStr = '';
+        try {
+            const fullPath = join(SESSIONS_DIR, '', f);
+            // Best effort size
+        } catch {}
+        lines.push(`  [OK] ${f}`);
+    }
+    for (const m of artifactValidation.missing) {
+        lines.push(`  [MISSING] ${m}`);
+    }
+
+    // Contract artifact checks
+    for (const ac of extResult.artifact_checks) {
+        if (!ac.found) {
+            lines.push(`  [MISSING] ${ac.path} (contract-required)`);
+        } else {
+            const sizeStr = ac.size !== null ? ` (${formatSize(ac.size)})` : '';
+            const headingStr = ac.heading_ok === false ? ' [HEADINGS MISSING]' : '';
+            lines.push(`  [OK] ${ac.path}${sizeStr}${headingStr}`);
+        }
+    }
+
+    // Retry guidance
+    if (extResult.retry_guidance) {
+        lines.push('');
+        lines.push('RETRY GUIDANCE:');
+        for (const line of extResult.retry_guidance.split('\n')) {
+            lines.push(`  ${line}`);
+        }
+    }
+
+    lines.push('================================================================');
+    return '\n' + lines.join('\n') + '\n';
 }
 
 async function main() {
@@ -324,80 +415,112 @@ async function main() {
             expected_artifacts: activeAgent.expected_artifacts
         });
 
-        // Validate artifacts
+        // ═══════════════════════════════════════════════
+        // TIER 1: File existence check (existing logic)
+        // ═══════════════════════════════════════════════
         const validation = validateArtifacts(hookInput.session_id, activeAgent.expected_artifacts);
 
-        // Detect tasks.md creation (ark-project-manager Phase 3 completion)
-        let beadsConversionResult: any = null;
-        const tasksMdArtifact = validation.found.find(a => a.endsWith('tasks.md'));
+        // ═══════════════════════════════════════════════
+        // TIER 2: Load _result.json
+        // ═══════════════════════════════════════════════
+        const resultJson = loadResultJson(hookInput.session_id, specId);
 
-        if (tasksMdArtifact && state.beads?.enabled) {
-            try {
-                log(hookInput.session_id, 'tasks-md-detected', { artifact: tasksMdArtifact });
+        // Get retry count from previous phase state
+        const previousRetryCount = state.phases[specId]?.retry_count || 0;
+        const currentAttempt = previousRetryCount + 1;
 
-                // Extract feature context
-                const sessionDir = join(SESSIONS_DIR, hookInput.session_id);
-                const featureId = extractFeatureId(specId);  // e.g., "001"
-                const projectId = extractProjectId(sessionDir, featureId);  // e.g., "arkadian"
+        // ═══════════════════════════════════════════════
+        // TIER 3 & 4: Contract validation + content inspection
+        // ═══════════════════════════════════════════════
+        let extResult: ExtendedValidationResult;
 
-                // Get or create feature epic
-                let featureEpicId = state.beads.feature_epics[featureId];
-                if (!featureEpicId && state.beads.session_epic_id) {
-                    const tasksMdPath = resolveArtifactPath(hookInput.session_id, tasksMdArtifact);
-                    const featureName = extractFeatureName(tasksMdPath);
-                    featureEpicId = await createFeatureEpic(
-                        hookInput.session_id,
-                        projectId,
-                        featureId,
-                        featureName,
-                        state.beads.session_epic_id
-                    );
+        if (!resultJson) {
+            // CRASH: Agent didn't write _result.json
+            log(hookInput.session_id, 'result-json-missing', { agent: activeAgent.agent_type });
 
-                    if (featureEpicId) {
-                        state.beads.feature_epics[featureId] = featureEpicId;
-                        log(hookInput.session_id, 'beads-feature-epic-created', {
-                            feature_id: featureId,
-                            epic_id: featureEpicId
-                        });
-                    }
-                }
+            extResult = {
+                outcome: 'crash',
+                hard_gate_failures: [],
+                warnings: [],
+                artifact_checks: [],
+                retry_eligible: currentAttempt < MAX_RETRY_ATTEMPTS,
+                retry_attempt: currentAttempt,
+                retry_guidance: `Agent ${activeAgent.agent_type} did not write _result.json. Re-invoke and ensure agent writes _result.json as its last action.`,
+                result_json_found: false,
+                agent_status: null,
+                agent_confidence: null,
+            };
+        } else {
+            // Run contract-driven validation
+            const artifactsDir = join(SESSIONS_DIR, hookInput.session_id, 'artifacts');
+            const contractResult = validateAgentResult(activeAgent.agent_type, resultJson, artifactsDir);
 
-                // Convert tasks.md to beads issues
-                if (featureEpicId) {
-                    const tasksMdPath = resolveArtifactPath(hookInput.session_id, tasksMdArtifact);
-                    beadsConversionResult = await convertTasksMdToBeads(
-                        tasksMdPath,
-                        featureEpicId,
-                        hookInput.session_id,
-                        projectId,
-                        featureId
-                    );
+            // Compute outcome
+            let outcome: ValidationOutcome;
+            if (contractResult.failures.length > 0) {
+                outcome = 'failed';
+            } else if (resultJson.status === 'partial') {
+                outcome = 'partial';
+            } else {
+                outcome = 'passed';
+            }
 
-                    log(hookInput.session_id, 'beads-conversion-result', beadsConversionResult);
+            const retryEligible = (outcome === 'failed' || outcome === 'crash') && currentAttempt < MAX_RETRY_ATTEMPTS;
+            const retryGuidance = retryEligible ? computeRetryGuidance(contractResult.failures, activeAgent.agent_type) : '';
 
-                    // Store task mappings in phase state
-                    if (beadsConversionResult.success) {
-                        if (!state.phases[specId]) {
-                            state.phases[specId] = {
-                                status: 'in_progress',
-                                agent: activeAgent.agent_type,
-                                started_at: activeAgent.invoked_at
-                            };
-                        }
-                        state.phases[specId].beads_issues = beadsConversionResult.issues;
-                        state.phases[specId].beads_feature_epic_id = featureEpicId;
-                    }
-                }
-            } catch (error: any) {
-                log(hookInput.session_id, 'beads-conversion-error', {
-                    error: error.message,
-                    stack: error.stack
+            extResult = {
+                outcome,
+                hard_gate_failures: contractResult.failures,
+                warnings: contractResult.warnings,
+                artifact_checks: contractResult.artifactChecks,
+                retry_eligible: retryEligible,
+                retry_attempt: currentAttempt,
+                retry_guidance: retryGuidance,
+                result_json_found: true,
+                agent_status: resultJson.status,
+                agent_confidence: resultJson.confidence,
+            };
+
+            log(hookInput.session_id, 'contract-validation', {
+                agent: activeAgent.agent_type,
+                outcome,
+                hard_gate_failures: contractResult.failures.length,
+                warnings: contractResult.warnings.length,
+                artifact_checks: contractResult.artifactChecks.length,
+            });
+        }
+
+        // ═══════════════════════════════════════════════
+        // PIPELINE OUTPUT ENFORCEMENT
+        // ═══════════════════════════════════════════════
+        if (activeAgent.agent_type === 'ark-guru' && activeAgent.context_intent === 'dev') {
+            // Guru MUST produce assessment.yaml in dev mode
+            const assessmentPath = join(SESSIONS_DIR, hookInput.session_id, 'artifacts', 'explore', 'assessment.yaml');
+            if (!existsSync(assessmentPath)) {
+                extResult.hard_gate_failures.push({
+                    check: {
+                        id: 'HG-PIPE-GURU-01',
+                        field: 'assessment.yaml',
+                        severity: 'hard',
+                        description: 'Guru must produce assessment.yaml in dev mode',
+                        remediation: 'Re-invoke ark-guru with context_intent: dev. Agent must write artifacts/explore/assessment.yaml with complexity, affected_scope, testing_recommendation, and planning_needed fields.'
+                    },
+                    actual: 'missing',
+                    message: 'artifacts/explore/assessment.yaml not found. Guru must write structured assessment in dev mode.'
                 });
-                // Don't fail validation on beads errors
+                if (extResult.outcome === 'passed') extResult.outcome = 'failed';
             }
         }
 
-        // Update phase state
+        log(hookInput.session_id, 'pipeline-output-checks', {
+            agent: activeAgent.agent_type,
+            context_intent: activeAgent.context_intent,
+            pipeline_failures: extResult.hard_gate_failures.filter(f => f.check.id.startsWith('HG-PIPE')).length
+        });
+
+        // ═══════════════════════════════════════════════
+        // Update phase state with extended validation
+        // ═══════════════════════════════════════════════
         if (!state.phases[specId]) {
             state.phases[specId] = {
                 status: 'in_progress',
@@ -407,24 +530,41 @@ async function main() {
         }
 
         state.phases[specId].validation = validation;
+        state.phases[specId].extended_validation = extResult;
         state.phases[specId].completed_at = new Date().toISOString();
         state.phases[specId].artifacts_expected = activeAgent.expected_artifacts;
         state.phases[specId].artifacts_created = validation.found;
+        state.phases[specId].retry_count = currentAttempt;
 
-        if (validation.passed) {
-            state.phases[specId].status = 'completed';
-            log(hookInput.session_id, 'phase-completed', {
-                spec_id: specId,
-                agent: activeAgent.agent_type,
-                artifacts: validation.found
-            });
-        } else {
-            state.phases[specId].status = 'failed';
-            log(hookInput.session_id, 'phase-failed', {
-                spec_id: specId,
-                agent: activeAgent.agent_type,
-                missing: validation.missing
-            });
+        // Set phase status based on extended validation outcome
+        switch (extResult.outcome) {
+            case 'passed':
+                state.phases[specId].status = 'completed';
+                log(hookInput.session_id, 'phase-completed', {
+                    spec_id: specId,
+                    agent: activeAgent.agent_type,
+                    artifacts: validation.found
+                });
+                break;
+            case 'partial':
+                state.phases[specId].status = 'completed';  // Partial is still completed
+                log(hookInput.session_id, 'phase-partial', {
+                    spec_id: specId,
+                    agent: activeAgent.agent_type,
+                    warnings: extResult.warnings.length
+                });
+                break;
+            case 'failed':
+            case 'crash':
+                state.phases[specId].status = 'failed';
+                log(hookInput.session_id, 'phase-failed', {
+                    spec_id: specId,
+                    agent: activeAgent.agent_type,
+                    outcome: extResult.outcome,
+                    failures: extResult.hard_gate_failures.length,
+                    retry_eligible: extResult.retry_eligible
+                });
+                break;
         }
 
         // Clear active_agent (sub-agent is done)
@@ -433,25 +573,15 @@ async function main() {
         // Save updated state
         updateSessionState(hookInput.session_id, state);
 
-        // Output structured completion message for orchestrator
-        const resultMessage = validation.passed
-            ? `
-═══════════════════════════════════════════════════════════════════
-AGENT_COMPLETE: ${activeAgent.agent_type} (${specId})
-ARTIFACTS_VALID: true
-STATUS: Phase completed successfully
-ARTIFACTS: ${validation.found.join(', ')}
-═══════════════════════════════════════════════════════════════════
-`
-            : `
-═══════════════════════════════════════════════════════════════════
-AGENT_COMPLETE: ${activeAgent.agent_type} (${specId})
-ARTIFACTS_VALID: false
-STATUS: Missing expected artifacts
-MISSING: ${validation.missing.join(', ')}
-═══════════════════════════════════════════════════════════════════
-→ Orchestrator: Investigate missing artifacts
-`;
+        // ═══════════════════════════════════════════════
+        // Output structured validation message
+        // ═══════════════════════════════════════════════
+        const resultMessage = buildValidationMessage(
+            activeAgent.agent_type,
+            specId,
+            extResult,
+            validation
+        );
 
         console.error(resultMessage);
 

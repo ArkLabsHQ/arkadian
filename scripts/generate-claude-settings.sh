@@ -88,9 +88,12 @@ while IFS='=' read -r key value; do
   # Remove any quotes from value
   value=$(echo "$value" | sed 's/^["'\'']\(.*\)["'\'']$/\1/')
 
-  # Replace placeholder in content
+  # Replace placeholder in content (both quoted and inline)
   placeholder="${key}_PLACEHOLDER"
+  # Replace "PLACEHOLDER" (in additionalDirectories)
   updated_content=$(echo "$updated_content" | sed "s|\"$placeholder\"|\"$value\"|g")
+  # Replace PLACEHOLDER inline (in permission patterns like Write(ARKADIAN_DIR_PLACEHOLDER/sessions/**))
+  updated_content=$(echo "$updated_content" | sed "s|$placeholder|$value|g")
 done < "$ENV_FILE"
 
 # Write to settings file

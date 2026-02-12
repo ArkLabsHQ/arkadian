@@ -83,20 +83,20 @@ Analyze the last 5 commits in go-sdk for breaking changes
 - [ ] Checks breaking changes
 **Score:** ___ / 5
 
-### L1.09 - ark-env-tester: Run tests (5 pts)
+### L1.09 - ark-developer: Run tests (5 pts)
 ```
 Run unit tests for arkd
 ```
-- [ ] Routes to ark-env-tester
+- [ ] Routes to ark-developer
 - [ ] Executes tests
 - [ ] Reports results
 **Score:** ___ / 5
 
-### L1.10 - ark-env-tester: Start stack (5 pts)
+### L1.10 - ark-developer: Start stack (5 pts)
 ```
 Start local arkd development stack
 ```
-- [ ] Routes to ark-env-tester
+- [ ] Routes to ark-developer
 - [ ] Uses Docker
 **Score:** ___ / 5
 
@@ -251,7 +251,7 @@ Add a comment to the main.go file in arkd explaining what it does
 - [ ] Changes list files modified
 **Score:** ___ / 8
 
-### L3.03 - ark-env-tester test results (8 pts)
+### L3.03 - ark-developer test results (8 pts)
 ```
 Run go test for the domain package in arkd
 ```
@@ -294,7 +294,7 @@ Create a specification for adding rate limiting to arkd
 Implement GetHealth endpoint in arkd and run integration tests
 ```
 - [ ] Handover block present
-- [ ] Handover to ark-env-tester
+- [ ] Handover to ark-developer
 - [ ] Handover has context
 **Score:** ___ / 8
 
@@ -511,7 +511,7 @@ Implement feature but have tests fail, then recover
 ```
 Implement GetStatus endpoint and validate with integration tests
 ```
-- [ ] Uses: ark-developer, ark-env-tester
+- [ ] Uses: ark-developer, ark-developer
 - [ ] Proper handover
 - [ ] Context preserved
 **Score:** ___ / 12

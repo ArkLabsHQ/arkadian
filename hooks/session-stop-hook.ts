@@ -4,12 +4,12 @@
  * Arkadian Session Stop Hook
  *
  * Triggered on SessionEnd event. Handles:
- * 1. Cleanup of session state file ({session_id}_state.txt)
+ * 1. Cleanup of session state file ({session_id}_state.json)
  * 2. Preserves log file ({session_id}_log.txt) for debugging
  * 3. Spawns background worker for session summarization
  *
  * State Management:
- * - State file ({session_id}_state.txt) - DELETED on session end
+ * - State file ({session_id}_state.json) - DELETED on session end
  * - Log file ({session_id}_log.txt) - KEPT for debugging/audit
  *
  * Folder naming: YYYY-MM-DD-<meaningful-title>
@@ -81,18 +81,28 @@ function getDatePrefix(): string {
  * Log file is KEPT for debugging/audit purposes.
  */
 function cleanupSessionState(sessionId: string): void {
-    const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.txt`);
+    const stateFileJson = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
+    const stateFileTxt = join(ARKADIAN_DATA_DIR, `${sessionId}_state.txt`); // Legacy
 
     try {
-        if (existsSync(stateFile)) {
+        // Clean up new JSON state file
+        if (existsSync(stateFileJson)) {
             // Read state before deletion for logging
-            const stateContent = readFileSync(stateFile, 'utf-8');
-            log(sessionId, 'state-before-cleanup', stateContent.trim());
+            const stateContent = readFileSync(stateFileJson, 'utf-8');
+            log(sessionId, 'state-before-cleanup', stateContent);
 
             // Delete state file
-            unlinkSync(stateFile);
-            log(sessionId, 'state-cleanup', 'Deleted state file');
-        } else {
+            unlinkSync(stateFileJson);
+            log(sessionId, 'state-cleanup', 'Deleted state.json file');
+        }
+
+        // Clean up legacy TXT state file (migration)
+        if (existsSync(stateFileTxt)) {
+            unlinkSync(stateFileTxt);
+            log(sessionId, 'state-cleanup', 'Deleted legacy state.txt file');
+        }
+
+        if (!existsSync(stateFileJson) && !existsSync(stateFileTxt)) {
             log(sessionId, 'state-cleanup', 'No state file found (sub-agent or already cleaned)');
         }
 
@@ -303,6 +313,13 @@ async function main() {
 
         // Clean up session state file (but keep log file)
         cleanupSessionState(sessionId);
+
+        // Remove active session pointer from data dir
+        const activePointer = join(ARKADIAN_DATA_DIR, `${sessionId}_active.txt`);
+        if (existsSync(activePointer)) {
+            unlinkSync(activePointer);
+            log(sessionId, 'active-pointer-removed', activePointer);
+        }
 
         // Check if session folder exists
         if (!existsSync(sessionDir)) {

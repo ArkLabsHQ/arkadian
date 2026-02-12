@@ -447,7 +447,46 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 - **debug**: `swap stuck`, `htlc timeout`, `lightning payment failed`, `chain lockup failed`
 
 **Dependencies**: Bitcoin node (bitcoind/btcd), Lightning node (LND/CLN), Liquid node (elementsd - optional), PostgreSQL/SQLite
-**Depended On By**: `fulmine` (uses Boltz for Lightning swaps), Ark users via fulmine integration
+**Depended On By**: `fulmine` (uses Boltz for Lightning swaps), `boltz-swap` (client library), Ark users via fulmine integration
+
+---
+
+### boltz-swap
+**ID**: `boltz-swap`
+**Name**: Arkade Boltz Swap Library
+**Type**: Library
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/boltz-swap/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/fe/boltz-swap`
+**GitHub**: `git@github.com:arkade-os/boltz-swap.git`
+
+**Description**:
+A production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. Provides bidirectional swaps (Lightning ↔ Arkade) with automated swap monitoring via SwapManager, support for both submarine and reverse swaps, and comprehensive error handling with automatic refund capabilities.
+
+**Key Capabilities**:
+- Create Lightning invoices that deposit funds into Arkade wallets (reverse swaps)
+- Send Lightning payments from Arkade wallets (submarine swaps)
+- Automated background swap monitoring via SwapManager with WebSocket and polling fallback
+- Automatic claim/refund execution for swaps with configurable retry and timeout policies
+- Invoice decoding and validation with swap limit checking
+- Swap fee calculation for both submarine and reverse swaps
+- VHTLC (Virtual HTLC) creation, monitoring, and refund handling
+- Persistent swap storage using wallet contract repository
+- Event-driven architecture with flexible subscription patterns for swap lifecycle events
+- Support for both standard Wallet and ServiceWorkerWallet implementations
+
+**Tags**: `lightning-network`, `submarine-swaps`, `boltz`, `arkade`, `typescript`, `swap-manager`, `vhtlc`, `bitcoin`, `payment-integration`, `event-driven`, `websocket`, `invoice-decoding`
+
+**Synonyms**: `lightning-swaps`, `arkade-lightning`, `boltz-integration`, `swap-library`
+
+**Triggers**:
+- **ask_question**: `lightning swap`, `boltz swap`, `submarine swap`, `reverse swap`, `arkade lightning`, `vhtlc`, `swap manager`, `lightning invoice`, `lightning payment`, `swap monitoring`, `swap refund`, `swap claim`, `invoice decoding`, `swap fees`, `swap limits`
+- **develop**: `add lightning`, `integrate boltz`, `implement swap`, `create invoice`, `send lightning`, `monitor swap`, `handle refund`, `swap provider`, `arkade lightning`
+- **test_or_run**: `test swap`, `test lightning`, `run swap test`, `integration test`, `e2e swap`, `regtest swap`
+- **debug**: `swap failing`, `invoice expired`, `swap timeout`, `refund failed`, `claim failed`, `vhtlc issue`, `swap stuck`, `websocket disconnect`
+
+**Dependencies**: `@arkade-os/sdk` (Arkade Wallet SDK), Boltz API server, Bitcoin/Lightning infrastructure
+**Depended On By**: Arkade PWA wallet, Arkade-powered applications requiring Lightning integration
 
 ---
 
@@ -580,6 +619,13 @@ arkd (core)
    ark-telemetry (monitors arkd)
    ark-infra (deploys arkd + dependencies)
    ark-docs (documents arkd)
+
+boltz-backend (external swap provider)
+   fulmine (uses Boltz for Lightning swaps)
+   boltz-swap (client library for Boltz API)
+
+wallet / @arkade-os/sdk
+   boltz-swap (Lightning integration for Arkade wallets)
 ```
 
 ### Correlation Matrix
@@ -608,11 +654,14 @@ arkd (core)
 | arkade-explorer | wallet | Sibling Frontend (same @arkade-os/sdk) |
 | arkade-explorer | arkade-assets | Asset-Consumer |
 | wallet | arkade-assets | Asset-Consumer |
+| wallet | boltz-swap | Library-Consumer (Lightning integration) |
+| boltz-swap | boltz-backend | Client-Server (Boltz API) |
+| boltz-swap | @arkade-os/sdk | Library-Consumer (Wallet SDK) |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, fulmine-simulator
-**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-escrow, arkade-explorer, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-escrow, arkade-explorer, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
@@ -629,7 +678,7 @@ arkd (core)
 - Ark protocol concepts � `ark-docs`, `arkd`
 - VTXOs, rounds, settlement � `arkd`, `ark-docs`
 - Wallet usage � `wallet`, `go-sdk`, `ark-docs`
-- Lightning swaps � `wallet`, `fulmine`, `ark-docs`
+- Lightning swaps � `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Escrow system � `arkade-escrow`
 - Security model � `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens � `arkade-assets`, `ark-docs`
@@ -638,7 +687,7 @@ arkd (core)
 - Add arkd feature � `arkd`
 - Build wallet � `go-sdk`, `wallet` (depending on language)
 - Escrow development � `arkade-escrow`
-- Lightning integration � `fulmine`, `wallet`
+- Lightning integration � `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes � `ark-infra`
 - Asset implementation � `arkade-assets`, `arkd`
 

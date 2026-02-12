@@ -1,0 +1,348 @@
+name: "development_unified"
+description: |
+  Unified development workflow with explore→plan→implement phases.
+  Complexity is determined by exploration phase, not pre-guessed.
+
+  MANDATORY PIPELINE: Each phase receives artifacts from ALL prior phases.
+  Hooks enforce prerequisites — agents cannot be invoked without upstream artifacts.
+
+version: "4.0.0"
+author: "arkadian-system"
+created: "2025-12-15"
+last_modified: "2026-02-11"
+
+# This workflow replaces: quick_fix, small_feature, feature_full_lifecycle
+# It adapts based on the explore phase output
+
+applies_to:
+  primary_intent: "develop"
+  sub_intent: ["quick_fix", "small_feature", "medium_feature", "large_feature"]
+  complexity: ["simple", "medium", "complex"]
+  urgency: ["low", "normal", "high", "critical"]
+  multi_project: true  # Can handle cross-project work
+
+# Workflow configuration (can be overridden at approval time)
+config:
+  require_test_verification: true
+  allow_manual_testing_fallback: true
+
+# Pipeline artifact chain (hook-enforced)
+# Each phase MUST receive artifacts from ALL prior phases.
+# Pre-agent hook BLOCKS if prerequisites are missing.
+# Post-agent hook FAILS if expected outputs are missing.
+pipeline:
+  artifact_chain:
+    explore:
+      receives: []
+      produces:
+        - "artifacts/explore/assessment.yaml"
+        - "artifacts/explore/response.md"
+    plan:
+      receives:
+        - from: "explore"
+          artifacts: ["artifacts/explore/assessment.yaml"]
+      produces:
+        - "specs/{project_id}/{feature_id}/spec.md"
+        - "specs/{project_id}/{feature_id}/plan.md"
+        - "specs/{project_id}/{feature_id}/tasks.md"
+    implement:
+      receives:
+        - from: "explore"
+          artifacts: ["artifacts/explore/assessment.yaml"]
+        - from: "plan"
+          artifacts:
+            - "specs/{project_id}/{feature_id}/spec.md"
+            - "specs/{project_id}/{feature_id}/plan.md"
+            - "specs/{project_id}/{feature_id}/tasks.md"
+      produces:
+        - "artifacts/implement/detailed_report.md"
+        - "artifacts/implement/test-evidence.md"
+        - "artifacts/implement/changes.yaml"
+
+execution:
+  agents: ["ark-guru", "ark-project-manager", "ark-developer"]
+
+  phases:
+    # ═══════════════════════════════════════════════════════════════════
+    # PHASE 1: EXPLORE (Always runs, determines workflow shape)
+    # Hook enforcement: Post-agent FAILS if assessment.yaml missing (HG-PIPE-GURU-01)
+    # ═══════════════════════════════════════════════════════════════════
+    - id: "explore"
+      name: "Explore & Assess Complexity"
+      agent: "ark-guru"
+      depends_on: null
+      approval_required: false  # Auto-proceed after explore
+
+      actions:
+        - "Search prior sessions for related work (MANDATORY)"
+        - "Read relevant codebase files to understand context"
+        - "Verify stated scope by checking ≥3 related files"
+        - "Challenge assumptions about scope and complexity"
+        - "Identify affected components, files, dependencies"
+        - "Assess scope: number of files, complexity of changes"
+        - "Determine if existing tests cover the change area"
+        - "Check if infrastructure setup is needed for testing"
+        - "Output complexity recommendation with rationale"
+        - "Write assessment.yaml with full schema (HOOK ENFORCED)"
+
+      # Artifacts received from prior phases
+      artifacts_in: []  # First phase - no inputs
+
+      # ark-guru MUST output this artifact (post-agent hook enforced)
+      outputs:
+        - path: "artifacts/explore/assessment.yaml"
+          required: true
+          hook_enforced: "HG-PIPE-GURU-01"
+          schema: |
+            complexity: "quick_fix" | "small_feature" | "medium_feature" | "large_feature"
+            confidence: 0.0-1.0
+            rationale: "<why this complexity level>"
+
+            input_critical_analysis:
+              scope_verified: true | false
+              files_checked: [<list>]
+              assumptions_challenged: [<list>]
+
+            prior_work:
+              sessions_found: <number>
+              relevant_sessions: [<list>]
+
+            affected_scope:
+              files_estimated: <number>
+              files_identified: [<list with paths, change_type, reason>]
+              components: [<list>]
+              cross_project: true | false
+
+            codebase_analysis:
+              key_functions: [<list with name, file, relevance>]
+              test_coverage:
+                existing_tests: [<test file paths>]
+                coverage_adequate: true | false
+
+            testing_recommendation:
+              strategy: "existing_tests" | "unit_tests" | "integration_tests" | "infra_setup" | "manual"
+              existing_tests_sufficient: true | false
+              infra_required: true | false
+              infra_complexity: "none" | "light" | "heavy"
+              suggested_approach: "<description>"
+
+            decisions_made:
+              - question: "<what was ambiguous>"
+                chosen: "<what was decided>"
+                rationale: "<why>"
+
+            planning_needed:
+              requires_spec: true | false
+              requires_architecture_decisions: true | false
+
+            risks:
+              - "<potential issue 1>"
+              - "<potential issue 2>"
+
+        - path: "artifacts/explore/response.md"
+          required: false
+
+      checkpoint:
+        path: "artifacts/explore/assessment.yaml"
+        required_for_next_phase: true
+      timeout_seconds: 600
+
+    # ═══════════════════════════════════════════════════════════════════
+    # PHASE 2: PLAN (Conditional - skipped for quick_fix)
+    # Hook enforcement:
+    #   Pre-agent BLOCKS if assessment.yaml missing
+    # ═══════════════════════════════════════════════════════════════════
+    - id: "plan"
+      name: "Create Implementation Plan"
+      agent: "ark-project-manager"
+      depends_on: "explore"
+
+      # Condition: Skip if complexity is quick_fix
+      condition:
+        check: "artifacts/explore/assessment.yaml"
+        skip_if:
+          - "complexity == 'quick_fix'"
+          - "planning_needed.requires_spec == false"
+        skip_reason: "Quick fix - direct implementation"
+
+      approval_required: true
+      approval_message: "Planning complete. Review spec and proceed to implementation?"
+
+      actions:
+        - "Read explore assessment (artifacts_in) and verify ≥2 claims"
+        - "Cross-check complexity assessment independently"
+        - "For small_feature: Create lightweight plan inline"
+        - "For medium/large: Use pm-spec, pm-plan, pm-tasks skills"
+        - "Define success criteria and acceptance tests"
+        - "Identify test strategy based on explore recommendation"
+
+      # Artifacts received from prior phases (MANDATORY)
+      artifacts_in:
+        - path: "artifacts/explore/assessment.yaml"
+          from_step: "explore"
+          description: "Guru exploration findings — complexity, affected files, risks"
+
+      outputs:
+        - path: "specs/{feature-id}/spec.md"
+          condition: "complexity in ['medium_feature', 'large_feature']"
+        - path: "specs/{feature-id}/plan.md"
+          condition: "complexity in ['medium_feature', 'large_feature']"
+        - path: "specs/{feature-id}/tasks.md"
+          condition: "complexity in ['medium_feature', 'large_feature']"
+        - path: "artifacts/plan/implementation_plan.yaml"
+          schema: |
+            approach: "<summary>"
+            input_verification:
+              assessment_read: true
+              files_verified: <count>
+              complexity_agreement: true | false
+            tasks:
+              - id: "T1"
+                description: "<task>"
+                files: [<affected files>]
+            test_strategy:
+              type: "<from explore recommendation>"
+              commands: [<test commands>]
+              manual_steps: [<if manual testing>]
+            success_criteria:
+              - "<criterion 1>"
+              - "<criterion 2>"
+
+      checkpoint:
+        path: "artifacts/plan/implementation_plan.yaml"
+        required_for_next_phase: true
+      timeout_seconds: 900
+
+    # ═══════════════════════════════════════════════════════════════════
+    # PHASE 3: IMPLEMENT + TEST (Single phase — ark-developer owns both)
+    # The developer implements code AND runs tests in the same session.
+    # This avoids context loss from splitting into separate invocations.
+    # Hook enforcement:
+    #   Pre-agent BLOCKS if assessment.yaml missing
+    #   Pre-agent BLOCKS if specs/ empty when planning was needed
+    # ═══════════════════════════════════════════════════════════════════
+    - id: "implement"
+      name: "Implement & Test Changes"
+      agent: "ark-developer"
+      depends_on: "plan"  # Or "explore" if plan was skipped
+
+      approval_required: true
+      approval_message: "Ready to implement. Proceed?"
+
+      actions:
+        # Implementation
+        - "Read ALL artifacts_in (assessment + spec + plan + tasks)"
+        - "Verify ≥3 guru claims by reading referenced code"
+        - "Verify ≥2 PM tasks are implementable"
+        - "Document discrepancies in detailed_report.md"
+        - "Create feature branch: feat/<area>-<slug> or fix/<area>-<slug>"
+        - "Implement code changes following plan"
+        - "Commit with conventional commit message"
+        # Testing (same session — do NOT defer to a separate phase)
+        - "Write unit tests for new/changed code"
+        - "Run unit tests (make test / go test)"
+        - "Run integration tests if test_strategy requires (make integrationtest)"
+        - "For infra_setup: Start required services, then test"
+        - "Fix any test failures before finishing"
+        - "Write test-evidence.md with all commands, raw output, and key log lines"
+        - "Output implementation report with test results"
+
+      # Full artifact chain from ALL prior phases (MANDATORY)
+      artifacts_in:
+        - path: "artifacts/explore/assessment.yaml"
+          from_step: "explore"
+          description: "Guru exploration findings — complexity, affected files, risks, test strategy"
+        - path: "specs/{feature-id}/spec.md"
+          from_step: "plan"
+          description: "Feature specification with user stories and requirements"
+        - path: "specs/{feature-id}/plan.md"
+          from_step: "plan"
+          description: "Implementation plan with architecture decisions"
+        - path: "specs/{feature-id}/tasks.md"
+          from_step: "plan"
+          description: "Dependency-ordered task breakdown"
+
+      outputs:
+        - path: "artifacts/implement/detailed_report.md"
+          required: true
+        - path: "artifacts/implement/test-evidence.md"
+          required: true
+          description: "Test commands, raw output, key log lines, and reproduction steps"
+        - path: "artifacts/implement/changes.yaml"
+          required: true
+          schema: |
+            branch: "<branch name>"
+            input_verification:
+              guru_claims_verified: <count>
+              pm_tasks_verified: <count>
+              discrepancies: [<list>]
+            commits:
+              - sha: "<commit sha>"
+                message: "<message>"
+            files_changed:
+              - path: "<file>"
+                change_type: "added" | "modified" | "deleted"
+                lines_added: <n>
+                lines_removed: <n>
+            tests_written:
+              - path: "<test file>"
+                test_names: [<test names>]
+            tests_run:
+              strategy_used: "<strategy type>"
+              commands_executed:
+                - command: "<cmd>"
+                  exit_code: <n>
+              tests_passed: <n>
+              tests_failed: <n>
+              manual_test_passed: true | false
+              integration_test_written: true | false
+              integration_test_name: "<test name>"
+              status: "passed" | "failed" | "manual_pending"
+
+      checkpoint:
+        path: "artifacts/implement/changes.yaml"
+        required_for_next_phase: true
+      timeout_seconds: 2400  # 40min — covers implement + test
+      auto_retry: true
+      max_retries: 3
+
+    # ═══════════════════════════════════════════════════════════════════
+    # NOTE: COMPLETION HANDLED BY ORCHESTRATOR
+    # ═══════════════════════════════════════════════════════════════════
+    # After "implement" phase completes:
+    # - The post-agent-validator hook validates artifacts
+    # - Orchestrator presents results to user
+    # - User decides next steps (create PR, manual fixes, etc.)
+
+# Success criteria for the entire workflow
+success_criteria:
+  - "Explore phase completed with assessment.yaml (hook enforced)"
+  - "Implementation verified ≥3 guru claims and ≥2 PM tasks"
+  - "All automated tests pass OR manual verification complete"
+  - "No regressions in existing tests"
+  - "PR created (if not quick_fix)"
+
+# Workflow phase transitions
+loop_control:
+  entry_point: "explore"
+  terminal_phase: "implement"  # Last agent phase
+
+  # Phase transitions (normal flow)
+  transitions:
+    explore: "plan"
+    plan: "implement"
+
+# Performance estimates (vary by complexity)
+performance:
+  quick_fix:
+    estimated_seconds: 600
+    max_seconds: 1200
+  small_feature:
+    estimated_seconds: 1800
+    max_seconds: 3600
+  medium_feature:
+    estimated_seconds: 3600
+    max_seconds: 7200
+  large_feature:
+    estimated_seconds: 7200
+    max_seconds: 14400

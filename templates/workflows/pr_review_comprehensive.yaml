@@ -28,6 +28,8 @@ execution:
         - "Check for breaking changes"
         - "Identify security concerns"
         - "Highlight potential risks"
+        - "Rank findings by reviewer attention needed"
+        - "Prepare draft inline review comments"
       checkpoint:
         path: "pr-review-report.md"
         required_for_next_phase: true
@@ -58,8 +60,8 @@ execution:
       actions:
         - "Combine review and test results"
         - "Summarize findings"
-        - "Categorize issues by severity"
-        - "Generate final report"
+        - "Prioritize attention areas for the reviewer"
+        - "Generate reviewer briefing report"
       checkpoint:
         path: "pr-analysis-final.md"
         required_for_next_phase: true
@@ -69,9 +71,9 @@ execution:
       name: "Remediate Issues"
       agent: "developer"
       depends_on: "aggregate"
-      condition: "if critical or high severity issues found"
+      condition: "if reviewer requests fixes after reviewing the briefing"
       approval_required: true
-      approval_message: "Issues found. Proceed with remediation?"
+      approval_message: "Review briefing complete. Reviewer may request remediation. Proceed?"
       actions:
         - "Address critical and high severity issues"
         - "Apply fixes to PR branch"
@@ -86,8 +88,8 @@ execution:
 success_criteria:
   - "PR changes reviewed"
   - "Tests executed successfully"
-  - "Findings aggregated and categorized"
-  - "Critical issues remediated (if any)"
+  - "Reviewer briefing prepared with attention map and draft comments"
+  - "Critical issues flagged for reviewer attention"
 
 # Performance
 performance:
