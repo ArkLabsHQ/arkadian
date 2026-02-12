@@ -30,6 +30,7 @@ export ARKADIAN_ORCHESTRATOR_MODE=1
 
 DETACHED=false
 RESUME_SESSION=""
+ARKADIAN_RESUME_WORKFLOW_ID=""
 
 # Show help
 show_help() {
@@ -447,7 +448,7 @@ if [ -n "$RESUME_SESSION" ]; then
     if [ -z "$SESSION_DIR" ]; then
         echo "Searching for session by UUID in workflow files..."
         for workflow in $(find "$SESSIONS_DIR" -maxdepth 3 -name "workflow.yaml" 2>/dev/null); do
-            WORKFLOW_ID=$(grep -m1 "^workflow_id:" "$workflow" 2>/dev/null | awk '{print $2}')
+            WORKFLOW_ID=$(grep -m1 "^workflow_id:" "$workflow" 2>/dev/null | awk '{print $2}' | tr -d '"')
             if [ -n "$WORKFLOW_ID" ] && [[ "$WORKFLOW_ID" == "$RESUME_SESSION"* ]]; then
                 SESSION_DIR=$(dirname "$workflow")
                 echo "Found session by UUID: $(basename "$SESSION_DIR")"
@@ -482,9 +483,42 @@ if [ -n "$RESUME_SESSION" ]; then
         exit 1
     fi
 
+    # Extract original workflow_id (session UUID) from workflow.yaml
+    WORKFLOW_ID=$(grep -m1 "^workflow_id:" "${SESSION_DIR}/workflow.yaml" | awk '{print $2}' | tr -d '"')
+    if [ -z "$WORKFLOW_ID" ]; then
+        echo "Error: Could not extract workflow_id from workflow.yaml"
+        exit 1
+    fi
+
+    echo "Original session UUID: $WORKFLOW_ID"
+
+    # If session folder is not named by UUID, move it back to UUID location
+    # This ensures hooks can find it at sessions/{uuid}/workflow.yaml
+    UUID_SESSION_DIR="${SESSIONS_DIR}/${WORKFLOW_ID}"
+    if [ "$SESSION_DIR" != "$UUID_SESSION_DIR" ]; then
+        echo "  Renaming session folder to UUID..."
+        echo "  From: $SESSION_DIR"
+        echo "  To:   $UUID_SESSION_DIR"
+
+        # If UUID directory already exists (shouldn't happen, but be safe)
+        if [ -d "$UUID_SESSION_DIR" ]; then
+            echo "⚠️  Warning: UUID session directory already exists, removing it"
+            rm -rf "$UUID_SESSION_DIR"
+        fi
+
+        # Move the session folder to UUID location
+        mv "$SESSION_DIR" "$UUID_SESSION_DIR"
+        SESSION_DIR="$UUID_SESSION_DIR"
+        echo "  ✓ Renamed"
+    else
+        echo "  Session folder already at UUID location"
+    fi
+    echo ""
+
     # Export session info for orchestrator
-    export ARKADIAN_RESUME_SESSION="$RESUME_SESSION"
+    export ARKADIAN_RESUME_SESSION="$WORKFLOW_ID"
     export ARKADIAN_RESUME_SESSION_DIR="$SESSION_DIR"
+    export ARKADIAN_RESUME_WORKFLOW_ID="$WORKFLOW_ID"
 
     # Build resume prompt
     RESUME_PROMPT="## Resume Mode
@@ -534,7 +568,11 @@ then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
     echo "Session state analysis:"
     echo ""
 
-    # Show phase status
+    # Show phase status - check both artifacts/ and specs/
+    # Execution phases (explore, implement) → artifacts/{phase}/
+    # Planning phase → specs/{project}/{feature-id}/
+
+    # Check execution phases in artifacts/
     for phase_dir in "${SESSION_DIR}/artifacts"/*; do
         if [ -d "$phase_dir" ]; then
             phase_name=$(basename "$phase_dir")
@@ -549,6 +587,16 @@ then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
             fi
         fi
     done
+
+    # Check planning phase in specs/
+    if [ -d "${SESSION_DIR}/specs" ]; then
+        plan_result=$(find "${SESSION_DIR}/specs" -name "_result.json" -type f 2>/dev/null | head -1)
+        if [ -n "$plan_result" ]; then
+            agent=$(jq -r '.agent // "unknown"' "$plan_result" 2>/dev/null)
+            project=$(dirname "$plan_result" | xargs basename)
+            echo "  ✅ plan: COMPLETE (${agent} - ${project})"
+        fi
+    fi
 
     # Find next spec to execute
     NEXT_SPEC=""
@@ -580,7 +628,16 @@ then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
 fi
 
 # Build claude command args
-CLAUDE_ARGS=(--append-system-prompt "$ORCHESTRATOR_CONTENT")
+ARKADIAN_SETTINGS="$HOME/.claude/settings-arkadian.json"
+CLAUDE_ARGS=(
+  --settings "$ARKADIAN_SETTINGS"
+  --append-system-prompt "$ORCHESTRATOR_CONTENT"
+)
+
+# If resuming, add --session-id to reuse the original session UUID
+if [ -n "$ARKADIAN_RESUME_WORKFLOW_ID" ]; then
+    CLAUDE_ARGS+=(--session-id "$ARKADIAN_RESUME_WORKFLOW_ID")
+fi
 
 # Resume mode setup
 RESUME_INITIAL_MESSAGE=""
