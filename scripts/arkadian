@@ -599,12 +599,22 @@ then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
     fi
 
     # Find next spec to execute
+    # Extract artifact directory from spec's expected_outputs, not from step_id
     NEXT_SPEC=""
     for spec_file in "${SESSION_DIR}/specs"/S*.yaml; do
         if [ -f "$spec_file" ]; then
-            spec_name=$(basename "$spec_file" .yaml)
-            phase_name=$(echo "$spec_name" | tr '[:upper:]' '[:lower:]')
-            result_file="${SESSION_DIR}/artifacts/${phase_name}/_result.json"
+            # Extract first expected_outputs path to determine artifact folder
+            # Example: "artifacts/explore/assessment.yaml" → "explore"
+            artifact_folder=$(grep -A1 "^expected_outputs:" "$spec_file" | grep "path:" | head -1 | sed 's/.*"artifacts\/\([^/]*\).*/\1/')
+
+            if [ -n "$artifact_folder" ]; then
+                result_file="${SESSION_DIR}/artifacts/${artifact_folder}/_result.json"
+            else
+                # Fallback to lowercase step_id if expected_outputs not found
+                spec_name=$(basename "$spec_file" .yaml)
+                phase_name=$(echo "$spec_name" | tr '[:upper:]' '[:lower:]')
+                result_file="${SESSION_DIR}/artifacts/${phase_name}/_result.json"
+            fi
 
             if [ ! -f "$result_file" ]; then
                 NEXT_SPEC="$spec_file"
