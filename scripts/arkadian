@@ -628,8 +628,15 @@ then S3 (implement) is next. Read specs/S3.yaml and invoke ark-developer.
         echo "Next phase to execute: $(basename "$NEXT_SPEC")"
         echo "  Spec: $NEXT_SPEC"
     else
-        echo "⚠️  All phases appear complete or no specs found"
-        echo "  Review session manually to determine state"
+        echo "✅ All phases complete - workflow finished"
+        echo ""
+        echo "Session: $RESUME_SESSION"
+        echo "Location: $SESSION_DIR"
+        echo ""
+        echo "To review results:"
+        echo "  ls -la \"$SESSION_DIR/artifacts\""
+        echo ""
+        exit 0
     fi
 
     echo ""
