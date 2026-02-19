@@ -19,12 +19,21 @@ The SDK enables developers to:
 - **File store**: Production-ready directory-based persistence
 - **SQL store**: Database-backed storage using SQLite
 
-### Dual Transport Clients
-- **gRPC client**: High-performance binary protocol (recommended)
-- **REST client**: HTTP-based API for broader compatibility
+### Transport Client
+- **gRPC client**: High-performance binary protocol (the only supported transport)
+- **REST client**: **[DEPRECATED]** Removed in v0.9+ (#92) - use gRPC instead
 
 ### Transaction Feed
-Real-time notifications for received/spent funds, VTXO state changes, and UTXO events.
+Real-time notifications for received/spent funds, VTXO state changes, and UTXO events. Supports heartbeat handling and automatic WebSocket reconnection.
+
+### Intent Fee Estimation
+Client-side fee estimation via `EstimateIntentFee` API, with automatic fee handling in coin selection.
+
+### Auto-Finalization
+Automatic finalization of pending transactions via `FinalizePendingTxs` and auto-finalization support.
+
+### Expiry Threshold
+Configurable expiry threshold for `Settle` and `CollaborativeExit` operations to control VTXO selection timing.
 
 ### Wallet Types
 - **Single-key wallet**: Currently supported, uses one key for all transactions

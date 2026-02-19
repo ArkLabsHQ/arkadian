@@ -34,19 +34,21 @@ The client manages state transitions between locked/unlocked states and coordina
 
 ### Client Service (TransportClient)
 
-The transport layer handles all communication with the arkd server. Two implementations are available:
+The transport layer handles all communication with the arkd server via gRPC:
 
-- **gRPC Client** (`client/grpc`): Binary protocol using Protocol Buffers
-- **REST Client** (`client/rest`): HTTP/JSON API generated from OpenAPI spec
+- **gRPC Client** (`client/grpc`): Binary protocol using Protocol Buffers (the only supported transport)
+- **REST Client**: **[REMOVED]** as of v0.9+ - the REST implementation has been deleted
 
-Both implement the same `TransportClient` interface, enabling runtime selection:
+The `TransportClient` interface defines server communication:
 
 ```go
 type TransportClient interface {
     GetInfo(ctx) (*Info, error)
     RegisterIntent(ctx, proof, message string) (string, error)
+    EstimateIntentFee(ctx, intent) (int64, error)
     SubmitTx(ctx, signedTx string, checkpoints []string) (...)
     GetEventStream(ctx, topics []string) (<-chan BatchEventChannel, ...)
+    UpdateStreamTopics(ctx, streamID string, ...) (...)
     // ... more methods
 }
 ```
@@ -116,28 +118,23 @@ store.Config{
 
 ## Communication Patterns
 
-### gRPC vs REST
+### gRPC Transport
 
-**gRPC Client (Recommended)**
+The SDK exclusively uses gRPC for server communication:
 - Binary Protocol Buffers encoding
-- Bi-directional streaming for events
+- Bi-directional streaming for events (with heartbeat handling)
 - Lower latency and bandwidth
 - Type-safe code generation
-
-**REST Client**
-- Standard HTTP/JSON
-- Easier debugging and inspection
-- Better firewall/proxy compatibility
-- Server-sent events for streaming
-
-Both clients share the same interface, making transport selection a configuration choice:
+- Automatic WebSocket reconnection for event streams
 
 ```go
 InitArgs{
-    ClientType: arksdk.GrpcClient,  // or arksdk.RestClient
+    ClientType: arksdk.GrpcClient,
     ServerUrl:  "localhost:7070",
 }
 ```
+
+**Note:** The REST client was removed in v0.9+. All clients must use gRPC.
 
 ## Event System
 

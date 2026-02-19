@@ -18,7 +18,7 @@ func (client ArkClient) Init(ctx context.Context, args InitArgs) error
 
 ```go
 type InitArgs struct {
-    ClientType           string        // "grpc" or "rest"
+    ClientType           string        // "grpc" (REST removed in v0.9+)
     WalletType           string        // "singlekey" (HD wallet coming soon)
     ServerUrl            string        // arkd server address (e.g., "localhost:7070")
     Seed                 string        // (optional) hex-encoded private key for restore
@@ -285,6 +285,29 @@ for i, cp := range serverCheckpoints {
 transportClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
 ```
 
+### EstimateIntentFee
+
+Estimate the fees for a given intent before submitting.
+
+```go
+func (client ArkClient) EstimateIntentFee(
+    ctx context.Context,
+    intent Intent,
+) (int64, error)
+```
+
+Returns the estimated fee in satoshis. Fees are automatically handled during coin selection in `SendOffChain` and `CollaborativeExit`.
+
+### FinalizePendingTxs
+
+Finalize all pending transactions that haven't been counter-signed yet.
+
+```go
+func (client ArkClient) FinalizePendingTxs(ctx context.Context) error
+```
+
+Also available with auto-finalization support — pending transactions are automatically finalized when detected.
+
 ## Exit Operations
 
 ### CollaborativeExit
@@ -305,6 +328,7 @@ func (client ArkClient) CollaborativeExit(
 - `addr`: Bitcoin address to receive funds
 - `amount`: Satoshis to redeem
 - `withExpiryCoinselect`: Prioritize expiring VTXOs
+- `opts`: Optional parameters including `WithExpiryThreshold(duration)` to set minimum VTXO expiry
 
 **Example:**
 
@@ -314,6 +338,7 @@ txid, err := client.CollaborativeExit(
     "bc1q...",  // onchain address
     50000,      // 50,000 sats
     false,
+    arksdk.WithExpiryThreshold(24 * time.Hour), // only use VTXOs expiring after 24h
 )
 if err != nil {
     log.Fatal(err)
@@ -481,3 +506,28 @@ receivers := []types.Receiver{
     arksdk.NewBitcoinReceiver(addr2, 2000),
 }
 ```
+
+## Options
+
+### WithExpiryThreshold
+
+Set minimum expiry threshold for VTXO selection in `Settle` and `CollaborativeExit`.
+
+```go
+func WithExpiryThreshold(threshold time.Duration) Option
+```
+
+VTXOs expiring before the threshold will not be selected for coin selection.
+
+### OptOutExpirySorting
+
+Opt out of automatic expiry-based VTXO sorting in coin selection.
+
+```go
+func OptOutExpirySorting() Option
+```
+
+## Deprecations
+
+### tx.Settled **[DEPRECATED]**
+The `Settled` field on transaction types is deprecated. Use transaction status fields instead.

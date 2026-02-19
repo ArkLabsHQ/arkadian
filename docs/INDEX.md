@@ -66,10 +66,14 @@ Go client library for building Ark wallets and applications. Provides high-level
 - Ark address generation (Taproot-based)
 - Round participation and settlement handling
 - Boarding (onchain to offchain) and redemption (offchain to onchain)
+- Intent fee estimation and automatic fee handling in coin selection
+- Auto-finalization of pending transactions
+- Expiry threshold configuration for Settle and CollaborativeExit
+- Event stream topic management (UpdateStreamTopics)
 - Multiple storage backends with unified interface
-- gRPC client for arkd communication
+- gRPC-only client for arkd communication (REST removed)
 
-**Tags**: `sdk`, `wallet`, `client`, `library`, `vtxo`, `ark`, `go`, `grpc-client`, `bip39`, `taproot`
+**Tags**: `sdk`, `wallet`, `client`, `library`, `vtxo`, `ark`, `go`, `grpc-client`, `bip39`, `taproot`, `fees`, `auto-finalize`
 
 **Synonyms**: `ark-sdk`, `go-client`, `wallet-sdk`
 
