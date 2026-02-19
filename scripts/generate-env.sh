@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate .env file from user input
-# Prompts for paths to all 14 Ark repositories
+# Prompts for paths to all 20 Ark repositories
 
 set -e
 
@@ -75,29 +75,71 @@ prompt_path() {
   done
 }
 
-echo "# Project repositories (14 total)" >> "$ENV_FILE"
+echo "# Project repositories (20 total)" >> "$ENV_FILE"
 
 # Core repositories (required)
-echo "Core Repositories:"
-echo "-----------------"
-prompt_path "ARKD_REPO" "arkd (Core daemon)" true
+echo "Core Repositories (required):"
+echo "-----------------------------"
+prompt_path "ARKD_REPO" "arkd (Core protocol server)" true
 prompt_path "GO_SDK_REPO" "go-sdk (Go client SDK)" true
-prompt_path "WALLET_REPO" "wallet (Reference wallet)" true
+prompt_path "WALLET_REPO" "wallet (PWA wallet)" true
 
-# Optional repositories
-echo "Optional Repositories:"
+# SDK repositories
+echo ""
+echo "SDK Repositories:"
+echo "-----------------"
+prompt_path "TS_SDK_REPO" "ts-sdk (TypeScript SDK - @arkade-os/sdk)" false
+prompt_path "RUST_SDK_REPO" "rust-sdk (Rust SDK - ark-rs)" false
+prompt_path "DOTNET_SDK_REPO" "dotnet-sdk (.NET SDK - NArk)" false
+
+# Service repositories
+echo ""
+echo "Service Repositories:"
 echo "---------------------"
+prompt_path "FULMINE_REPO" "fulmine (Lightning wallet + swaps)" false
 prompt_path "ARK_FAUCET_REPO" "ark-faucet (Testnet faucet)" false
-prompt_path "ARK_SIMULATOR_REPO" "ark-simulator (Load simulation)" false
-prompt_path "ARK_TELEMETRY_REPO" "ark-telemetry (Monitoring)" false
-prompt_path "ARK_INFRA_REPO" "ark-infra (Infrastructure)" false
-prompt_path "KMS_UNLOCKER_REPO" "kms-unlocker (Key management)" false
-prompt_path "FULMINE_REPO" "fulmine (Lightning integration)" false
-prompt_path "FULMINE_SIMULATOR_REPO" "fulmine-simulator (Swap simulation)" false
-prompt_path "BOLTZ_BACKEND_REPO" "boltz-backend (Submarine swaps)" false
-prompt_path "ARK_DOCS_REPO" "ark-docs (Protocol documentation)" false
-prompt_path "ARKADE_ESCROW_REPO" "arkade-escrow (Escrow prototype)" false
+
+# Swap infrastructure
+echo ""
+echo "Swap Infrastructure:"
+echo "--------------------"
+prompt_path "BOLTZ_BACKEND_REPO" "boltz-backend (Atomic swaps)" false
+prompt_path "BOLTZ_SWAP_REPO" "boltz-swap (Swap client library)" false
+
+# Smart contracts
+echo ""
+echo "Smart Contract Tooling:"
+echo "-----------------------"
+prompt_path "COMPILER_REPO" "compiler (Arkade Script compiler)" false
+prompt_path "INTROSPECTOR_REPO" "introspector (Script engine + co-signer)" false
+
+# Application repositories
+echo ""
+echo "Application Repositories:"
+echo "-------------------------"
+prompt_path "ARKADE_ESCROW_REPO" "arkade-escrow (3-party escrow)" false
 prompt_path "ARKADE_EXPLORER_REPO" "arkade-explorer (Block explorer)" false
+prompt_path "ARKADE_ASSETS_REPO" "arkade-assets (Asset protocol)" false
+
+# Testing & simulation
+echo ""
+echo "Testing & Simulation:"
+echo "---------------------"
+prompt_path "ARK_SIMULATOR_REPO" "ark-simulator (Load testing)" false
+
+# Infrastructure & ops
+echo ""
+echo "Infrastructure & Ops:"
+echo "---------------------"
+prompt_path "ARK_TELEMETRY_REPO" "ark-telemetry (Monitoring stack)" false
+prompt_path "ARK_INFRA_REPO" "ark-infra (IaC - Terraform/Docker)" false
+prompt_path "KMS_UNLOCKER_REPO" "kms-unlocker (AWS KMS wallet unlock)" false
+
+# Documentation
+echo ""
+echo "Documentation:"
+echo "--------------"
+prompt_path "ARK_DOCS_REPO" "ark-docs (Protocol documentation)" false
 
 echo "" >> "$ENV_FILE"
 echo "# GitHub repository URLs (for progress tracking)" >> "$ENV_FILE"
@@ -135,17 +177,23 @@ echo ""
 prompt_github "ARKD_GITHUB" "arkd" "arkade-os/ark"
 prompt_github "GO_SDK_GITHUB" "go-sdk" "arkade-os/go-sdk"
 prompt_github "WALLET_GITHUB" "wallet" "arkade-os/wallet"
+prompt_github "TS_SDK_GITHUB" "ts-sdk" "arkade-os/ts-sdk"
+prompt_github "RUST_SDK_GITHUB" "rust-sdk" "arkade-os/rust-sdk"
+prompt_github "DOTNET_SDK_GITHUB" "dotnet-sdk" "arkade-os/dotnet-sdk"
+prompt_github "FULMINE_GITHUB" "fulmine" "ArkLabsHQ/fulmine"
 prompt_github "ARK_FAUCET_GITHUB" "ark-faucet" "ArkLabsHQ/ark-faucet"
+prompt_github "BOLTZ_BACKEND_GITHUB" "boltz-backend" "BoltzExchange/boltz-backend"
+prompt_github "BOLTZ_SWAP_GITHUB" "boltz-swap" "arkade-os/boltz-swap"
+prompt_github "COMPILER_GITHUB" "compiler" "ArkLabsHQ/compiler"
+prompt_github "INTROSPECTOR_GITHUB" "introspector" "ArkLabsHQ/introspector"
+prompt_github "ARKADE_ESCROW_GITHUB" "arkade-escrow" "ArkLabsHQ/arkade-escrow"
+prompt_github "ARKADE_EXPLORER_GITHUB" "arkade-explorer" "ArkLabsHQ/arkade-explorer"
+prompt_github "ARKADE_ASSETS_GITHUB" "arkade-assets" "ArkLabsHQ/arkade-assets"
 prompt_github "ARK_SIMULATOR_GITHUB" "ark-simulator" "ArkLabsHQ/ark-simulator"
 prompt_github "ARK_TELEMETRY_GITHUB" "ark-telemetry" "ArkLabsHQ/ark-telemetry"
 prompt_github "ARK_INFRA_GITHUB" "ark-infra" "ArkLabsHQ/ark-infra"
 prompt_github "KMS_UNLOCKER_GITHUB" "kms-unlocker" "ArkLabsHQ/kms-unlocker"
-prompt_github "FULMINE_GITHUB" "fulmine" "ArkLabsHQ/fulmine"
-prompt_github "FULMINE_SIMULATOR_GITHUB" "fulmine-simulator" "ArkLabsHQ/fulmine-simulator"
-prompt_github "BOLTZ_BACKEND_GITHUB" "boltz-backend" "BoltzExchange/boltz-backend"
 prompt_github "ARK_DOCS_GITHUB" "ark-docs" "arkade-os/docs"
-prompt_github "ARKADE_ESCROW_GITHUB" "arkade-escrow" "ArkLabsHQ/arkade-escrow"
-prompt_github "ARKADE_EXPLORER_GITHUB" "arkade-explorer" "ArkLabsHQ/arkade-explorer"
 
 echo ""
 echo "=========================================="

@@ -19,3 +19,5 @@ sessions/
 
 log/.worktrees/
 .worktrees/
+
+.DS_Store
