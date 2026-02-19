@@ -1,4 +1,4 @@
-# Arkadian  Project Index & Registry
+# Arkadian Project Index & Registry
 
 This is the **master index** for all projects in the Arkade ecosystem. It provides a machine-readable registry with project metadata, dependencies, and routing hints for AI agents.
 
@@ -39,7 +39,7 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - **monitor_or_alert**: `arkd metrics`, `round latency`, `vtxo expiry`
 
 **Dependencies**: `arkd-wallet`, `go-sdk` (protocol implementation)
-**Depended On By**: `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `arkade-escrow`, `ark-telemetry`
+**Depended On By**: `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `arkade-escrow`, `ark-telemetry`, `introspector`
 
 ---
 
@@ -296,12 +296,12 @@ Automated wallet unlock service with AWS KMS integration. Monitors arkd-wallet f
 **Repository**: `${FULMINE_REPO}`
 
 **Description**:
-Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain � Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
+Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain to Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
 
 **Key Capabilities**:
 - Bitcoin wallet operations (send, receive, balance)
-- Lightning Network submarine swaps (onchain � Lightning)
-- Reverse submarine swaps (Lightning � onchain)
+- Lightning Network submarine swaps (onchain to Lightning)
+- Reverse submarine swaps (Lightning to onchain)
 - Boltz provider integration
 - VHTLC support for Ark-Lightning bridge
 - Web interface for swap management
@@ -321,6 +321,44 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 
 **Dependencies**: `boltz` (external swap provider), Bitcoin node (btcd/bitcoind)
 **Depended On By**: `wallet` (for Lightning swap functionality), users needing Lightning liquidity
+
+---
+
+### introspector
+**ID**: `introspector`
+**Name**: Introspector
+**Type**: Service/Co-Signer
+**Language**: Go
+**Index**: `${ARKADIAN_DIR}/docs/projects/introspector/INDEX.md`
+**Repository**: `${INTROSPECTOR_REPO}`
+**GitHub**: `${INTROSPECTOR_GITHUB}`
+
+**Description**:
+Arkade Script execution and signing microservice for the Ark protocol. Receives Ark transactions (PSBTs) containing Arkade Script programs, executes them in a custom script engine extending Bitcoin Script with 50+ introspection opcodes, and signs transactions upon successful execution. Participates in the Ark round lifecycle by handling off-chain transaction signing, intent proof validation, and batch finalization.
+
+**Key Capabilities**:
+- Arkade Script engine with 50+ custom opcodes (introspection, 64-bit arithmetic, EC operations, SHA256 streaming)
+- Off-chain Ark transaction validation and Schnorr/Taproot signing
+- Intent proof validation and signing before round registration
+- Batch finalization signing (forfeits and commitment transactions)
+- Connector tree validation for forfeit transactions
+- gRPC + REST API via meshapi gateway (port 7073)
+- Go client library (`pkg/client`) for programmatic access
+- Per-script key derivation (tweaked signing keys)
+- TLS with auto-generated certificates
+
+**Tags**: `arkade-script`, `introspection`, `signing`, `co-signer`, `psbt`, `schnorr`, `taproot`, `grpc`, `opcodes`, `bitcoin-script`, `covenant`, `smart-contract`
+
+**Synonyms**: `arkade-script-engine`, `script-validator`, `co-signer`, `introspector-service`
+
+**Triggers**:
+- **ask_question**: `arkade script`, `introspection opcodes`, `script engine`, `co-signing`, `transaction introspection`, `covenant`, `OP_INSPECT`
+- **develop**: `add opcode`, `script engine`, `introspector api`, `signing logic`, `finalization`
+- **test_or_run**: `run introspector`, `integration test`, `test arkade script`, `e2e test`
+- **debug**: `script execution failed`, `signing error`, `connector not in tree`, `intent not signed`
+
+**Dependencies**: `arkd` (ark-lib packages for intent, tree, script types)
+**Depended On By**: `arkd` (uses introspector for Arkade Script validation and signing)
 
 ---
 
@@ -402,17 +440,18 @@ Generic 3-party escrow system built on Ark protocol. Provides secure escrow cont
 
 ```
 arkd (core)
-   go-sdk (client library)
-      ark-faucet (uses go-sdk)
-      ark-simulator (uses go-sdk)
-   wallet (uses @arkade-os/sdk, TypeScript equivalent)
-   arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
-   ark-faucet (uses arkd APIs)
-   kms-unlocker (unlocks arkd-wallet)
-   fulmine (independent, but can integrate)
-   ark-telemetry (monitors arkd)
-   ark-infra (deploys arkd + dependencies)
-   ark-docs (documents arkd)
+   go-sdk (client library)
+      ark-faucet (uses go-sdk)
+      ark-simulator (uses go-sdk)
+   wallet (uses @arkade-os/sdk, TypeScript equivalent)
+   arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
+   ark-faucet (uses arkd APIs)
+   kms-unlocker (unlocks arkd-wallet)
+   introspector (validates/signs Arkade Script transactions via ark-lib)
+   fulmine (independent, but can integrate)
+   ark-telemetry (monitors arkd)
+   ark-infra (deploys arkd + dependencies)
+   ark-docs (documents arkd)
 ```
 
 ### Correlation Matrix
@@ -426,6 +465,8 @@ arkd (core)
 | arkd | ark-simulator | Server-Under-Test |
 | arkd | ark-telemetry | Instrumented-Service |
 | arkd | kms-unlocker | Unlocks arkd-wallet |
+| arkd | introspector | Co-Signer (Arkade Script validation) |
+| introspector | arkd | Uses ark-lib packages |
 | go-sdk | ark-simulator | Library-Consumer |
 | go-sdk | ark-faucet | Library-Consumer |
 | wallet | fulmine | Integrates Lightning swaps |
@@ -435,7 +476,7 @@ arkd (core)
 
 ### Technology Groupings
 
-**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
+**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
 **TypeScript/JavaScript Projects**: wallet, arkade-escrow
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
@@ -447,37 +488,41 @@ arkd (core)
 ### Intent-Based Project Selection
 
 **Q&A / Conceptual Questions**:
-- Ark protocol concepts � `ark-docs`, `arkd`
-- VTXOs, rounds, settlement � `arkd`, `ark-docs`
-- Wallet usage � `wallet`, `go-sdk`, `ark-docs`
-- Lightning swaps � `wallet`, `fulmine`, `ark-docs`
-- Escrow system � `arkade-escrow`
-- Security model � `ark-docs`, `arkd`
+- Ark protocol concepts -> `ark-docs`, `arkd`
+- VTXOs, rounds, settlement -> `arkd`, `ark-docs`
+- Wallet usage -> `wallet`, `go-sdk`, `ark-docs`
+- Lightning swaps -> `wallet`, `fulmine`, `ark-docs`
+- Escrow system -> `arkade-escrow`
+- Arkade Script, covenants, introspection -> `introspector`, `ark-docs`
+- Security model -> `ark-docs`, `arkd`
 
 **Development Tasks**:
-- Add arkd feature � `arkd`
-- Build wallet � `go-sdk`, `wallet` (depending on language)
-- Escrow development � `arkade-escrow`
-- Lightning integration � `fulmine`, `wallet`
-- Infrastructure changes � `ark-infra`
+- Add arkd feature -> `arkd`
+- Build wallet -> `go-sdk`, `wallet` (depending on language)
+- Escrow development -> `arkade-escrow`
+- Lightning integration -> `fulmine`, `wallet`
+- Arkade Script / opcode development -> `introspector`
+- Infrastructure changes -> `ark-infra`
 
 **Testing & QA**:
-- Integration testing � `arkd`, `ark-simulator`
-- Load testing � `ark-simulator`
-- E2E testing � `arkd`, `go-sdk`, `arkade-escrow`
-- Local dev stack � `ark-infra`
+- Integration testing -> `arkd`, `ark-simulator`
+- Load testing -> `ark-simulator`
+- E2E testing -> `arkd`, `go-sdk`, `arkade-escrow`
+- Arkade Script testing -> `introspector`
+- Local dev stack -> `ark-infra`
 
 **Monitoring & Debugging**:
-- Metrics, dashboards � `ark-telemetry`
-- Logs, traces � `ark-telemetry`
-- Debug arkd issues � `arkd`, `ark-telemetry`
-- Production monitoring � `ark-infra`, `ark-telemetry`
+- Metrics, dashboards -> `ark-telemetry`
+- Logs, traces -> `ark-telemetry`
+- Debug arkd issues -> `arkd`, `ark-telemetry`
+- Debug script execution -> `introspector`
+- Production monitoring -> `ark-infra`, `ark-telemetry`
 
 **Operations & Deployment**:
-- Deploy to AWS � `ark-infra`
-- Local dev environment � `ark-infra`
-- Wallet unlock automation � `kms-unlocker`
-- Testnet faucet � `ark-faucet`
+- Deploy to AWS -> `ark-infra`
+- Local dev environment -> `ark-infra`
+- Wallet unlock automation -> `kms-unlocker`
+- Testnet faucet -> `ark-faucet`
 
 ---
 
@@ -496,13 +541,17 @@ When a user asks about topics spanning multiple projects, load context from all 
 **Example**: "Build an escrow application"
 - Load: `arkade-escrow` (example implementation), `arkd` (server requirements), `ark-docs` (protocol concepts)
 
+**Example**: "How do Arkade Script introspection opcodes work?"
+- Load: `introspector` (script engine), `ark-docs` (Arkade language docs)
+
 ### Dependency Loading
 
 When working on a project, consider loading dependent projects:
 
-- Working on `ark-simulator` � Also load `arkd`, `go-sdk`
-- Working on `wallet` � Also load `arkd` (for server API reference)
-- Working on `ark-infra` � Also load `arkd`, `ark-telemetry` (deployment targets)
+- Working on `ark-simulator` -> Also load `arkd`, `go-sdk`
+- Working on `wallet` -> Also load `arkd` (for server API reference)
+- Working on `ark-infra` -> Also load `arkd`, `ark-telemetry` (deployment targets)
+- Working on `introspector` -> Also load `arkd` (for ark-lib types)
 
 ### Documentation Priority
 
@@ -518,17 +567,18 @@ For conceptual questions, prioritize documentation loading order:
 
 | Project | Status | Production Ready | Notes |
 |---------|--------|------------------|-------|
-| arkd | Stable | � Alpha | Core protocol, active development |
-| go-sdk | Stable | � Alpha | Client library, API may change |
-| wallet | Active Dev | L Alpha | PWA wallet, under development |
-| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
-| ark-simulator | Stable |  | Testing tool, production-ready |
-| ark-telemetry | Stable |  | Monitoring stack, production-ready |
-| ark-infra | Active Dev | � Beta | IaC, production configurations available |
-| kms-unlocker | Stable |  | Production-ready with AWS |
-| fulmine | Active Dev | � Alpha | Lightning wallet, under development |
-| ark-docs | Active |  | Documentation site, continuously updated |
-| arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
+| arkd | Stable | Alpha | Core protocol, active development |
+| go-sdk | Stable | Alpha | Client library, API may change |
+| wallet | Active Dev | Alpha | PWA wallet, under development |
+| ark-faucet | Stable | Testnet | Production-ready for testnet |
+| ark-simulator | Stable | Yes | Testing tool, production-ready |
+| ark-telemetry | Stable | Yes | Monitoring stack, production-ready |
+| ark-infra | Active Dev | Beta | IaC, production configurations available |
+| kms-unlocker | Stable | Yes | Production-ready with AWS |
+| fulmine | Active Dev | Alpha | Lightning wallet, under development |
+| introspector | Active Dev | Alpha | Arkade Script co-signer, under development |
+| ark-docs | Active | Yes | Documentation site, continuously updated |
+| arkade-escrow | POC | Alpha | Proof-of-concept, known issues |
 
 ---
 
@@ -539,8 +589,8 @@ This index should be updated when:
 - Project relationships change
 - Major architectural changes occur
 - New capabilities are added to existing projects
-- Project status changes (alpha � beta � stable)
+- Project status changes (alpha -> beta -> stable)
 
-**Last Updated**: 2025-10-16
-**Version**: 1.0.0
+**Last Updated**: 2026-02-19
+**Version**: 1.1.0
 **Maintained By**: Arkadian Documentation Team
