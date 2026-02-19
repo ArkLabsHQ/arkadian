@@ -779,8 +779,9 @@ function validatePipelinePrerequisites(
     const intent = spec.context_intent;
 
     // In RESUME MODE, check artifacts in the original session directory
+    // But if the session-start hook already moved/deleted it, fall back to current session
     const resumeSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
-    const sessionDir = resumeSessionDir || join(SESSIONS_DIR, sessionId);
+    const sessionDir = (resumeSessionDir && existsSync(resumeSessionDir)) ? resumeSessionDir : join(SESSIONS_DIR, sessionId);
     const artifactsDir = join(sessionDir, 'artifacts');
 
     // ═══════════════════════════════════════════
