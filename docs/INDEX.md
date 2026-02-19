@@ -355,24 +355,28 @@ Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provide
 
 **Key Capabilities**:
 - Bitcoin wallet operations (send, receive, balance)
-- Lightning Network submarine swaps (onchain � Lightning)
-- Reverse submarine swaps (Lightning � onchain)
-- Boltz provider integration
-- VHTLC support for Ark-Lightning bridge
-- Web interface for swap management
+- Lightning Network submarine swaps (onchain → Lightning)
+- Reverse submarine swaps (Lightning → onchain)
+- Chain swaps (Ark ↔ Bitcoin on-chain, no Lightning required)
+- Boltz provider integration with swap restoration on restart
+- VHTLC support for Ark-Lightning bridge (with renewal and settle APIs)
+- Delegator service for VTXO refresh delegation (separate gRPC/REST on port 7002)
+- OpenTelemetry observability (traces, metrics, logs) and Pyroscope profiling
+- GetVtxos and NextSettlement query APIs
+- Web interface for swap management and delegation
 - CLI for wallet operations
-- PostgreSQL storage for swap state
+- SQLite/Badger storage for wallet and swap state
 - Docker deployment ready
 
-**Tags**: `wallet`, `lightning`, `swap`, `submarine-swap`, `boltz`, `bitcoin`, `vhtlc`, `cli`, `web-interface`, `postgres`
+**Tags**: `wallet`, `lightning`, `swap`, `submarine-swap`, `chain-swap`, `boltz`, `bitcoin`, `vhtlc`, `delegator`, `opentelemetry`, `cli`, `web-interface`, `sqlite`
 
 **Synonyms**: `lightning-wallet`, `swap-service`, `fulmine-wallet`
 
 **Triggers**:
-- **ask_question**: `lightning swap`, `submarine swap`, `how to swap`, `vhtlc`
-- **develop**: `add swap feature`, `improve swap logic`, `web ui`
-- **test_or_run**: `start fulmine`, `test swap`, `run web interface`
-- **debug**: `swap failed`, `htlc issues`, `boltz errors`
+- **ask_question**: `lightning swap`, `submarine swap`, `chain swap`, `how to swap`, `vhtlc`, `delegator`, `delegation`
+- **develop**: `add swap feature`, `improve swap logic`, `web ui`, `chain swap`, `delegator`
+- **test_or_run**: `start fulmine`, `test swap`, `run web interface`, `e2e test`
+- **debug**: `swap failed`, `htlc issues`, `boltz errors`, `chain swap stuck`, `delegation failed`
 
 **Dependencies**: `boltz-backend` (external swap provider), Bitcoin node (btcd/bitcoind)
 **Depended On By**: `wallet` (for Lightning swap functionality), users needing Lightning liquidity, `fulmine-simulator` (testing tool)

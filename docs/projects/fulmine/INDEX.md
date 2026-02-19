@@ -1,8 +1,8 @@
 ---
 project_id: fulmine
-version: 1.0.0
-last_sync_commit: 98632b683bf82fa8d7dd9c63c5f668726e7134fb
-last_sync_date: 2025-12-02T12:00:00Z
+version: 1.1.0
+last_sync_commit: 193e61784688f9c5615358e3894d64b357c57deb
+last_sync_date: 2026-02-19T12:00:00Z
 repository_path: ${FULMINE_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/fulmine
 commits_behind_upstream: 0
@@ -84,7 +84,9 @@ Analysis and summaries of pull requests.
 - **Boltz Integration**: Trustless submarine swaps via Boltz backend
 - **On-chain → Lightning**: Convert Bitcoin to Lightning capacity
 - **Lightning → On-chain**: Convert Lightning to Bitcoin UTXOs
+- **Chain Swaps**: Direct Ark ↔ Bitcoin on-chain swaps (no Lightning required)
 - **Atomic Swaps**: HTLCs ensure trustless execution
+- **Swap Restoration**: Interrupted swaps resume automatically on restart
 
 ### VHTLC (Virtual HTLC)
 - **Purpose**: Enable Lightning-style HTLCs within Ark protocol
@@ -98,6 +100,19 @@ Analysis and summaries of pull requests.
 - **Balance Display**: On-chain, off-chain (Ark), and Lightning
 - **Transaction History**: View all transactions and swaps
 - **Settings**: Configure Ark server, Esplora, Boltz backend
+
+### Delegator Service
+- **Purpose**: Allows clients to delegate VTXO refresh to Fulmine
+- **Protocol**: Separate gRPC/REST service (default port 7002)
+- **Operation**: Clients submit partially-signed intents and forfeit txs
+- **Scheduling**: Delegated tasks are executed near VTXO expiration
+- **Fee Support**: Configurable delegation fee
+
+### OpenTelemetry Observability
+- **Traces**: Distributed tracing via OTLP exporter
+- **Metrics**: Go runtime metrics (CPU, GC, goroutines, heap, mutex)
+- **Logs**: Structured log export via Logrus hook
+- **Profiling**: Pyroscope continuous profiling support
 
 ### Auto-Unlock Feature
 - **File-based**: Read password from file (for services)
@@ -147,7 +162,7 @@ chmod +x fulmine
 
 ### Development
 ```bash
-# Prerequisites: Go 1.24.6+, Node.js 18.17.1+
+# Prerequisites: Go 1.25.7+, Node.js 18.17.1+
 git clone https://github.com/ArkLabsHQ/fulmine.git
 cd fulmine
 go mod download
@@ -174,6 +189,11 @@ make run
 | `FULMINE_UNLOCKER_TYPE` | Auto-unlock type (`file` or `env`) | Not set (manual unlock) |
 | `FULMINE_UNLOCKER_FILE_PATH` | Password file path | Not set |
 | `FULMINE_UNLOCKER_PASSWORD` | Password string | Not set |
+| `FULMINE_DELEGATOR_ENABLED` | Enable delegator service | `false` |
+| `FULMINE_DELEGATOR_PORT` | Delegator service port | `7002` |
+| `FULMINE_DELEGATOR_FEE` | Delegation fee (sats) | `0` |
+| `FULMINE_OTEL_COLLECTOR_URL` | OpenTelemetry collector URL | Not set |
+| `FULMINE_PYROSCOPE_URL` | Pyroscope profiling URL | Not set |
 | `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry | `false` |
 | `FULMINE_LOG_LEVEL` | Log level (0-5) | `4` (info) |
 
@@ -203,6 +223,7 @@ docker run -d \
 1. **Web UI**: http://localhost:7001 (dashboard)
 2. **REST API**: http://localhost:7001/api (JSON)
 3. **gRPC Service**: localhost:7000 (protobuf)
+4. **Delegator Service**: localhost:7002 (gRPC + REST, when enabled)
 
 ### Key REST Endpoints
 
@@ -248,9 +269,26 @@ GET /api/v1/settle
 # Get transaction history
 GET /api/v1/transactions
 
+# Settle VHTLC (claim or refund)
+POST /api/v1/vhtlc/settle
+
 # Refund VHTLC
 POST /api/v1/vhtlc/refundWithoutReceiver
 Body: {"preimage_hash": "<hex>"}
+
+# Get VTXOs (with optional filter)
+GET /api/v1/vtxos?spendable_only=true
+
+# Next settlement time
+GET /api/v1/settlement/next
+
+# Chain swaps
+POST /api/v1/chainswap
+GET /api/v1/chainswaps
+POST /api/v1/chainswap/{id}/refund
+
+# List delegates
+GET /api/v1/delegates?status=pending
 ```
 
 ---

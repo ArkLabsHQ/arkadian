@@ -41,6 +41,30 @@ RefundSubmarine(swapId string, request RefundSwapRequest) (*RefundSwapResponse, 
 
 ## Swap Types
 
+### Chain Swap: Ark ↔ Bitcoin On-Chain
+
+A chain swap moves funds directly between Ark's off-chain layer and Bitcoin on-chain without Lightning.
+
+**Directions:**
+- **Ark → BTC**: Convert Ark VTXOs to on-chain Bitcoin
+- **BTC → Ark**: Convert on-chain Bitcoin to Ark VTXOs
+
+**Use cases:**
+- Move funds between Ark and on-chain without Lightning
+- Larger amounts that exceed Lightning channel capacity
+- Users without Lightning nodes
+
+**Status lifecycle:**
+`Pending` → `UserLocked` → `ServerLocked` → `Claimed` (success)
+On failure: `Failed` / `UserLockedFailed` → `Refunded` / `RefundedUnilaterally`
+
+Chain swaps support automatic recovery on restart - interrupted swaps resume from their last known state.
+
+**API endpoints:**
+- `POST /v1/chainswap` - Create chain swap
+- `GET /v1/chainswaps` - List chain swaps
+- `POST /v1/chainswap/{id}/refund` - Refund chain swap
+
 ### Submarine Swap: Ark/On-Chain → Lightning
 
 A submarine swap moves funds from Ark's off-chain layer (or Bitcoin on-chain) to a Lightning Network channel.

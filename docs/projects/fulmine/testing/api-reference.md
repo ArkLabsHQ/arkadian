@@ -331,7 +331,7 @@ Returns the wallet's transaction history.
       "txid": "a1b2c3d4...",
       "amount": "100000",
       "type": "boarding",
-      "settled": true,
+      "settled_by": "round_abc123",
       "timestamp": 1234567890
     }
   ]
@@ -342,6 +342,156 @@ Returns the wallet's transaction history.
 ```bash
 curl -X GET http://localhost:7001/api/v1/transactions
 ```
+
+## VTXO Endpoints
+
+### Get VTXOs
+
+Returns VTXOs filtered by state. If no filter is provided, returns all VTXOs.
+
+**Endpoint**: `GET /v1/vtxos`
+
+**Query Parameters** (mutually exclusive):
+- `spendable_only` (bool): Filter for spendable VTXOs only
+- `spent_only` (bool): Filter for spent VTXOs only
+- `recoverable_only` (bool): Filter for recoverable VTXOs only
+
+**Example**:
+```bash
+curl -X GET "http://localhost:7001/api/v1/vtxos?spendable_only=true"
+```
+
+### Next Settlement
+
+Returns the next scheduled settlement time.
+
+**Endpoint**: `GET /v1/settlement/next`
+
+**Response**:
+```json
+{
+  "next_settlement_at": 1234567890
+}
+```
+
+**Example**:
+```bash
+curl -X GET http://localhost:7001/api/v1/settlement/next
+```
+
+## Chain Swap Endpoints
+
+### Create Chain Swap
+
+Initiates a chain swap between Ark and Bitcoin on-chain.
+
+**Endpoint**: `POST /v1/chainswap`
+
+**Request Body**:
+```json
+{
+  "direction": "SWAP_DIRECTION_ARK_TO_BTC",
+  "amount": 100000,
+  "btc_address": "bc1q..."
+}
+```
+
+**Fields**:
+- `direction` (required): `SWAP_DIRECTION_ARK_TO_BTC` or `SWAP_DIRECTION_BTC_TO_ARK`
+- `amount` (required): Amount in satoshis
+- `btc_address` (optional): Bitcoin address for Ark→BTC swaps
+
+**Response**:
+```json
+{
+  "id": "swap_abc123",
+  "status": "pending",
+  "lockup_address": "bc1q...",
+  "expected_amount": 100500,
+  "timeout_block_height": 850000
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:7001/api/v1/chainswap \
+  -H "Content-Type: application/json" \
+  -d '{
+    "direction": "SWAP_DIRECTION_ARK_TO_BTC",
+    "amount": 100000,
+    "btc_address": "bc1qbitcoinaddress"
+  }'
+```
+
+### List Chain Swaps
+
+Retrieves all chain swaps.
+
+**Endpoint**: `GET /v1/chainswaps`
+
+**Example**:
+```bash
+curl -X GET http://localhost:7001/api/v1/chainswaps
+```
+
+### Refund Chain Swap
+
+Initiates a cooperative refund for a chain swap.
+
+**Endpoint**: `POST /v1/chainswap/{id}/refund`
+
+**Example**:
+```bash
+curl -X POST http://localhost:7001/api/v1/chainswap/swap_abc123/refund
+```
+
+## Delegator Service Endpoints
+
+The Delegator service runs on a separate port (default 7002) and must be enabled via `FULMINE_DELEGATOR_ENABLED=true`.
+
+### Get Delegator Info
+
+Returns info about the delegator contract including public key and fee.
+
+**Endpoint**: `GET /v1/delegator/info` (on delegator port)
+
+**Response**:
+```json
+{
+  "pubkey": "03a1b2c3...",
+  "fee": "100",
+  "delegator_address": "ark1..."
+}
+```
+
+### Delegate
+
+Submit a delegation request to refresh VTXOs.
+
+**Endpoint**: `POST /v1/delegate` (on delegator port)
+
+**Request Body**:
+```json
+{
+  "intent": {
+    "message": "{...}",
+    "proof": "base64_psbt..."
+  },
+  "forfeit_txs": ["hex_tx1", "hex_tx2"],
+  "reject_replace": false
+}
+```
+
+### List Delegates
+
+Returns delegator tasks filtered by status (on wallet service port).
+
+**Endpoint**: `GET /v1/delegates`
+
+**Query Parameters**:
+- `status` (optional): Filter by status (pending, completed, failed, cancelled)
+- `limit` (optional): Max results
+- `offset` (optional): Pagination offset
 
 ## VHTLC Endpoints
 
@@ -420,6 +570,43 @@ Claims a VHTLC by providing the preimage.
 }
 ```
 
+### Settle VHTLC
+
+Settles a VHTLC via claim (with preimage) or refund (with delegate parameters).
+
+**Endpoint**: `POST /v1/vhtlc/settle`
+
+**Request Body (Claim)**:
+```json
+{
+  "vhtlc_id": "preimage_hash",
+  "claim": {
+    "preimage": "preimage_hex"
+  }
+}
+```
+
+**Request Body (Delegate Refund)**:
+```json
+{
+  "vhtlc_id": "preimage_hash",
+  "refund": {
+    "delegate_params": {
+      "signed_intent_proof": "base64...",
+      "intent_message": "...",
+      "partial_forfeit_tx": "hex..."
+    }
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "txid": "a1b2c3d4..."
+}
+```
+
 ### List VHTLCs
 
 Lists all VHTLCs or filters by VHTLC ID.
@@ -449,10 +636,11 @@ Error response format:
 For detailed gRPC service definitions, refer to the protocol buffer files:
 
 - **Wallet Service**: `api-spec/protobuf/fulmine/v1/wallet.proto`
-- **Main Service**: `api-spec/protobuf/fulmine/v1/service.proto`
+- **Main Service**: `api-spec/protobuf/fulmine/v1/service.proto` (wallet operations, chain swaps, VTXOs, VHTLCs)
+- **Delegator Service**: `api-spec/protobuf/fulmine/v1/delegator.proto` (delegation operations, runs on port 7002)
 - **Types**: `api-spec/protobuf/fulmine/v1/types.proto`
 
-The gRPC service runs on port 7000 by default and provides the same functionality as the REST API with additional streaming capabilities.
+The main gRPC service runs on port 7000 by default. The Delegator service runs on port 7002 (configurable) when enabled.
 
 ## Configuration
 
@@ -460,6 +648,7 @@ API endpoints can be configured via environment variables:
 
 - `FULMINE_HTTP_PORT`: HTTP port for REST API and Web UI (default: 7001)
 - `FULMINE_GRPC_PORT`: gRPC port for service communication (default: 7000)
+- `FULMINE_DELEGATOR_PORT`: Delegator service port (default: 7002, requires `FULMINE_DELEGATOR_ENABLED=true`)
 
 ## Rate Limiting
 

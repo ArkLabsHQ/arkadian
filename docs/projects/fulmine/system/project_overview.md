@@ -26,17 +26,35 @@ Fulmine addresses the challenge of efficiently managing liquidity across multipl
 ### Boltz Submarine Swaps
 - **Submarine swaps**: Move funds from Ark/on-chain to Lightning Network
 - **Reverse submarine swaps**: Move funds from Lightning Network to Ark/on-chain
+- **Chain swaps**: Move funds between Ark and Bitcoin on-chain (Ark → BTC and BTC → Ark)
 - Atomic swap guarantees using HTLCs (Hash Time-Locked Contracts)
+- Swap restoration on restart for interrupted swaps
 
 ### Virtual HTLCs (VHTLC)
 - Enable Lightning-style HTLCs within the Ark protocol
 - Atomic swaps between Ark VTXOs and Lightning channels
 - Multiple refund paths for security and flexibility
+- VHTLC renewal (extend expiring VHTLCs)
+- SettleVHTLC API for claim/refund with delegate refund support
+- Recoverable VHTLC handling in claim and refund APIs
 
 ### Multi-Interface Access
 - **Web UI**: Browser-based dashboard at http://localhost:7001
 - **REST API**: JSON endpoints for programmatic access
 - **gRPC**: High-performance service interface on port 7000
+
+### Delegator Service
+- Separate gRPC/REST service for VTXO refresh delegation (port 7002)
+- Clients can delegate VTXO renewal to Fulmine by submitting partially-signed intents
+- Automatic scheduling and execution of delegated tasks near VTXO expiration
+- Fee support for delegation service
+- Batch handling for delegated transactions
+
+### OpenTelemetry Observability
+- Full OpenTelemetry SDK integration (traces, metrics, logs)
+- Go runtime metrics collection (CPU, GC, goroutines, memory, mutex)
+- Pyroscope continuous profiling (CPU, memory, goroutines, mutex)
+- Logrus hook for structured log export to OTEL collector
 
 ### Auto-Unlock for Unattended Operation
 - File-based password unlocking
@@ -103,11 +121,12 @@ See [architecture.md](./architecture.md) for detailed architecture documentation
 
 ## Technology Stack
 
-- **Language**: Go 1.24.6+
+- **Language**: Go 1.25.7+
 - **Web Templates**: Templ (type-safe Go templating)
 - **Database**: SQLite (default) or Badger
 - **Protocols**: Bitcoin, Ark, Lightning Network, Boltz
 - **APIs**: gRPC, REST, WebSocket
+- **Observability**: OpenTelemetry (traces, metrics, logs), Pyroscope (profiling)
 
 ## Security Considerations
 

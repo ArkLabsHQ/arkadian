@@ -121,7 +121,43 @@ Fulmine is configured entirely through environment variables, making it easy to 
 - **Default**: Not set
 - **Example**: `FULMINE_CLN_DATADIR=/home/user/.lightning`
 
+### Delegator Configuration
+
+#### FULMINE_DELEGATOR_ENABLED
+- **Description**: Enable the Delegator service for VTXO refresh delegation
+- **Default**: `false`
+- **Example**: `FULMINE_DELEGATOR_ENABLED=true`
+- **Note**: When enabled, must not share ports with wallet gRPC/HTTP
+
+#### FULMINE_DELEGATOR_PORT
+- **Description**: Port for the Delegator gRPC and REST service
+- **Default**: `7002`
+- **Example**: `FULMINE_DELEGATOR_PORT=8002`
+- **Note**: Must differ from `FULMINE_GRPC_PORT` and `FULMINE_HTTP_PORT`
+
+#### FULMINE_DELEGATOR_FEE
+- **Description**: Fee (in satoshis) charged by the delegator for VTXO refresh operations
+- **Default**: `0`
+- **Example**: `FULMINE_DELEGATOR_FEE=100`
+
 ### Telemetry and Monitoring
+
+#### FULMINE_OTEL_COLLECTOR_URL
+- **Description**: OpenTelemetry collector endpoint URL for traces, metrics, and logs
+- **Default**: Not set (OTEL disabled)
+- **Example**: `FULMINE_OTEL_COLLECTOR_URL=http://localhost:4318`
+- **Note**: Enables full OTEL SDK with gRPC instrumentation when set
+
+#### FULMINE_OTEL_PUSH_INTERVAL
+- **Description**: Interval in seconds for pushing OTEL metrics to the collector
+- **Default**: `10` (10 seconds)
+- **Example**: `FULMINE_OTEL_PUSH_INTERVAL=30`
+
+#### FULMINE_PYROSCOPE_URL
+- **Description**: Pyroscope server URL for continuous profiling
+- **Default**: Not set (Pyroscope disabled)
+- **Example**: `FULMINE_PYROSCOPE_URL=http://localhost:4040`
+- **Note**: Requires `FULMINE_OTEL_COLLECTOR_URL` to be set as well
 
 #### FULMINE_DISABLE_TELEMETRY
 - **Description**: Opt out of anonymous telemetry logging
@@ -356,6 +392,7 @@ Fulmine validates configuration on startup:
 
 **Port conflicts:**
 - HTTP and gRPC ports must be different
+- Delegator port (when enabled) must differ from both HTTP and gRPC ports
 - Ports must be in range 1-65535
 - Ports must not be in use by other processes
 
@@ -394,6 +431,12 @@ Fulmine validates configuration on startup:
 | FULMINE_NO_MACAROONS | `false` |
 | FULMINE_ENABLE_PPROF | `false` |
 | FULMINE_ENABLE_PERIODIC_REFRESH | `false` |
+| FULMINE_DELEGATOR_ENABLED | `false` |
+| FULMINE_DELEGATOR_PORT | `7002` |
+| FULMINE_DELEGATOR_FEE | `0` |
+| FULMINE_OTEL_COLLECTOR_URL | Not set |
+| FULMINE_OTEL_PUSH_INTERVAL | `10` seconds |
+| FULMINE_PYROSCOPE_URL | Not set |
 
 ## Troubleshooting Configuration
 

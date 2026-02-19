@@ -12,7 +12,9 @@ The innermost layer contains pure business entities and domain logic with no ext
 - **VTXO**: Virtual Transaction Outputs representing off-chain funds in Ark
 - **Transaction**: On-chain and off-chain transaction records
 - **Swap**: Submarine and reverse submarine swap state and metadata
+- **ChainSwap**: Chain swap entity for Ark ↔ BTC swaps with full status lifecycle
 - **VHTLC**: Virtual HTLC entities for Ark-Lightning atomic swaps
+- **DelegateTask**: Delegation task entity with intent, forfeit txs, scheduling, and status tracking
 - **Settings**: User configuration and preferences
 
 Domain entities contain validation rules and business invariants but no infrastructure concerns like database access or network calls.
@@ -22,7 +24,9 @@ Domain entities contain validation rules and business invariants but no infrastr
 The application layer orchestrates use cases by coordinating domain entities and calling port interfaces:
 
 - **Service**: Main application service implementing business workflows
-- **Use cases**: Wallet creation/unlock, sending/receiving funds, swap coordination, VHTLC management
+- **DelegatorService**: Separate service for VTXO delegation operations (accepts and schedules refresh tasks)
+- **DelegatorBatchHandler**: Handles batch processing of delegated transactions
+- **Use cases**: Wallet creation/unlock, sending/receiving funds, swap coordination, VHTLC management, chain swaps, delegation
 - **Subscription management**: Monitors blockchain and Ark server for events
 
 This layer depends on domain entities and port interfaces but never imports infrastructure implementations directly.
@@ -70,6 +74,12 @@ Infrastructure adapters implement the port interfaces, connecting the core to ex
 - **Env unlocker** (`internal/infrastructure/unlocker/env/`): Reads password from environment variable
 - **Use case**: Auto-unlock wallet on startup for unattended operation
 
+### Telemetry Adapters
+- **OpenTelemetry** (`internal/infrastructure/telemetry/otel.go`): Full OTEL SDK with traces, metrics, and logs export
+- **Pyroscope** (`internal/infrastructure/telemetry/pyroscope.go`): Continuous profiling (CPU, memory, goroutines, mutex)
+- **Logrus OTel Hook** (`internal/infrastructure/telemetry/logrus_hook.go`): Bridges application logs to OTEL collector
+- **Runtime metrics**: Go runtime metrics collection (GC, CPU, goroutines, heap, mutex)
+
 ### Esplora Adapter
 - **Implementation**: HTTP client for Esplora blockchain indexer
 - **Responsibilities**: Monitor on-chain transactions, broadcast transactions, query UTXOs
@@ -86,7 +96,8 @@ The interface layer exposes the application to external consumers through variou
 
 Key gRPC services:
 - `WalletService`: Wallet creation, unlock, status
-- `ServiceRPC`: Send/receive funds, balance, transaction history
+- `ServiceRPC`: Send/receive funds, balance, transaction history, chain swaps, VTXOs, settlement
+- `DelegatorService`: Separate gRPC service for delegation (runs on port 7002 by default)
 - `NotificationService`: Stream updates for transactions and swaps
 
 ### REST API (`internal/interface/web/`)
@@ -120,8 +131,12 @@ Complete Boltz API client implementation:
 High-level swap coordination logic:
 - Submarine swap flow (on-chain/Ark → Lightning)
 - Reverse submarine swap flow (Lightning → on-chain/Ark)
+- Chain swap flow (Ark → BTC and BTC → Ark)
+- Chain swap monitoring, resume, and validation
 - VHTLC creation and verification
+- MuSig2 signing support
 - Preimage management
+- Swap restoration on restart
 
 ### VHTLC Package (`pkg/vhtlc/`)
 Virtual HTLC implementation for Ark:
