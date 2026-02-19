@@ -535,6 +535,83 @@ Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders t
 
 ---
 
+### arkade-escrow
+**ID**: `arkade-escrow`
+**Name**: Arkade Escrow
+**Type**: Service/Application
+**Language**: TypeScript (NestJS + React)
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-escrow/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/typescript/arkade-escrow`
+**GitHub**: `ArkLabsHQ/arkade-escrow`
+
+**Description**:
+Lightweight, browser-native escrow platform for instant, trust-minimized Bitcoin deals on Ark. Monorepo with NestJS API server, React client SPA, and React backoffice admin panel. Uses 2-of-3 multisig Virtual Escrow Contracts (VEC) with 6 Taproot spending paths (collaborative and unilateral). Deployable standalone or embedded inside Ark-enabled wallets via iframe.
+
+**Key Capabilities**:
+- Virtual Escrow Contract (VEC) with 6 Taproot spending paths
+- Escrow request orderbook (public/private listings)
+- Full contract lifecycle: request → accept → fund → execute/dispute → settle
+- Automated VTXO funding detection (FundingWatcherService)
+- Schnorr signature-based authentication (no passwords, JWT tokens)
+- React client SPA for escrow users (orderbook, contracts, identity)
+- React backoffice SPA for admin/arbitrator (contract management, dispute resolution)
+- NestJS REST API with Swagger UI documentation
+- Server-Sent Events for real-time contract updates
+- SQLite storage with TypeORM (better-sqlite3)
+
+**Tags**: `escrow`, `typescript`, `nestjs`, `react`, `taproot`, `multisig`, `schnorr`, `jwt`, `rest-api`, `swagger`, `sqlite`, `arbitration`, `vec`, `vtxo`, `vite`, `tailwind`
+
+**Synonyms**: `escrow-service`, `3-party-escrow`, `vec-escrow`, `arkade-escrow-api`
+
+**Triggers**:
+- **ask_question**: `escrow`, `vec`, `taproot escrow`, `arbitration`, `3-party multisig`, `escrow contract`
+- **develop**: `add escrow feature`, `escrow ui`, `contract lifecycle`, `arbitration`, `escrow api`
+- **test_or_run**: `start escrow`, `test escrow`, `escrow e2e`, `run escrow`
+- **debug**: `psbt error`, `funding not detected`, `execution failed`, `escrow contract error`
+
+**Dependencies**: `arkd` (server connection), `@arkade-os/sdk` (TypeScript SDK for Ark protocol)
+**Depended On By**: Arkade wallet (iframe embedding), P2P marketplaces requiring escrow
+
+---
+
+### introspector
+**ID**: `introspector`
+**Name**: Introspector
+**Type**: Service/Co-Signer
+**Language**: Go
+**Index**: `${ARKADIAN_DIR}/docs/projects/introspector/INDEX.md`
+**Repository**: `${INTROSPECTOR_REPO}`
+**GitHub**: `${INTROSPECTOR_GITHUB}`
+
+**Description**:
+Arkade Script execution and signing microservice for the Ark protocol. Receives Ark transactions (PSBTs) containing Arkade Script programs, executes them in a custom script engine extending Bitcoin Script with 50+ introspection opcodes, and signs transactions upon successful execution. Participates in the Ark round lifecycle by handling off-chain transaction signing, intent proof validation, and batch finalization.
+
+**Key Capabilities**:
+- Arkade Script engine with 50+ custom opcodes (introspection, 64-bit arithmetic, EC operations, SHA256 streaming)
+- Off-chain Ark transaction validation and Schnorr/Taproot signing
+- Intent proof validation and signing before round registration
+- Batch finalization signing (forfeits and commitment transactions)
+- Connector tree validation for forfeit transactions
+- gRPC + REST API via meshapi gateway (port 7073)
+- Go client library (`pkg/client`) for programmatic access
+- Per-script key derivation (tweaked signing keys)
+- TLS with auto-generated certificates
+
+**Tags**: `arkade-script`, `introspection`, `signing`, `co-signer`, `psbt`, `schnorr`, `taproot`, `grpc`, `opcodes`, `bitcoin-script`, `covenant`, `smart-contract`
+
+**Synonyms**: `arkade-script-engine`, `script-validator`, `co-signer`, `introspector-service`
+
+**Triggers**:
+- **ask_question**: `arkade script`, `introspection opcodes`, `script engine`, `co-signing`, `transaction introspection`, `covenant`, `OP_INSPECT`
+- **develop**: `add opcode`, `script engine`, `introspector api`, `signing logic`, `finalization`
+- **test_or_run**: `run introspector`, `integration test`, `test arkade script`, `e2e test`
+- **debug**: `script execution failed`, `signing error`, `connector not in tree`, `intent not signed`
+
+**Dependencies**: `arkd` (ark-lib packages for intent, tree, script types)
+**Depended On By**: `arkd` (uses introspector for Arkade Script validation and signing)
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -549,6 +626,7 @@ arkd (core)
    kms-unlocker (unlocks arkd-wallet)
    fulmine (independent, but can integrate)
    ark-telemetry (monitors arkd)
+   introspector (Arkade Script co-signer)
    ark-infra (deploys arkd + dependencies)
    ark-docs (documents arkd)
 
@@ -558,6 +636,7 @@ boltz-backend (external swap provider)
 
 wallet / @arkade-os/sdk
    boltz-swap (Lightning integration for Arkade wallets)
+   arkade-escrow (uses @arkade-os/sdk for VEC escrow)
 ```
 
 ### Correlation Matrix
@@ -588,11 +667,14 @@ wallet / @arkade-os/sdk
 | wallet | boltz-swap | Library-Consumer (Lightning integration) |
 | boltz-swap | boltz-backend | Client-Server (Boltz API) |
 | boltz-swap | @arkade-os/sdk | Library-Consumer (Wallet SDK) |
+| arkade-escrow | arkd | Server-Client (via @arkade-os/sdk) |
+| arkade-escrow | @arkade-os/sdk | Library-Consumer |
+| introspector | arkd | Co-Signer (Arkade Script validation) |
 
 ### Technology Groupings
 
-**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
-**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-explorer, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
+**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
@@ -612,13 +694,17 @@ wallet / @arkade-os/sdk
 - Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
+- Escrow system → `arkade-escrow`
+- Arkade Script, covenants → `introspector`, `arkd`
 
 **Development Tasks**:
 - Add arkd feature → `arkd`
 - Build wallet → `go-sdk`, `wallet` (depending on language)
+- Escrow development → `arkade-escrow`
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
 - Asset implementation → `arkade-assets`, `arkd`
+- Arkade Script/opcode development → `introspector`
 
 **Testing & QA**:
 - Integration testing → `arkd`, `ark-simulator`
@@ -685,7 +771,9 @@ For conceptual questions, prioritize documentation loading order:
 | fulmine | Active Dev | →  Alpha | Lightning wallet, under development |
 | ark-docs | Active |   | Documentation site, continuously updated |
 | arkade-assets | Specification | N/A | Protocol spec + reference implementation |
+| arkade-escrow | POC | L Alpha | Escrow platform, proof-of-concept |
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
+| introspector | Active Dev | → Alpha | Arkade Script co-signer |
 
 ---
 
