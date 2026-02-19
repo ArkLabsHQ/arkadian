@@ -295,8 +295,11 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Monitoring stack deployment (Prometheus, Grafana)
 - Secret management (AWS Secrets Manager)
 - Automated backups and disaster recovery
+- Admin dashboard with URL-based deployment via SSM (`Ark-DeployService`)
+- Port forwarding to EC2 services and remote hosts (RDS, Redis)
+- Image pinning script for running container digest collection
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `ssm`, `port-forwarding`, `admin-dashboard`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 

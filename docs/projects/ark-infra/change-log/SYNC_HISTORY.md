@@ -1,5 +1,32 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-02-19 - Documentation Update
+**Commit**: `5896359848366feb5e491d2b32788e21bb619557`
+**Previous Sync**: `9b1ba0bbbdb201c3b2bf2708c94860ed3ad3110c`
+**Synced By**: /update-project command
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Changes**:
+- ⚠️ Deploy API breaking change: `ImageTag` → `ImageURL` (full image URLs)
+- ⚠️ SSM document renamed: `Ark-PullAndRestartService` → `Ark-DeployService`
+- Removed `Ark-UpdateEnvAndRestartService` SSM document
+- Added remote host port forwarding (RDS database, Redis) via admin dashboard
+- Expanded EC2-local port forwarding: added prometheus, alertmanager, loki, jaeger, pyroscope
+- Added `scripts/image-pin.sh` for collecting pinned container image digests
+- Validator updated to accept both simple tags and full image URLs
+
+**Files Updated**:
+- docs/INDEX.md (capabilities, tags)
+- docs/projects/ark-infra/system/project_overview.md (features, repo structure)
+- docs/projects/ark-infra/system/architecture.md (access methods)
+- docs/projects/ark-infra/testing/operations.md (deploy commands, port forwarding, image pinning)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2025-12-02 16:00:00 - Documentation Update
 **Commit**: `9b1ba0bb` (ark-infra repository)
 **Previous Sync**: `(none - initial sync)`

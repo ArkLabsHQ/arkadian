@@ -322,8 +322,9 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
 
 **Access Methods**:
 1. **Interactive Session**: `aws ssm start-session`
-2. **Port Forwarding**: For localhost services (7071, 8080, 3333)
-3. **Remote Commands**: Via `send-command` document
+2. **Port Forwarding**: For EC2-local services (7071, 8080, 3333, 9090, 9093, 3100, 16686, 4040)
+3. **Remote Host Port Forwarding**: For RDS/Redis through EC2 (5432, 6379)
+4. **Remote Commands**: Via `Ark-DeployService` SSM document
 
 ## State Management Architecture
 

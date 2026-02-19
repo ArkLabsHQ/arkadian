@@ -83,13 +83,62 @@ iostat -x 5
 
 ### Access Grafana
 ```bash
-# Port forward
+# Port forward (via admin dashboard or CLI)
 aws ssm start-session --target $INSTANCE_ID \
   --document-name AWS-StartPortForwardingSession \
   --parameters '{"portNumber":["3333"],"localPortNumber":["3333"]}'
 
 # Access: http://localhost:3333
 # Default: admin / admin (change on first login)
+```
+
+### Port Forwarding (All Available Services)
+
+**EC2-local services** (via admin dashboard):
+| Service | Local Port | Remote Port |
+|---------|-----------|-------------|
+| grafana | 3333 | 3333 |
+| traefik | 8080 | 8080 |
+| arkd-admin | 7071 | 7071 |
+| prometheus | 9090 | 9090 |
+| alertmanager | 9093 | 9093 |
+| loki | 3100 | 3100 |
+| jaeger | 16686 | 16686 |
+| pyroscope | 4040 | 4040 |
+
+**Remote host services** (RDS, Redis — forwarded through EC2):
+| Service | Local Port | Remote Port |
+|---------|-----------|-------------|
+| database | 5432 | 5432 |
+| redis | 6379 | 6379 |
+
+### Deploy Services via SSM
+
+⚠️ **Breaking change**: Deployment now uses full image URLs instead of ECR tags. The SSM document was renamed from `Ark-PullAndRestartService` to `Ark-DeployService`.
+
+```bash
+# Deploy arkd with full image URL
+aws ssm send-command --document-name Ark-DeployService-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"ServiceName":["arkd"],"ImageURL":["ghcr.io/arkade-os/arkd:v0.8.10"]}'
+
+# Deploy arkd-wallet
+aws ssm send-command --document-name Ark-DeployService-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"ServiceName":["arkd-wallet"],"ImageURL":["ghcr.io/arkade-os/arkd-wallet:v0.8.10"]}'
+
+# Deploy kms-unlocker
+aws ssm send-command --document-name Ark-DeployService-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"ServiceName":["kms-unlocker"],"ImageURL":["ghcr.io/arklabshq/kms-unlocker:v0.1.0"]}'
+
+# Supported services: arkd, arkd-wallet, kms-unlocker
+```
+
+### Pin Running Container Images
+```bash
+# On EC2: collect digest-pinned image references for all running containers
+/opt/ark-infra/docker-compose/scripts/image-pin.sh
 ```
 
 ## Backup Operations

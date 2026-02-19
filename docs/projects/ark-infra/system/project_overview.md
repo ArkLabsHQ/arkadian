@@ -39,7 +39,8 @@ ark-infra/
     ├── scripts/                       # Bootstrap and utility scripts
     │   ├── user-data-ec2-prod.sh
     │   ├── user-data-ec2-regtest.sh
-    │   └── setup_environment.sh
+    │   ├── setup_environment.sh
+    │   └── image-pin.sh               # Collect pinned image digests
     ├── compose/                       # Docker Compose files
     │   ├── docker-compose.ark.prod.yaml
     │   └── docker-compose.ark.regtest.yaml
@@ -158,6 +159,7 @@ ark-infra/
 - **SSL certificates**: Traefik auto-renews via Let's Encrypt
 - **Service discovery**: Docker Compose automatic DNS
 - **Health checks**: Built-in container health monitoring
+- **Image pinning**: Script to collect and pin running container image digests
 
 ### Security Architecture
 - **Private networking**: All resources in private subnets
