@@ -1,0 +1,185 @@
+---
+title: "VTXO Management"
+description: "Automatic renewal and recovery of virtual coins"
+icon: "rotate"
+---
+
+<Note>
+  VTXO Management is a **new feature in v0.3**. It automates the renewal and recovery of virtual coins to prevent expiration and loss of funds.
+</Note>
+
+## Overview
+
+VTXOs can be in [different states](/learn/pillars/vtxos#vtxo-state) and have an expiration time based on the [batch expiry](/learn/pillars/batch-expiry). The `VtxoManager` class provides automated management for:
+
+- **Renewal**: Renew VTXOs before they expire to maintain unilateral control of your funds
+- **Recovery**: Reclaim expired and swept VTXOs back to your wallet
+
+## Creating a VTXO Manager
+
+```typescript
+import { VtxoManager } from '@arkade-os/sdk'
+
+// Create manager with optional configuration
+const manager = new VtxoManager(wallet, {
+  enabled: true,           // Enable expiration monitoring
+  thresholdPercentage: 10  // Alert when 10% of lifetime remains (default)
+})
+```
+
+## VTXO Renewal
+
+Renew VTXOs before they expire to keep your liquidity available. This settles all VTXOs (including recoverable ones) back to your wallet with a fresh expiration time.
+
+### Checking Expiring VTXOs
+
+```typescript
+// Check which VTXOs are expiring soon
+const expiringVtxos = await manager.getExpiringVtxos()
+
+if (expiringVtxos.length > 0) {
+  console.log(`${expiringVtxos.length} VTXOs expiring soon`)
+
+  expiringVtxos.forEach(vtxo => {
+    const timeLeft = vtxo.virtualStatus.batchExpiry! - Date.now()
+    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
+    console.log(`VTXO ${vtxo.txid} expires in ${hoursLeft} hours`)
+  })
+}
+```
+
+<Tip>
+  - `timeLeft`: remaining time until expiry (`batchExpiry - current time`) in milliseconds
+  - `hoursLeft`: remaining time in hours, derived from `timeLeft`
+</Tip>
+
+### Renewing VTXOs
+
+```typescript
+// Renew all VTXOs to prevent expiration
+const txid = await manager.renewVtxos()
+console.log('Renewed:', txid)
+
+// Override threshold percentage (e.g., renew when 5% of time remains)
+const urgentlyExpiring = await manager.getExpiringVtxos(5)
+```
+
+<Tip>
+  Set up automatic renewal checks in your application to ensure VTXOs never expire. A good practice is to check daily and renew when the threshold is reached.
+</Tip>
+
+## VTXO Recovery
+
+Recover VTXOs that have been swept by the server or consolidate small amounts (sub-dust).
+
+### Checking Recoverable Balance
+
+```typescript
+// Check what's recoverable
+const balance = await manager.getRecoverableBalance()
+
+console.log(`Recoverable: ${balance.recoverable} sats`)
+console.log(`Subdust: ${balance.subdust} sats`)
+console.log(`Subdust included: ${balance.includesSubdust}`)
+console.log(`VTXO count: ${balance.vtxoCount}`)
+```
+
+### Recovering VTXOs
+
+```typescript
+if (balance.recoverable > 0n) {
+  // Recover swept VTXOs and preconfirmed subdust
+  const txid = await manager.recoverVtxos((event) => {
+    console.log('Settlement event:', event.type)
+  })
+  console.log('Recovered:', txid)
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Automatic Renewal">
+    Implement automatic renewal checks in your application:
+
+    ```typescript
+    // Check for expiring VTXOs daily
+    setInterval(async () => {
+      const expiring = await manager.getExpiringVtxos()
+      if (expiring.length > 0) {
+        await manager.renewVtxos()
+      }
+    }, 24 * 60 * 60 * 1000) // Once per day
+    ```
+  </Accordion>
+  <Accordion title="Recovery Monitoring">
+    Periodically check for recoverable funds:
+
+    ```typescript
+    // Check for recoverable VTXOs weekly
+    setInterval(async () => {
+      const balance = await manager.getRecoverableBalance()
+      if (balance.recoverable > 0n) {
+        await manager.recoverVtxos()
+      }
+    }, 7 * 24 * 60 * 60 * 1000) // Once per week
+    ```
+  </Accordion>
+  <Accordion title="Threshold Configuration">
+    The threshold specifies the remaining portion of a VTXO's lifetime at which renewal should be triggered. Adjust the threshold percentage based on your needs:
+
+    - **10% (default)**: Good balance between proactive renewal and transaction costs
+    - **5%**: More aggressive, suitable for high-value or frequently active wallets
+    - **20%**: More relaxed, suitable for infrequently used wallets
+
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+Here's a complete example of VTXO management:
+
+```typescript
+import { Wallet, SingleKey, VtxoManager } from '@arkade-os/sdk'
+import { LocalStorageAdapter } from '@arkade-os/sdk/adapters/localStorage'
+
+// Setup wallet
+const storage = new LocalStorageAdapter()
+const privateKeyHex = await storage.getItem('private-key')
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+
+// Create VTXO manager
+const manager = new VtxoManager(wallet, {
+  enabled: true,
+  thresholdPercentage: 10
+})
+
+// Check and renew expiring VTXOs
+const expiringVtxos = await manager.getExpiringVtxos()
+if (expiringVtxos.length > 0) {
+  console.log(`Renewing ${expiringVtxos.length} expiring VTXOs...`)
+  const renewTxid = await manager.renewVtxos()
+  console.log('Renewal transaction:', renewTxid)
+}
+
+// Check and recover swept VTXOs
+const balance = await manager.getRecoverableBalance()
+if (balance.recoverable > 0n) {
+  console.log(`Recovering ${balance.recoverable} sats...`)
+  const recoverTxid = await manager.recoverVtxos((event) => {
+    console.log('Settlement event:', event.type)
+  })
+  console.log('Recovery transaction:', recoverTxid)
+}
+```
+
+## Next Steps
+
+- [Service Worker](/wallets/v0.3/service-worker) - Run your wallet in a background service worker
+- [Expo/React Native](/wallets/v0.3/expo-react-native) - Set up Arkade in React Native applications

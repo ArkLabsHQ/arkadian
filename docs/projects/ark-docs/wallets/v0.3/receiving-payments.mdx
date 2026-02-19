@@ -1,0 +1,107 @@
+---
+title: "Receiving Payments"
+description: "Learn how to receive Bitcoin payments with your Arkade wallet"
+icon: "download"
+---
+
+## Overview
+
+Receiving payments with Arkade is designed for instant, low-fee Bitcoin transfers. Your Arkade wallet generates an offchain address that allows anyone to send you Bitcoin instantly within the Arkade network, or through Lightning Network swaps.
+
+## Getting Your Arkade Address
+
+To receive payments, generate your offchain Arkade address:
+
+```typescript
+const offchainAddress = await wallet.getAddress()
+
+// The offchain Arkade address for instant payments
+console.log('Ark Address:', offchainAddress)
+```
+
+<Tip>This is your primary receiving address for everyday payments. Share this address to receive instant, near-zero fee Bitcoin payments from other Arkade wallets.</Tip>
+
+## Arkade Addresses
+
+Arkade addresses start with `ark1` on Bitcoin mainnet or `tark1` on testnet and regtest.
+
+<Card title="Understanding Arkade Addresses" icon="address-card" href="/wallets/v0.3/ark-addresses" horizontal>
+  Learn about the technical structure of Arkade addresses, how they're generated, and the security guarantees they provide.
+</Card>
+
+## Receiving from Lightning Network
+
+Your Arkade wallet can receive payments from the Lightning Network through submarine swaps. This allows Lightning users to pay you instantly, with the funds settling into your Arkade wallet as VTXOs.
+
+<Card title="Lightning Swaps" icon="bolt" horizontal href="/contracts/lightning-swaps">
+  Learn how to integrate Lightning Network payments with your Arkade wallet using submarine swaps.
+</Card>
+
+## Monitoring for Incoming Payments
+
+To detect when payments are received, you can use `wallet.notifyIncomingFunds()` for incoming VTXOs in real-time.
+
+```typescript
+// Example function to process incoming funds
+async function processIncomingFunds(notification: IncomingFunds) {
+  // Update your application state
+  switch (notification.type) {
+    case 'vtxo':
+      for (const vtxo of notification.vtxos) {
+        console.log(`Received payment of ${vtxo.amount} sats`);
+
+        // You might want to store the VTXO in your database
+        await storeVtxoInDatabase(vtxo);
+
+        // Notify the user
+        showNotification(`Received ${vtxo.amount} sats!`);
+
+        // Update the UI
+        await refreshBalanceDisplay();
+      }
+      break;
+    case 'utxo':
+      // UTXOs received on boarding addresses (see Ramps documentation)
+      for (const utxo of notification.utxos) {
+        await storeBoardingUtxoInDatabase(utxo)
+        showNotification(`Received ${utxo.amount} sats on boarding address!`);
+        await refreshBalanceDisplay();
+      }
+      break;
+  }
+}
+
+// Start the subscription
+const stop = wallet.notifyIncomingFunds(processIncomingFunds)
+
+// Stop the subscription when needed
+stop()
+```
+
+<Note>
+  The `utxo` notification type is only relevant when using [boarding addresses](/wallets/v0.3/ramps#boarding) to onboard Bitcoin into Arkade. For everyday receiving, you'll primarily work with `vtxo` notifications.
+</Note>
+
+### Best Practices
+
+<Accordion title="Error Handling" icon="shield-check">
+  Always implement proper error handling for your subscription to ensure your application remains stable even if there are network issues.
+</Accordion>
+
+<Accordion title="Reconnection Logic" icon="repeat">
+  Consider implementing reconnection logic if the subscription is interrupted due to network issues.
+</Accordion>
+
+<Accordion title="Deduplication" icon="filter">
+  Implement deduplication logic to ensure you don't process the same payment multiple times, especially if your application restarts.
+</Accordion>
+
+## Next Steps
+
+- [Check Balances](/wallets/v0.3/balances) - Learn how to verify your wallet balance
+- [Send Payments](/wallets/v0.3/sending-payments) - Learn how to send payments within Arkade and to Lightning
+- [Ramps](/wallets/v0.3/ramps) - Advanced: onboard Bitcoin from the blockchain or offboard to the blockchain
+
+---
+
+<NextButton url="/wallets/v0.3/balances" text="Check Balances" />

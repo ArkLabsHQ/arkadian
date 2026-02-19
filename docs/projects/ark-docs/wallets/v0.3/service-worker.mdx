@@ -1,0 +1,260 @@
+---
+title: "Service Worker"
+description: "Run your wallet in a background service worker"
+icon: "gear"
+---
+
+<Note>
+  Service Worker support is a **new feature in v0.3**. It enables your wallet to run in the background, providing persistent connectivity and event handling.
+</Note>
+
+## Overview
+
+Running your wallet in a service worker enables:
+
+- **Background Processing**: Keep your wallet active even when the main application is closed
+- **Persistent Storage**: Use IndexedDB for reliable data persistence
+- **Event Handling**: Process incoming payments and settlements in the background
+- **Improved UX**: Faster response times and better reliability
+
+## Quick Setup
+
+The v0.3 SDK provides ultra-simplified service worker setup with automatic registration and identity management:
+
+```typescript
+// main.js
+import { ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
+
+// Create your identity
+const identity = SingleKey.fromHex('your_private_key_hex')
+// Or generate a new one:
+// const identity = SingleKey.fromRandomBytes()
+
+const wallet = await ServiceWorkerWallet.setup({
+  serviceWorkerPath: '/service-worker.js',
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  identity
+})
+
+// That's it! Ready to use immediately:
+const address = await wallet.getAddress()
+const balance = await wallet.getBalance()
+```
+
+## Service Worker Implementation
+
+Create a service worker file that handles communication:
+
+```javascript
+// service-worker.js
+import { Worker } from '@arkade-os/sdk'
+
+// Worker handles communication between the main thread and service worker
+new Worker().start()
+```
+
+That's all you need! The `Worker` class automatically:
+- Handles message routing
+- Manages wallet state
+- Processes events
+- Handles cleanup
+
+## Example: Storage and Identity Management
+
+Here's a complete example with storage and identity management:
+
+```typescript
+// main.js
+import { ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
+import { LocalStorageAdapter } from '@arkade-os/sdk/adapters/localStorage'
+
+const storage = new LocalStorageAdapter()
+
+// Load or create identity
+let privateKeyHex = await storage.getItem('private-key')
+if (!privateKeyHex) {
+  const newIdentity = SingleKey.fromRandomBytes()
+  privateKeyHex = newIdentity.toHex()
+  await storage.setItem('private-key', privateKeyHex)
+}
+
+const identity = SingleKey.fromHex(privateKeyHex)
+
+// Setup service worker wallet
+const wallet = await ServiceWorkerWallet.setup({
+  serviceWorkerPath: '/service-worker.js',
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  identity
+})
+
+// Use wallet normally
+const address = await wallet.getAddress()
+console.log('Wallet address:', address)
+
+const balance = await wallet.getBalance()
+console.log('Balance:', balance.total)
+```
+
+## Using IndexedDB Storage
+
+For service workers, IndexedDB is recommended over LocalStorage:
+
+```typescript
+import { ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+
+const storage = new IndexedDBStorageAdapter('wallet-db', 1)
+
+let privateKeyHex = await storage.getItem('private-key')
+if (!privateKeyHex) {
+  const newIdentity = SingleKey.fromRandomBytes()
+  privateKeyHex = newIdentity.toHex()
+  await storage.setItem('private-key', privateKeyHex)
+}
+
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await ServiceWorkerWallet.setup({
+  serviceWorkerPath: '/service-worker.js',
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  identity,
+  storage // IndexedDB storage
+})
+```
+
+<Tip>
+  IndexedDB is recommended for service workers because it's accessible from both the main thread and service worker context, and can store larger amounts of data.
+</Tip>
+
+## Handling Events
+
+Service workers can process wallet events in the background:
+
+```typescript
+// main.js
+import { waitForIncomingFunds } from '@arkade-os/sdk'
+
+// Listen for incoming funds
+const incomingFunds = await waitForIncomingFunds(wallet)
+
+if (incomingFunds.type === "vtxo") {
+  console.log("VTXOs received:", incomingFunds.vtxos)
+  // Show notification or update UI
+} else if (incomingFunds.type === "utxo") {
+  console.log("UTXOs received:", incomingFunds.coins)
+  // Show notification or update UI
+}
+```
+
+## Advanced: Custom Service Worker
+
+If you need custom service worker logic, you can extend the `Worker` class:
+
+```javascript
+// service-worker.js
+import { Worker } from '@arkade-os/sdk'
+
+class CustomWorker extends Worker {
+  async onMessage(event) {
+    // Custom message handling
+    console.log('Received message:', event.data)
+
+    // Call parent handler
+    await super.onMessage(event)
+  }
+
+  async onInstall(event) {
+    console.log('Service worker installed')
+  }
+
+  async onActivate(event) {
+    console.log('Service worker activated')
+  }
+}
+
+new CustomWorker().start()
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Storage Selection">
+    Always use IndexedDB for service worker wallets:
+
+    ```typescript
+    // ✅ Good - IndexedDB works in service worker context
+    const storage = new IndexedDBStorageAdapter('wallet-db', 1)
+
+    // ❌ Bad - LocalStorage not available in service workers
+    const storage = new LocalStorageAdapter()
+    ```
+  </Accordion>
+
+  <Accordion title="Identity Management">
+    Store your identity securely and load it on initialization:
+
+    ```typescript
+    const storage = new IndexedDBStorageAdapter('wallet-db', 1)
+
+    // Always check if identity exists before creating new one
+    let privateKeyHex = await storage.getItem('private-key')
+    if (!privateKeyHex) {
+      privateKeyHex = SingleKey.fromRandomBytes().toHex()
+      await storage.setItem('private-key', privateKeyHex)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    Implement proper error handling for service worker operations:
+
+    ```typescript
+    try {
+      const wallet = await ServiceWorkerWallet.setup({
+        serviceWorkerPath: '/service-worker.js',
+        arkServerUrl: 'https://mutinynet.arkade.sh',
+        identity
+      })
+    } catch (error) {
+      console.error('Failed to setup service worker wallet:', error)
+      // Fallback to regular wallet
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Service Worker Not Registering">
+If you encounter IndexedDB errors:
+
+1. Check browser console for specific error messages
+2. Ensure the database name and version are consistent
+3. Clear browser data if the database schema changed
+  </Accordion>
+
+  <Accordion title="IndexedDB Errors">
+If you encounter IndexedDB errors:
+
+1. Check browser console for specific error messages
+2. Ensure the database name and version are consistent
+3. Clear browser data if the database schema changed
+  </Accordion>
+
+  <Accordion title="Message Timeout">
+If you experience message timeouts:
+
+1. Check that the Worker is properly started in the service worker
+2. Verify network connectivity
+3. Check for errors in the service worker console
+  </Accordion>
+</AccordionGroup>
+
+
+## Next Steps
+
+- [Storage Adapters](/wallets/v0.3/storage-adapters) - Explore different storage options
+- [Expo/React Native](/wallets/v0.3/expo-react-native) - Set up Arkade in React Native applications
+
+

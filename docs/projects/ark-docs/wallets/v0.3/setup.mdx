@@ -9,7 +9,7 @@ icon: "wallet"
 <Tip>
   Ensure you have the following installed before getting started:
 
-  - Node.js (v16 or higher)
+  - Node.js (v22 or higher)
 </Tip>
 
 ## Installation
@@ -20,15 +20,14 @@ npm install @arkade-os/sdk
 
 ## Arkade Operator Instances
 
-<Info>
-  Connect to the following live Arkade Operator instances. This allows you to test your integration against a live environment without the need for a local setup.
-</Info>
+To test your integration against a live environment, you can connect to the following live Arkade Operator instances: 
 
 | **Network** | **URL**                                                           | **Status**    |
 | :---------- | :---------------------------------------------------------------- | :------------ |
-| Regtest     | [<u>http://localhost:7070</u>](http://localhost:7070)             | Self-deployed |
+| Bitcoin   | [<u>https://arkade.computer</u>](https://arkade.computer) | ✅ Active      |
 | Mutinynet   | [<u>https://mutinynet.arkade.sh</u>](https://mutinynet.arkade.sh) | ✅ Active      |
 | Signet      | [<u>https://signet.arkade.sh</u>](https://signet.arkade.sh)       | ✅ Active      |
+
 
 ## Basic Setup
 
@@ -45,7 +44,7 @@ const identity = SingleKey.fromHex('secret')
 // create a wallet instance
 const wallet = await Wallet.create({
   identity,
-  arkServerUrl: 'https://mutinynet.arkade.sh',
+  arkServerUrl: 'https://arkade.computer',
 })
 
 // You can receive bitcoin offchain instantly! No inbound liquidity!
@@ -53,13 +52,26 @@ const address = await wallet.getAddress()
 console.log('Ark Address:', address)
 ```
 
+## Local Arkade Operator
+
+If you want to run Arkade locally for testing, you can start a Nigiri environment with Arkade support enabled:
+
+```bash
+nigiri start --ark 
+```
+
+Once running, Nigiri will spin up a local Bitcoin regtest network with an Arkade Operator instance. You can connect your SDK to it using the following URL:
+
+| **Network** | **URL**                                                           | **Status**    |
+| :---------- | :---------------------------------------------------------------- | :------------ |
+| Regtest     | [<u>http://localhost:7070</u>](http://localhost:7070)             | Self-deployed |
+
+This lets you test wallet creation, offchain payments, and unilateral exits without touching public test networks.
+
 ## Next Steps
 
 Now that you have set up your Arkade wallet, you can:
 
-- [Work with Balances and UTXOs](/wallets/balances) - Learn how to manage balances and track payments
-- [Use Ramps](/wallets/ramps) - Understand how to move funds in and out of Arkade
+- [Work with Balances and UTXOs](/wallets/v0.3/balances) - Learn how to manage balances and track payments
+- [Use Ramps](/wallets/v0.3/ramps) - Understand how to move funds in and out of Arkade
 
----
-
-<NextButton url="/wallets/balances" text="Working with Balances" />

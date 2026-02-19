@@ -37,6 +37,16 @@ history.forEach((tx, index) => {
 }); 
 ```
 
+<Tip>
+  **Transaction parameters**
+
+  - `key`: Transaction identifiers (boardingTxid, commitmentTxid, arkTxid)
+  - `type`: see below
+  - `amount`: Transaction amount in satoshis
+  - `settled`: Whether the transaction is confirmed onchain
+  - `createdat`: Unix timestamp
+</Tip>
+
 ## Transaction Types
 
 The transaction history includes various types of transactions:
@@ -150,9 +160,3 @@ console.log('CSV export:', csv);
 // a.download = 'transaction_history.csv';
 // a.click();
 ```
-
----
-
-<PreviousButton url="/wallets/detecting-payments" text="Detecting Payments" />
-
-<NextButton url="/wallets/ramps" text="Ramps" />

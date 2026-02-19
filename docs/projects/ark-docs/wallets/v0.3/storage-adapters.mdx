@@ -1,0 +1,204 @@
+---
+title: "Storage Adapters"
+description: "Persistent storage for wallets across different environments"
+icon: "database"
+---
+
+<Note>
+  Storage adapters are a **new feature in v0.3**. They provide persistent storage for wallet data across different platforms.
+</Note>
+
+## Overview
+
+By default, the Arkade SDK uses `InMemoryStorageAdapter` which stores data in memory and loses it when the application restarts. For production applications, you should use a persistent storage adapter appropriate for your environment.
+
+## Available Storage Adapters
+
+<CardGroup cols={2}>
+  <Card title="LocalStorage" icon="browser" href="#browser-localstorage">
+    Browser/PWA persistent storage using localStorage API
+  </Card>
+  <Card title="IndexedDB" icon="database" href="#browser-indexeddb">
+    Browser/PWA/Service Worker advanced storage with IndexedDB
+  </Card>
+  <Card title="AsyncStorage" icon="mobile" href="#react-native-asyncstorage">
+    React Native persistent storage
+  </Card>
+  <Card title="FileSystem" icon="folder" href="#nodejs-filesystem">
+    Node.js file-based storage
+  </Card>
+</CardGroup>
+
+## Storage Adapter Interface
+
+All storage adapters implement the same interface:
+
+```typescript
+interface StorageAdapter {
+  getItem(key: string): Promise<string | null>
+  setItem(key: string, value: string): Promise<void>
+  removeItem(key: string): Promise<void>
+  clear(): Promise<void>
+}
+```
+
+## Browser LocalStorage
+
+For browser applications, use `LocalStorageAdapter` for simple persistent storage:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { LocalStorageAdapter } from '@arkade-os/sdk/adapters/localStorage'
+
+const storage = new LocalStorageAdapter()
+
+// Load or create identity
+let privateKeyHex = await storage.getItem('private-key')
+if (!privateKeyHex) {
+  const newIdentity = SingleKey.fromRandomBytes()
+  privateKeyHex = newIdentity.toHex()
+  await storage.setItem('private-key', privateKeyHex)
+}
+
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+```
+
+## Browser IndexedDB
+
+For more advanced browser applications or service workers, use `IndexedDBStorageAdapter`:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+
+const storage = new IndexedDBStorageAdapter('my-app', 1)
+
+// Load identity from storage
+const privateKeyHex = await storage.getItem('private-key')
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+```
+
+<Tip>
+  IndexedDB is recommended for service workers and applications that need to store large amounts of data.
+</Tip>
+
+## React Native AsyncStorage
+
+For React Native applications, use `AsyncStorageAdapter`:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { AsyncStorageAdapter } from '@arkade-os/sdk/adapters/asyncStorage'
+
+const storage = new AsyncStorageAdapter()
+
+// Load identity from storage
+const privateKeyHex = await storage.getItem('private-key')
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+```
+
+## Node.js FileSystem
+
+For Node.js applications, use `FileSystemStorageAdapter`:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { FileSystemStorageAdapter } from '@arkade-os/sdk/adapters/fileSystem'
+
+const storage = new FileSystemStorageAdapter('./wallet-data')
+
+// Load identity from storage
+const privateKeyHex = await storage.getItem('private-key')
+const identity = SingleKey.fromHex(privateKeyHex)
+
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+```
+
+## Example: Identity Management
+
+Here's a complete example showing how to manage identity across sessions:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { LocalStorageAdapter } from '@arkade-os/sdk/adapters/localStorage'
+
+const storage = new LocalStorageAdapter()
+
+// Try to load existing identity
+let privateKeyHex = await storage.getItem('private-key')
+
+if (!privateKeyHex) {
+  // Create new identity
+  console.log('Creating new wallet identity...')
+  const newIdentity = SingleKey.fromRandomBytes()
+  privateKeyHex = newIdentity.toHex()
+
+  // Save to storage
+  await storage.setItem('private-key', privateKeyHex)
+  console.log('New identity saved to storage')
+} else {
+  console.log('Loaded existing identity from storage')
+}
+
+const identity = SingleKey.fromHex(privateKeyHex)
+
+// Create wallet with persistent storage
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: 'https://mutinynet.arkade.sh',
+  storage
+})
+
+const address = await wallet.getAddress()
+console.log('Wallet address:', address)
+```
+
+## Repository Pattern
+
+v0.3 introduces repositories for low-level data management:
+
+```typescript
+// VTXO management (automatically cached for performance)
+const addr = await wallet.getAddress()
+const vtxos = await wallet.walletRepository.getVtxos(addr)
+await wallet.walletRepository.saveVtxos(addr, vtxos)
+
+// Contract data for SDK integrations
+await wallet.contractRepository.setContractData('my-contract', 'status', 'active')
+const status = await wallet.contractRepository.getContractData('my-contract', 'status')
+
+// Collection management for related data
+await wallet.contractRepository.saveToContractCollection(
+  'swaps',
+  { id: 'swap-1', amount: 50000, type: 'reverse' },
+  'id' // key field
+)
+const swaps = await wallet.contractRepository.getContractCollection('swaps')
+```
+
+## Next Steps
+
+- [Service Worker](/wallets/v0.3/service-worker) - Run your wallet in a background service worker
+- [Expo/React Native](/wallets/v0.3/expo-react-native) - Set up Arkade in React Native applications

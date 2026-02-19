@@ -4,16 +4,18 @@ description: "Understanding the settlement process in Arkade"
 icon: "recycle"
 ---
 
-Settlement is the critical process that moves Virtual UTXOs (VTXOs) from a preconfirmed state to their final confirmed state on the Bitcoin blockchain.
+Settlement is the critical process that moves VTXOs from a preconfirmed state to their final confirmed state on the Bitcoin blockchain.
 
 In Arkade, VTXOs can exist in two primary states:
 
-- **preconfirmed** (preconfirmed)
+- **preconfirmed** (cosigned offchain)
 - **settled** (batched onchain)
 
-When a VTXO is first created through an offchain transaction, it exists in the preconfirmed state where it can be used for further offchain activity but carries trust assumptions about the Operator.
+When a VTXO is first created through an offchain transaction, it exists in the preconfirmed state where it can be used for further offchain activity but carries trust assumptions about the Operator. 
 
 Through the settlement process, these preconfirmed VTXOs are included in a Commitment Transaction and anchored to the Bitcoin blockchain, providing them with full settlement guarantees and unilateral exit rights.
+
+Users can also [dynamically settle](/learn/security/transaction-finality#dynamic-settlement) their VTXOs according to their needs — choosing when to anchor funds onchain for security or keep them offchain for speed and cost efficiency
 
 ```typescript
 // Get all VTXOs and check their status
@@ -25,10 +27,5 @@ console.log('Preconfirmed VTXOs:', pendingVtxos.length)
 console.log('Settled VTXOs:', settledVtxos.length)
 ```
 
-For more detailed information about the batch swap process that underlies settlement, see the [Ark Batch Swaps documentation](https://docs.arklabs.xyz/ark/deep-dive/batch-swaps).
+For more detailed information about the batch swap process that underlies settlement, see the [Arkade Batch Swaps documentation](/learn/pillars/batch-swaps).
 
----
-
-<PreviousButton url="/wallets/balances" text="Balances" />
-
-<NextButton url="/wallets/detecting-payments" text="Detecting Payments" />

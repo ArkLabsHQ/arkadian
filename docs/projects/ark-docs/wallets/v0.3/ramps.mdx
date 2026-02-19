@@ -1,0 +1,217 @@
+---
+title: "Ramps: Onboarding & Offboarding"
+description: "Advanced mechanisms for moving Bitcoin in and out of Arkade"
+icon: "bitcoin"
+---
+
+<Note>
+  **This is an advanced feature.** Most users should use swap providers for faster, more efficient onboarding and offboarding. The native ramp processes described here require multiple onchain transactions and higher minimum amounts.
+</Note>
+
+## Overview
+
+Ramps are Arkade's native mechanisms for converting between onchain Bitcoin (UTXOs) and offchain Arkade funds (VTXOs). There are two processes:
+
+1. **Onboarding (Boarding)** - Convert a UTXO into a VTXO (requires 2 onchain transactions minimum)
+2. **Offboarding (Exiting)** - Convert a VTXO back into a UTXO (collaborative or unilateral)
+
+<Warning>
+  **Cost and Time Considerations:**
+  - Native onboarding requires at least 2 onchain transactions
+  - Users must wait for confirmations between steps
+  - Minimum amounts apply due to Bitcoin network fees
+
+  **Recommended:** Use swap providers (Lightning swaps, etc.) for faster in-and-out operations. Leave native ramps to professionals who can better manage onchain transaction costs.
+</Warning>
+
+## When to Use Native Ramps
+
+Consider using native ramps only when:
+- You need to move large amounts where onchain fees are proportionally small
+- You're a professional service provider managing liquidity
+- Swap providers are unavailable or don't meet your requirements
+- You want full control over the onboarding/offboarding process
+
+For everyday use, prefer instant swap services that handle the onchain complexity for you.
+
+## Onboarding (Boarding)
+
+Boarding converts an onchain Bitcoin UTXO into an offchain Arkade VTXO through a specialized process.
+
+### Understanding Boarding Addresses
+
+A boarding address is a special 2-of-2 multisig Taproot address that protects against double-spending during the onboarding process. While any UTXO can technically be used for onboarding, boarding addresses are the recommended approach because they prevent malicious users from double-spending and causing the commitment transaction to fail.
+
+### The Boarding Process
+
+<Steps>
+  <Step title="Generate a boarding address">
+    Get a boarding address from your wallet:
+
+    ```typescript
+    const boardingAddress = await wallet.getBoardingAddress()
+    console.log('Boarding Address:', boardingAddress)
+    ```
+  </Step>
+
+  <Step title="Send Bitcoin onchain">
+    Send Bitcoin to the boarding address from any standard Bitcoin wallet. Wait for the transaction to confirm.
+
+    <Tip>This is your first onchain transaction. Standard network fees apply.</Tip>
+  </Step>
+
+  <Step title="Initiate the boarding settlement">
+    Once confirmed, settle the boarding UTXO to your Arkade wallet:
+
+    ```typescript
+    const commitmentTxid = await new Ramps(wallet).onboard()
+    console.log('Commitment transaction ID:', commitmentTxid)
+    ```
+  </Step>
+
+  <Step title="Arkade Server processes">
+    The Arkade server includes your UTXO in a [Commitment Transaction](/learn/pillars/batch-swaps#commitment-transactions) and broadcasts it.
+
+    <Tip>This is the second onchain transaction.</Tip>
+  </Step>
+
+  <Step title="Receive your VTXO">
+    Once the Commitment Transaction confirms, you receive a VTXO that you can spend offchain instantly with near-zero fees.
+  </Step>
+</Steps>
+
+<Note>
+  **Total Cost:** 2 onchain transactions minimum (one to send to boarding address, one for the commitment transaction). Consider using Lightning swaps for smaller amounts where these fees would be proportionally high.
+</Note>
+
+## Offboarding (Collaborative Exit)
+
+Offboarding converts your offchain VTXOs back into onchain Bitcoin UTXOs. The collaborative exit is the recommended method when the Arkade server is available.
+
+### The Offboarding Process
+
+<Steps>
+  <Step title="Specify your destination">
+    Choose where you want to receive your onchain Bitcoin:
+
+    ```typescript
+    const destinationAddress = "bc1q..." // Your onchain Bitcoin address
+    const amount = 50000 // Amount in sats (optional, undefined = exit all)
+    ```
+  </Step>
+
+  <Step title="Request the offboard">
+    Request the Arkade server to convert your VTXOs to an onchain UTXO:
+
+    ```typescript
+    const commitmentTxid = await new Ramps(wallet).offboard(destinationAddress, amount)
+    console.log('Commitment transaction ID:', commitmentTxid)
+    ```
+  </Step>
+
+  <Step title="Server processes">
+    The Arkade server includes your offboarding request in the next Commitment Transaction and broadcasts it to Bitcoin.
+  </Step>
+
+  <Step title="Receive onchain Bitcoin">
+    Once the transaction confirms, you have a standard Bitcoin UTXO at your destination address.
+  </Step>
+</Steps>
+
+<Tip>
+  Collaborative exit is faster and cheaper than unilateral exit. It batches multiple exits together, reducing per-user costs.
+</Tip>
+
+## Unilateral Exit
+
+Unilateral exit allows you to reclaim your Bitcoin onchain without the Arkade server's cooperation. This is your trustless safety mechanism but is significantly more expensive and complex.
+
+<Warning>
+  **Only use unilateral exit if:**
+  - The Arkade server is permanently unavailable
+  - You cannot reach the server for collaborative exit
+  - You need to exercise your trustless exit rights
+
+  This process requires multiple sequential onchain transactions and substantial fees.
+</Warning>
+
+### The Unilateral Exit Process
+
+<Steps>
+  <Step title="Create and fund an onchain wallet">
+    Unilateral exit requires [unrolling virtual transactions](/learn/security/unilateral-exit#exit-requirements) onchain. Each transaction needs miner fees paid via P2A outputs.
+
+    ```typescript
+    // Create an onchain wallet to pay for miner fees
+    const onchainWallet = new OnchainWallet(wallet.identity, 'regtest');
+    console.log("Fund this address:", onchainWallet.address)
+    ```
+
+    Send Bitcoin to this address to cover transaction fees for the unroll process.
+  </Step>
+
+  <Step title="Unroll your VTXO">
+    Unrolling publishes the chain of virtual transactions to the Bitcoin blockchain. This is done sequentially with confirmation waits between each transaction.
+
+    ```typescript
+    const outpoint = { txid: 'your_vtxo_txid', vout: 0 };
+    const session = await Unroll.Session.create(
+      outpoint,
+      onchainWallet,              // pays miner fees
+      onchainWallet.provider,     // onchain explorer
+      wallet.indexerProvider      // Arkade indexer for virtual txs
+    );
+
+    // Execute the unroll process step by step
+    for await (const step of session) {
+      switch (step.type) {
+        case Unroll.StepType.WAIT:
+          console.log(`Waiting for ${step.txid} to confirm`);
+          break;
+        case Unroll.StepType.UNROLL:
+          console.log(`Broadcasting ${step.tx.id}`);
+          break;
+        case Unroll.StepType.DONE:
+          console.log(`Unroll complete for ${step.vtxoTxid}`);
+          break;
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Wait for CSV locktime">
+    After unrolling, you must wait for the CHECKSEQUENCEVERIFY (CSV) relative timelock to expire before you can spend your VTXO.
+  </Step>
+
+  <Step title="Complete the exit">
+    Once the locktime is reached, claim your Bitcoin:
+
+    ```typescript
+    await Unroll.completeUnroll(
+      wallet,                  // your Arkade wallet
+      [vtxo.txid],            // VTXOs to complete
+      onchainWallet.address   // where to receive your Bitcoin
+    );
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  **Learn More:** See [Unilateral Exit Security](/learn/security/unilateral-exit) for detailed information about exit requirements, timelocks, and the trustless guarantees provided.
+</Note>
+
+## Summary
+
+Native ramps provide protocol-level mechanisms for moving Bitcoin in and out of Arkade, but they come with significant costs and complexity:
+
+- **Onboarding:** 2+ onchain transactions, confirmation wait times
+- **Collaborative Offboarding:** 1 onchain transaction, batched for efficiency
+- **Unilateral Exit:** Multiple sequential onchain transactions, high fees, timelock waits
+
+For most users, swap providers offer a better experience by abstracting these complexities and reducing costs through professional liquidity management.
+
+## Next Steps
+
+- [VTXO Management](/wallets/v0.3/vtxo-management) - Learn how to manage VTXO renewal and recovery
+- [Lightning Swaps](/contracts/lightning-swaps) - Recommended: Use Lightning for easier in/out
+- [Settlement Process](/wallets/v0.3/settlement) - Understand Arkade's settlement mechanics

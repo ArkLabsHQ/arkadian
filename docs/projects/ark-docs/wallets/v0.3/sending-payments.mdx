@@ -1,0 +1,68 @@
+---
+title: "Sending Payments"
+description: "Learn how to send Bitcoin payments within Arkade and to Lightning Network"
+icon: "paper-plane"
+---
+
+## Overview
+
+Arkade transactions work just like on-chain Bitcoin transactions - you send to addresses without requiring the recipient to be online. The key difference is that Arkade transactions are instant and have near-zero fees when sending to Arkade addresses. You can also send to Lightning invoices and Bitcoin addresses (bc1/tb1).
+
+## Sending to Arkade Addresses
+
+Use the `sendBitcoin` function to send to another Arkade wallet. Simply provide an Arkade address (starting with `ark1` or `tark1`) and the amount in satoshis. The recipient doesn't need to be online to receive the payment.
+
+```typescript
+// Send to an Arkade address
+const txid = await wallet.sendBitcoin({
+  address: 'tark12ld59yglpjkfezzhrr9cpe2ws4n87vs7rzv8234as3ctk9hly0r8w495snjdkk6fnwpwznlg56sutpy55n8a7nmkhumm4g7fckx9k4qrjc22t',
+  amount: 50000,  // in satoshis
+})
+
+console.log('Transaction ID:', txid)
+```
+
+<Tip>
+  **Like on-chain Bitcoin, but instant:** Payments to Arkade addresses work just like sending to a Bitcoin address - the recipient doesn't need to be online. The difference is that Arkade payments are instant and have near-zero fees, making them ideal for everyday transactions.
+</Tip>
+
+## Sending to Lightning Network
+
+Send payments from your Arkade wallet to any Lightning invoice using submarine swaps. This allows you to pay Lightning users instantly.
+
+<Card title="Lightning Swaps" icon="bolt" horizontal href="/contracts/lightning-swaps">
+  Learn how to integrate the Lightning Network with Arkade using submarine swaps to send and receive Lightning payments.
+</Card>
+
+## Sending to Bitcoin Addresses
+
+You can send directly to Bitcoin onchain addresses (bc1/tb1). This involves an onchain swap where your Arkade balance is converted to Bitcoin and sent to the recipient's address. Like sending to an Arkade address, the recipient doesn't need to be online.
+
+```typescript
+// Send to a Bitcoin address (involves onchain swap)
+const txid = await wallet.sendBitcoin({
+  address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',  // Bitcoin address
+  amount: 100000,  // in satoshis
+})
+
+console.log('Transaction ID:', txid)
+```
+
+<Note>
+  **Fee Comparison:**
+  - Arkade addresses (`ark1`/`tark1`): Near-zero fees, instant, no online requirement
+  - Lightning invoices: Low fees, instant via submarine swaps
+  - Bitcoin addresses (`bc1`/`tb1`): Standard network fees apply (onchain swap)
+
+  For regular onchain Bitcoin transactions, consider using the [offboarding process](/wallets/v0.3/ramps#exiting-collaboratively) instead for better control and potentially lower fees through batch processing.
+</Note>
+
+## Next Steps
+
+- [VTXO Management](/wallets/v0.3/vtxo-management) - Learn how to manage VTXO renewal and recovery
+- [Payment History](/wallets/v0.3/payment-history) - Track your transaction history
+- [Ramps](/wallets/v0.3/ramps) - Advanced: onboard from Bitcoin or offboard to Bitcoin
+
+---
+
+<NextButton url="/wallets/v0.3/vtxo-management" text="VTXO Management" />

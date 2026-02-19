@@ -1,0 +1,258 @@
+---
+title: "Expo / React Native"
+description: "Using Arkade SDK in React Native and Expo applications"
+icon: "mobile"
+---
+
+<Note>
+  Expo and React Native support is a **new feature in v0.3** with specialized providers for mobile environments.
+</Note>
+
+## Overview
+
+React Native and Expo applications require special handling for:
+
+- **Server-Sent Events (SSE)**: Standard EventSource doesn't work in React Native
+- **Streaming**: JSON streaming requires custom fetch implementation
+- **Cryptography**: `crypto.getRandomValues()` polyfill is required
+
+The v0.3 SDK provides Expo-compatible providers that handle these requirements automatically.
+
+## Installation
+
+First, install the required dependencies:
+
+```bash
+npm install @arkade-os/sdk
+npx expo install expo-crypto
+```
+
+## Crypto Polyfill Setup
+
+<Warning>
+  You **must** polyfill `crypto.getRandomValues()` before importing the SDK. This is required for MuSig2 settlements and cryptographic operations.
+</Warning>
+
+Add this at the **top** of your app entry point (before any SDK imports):
+
+```typescript
+// App.tsx or index.js - MUST be first import
+import * as Crypto from 'expo-crypto'
+
+if (!global.crypto) global.crypto = {} as any
+global.crypto.getRandomValues = Crypto.getRandomValues
+
+// Now import the SDK
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { ExpoArkProvider, ExpoIndexerProvider } from '@arkade-os/sdk/adapters/expo'
+```
+
+## Basic Setup
+
+Create a wallet with Expo-compatible providers:
+
+```typescript
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { ExpoArkProvider, ExpoIndexerProvider } from '@arkade-os/sdk/adapters/expo'
+import { AsyncStorageAdapter } from '@arkade-os/sdk/adapters/asyncStorage'
+
+// Setup storage
+const storage = new AsyncStorageAdapter()
+
+// Load or create identity
+let privateKeyHex = await storage.getItem('private-key')
+if (!privateKeyHex) {
+  const newIdentity = SingleKey.fromRandomBytes()
+  privateKeyHex = newIdentity.toHex()
+  await storage.setItem('private-key', privateKeyHex)
+}
+
+const identity = SingleKey.fromHex(privateKeyHex)
+
+// Create wallet with Expo providers
+const wallet = await Wallet.create({
+  identity,
+  esploraUrl: 'https://mutinynet.com/api',
+  arkProvider: new ExpoArkProvider('https://mutinynet.arkade.sh'),
+  indexerProvider: new ExpoIndexerProvider('https://mutinynet.arkade.sh'),
+  storage
+})
+
+// Use wallet normally
+const address = await wallet.getAddress()
+const balance = await wallet.getBalance()
+```
+
+## Understanding Expo Providers
+
+The SDK includes two specialized providers for Expo/React Native:
+
+### ExpoArkProvider
+
+Handles settlement events and transaction streaming using `expo/fetch` for Server-Sent Events:
+
+```typescript
+import { ExpoArkProvider } from '@arkade-os/sdk/adapters/expo'
+
+const arkProvider = new ExpoArkProvider('https://mutinynet.arkade.sh')
+```
+
+### ExpoIndexerProvider
+
+Handles address subscriptions and VTXO updates using `expo/fetch` for JSON streaming:
+
+```typescript
+import { ExpoIndexerProvider } from '@arkade-os/sdk/adapters/expo'
+
+const indexerProvider = new ExpoIndexerProvider('https://mutinynet.arkade.sh')
+```
+
+<Info>
+  Both providers follow the SDK's modular architecture pattern, keeping the main bundle clean while providing opt-in functionality for specific environments.
+</Info>
+
+## Complete Example
+
+Here's a complete React Native component with wallet integration:
+
+```typescript
+import React, { useEffect, useState } from 'react'
+import { View, Text, Button } from 'react-native'
+import { Wallet, SingleKey } from '@arkade-os/sdk'
+import { ExpoArkProvider, ExpoIndexerProvider } from '@arkade-os/sdk/adapters/expo'
+import { AsyncStorageAdapter } from '@arkade-os/sdk/adapters/asyncStorage'
+
+export default function WalletScreen() {
+  const [wallet, setWallet] = useState(null)
+  const [address, setAddress] = useState('')
+  const [balance, setBalance] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    initWallet()
+  }, [])
+
+  async function initWallet() {
+    try {
+      const storage = new AsyncStorageAdapter()
+
+      // Load or create identity
+      let privateKeyHex = await storage.getItem('private-key')
+      if (!privateKeyHex) {
+        const newIdentity = SingleKey.fromRandomBytes()
+        privateKeyHex = newIdentity.toHex()
+        await storage.setItem('private-key', privateKeyHex)
+      }
+
+      const identity = SingleKey.fromHex(privateKeyHex)
+
+      // Create wallet
+      const newWallet = await Wallet.create({
+        identity,
+        esploraUrl: 'https://mutinynet.com/api',
+        arkProvider: new ExpoArkProvider('https://mutinynet.arkade.sh'),
+        indexerProvider: new ExpoIndexerProvider('https://mutinynet.arkade.sh'),
+        storage
+      })
+
+      setWallet(newWallet)
+
+      // Get address and balance
+      const addr = await newWallet.getAddress()
+      const bal = await newWallet.getBalance()
+
+      setAddress(addr)
+      setBalance(bal)
+    } catch (error) {
+      console.error('Failed to initialize wallet:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function refreshBalance() {
+    if (!wallet) return
+    const bal = await wallet.getBalance()
+    setBalance(bal)
+  }
+
+  if (loading) {
+    return <Text>Loading wallet...</Text>
+  }
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text>Address: {address}</Text>
+      <Text>Balance: {balance?.total || 0} sats</Text>
+      <Button title="Refresh Balance" onPress={refreshBalance} />
+    </View>
+  )
+}
+```
+
+## Using AsyncStorage
+
+For persistent storage in React Native, use `AsyncStorageAdapter`:
+
+```typescript
+import { AsyncStorageAdapter } from '@arkade-os/sdk/adapters/asyncStorage'
+
+const storage = new AsyncStorageAdapter()
+
+// Store identity
+await storage.setItem('private-key', privateKeyHex)
+
+// Load identity
+const privateKeyHex = await storage.getItem('private-key')
+```
+
+## Common Issues
+
+### Crypto Not Defined
+
+**Error**: `crypto is not defined` or `crypto.getRandomValues is not a function`
+
+**Solution**: Ensure the crypto polyfill is set up before importing the SDK:
+
+```typescript
+import * as Crypto from 'expo-crypto'
+if (!global.crypto) global.crypto = {} as any
+global.crypto.getRandomValues = Crypto.getRandomValues
+```
+
+### EventSource Not Available
+
+**Error**: `EventSource is not defined`
+
+**Solution**: Use `ExpoArkProvider` and `ExpoIndexerProvider` instead of default providers:
+
+```typescript
+import { ExpoArkProvider, ExpoIndexerProvider } from '@arkade-os/sdk/adapters/expo'
+
+const wallet = await Wallet.create({
+  identity,
+  arkProvider: new ExpoArkProvider(arkUrl),
+  indexerProvider: new ExpoIndexerProvider(arkUrl)
+})
+```
+
+### AsyncStorage Errors
+
+**Error**: `AsyncStorage is null`
+
+**Solution**: Make sure you're using `AsyncStorageAdapter` from the SDK:
+
+```typescript
+import { AsyncStorageAdapter } from '@arkade-os/sdk/adapters/asyncStorage'
+
+const storage = new AsyncStorageAdapter()
+```
+
+## Testing on Devices
+
+When testing on physical devices or emulators:
+
+1. Make sure your device can reach the Arkade server URL
+2. Use a publicly accessible server (not localhost)
+3. Check network permissions in your app configuration
+

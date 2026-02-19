@@ -30,7 +30,12 @@ This documentation is built with Mintlify and published at the official Ark docu
 Documentation about the Ark server daemon (arkd):
 
 - **what-is-arkd.mdx** — Introduction to arkd
-- **components/** — Core components (intent system, intent delegation, ark notes)
+- **components/** — Core components:
+  - intent-system.mdx — Intent system architecture
+  - intent-delegation.mdx — Intent delegation
+  - ark-notes.mdx — Ark notes
+  - arkade-psbt.mdx — Arkade-specific PSBT format
+  - scheduled-session.mdx — Scheduled session mechanism
 - **core-services/** — Service architecture (ark service, indexer service)
 - **server-security/** — Security mechanisms (checkpoint txs, forfeit txs)
 - **txs/** — Transaction types (boarding, offchain execution, onchain settlement, exiting)
@@ -38,67 +43,66 @@ Documentation about the Ark server daemon (arkd):
 ### `${ARKADIAN_DIR}/docs/projects/ark-docs/learn/` — Learning Resources
 Educational content about Ark protocol:
 
-- **faq/** — Frequently asked questions
-  - What is Arkade
-  - What are VTXOs
-  - Is Arkade a new blockchain
+- **faq/** — Frequently asked questions (16 entries)
+  - What is Arkade, What are VTXOs, What problem does Arkade solve
+  - Is Arkade a new blockchain, Is Arkade live
   - Are Arkade transactions real Bitcoin transactions
-  - What problem does Arkade solve
-  - Who is the Arkade operator
-  - What if operator disappears
-  - Self-custody guarantees
-  - Fees and economics
-  - Application examples
-  - Getting started
-  - Token requirements
-  - Bitcoin changes needed
-  - Batch output and settlement
+  - Who is the Arkade operator, What if operator disappears
+  - Self-custody guarantees, Fees and economics
+  - Application examples, Token requirements
+  - Bitcoin changes needed, Batch output and settlement
+  - What is Arkade Script, What is the virtual mempool
+  - TEE and Arkade, How does Arkade relate to Ark protocol
+  - Will Arkade work with existing Bitcoin infrastructure
 
-- **pillars/** — Core concepts and pillars
+- **pillars/** — Core concepts (VTXOs, batch outputs, connectors, arkade-tx, batch expiry, batch swaps, virtual mempool)
 
-- **security/** — Security deep-dives
-  - Economic security
-  - Transaction finality
-  - Unilateral exit
-  - Liveness guarantees
-  - Advanced security
-  - Risks and limitations
+- **security/** — Security deep-dives (economic security, transaction finality, unilateral exit, liveness, advanced security, risks and limitations)
 
-### `${ARKADIAN_DIR}/docs/projects/ark-docs/contracts/` — Arkade Smart Contracts
-Documentation about Arkade (Ark smart contract language):
+- **glossary.mdx** — Protocol terminology
 
-- **overview.mdx** — Arkade overview
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/contracts/` — Arkade Contracts (Stable)
+Production-ready contract documentation:
+
+- **overview.mdx** — Arkade contracts overview
 - **background.mdx** — Background and motivation
 - **smart-contracts-utxo.mdx** — Smart contracts on UTXO model
+- **escrow.mdx** — Escrow contracts
+- **lightning-swaps.mdx** — Lightning Network swaps
+- **chain-swaps.mdx** — Cross-chain swaps
+- **spilman-channels.mdx** — Spilman payment channels
+- **oracle-dlc.mdx** — Oracle and DLC integration
+
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/experimental/` — Experimental Arkade Language
+Arkade scripting language reference (experimental status):
+
+- **overview.mdx** — Experimental Arkade overview
 - **arkade-script.mdx** — Arkade scripting language
 - **arkade-syntax.mdx** — Syntax reference
 - **arkade-types.mdx** — Type system
 - **arkade-functions.mdx** — Built-in functions
 - **arkade-compiler.mdx** — Compiler documentation
-
-**Contract Examples:**
-- **channels.mdx** — Payment channels
-- **escrow.mdx** — Escrow contracts
-- **lightning-swaps.mdx** — Lightning Network swaps
-- **chain-swaps.mdx** — Cross-chain swaps
-- **non-interactive-swaps.mdx** — Non-interactive swap protocols
 - **automated-market-makers.mdx** — AMM implementations
+- **non-interactive-swaps.mdx** — Non-interactive swap protocols
 - **prediction-market.mdx** — Prediction markets
 - **synthetic-assets.mdx** — Synthetic asset contracts
-- **oracle-dlc.mdx** — Oracle and DLC integration
 
-### `${ARKADIAN_DIR}/docs/projects/ark-docs/wallets/` — Wallet Development
-Guide for building Ark wallets:
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/wallets/` — Wallet Development (v0.3)
+Guide for building Ark wallets with TypeScript SDK v0.3:
 
-- **introduction.mdx** — Wallet overview
-- **setup.mdx** — Initial wallet setup
-- **ark-addresses.mdx** — Ark address format and generation
-- **balances.mdx** — Managing onchain and offchain balances
-- **receiving-payments.mdx** — Receiving Ark payments
-- **sending-payments.mdx** — Sending Ark payments
-- **settlement.mdx** — Settlement and round participation
-- **payment-history.mdx** — Transaction history management
-- **ramps.mdx** — On-ramps and off-ramps
+- **v0.3/introduction.mdx** — Wallet overview
+- **v0.3/setup.mdx** — Initial wallet setup
+- **v0.3/ark-addresses.mdx** — Ark address format and generation
+- **v0.3/balances.mdx** — Managing onchain and offchain balances
+- **v0.3/receiving-payments.mdx** — Receiving Ark payments
+- **v0.3/sending-payments.mdx** — Sending Ark payments
+- **v0.3/settlement.mdx** — Settlement and round participation
+- **v0.3/payment-history.mdx** — Transaction history management
+- **v0.3/ramps.mdx** — On-ramps and off-ramps
+- **v0.3/vtxo-management.mdx** — VTXO lifecycle management
+- **v0.3/storage-adapters.mdx** — Storage adapter configuration
+- **v0.3/service-worker.mdx** — Service worker wallet
+- **v0.3/expo-react-native.mdx** — Expo/React Native support
 
 ---
 
@@ -169,9 +173,11 @@ All documentation files use `.mdx` format (Markdown + JSX) for Mintlify renderin
 arkd/
 ├── what-is-arkd.mdx
 ├── components/
+│   ├── intent-system.mdx
 │   ├── intent-delegation.mdx
 │   ├── ark-notes.mdx
-│   └── intent-system.mdx
+│   ├── arkade-psbt.mdx
+│   └── scheduled-session.mdx
 ├── core-services/
 │   ├── overview.mdx
 │   ├── ark-service.mdx
@@ -189,22 +195,35 @@ arkd/
 ### Learn Documentation Files
 ```
 learn/
-├── faq/
+├── faq/  (16 entries)
 │   ├── what-is-arkade.mdx
 │   ├── what-are-vtxos.mdx
-│   ├── is-arkade-a-new-blockchain.mdx
-│   ├── are-arkade-transactions-real-bitcoin-transactions.mdx
 │   ├── what-problem-does-arkade-solve.mdx
+│   ├── is-arkade-a-new-blockchain.mdx
+│   ├── is-arkade-live.mdx
+│   ├── are-arkade-transactions-real-bitcoin-transactions.mdx
 │   ├── who-is-the-arkade-operator.mdx
 │   ├── what-if-the-operator-disappears-or-acts-maliciously.mdx
 │   ├── how-does-arkade-ensure-self-custody.mdx
+│   ├── how-does-arkade-relate-to-ark-protocol.mdx
 │   ├── what-about-the-fees.mdx
 │   ├── what-kind-of-applications-can-be-built-on-arkade.mdx
-│   ├── how-do-i-get-started-with-arkade.mdx
 │   ├── does-arkade-require-a-token.mdx
 │   ├── does-arkade-require-changes-to-bitcoin.mdx
-│   └── what-is-batch-output-and-onchain-settlement.mdx
+│   ├── what-is-batch-output-and-onchain-settlement.mdx
+│   ├── what-is-arkade-script.mdx
+│   ├── what-is-the-virtual-mempool.mdx
+│   ├── whats-a-tee-and-how-does-arkade-use-it.mdx
+│   └── will-arkade-work-with-existing-bitcoin-infrastructure.mdx
+├── glossary.mdx
 ├── pillars/
+│   ├── vtxos.mdx
+│   ├── batch-outputs.mdx
+│   ├── connectors.mdx
+│   ├── arkade-tx.mdx
+│   ├── batch-expiry.mdx
+│   ├── batch-swaps.mdx
+│   └── virtual-mempool.mdx
 └── security/
     ├── economic-security.mdx
     ├── transaction-finality.mdx
@@ -214,31 +233,37 @@ learn/
     └── risks-limitations.mdx
 ```
 
-### Contracts Documentation Files
+### Contracts Documentation Files (Stable)
 ```
 contracts/
 ├── overview.mdx
 ├── background.mdx
 ├── smart-contracts-utxo.mdx
+├── escrow.mdx
+├── lightning-swaps.mdx
+├── chain-swaps.mdx
+├── spilman-channels.mdx
+└── oracle-dlc.mdx
+```
+
+### Experimental Arkade Language Files
+```
+experimental/
+├── overview.mdx
 ├── arkade-script.mdx
 ├── arkade-syntax.mdx
 ├── arkade-types.mdx
 ├── arkade-functions.mdx
 ├── arkade-compiler.mdx
-├── channels.mdx
-├── escrow.mdx
-├── lightning-swaps.mdx
-├── chain-swaps.mdx
-├── non-interactive-swaps.mdx
 ├── automated-market-makers.mdx
+├── non-interactive-swaps.mdx
 ├── prediction-market.mdx
-├── synthetic-assets.mdx
-└── oracle-dlc.mdx
+└── synthetic-assets.mdx
 ```
 
-### Wallets Documentation Files
+### Wallets Documentation Files (v0.3)
 ```
-wallets/
+wallets/v0.3/
 ├── introduction.mdx
 ├── setup.mdx
 ├── ark-addresses.mdx
@@ -247,7 +272,11 @@ wallets/
 ├── sending-payments.mdx
 ├── settlement.mdx
 ├── payment-history.mdx
-└── ramps.mdx
+├── ramps.mdx
+├── vtxo-management.mdx
+├── storage-adapters.mdx
+├── service-worker.mdx
+└── expo-react-native.mdx
 ```
 
 ---

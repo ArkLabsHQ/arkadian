@@ -1,0 +1,103 @@
+---
+title: "Overview"
+description: "Arkade Script, Compiler, and Advanced Contract Designs"
+icon: "file-contract"
+---
+
+<Warning>
+  **Experimental & Forward-Looking Technology**
+
+  Everything documented in this section represents a future, experimental vision of Arkade Script. None of the language features, opcodes, compiler components, or advanced contracts described here are fully implemented today. This material exists to communicate design intent, explore possibilities, and provide a coherent mental model of where the Arkade ecosystem is heading.
+</Warning>
+
+## What This Section Is
+
+This part of the documentation describes a **proposed smart contract stack for Arkade**, built on top of Bitcoin Taproot and the VTXO (Virtual Transaction Output) paradigm.
+
+It is **not** a reference for production systems and **not** a description of current Arkade functionality.\
+Instead, it should be read as a design document with language/tooling vision which opens up a research and exploration space for advanced Bitcoin contracts. 
+
+The goal is to show how expressive smart contracts _could_ look in a future Arkade environment once the underlying protocol, opcodes, and tooling mature.
+
+## The VTXO Execution Model
+
+All contracts in this section assume the VTXO paradigm, where every contract has two execution paths:
+
+- **Cooperative Path**\
+  Immediate execution with an Arkade server co-signature, providing fast finality and efficient offchain operation.
+- **Unilateral Exit Path**\
+  A timelock-protected onchain fallback that users can always execute independently if the server becomes unavailable.
+
+This dual-path model underpins the entire Arkade Script design and all advanced contract examples.
+
+## What You’ll Find in This Section
+
+The pages that follow are grouped into three conceptual layers: language, tooling, and contract design patterns.
+
+### Language, Tooling & Execution Layer
+
+These pages describe the proposed scripting environment, the tooling and execution model:
+
+<Card icon="code" horizontal href="/experimental/arkade-script">
+  Arkade Script: New Tapscript opcodes, execution limits, and extensions for expressive Bitcoin contracts
+</Card>
+
+<Card icon="gears" horizontal href="/experimental/arkade-compiler">
+  Arkade Compiler: Transforms Arkade Script into optimized Taproot scripts, handling cooperative vs unilateral paths, script optimization, Taproot tree construction, and debug metadata
+</Card>
+
+<Card icon="code" horizontal href="/experimental/arkade-syntax">
+  Arkade Syntax: A high-level, Solidity-inspired language adapted to Bitcoin’s UTXO and covenant model
+</Card>
+
+<Card icon="cube" horizontal href="/experimental/arkade-types">
+  Arkade Types: The proposed type system including integers, cryptographic types, assets, arrays, and structs
+</Card>
+
+<Card icon="function" horizontal href="/experimental/arkade-functions">
+  Arkade Functions: Built-in primitives for signatures, hashing, timelocks, introspection, and script construction
+</Card>
+
+
+### Advanced Contract Designs
+
+These pages explore what becomes possible once expressive covenants, introspection, and clean arithmetic are available:
+
+<Card icon="arrows-rotate" horizontal href="/experimental/non-interactive-swaps">
+  Non-Interactive Swaps: One-sided, asynchronous asset swaps without coordination or trusted intermediaries
+</Card>
+
+<Card icon="chart-line" horizontal href="/experimental/synthetic-assets">
+  Synthetic Assets: Collateralized, oracle-driven synthetic assets with programmable liquidation logic
+</Card>
+
+<Card icon="chart-simple" horizontal href="/experimental/automated-market-makers">
+  Automated Market Makers (AMMs): Recursive covenant designs for liquidity pools, swaps, and invariant-preserving market making
+</Card>
+
+<Card icon="dice" horizontal href="/experimental/prediction-market">
+  Prediction Markets: LMSR-based markets with bounded loss, oracle resolution, and onchain state transitions
+</Card>
+
+<Info>
+  These examples are intentionally ambitious and serve as design explorations, not implementation guides.
+</Info>
+
+## Development Status
+
+- No Arkade Script opcodes described here are live on Bitcoin
+- The compiler, language, and tooling are **prototypes or design sketches**
+- Advanced contracts are **theoretical constructions**, meant to test expressiveness and limits
+
+<Warning>
+  Expect significant changes, removals, and redesigns as Arkade evolves.
+</Warning>
+
+## Getting Involved
+
+If you want to discuss the ideas, challenge assumptions, or help shape the design:
+
+- Join the [Arkade Telegram community](https://t.me/arkade_os)
+- Open issues or discussions on [GitHub](https://github.com/arkade-os/compiler/issues)
+
+Feedback at this stage is especially valuable. This section exists precisely to make these ideas concrete enough to critique.

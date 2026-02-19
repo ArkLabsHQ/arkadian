@@ -1,0 +1,110 @@
+---
+title: "Arkade PSBTs"
+description: "Arkade-specific PSBT fields"
+icon: "rectangle-list"
+---
+
+Arkade extends the standard Partially Signed Bitcoin Transaction (PSBT) format ([BIP 174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)) to include custom fields required for its advanced contract logic and coordination mechanisms.
+
+These fields allow Arkade to encode metadata such as taproot trees, relative timelocks, multi-signer coordination, and custom witness data; features that are not supported by standard PSBTs.
+
+Arkade’s PSBT extensions build on BIP 174’s forward-compatible design. Because standard PSBT parsers simply ignore but preserve these unknown fields, Arkade transactions remain fully interoperable while adding richer contract semantics and coordination logic.
+
+## Input Fields
+
+Arkade leverages the _unknown field mechanism_ by introducing its own field namespace under key type `222` (`0xDE`), enabling protocol-specific functionality while remaining interoperable with standard tooling. Each field appears in the PSBT input map under key type `0xDE`, following the PSBT unknown-field encoding rules.
+
+| Name        | Type   | Key                                                      | Purpose                                              | Value Format                                             |
+| :---------- | :----- | :------------------------------------------------------- | :--------------------------------------------------- | :------------------------------------------------------- |
+| `taptree`   | `0xDE` | `0x74617074726565` ("taptree")                           | A list of tapscript leaves                           | Sequence of tapscript leaves (depth + version + script). |
+| `expiry`    | `0xDE` | `0x657870697279` ("expiry")                              | Specifies relative timelock (CSV) for input spending | [BIP68](https://bips.dev/68/) sequence encoding          |
+| `cosigner`  | `0xDE` | `0x636F7369676E6572` ("cosigner") + `<uint32_key_index>` | Identifies indexed Musig2 cosigner public keys       | 33-byte compressed public key                            |
+| `condition` | `0xDE` | `0x636F6E646974696F6E` ("condition")                     | Adds custom witness elements for script execution    | raw witness bytes                                        |
+
+### Field Details
+
+<AccordionGroup>
+  <Accordion title="Taptree Field">
+    **Field**: `taptree`\
+    **Purpose**: Embeds a Taproot script tree for complex input spending conditions.\
+    **Key Format**: `0xDE` + `"taptree"` (7 bytes)\
+    **Value Format**: TapTree encoding (variable length)
+
+    The TapTree is encoded as a sequence of tapscript leaves, where each leaf contains:
+
+    - Depth (1 byte): Always 1 for single-level trees
+    - Leaf version (1 byte): Always tapscript version (`0xC0`)
+    - Script length (compact size): Length of the script in bytes
+    - Script bytes: The actual tapscript
+
+    **Example**:
+
+    ```
+    Key: 0xDE 0x74 0x61 0x70 0x74 0x72 0x65 0x65 ("taptree")
+    Value: [1][0xC0][script_len][script_bytes][1][0xC0][script_len][script_bytes]...
+    ```
+  </Accordion>
+  <Accordion title="Expiry Field">
+    **Field**: `expiry`\
+    **Purpose**: Defines a relative locktime (CSV) condition for the input.\
+    **Key Format**: `0xDE` + `"expiry"` (6 bytes)\
+    **Value Format**: [BIP68](https://bips.dev/68/) sequence encoding (1–5 bytes, little-endian)
+
+    **Example**:
+
+    ```
+    Key: 0xDE 0x65 0x78 0x70 0x69 0x72 0x79 ("expiry")
+    Value: [sequence_bytes] (e.g., 0x80 0x96 0x98 for 10000 blocks)
+    ```
+  </Accordion>
+  <Accordion title="Cosigner Field">
+    **Field**: `cosigner`\
+    **Purpose**: Specifies indexed Musig2 cosigner public keys.\
+    **Key Format**: `0xDE` + `"cosigner"` + `<uint32_index>` (11 bytes)\
+    **Value Format**: 33-byte compressed public key
+
+    Index is a 4-byte big-endian integer appended to the base key. This allows multiple cosigner fields per input, each with a unique index for proper ordering.
+
+    **Example**:
+
+    ```
+    Key: 0xDE 0x63 0x6F 0x73 0x69 0x67 0x6E 0x65 0x72 0x00 0x00 0x00 0x01 ("cosigner" + index 1)
+    Value: [33-byte compressed public key]
+    ```
+  </Accordion>
+  <Accordion title="Condition Field">
+    **Field**: `condition`\
+    **Purpose**: Provides additional witness elements for custom script execution.\
+    **Key Format**: `0xDE` + `"condition"` (9 bytes)\
+    **Value Format**: PSBT witness encoding (compact size + data)
+
+    Each witness includes:
+
+    - Number of witness elements (compact size)
+    - For each element: length (compact size) + data
+
+    **Example**:
+
+    ```
+    Key: 0xDE 0x63 0x6F 0x6E 0x64 0x69 0x74 0x69 0x6F 0x6E ("condition")
+    Value: [witness_encoding]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Reference Implementations
+
+The reference implementations are available in the `arkd` codebase:
+
+<Card title="PSBT fields" icon="github" horizontal href="https://github.com/arkade-os/arkd/blob/ark-psbt-fields-doc/pkg/ark-lib/txutils/psbt_fields.go">
+  Core field definitions and encoding/decoding
+</Card>
+
+<CardGroup cols={2}>
+  <Card title="TapTree" icon="github" href="https://github.com/arkade-os/arkd/blob/ark-psbt-fields-doc/pkg/ark-lib/txutils/taptree.go">
+    TapTree encoding/decoding
+  </Card>
+  <Card title="Expiry" icon="github" href="https://github.com/arkade-os/arkd/blob/ark-psbt-fields-doc/pkg/ark-lib/locktime.go">
+    Relative Locktime handling
+  </Card>
+</CardGroup>

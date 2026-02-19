@@ -1,0 +1,38 @@
+---
+title: "Scheduled Sessions"
+description: "Coordinated time windows for synchronized VTXO management and fee-efficient settlement"
+icon: "clock"
+---
+
+Scheduled Sessions are a configurable time windows in `arkd` during which the Arkade operator may offer lower or zero-fee settlements. They operate **in addition** to periodic settlement sessions, creating synchronized periods where many clients settle at the same time. 
+
+By participating in scheduled sessions, clients can take advantage of reduced or waived fees while helping aggregate activity into fewer onchain transactions, improving efficiency for both users and the operator.
+
+Scheduled Sessions are defined via [`ScheduledSessionConfig`](https://github.com/arkade-os/arkd/blob/e16538b52131080ef247f6fed176db0d15a378bc/api-spec/protobuf/ark/v1/admin.proto#L212-L220):
+
+```typescript
+message ScheduledSessionConfig {
+  int64 start_time = 1;
+  int64 end_time = 2;
+  int64 period = 3;
+  int64 duration = 4;
+  int64 round_min_participants_count = 5;
+  int64 round_max_participants_count = 6;
+  FeeInfo fees = 7;
+}
+```
+
+They are governed by a few key parameters:
+
+- `start_time`: Start of scheduled session (Unix timestamp) 
+- `end_time`: End of scheduled session (Unix timestamp)
+- `period`: Time interval between scheduled sessions (in seconds)
+- `duration`: Duration of a scheduled session
+- `round_min_participants_count`: Lower threshold for the number of users required for a scheduled session
+- `round_max_participants_count`: Upper threshold for the number of users allowed for a scheduled session
+- `fees`: Fee structure applied during the scheduled session (e.g. discounted or zero-fee rates)
+
+By aligning client operations within these shared windows, scheduled sessions provide a more efficient and predictable framework for transaction processing in Arkade.
+
+<Tip>Clients can query the `ArkService` via `GetInfo` which will return the announced session times.</Tip>
+

@@ -1,0 +1,168 @@
+---
+title: "Spilman Channels"
+description: "Build scalable payment channels on Arkade"
+icon: "route"
+---
+
+<Warning>
+  **Experimental Technology**
+
+  Spilman Channels on Arkade are experimental and under active development.\
+  The examples and scripts presented here are for research and proof-of-concept use only.\
+  Do not deploy in production environments.
+</Warning>
+
+<Card title="Spilman Channel Example" icon="github" horizontal href="https://github.com/arkade-os/ts-sdk/blob/master/examples/spilman.js">
+  Reference implementation of a virtual Spilman Channel within Arkade
+</Card>
+
+A Spilman Channel is a classic unidirectional payment channel design that allows one party (Alice) to incrementally pay another (Bob) offchain, using monotonically increasing state updates. On Arkade, Spilman Channels are implemented as virtual channels, using VTXOs and checkpoint transactions instead of onchain funding and settlement transactions.
+
+This design enables lightweight, private, and low-cost payment streams between users while retaining Bitcoin-level security guarantees via Arkade.
+
+## Channel Lifecycle
+
+1. **Setup**: Alice locks funds so that either Bob can take an ever-increasing amount immediately (by holding the latest state transaction), or Alice can take everything back after a timeout (refund path).
+2. **Offchain Updates**: Every payment is a new transaction that is signed by Alice and that pays more to Bob than the previous one. The transaction is not published to the Arkade server, but sent to Bob.
+3. **Closing the Channel**
+   - Cooperative Close: Bob can close the channel by adding his signature to the presigned transaction he received from Alice together with the corresponding checkpoint data.
+   - Refund Path: If Bob is unresponsive, Alice waits for the CLTV/CSV timelock to expire and reclaims her funds via the refund path.
+
+## Spending Paths
+
+A virtual Spilman Channel is composed of a Taproot tree with four key spending paths:
+
+| Path                     | Script Type   | Participants         | Description                                            |
+| ------------------------ | ------------- | -------------------- | ------------------------------------------------------ |
+| `updateScript`           | MultiSig      | Alice + Bob + Server | Used for cooperative offchain updates                  |
+| `refundScript`           | CLTV MultiSig | Alice + Server       | Allows refund after an absolute locktime                 |
+| `unilateralUpdateScript` | CSV MultiSig  | Alice + Bob          | Enables unilateral channel closure after a short delay |
+| `unilateralRefundScript` | CSV SingleSig | Alice                | Fallback refund path after a longer delay              |
+
+<Info>
+  The timelocks are ordered such that: `unilateralUpdateDelay` \< `unilateralRefundDelay`. This ensures that updates are always possible before refunds, meaning: Bob can always close with the latest valid state before Alice’s refund becomes valid.
+</Info>
+
+## Example Implementations
+
+The following code snippets are an excerpt from the ts-sdk repo ([spilman.js](https://github.com/arkade-os/ts-sdk/blob/master/examples/spilman.js)):
+
+<Accordion title="Constructing a virtual Spilman Channel with Tapscript Conditions">
+  This snippet sets up a virtual Spilman payment channel between Alice, Bob, and a coordinating server. It defines the Tapscript-based spending conditions, covering cooperative updates, time-locked refunds, and unilateral exits, using multisig and timelocked scripts that together form the channel’s lifecycle logic.
+
+  ```js
+  import {
+    SingleKey,
+    Wallet,
+    RestArkProvider,
+    RestIndexerProvider,
+    buildOffchainTx,
+    VtxoScript,
+    MultisigTapscript,
+    CLTVMultisigTapscript,
+    CSVMultisigTapscript,
+    networks,
+  } from "../dist/esm/index.js";
+  
+  // Spilman Channel construction (simplified)
+  const SERVER_PUBLIC_KEY = hex.decode("e35799...dbdb");
+  const alice = SingleKey.fromRandomBytes();
+  const bob = SingleKey.fromRandomBytes();
+  
+  const updateScript = MultisigTapscript.encode({
+    pubkeys: [await alice.xOnlyPublicKey(), await bob.xOnlyPublicKey(), SERVER_PUBLIC_KEY],
+  }).script;
+  
+  const refundScript = CLTVMultisigTapscript.encode({
+    pubkeys: [await alice.xOnlyPublicKey(), SERVER_PUBLIC_KEY],
+    absoluteTimelock: BigInt(chainTip + 10),
+  }).script;
+  
+  const unilateralUpdateScript = CSVMultisigTapscript.encode({
+    pubkeys: [await alice.xOnlyPublicKey(), await bob.xOnlyPublicKey()],
+    timelock: { type: "blocks", value: 100n },
+  }).script;
+  
+  const unilateralRefundScript = CSVMultisigTapscript.encode({
+    pubkeys: [await alice.xOnlyPublicKey()],
+    timelock: { type: "blocks", value: 102n },
+  }).script;
+  
+  const virtualSpilmanChannel = new VtxoScript([
+    updateScript,
+    refundScript,
+    unilateralUpdateScript,
+    unilateralRefundScript,
+  ]);
+  
+  ```
+</Accordion>
+
+<Accordion title="Offchain Channel State Updates and Signatures">
+  This snippet simulates off-chain channel updates between Alice and Bob.
+Alice first sends 1000 sats, both sign the transaction, then she updates the state by sending 500 more sats, resulting in a new co-signed off-chain transaction reflecting the updated balance.
+
+  ```js
+    console.log("\nStarting channel updates...");
+    // Alice sends 1000 to bob
+    console.log("Alice sends 1000 sats to Bob");
+    const { arkTx: tx1, checkpoints } = buildOffchainTx(
+        [input],
+        [
+            {
+                amount: BigInt(1000),
+                script: virtualSpilmanChannel.pkScript,
+            },
+            {
+                amount: BigInt(channelCapacity - 1000),
+                script: virtualSpilmanChannel.pkScript,
+            },
+        ],
+        serverUnrollScript
+    );
+    const signedTx1 = await alice.sign(tx1);
+    const signedCheckpointsByAlice = await Promise.all(
+        checkpoints.map(async (c) => {
+            return alice.sign(c, [0]);
+        })
+    );
+    console.log("Alice signed transaction 1");
+    bobChannelStates.push(await bob.sign(signedTx1));
+    console.log("Bob signed transaction 1");
+
+
+    // Alice updates the state, sending 500 sats more to Bob
+    console.log("\nAlice sends 500 more sats to Bob");
+    const { arkTx: tx2 } = buildOffchainTx(
+        [input],
+        [
+            {
+                amount: BigInt(1500),
+                script: virtualSpilmanChannel.pkScript,
+            },
+            {
+                amount: BigInt(channelCapacity - 1500),
+                script: virtualSpilmanChannel.pkScript,
+            },
+        ],
+        serverUnrollScript
+    );
+    const signedTx2 = await alice.sign(tx2);
+    console.log("Alice signed transaction 2");
+    bobChannelStates.push(await bob.sign(signedTx2));
+    console.log("Bob signed transaction 2");
+  
+  ```
+</Accordion>
+
+
+## Integration with Arkade
+
+On Arkade, these channel contracts are expressed as VTXOs. The Arkade server participates in cooperative branches only, facilitating batching and checkpoint finalization, but it cannot unilaterally spend or steal funds.
+
+Key properties:
+
+- Private: Updates remain offchain.
+- Cheap: No onchain footprint until settlement.
+- Safe: Script-level guarantees enforced by timelocks.
+- Compositional: Can be nested or linked to higher-level Arkade contracts.

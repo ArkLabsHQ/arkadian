@@ -475,12 +475,13 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark concepts, arkd server, wallet development, smart contracts (Arkade language), and security model. Used as knowledge base for Q&A agents.
 
 **Key Capabilities**:
-- Ark protocol concepts (VTXOs, rounds, settlement)
-- Arkd server documentation (components, transactions, security)
-- Wallet development guide (integration, APIs)
-- Arkade smart contracts (language reference, examples)
+- Ark protocol concepts (VTXOs, rounds, settlement, pillars, glossary)
+- Arkd server documentation (components, transactions, security, scheduled sessions, Arkade PSBT)
+- Wallet development guide v0.3 (setup, payments, VTXO management, storage adapters, service worker, Expo/React Native)
+- Arkade contracts (escrow, swaps, Spilman channels, Oracle/DLC)
+- Experimental Arkade language (script, syntax, types, functions, compiler)
 - Security deep-dives (economic security, finality, exit mechanisms)
-- FAQ (20+ common questions)
+- FAQ (16 common questions)
 - Mintlify-powered interactive documentation
 - Auto-published via GitHub integration
 

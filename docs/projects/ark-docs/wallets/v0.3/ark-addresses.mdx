@@ -1,23 +1,23 @@
 ---
-title: "Ark Addresses"
-description: "Understanding the structure and implementation of Ark addresses"
+title: "Arkade Addresses"
+description: "Understanding the structure and implementation of Arkade addresses"
 icon: "address-card"
 ---
 
 ## Overview
 
-Ark addresses are a fundamental component of the Arkade ecosystem, enabling instant offchain transactions with near-zero fees. This guide explains the structure and technical implementation of Ark addresses.
+Arkade addresses are a fundamental component of the Arkade ecosystem, enabling instant offchain transactions with near-zero fees. This guide explains the structure and technical implementation of Arkade addresses.
 
 ## Address Structure
 
-An Ark address is a bech32m encoding of:
+An Arkade address is a bech32m encoding of:
 
 1. A network prefix (`ark` for mainnet, `tark` for test networks)
 2. The version number (`0` is the only version currently supported)
 3. The server's x-only public key
 4. The P2TR (Pay-to-Taproot) output key
 
-<Frame caption="Ark Address Components">
+<Frame caption="Arkade Address Components">
   <div className="flex flex-col space-y-2">
     <div className="flex items-center p-2 border rounded">
       <div className="w-24"><b>Prefix</b></div>
@@ -36,7 +36,7 @@ An Ark address is a bech32m encoding of:
     <div className="flex items-center p-2 border rounded">
       <div className="w-24"><b>Server Key</b></div>
       <div className="flex-1">
-        Ark Service Provider's x-only public key (32 bytes)
+        Arkade Service Provider's x-only public key (32 bytes)
       </div>
     </div>
 
@@ -48,6 +48,19 @@ An Ark address is a bech32m encoding of:
     </div>
   </div>
 </Frame>
+
+### Example Addresses
+
+Here's an example of how the same components produce different addresses on mainnet and testnet:
+
+```
+P2TR output key: 25a43cecfa0e1b1a4f72d64ad15f4cfa7a84d0723e8511c969aa543638ea9967
+Server public key: 33ffb3dee353b1a9ebe4ced64b946238d0a4ac364f275d771da6ad2445d07ae0
+
+Mainnet: ark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt8ngt9rw
+
+Testnet: tark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt846qj6x
+```
 
 ### VTXO Script Paths
 
@@ -62,25 +75,13 @@ A VTXO (Virtual UTXO) is locked by a P2TR script composed of two paths:
 </Warning>
 
 <Tip>
-  Like Bitcoin, the taproot tree encoded in the Ark address is revealed only when the VTXO is spent. If it doesn't pass the server's validation, the owner won't be allowed to spend the VTXO off-chain. The unilateral exit would be the only option.
+  Like Bitcoin, the taproot tree encoded in the Arkade address is revealed only when the VTXO is spent. If it doesn't pass the server's validation, the owner won't be allowed to spend the VTXO off-chain. The unilateral exit would be the only option.
 </Tip>
 
-## Example Addresses
-
-Here's an example of how the same components produce different addresses on mainnet and testnet:
-
-```
-P2TR output key: 25a43cecfa0e1b1a4f72d64ad15f4cfa7a84d0723e8511c969aa543638ea9967
-Server public key: 33ffb3dee353b1a9ebe4ced64b946238d0a4ac364f275d771da6ad2445d07ae0
-
-Mainnet: ark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt8ngt9rw
-
-Testnet: tark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt846qj6x
-```
 
 ## Technical Implementation
 
-The following code demonstrates how to create an Ark address with collaborative and exit script paths:
+The following code demonstrates how to create an Arkade address with collaborative and exit script paths:
 
 ```typescript
 import { Script, ScriptNum, p2tr, taprootListToTree } from '@scure/btc-signer'
@@ -90,12 +91,12 @@ import * as bip68 from 'bip68'
 
 
 /**
- * Creates a default mainnet Ark address with collaborative and exit script paths
+ * Creates a default mainnet Arkade address with collaborative and exit script paths
  * @param serverPubKey - Server's x-only public key (32 bytes)
  * @param myPubKey - User's x-only public key (32 bytes)
  * @param timelock - Number of blocks required for unilateral exit
  * @param isTestnet - Whether to use testnet prefix
- * @returns bech32m encoded Ark address
+ * @returns bech32m encoded Arkade address
  */
 function makeDefaultArkAddress(
   serverPubKey: XOnlyPubKey,
@@ -147,26 +148,26 @@ function makeDefaultArkAddress(
 }
 ```
 
-## How Ark Addresses Work
+## How Arkade Addresses Work
 
 <Steps>
   <Step title="Address Generation">
-    When you create an Arkade wallet, the SDK generates an Ark address that encodes both your public key and the server's public key.
+    When you create an Arkade wallet, the SDK generates an Arkade address that encodes both your public key and the server's public key.
   </Step>
   <Step title="Receiving Funds">
-    When someone sends Bitcoin to your Ark address, they're creating a VTXO (Virtual UTXO) that can be spent collaboratively off-chain.
+    When someone sends Bitcoin to your Arkade address, they're creating a VTXO (Virtual UTXO) that can be spent collaboratively offchain.
   </Step>
   <Step title="Collaborative Spending">
-    To spend the VTXO, both you and the Ark server must sign the transaction. This happens automatically when you use the SDK.
+    To spend the VTXO, both you and the Arkade server must sign the transaction. This happens automatically when you use the SDK.
   </Step>
   <Step title="Unilateral Exit">
-    If the Ark server becomes unavailable, you can still withdraw your funds after the timelock period using the exit script path.
+    If the Arkade server becomes unavailable, you can still withdraw your funds after the timelock period using the exit script path.
   </Step>
 </Steps>
 
 ## Security Considerations
 
-Ark addresses provide several security guarantees:
+Arkade addresses provide several security guarantees:
 
 - **Self-custody**: You always maintain control of your funds through the exit path
 - **Timelock protection**: The exit path ensures you can recover funds even if the server is unavailable
@@ -174,12 +175,12 @@ Ark addresses provide several security guarantees:
 
 ## Next Steps
 
-Now that you understand Ark addresses, learn how to:
+Now that you understand Arkade addresses, learn how to:
 
-- [Receive Payments](/wallets/receiving-payments) - Start accepting Bitcoin payments with your Ark address
-- [Check Balances](/wallets/balances) - View your available VTXOs and balance
-- [Send Payments](/wallets/sending-payments) - Send Bitcoin to other addresses
+- [Receive Payments](/wallets/v0.3/receiving-payments) - Start accepting Bitcoin payments with your Arkade address
+- [Check Balances](/wallets/v0.3/balances) - View your available VTXOs and balance
+- [Send Payments](/wallets/v0.3/sending-payments) - Send Bitcoin to other addresses
 
 ---
 
-<NextButton url="/wallets/receiving-payments" text="Receiving Payments" />
+<NextButton url="/wallets/v0.3/receiving-payments" text="Receiving Payments" />
