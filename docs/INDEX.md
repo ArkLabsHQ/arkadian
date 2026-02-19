@@ -1,4 +1,4 @@
-# Arkadian  Project Index & Registry
+# Arkadian  Project Index & Registry
 
 This is the **master index** for all projects in the Arkade ecosystem. It provides a machine-readable registry with project metadata, dependencies, and routing hints for AI agents.
 
@@ -39,7 +39,7 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - **monitor_or_alert**: `arkd metrics`, `round latency`, `vtxo expiry`
 
 **Dependencies**: `arkd-wallet`, `go-sdk` (protocol implementation)
-**Depended On By**: `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `arkade-escrow`, `ark-telemetry`
+**Depended On By**: `go-sdk`, `ts-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `arkade-escrow`, `ark-telemetry`
 
 ---
 
@@ -296,12 +296,12 @@ Automated wallet unlock service with AWS KMS integration. Monitors arkd-wallet f
 **Repository**: `${FULMINE_REPO}`
 
 **Description**:
-Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain � Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
+Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain → Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
 
 **Key Capabilities**:
 - Bitcoin wallet operations (send, receive, balance)
-- Lightning Network submarine swaps (onchain � Lightning)
-- Reverse submarine swaps (Lightning � onchain)
+- Lightning Network submarine swaps (onchain → Lightning)
+- Reverse submarine swaps (Lightning → onchain)
 - Boltz provider integration
 - VHTLC support for Ark-Lightning bridge
 - Web interface for swap management
@@ -396,23 +396,65 @@ Generic 3-party escrow system built on Ark protocol. Provides secure escrow cont
 
 ---
 
+### ts-sdk
+**ID**: `ts-sdk`
+**Name**: Ark TypeScript SDK
+**Type**: Client Library
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/ts-sdk/INDEX.md`
+**Repository**: `${TS_SDK_REPO}`
+**GitHub**: `arkade-os/ts-sdk`
+
+**Description**:
+Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a complete client library for building Bitcoin wallets with Taproot and Ark VTXO support. Features wallet management (full + watch-only), HD identity (BIP39/BIP86), VTXO operations, batch settlement with MuSig2, asset management, VTXO delegation, unilateral exit, and service worker support. Runs in browsers, Node.js, React Native/Expo with pluggable storage adapters.
+
+**Key Capabilities**:
+- Wallet creation and management (Wallet, ReadonlyWallet, ServiceWorkerWallet, OnchainWallet)
+- HD identity with BIP39 mnemonic and BIP86 Taproot derivation
+- VTXO operations (send, receive, settle, renew, recover)
+- Batch settlement with MuSig2 tree signing
+- Asset management (issue, reissue, burn, transfer)
+- VTXO delegation to third-party delegator services
+- Onboarding/offboarding (on-chain to off-chain conversion)
+- Unilateral exit (unroll + timelock)
+- Service worker wallet for background operation
+- 5 storage adapters (InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage)
+- Expo/React Native support with SSE-compatible providers
+- ArkNote serializable payment format
+
+**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`
+
+**Synonyms**: `@arkade-os/sdk`, `ark-ts-sdk`, `typescript-sdk`, `js-sdk`
+
+**Triggers**:
+- **ask_question**: `typescript sdk`, `wallet api`, `vtxo management`, `storage adapter`, `service worker wallet`, `ark address`, `boarding address`
+- **develop**: `add wallet feature`, `new provider`, `storage adapter`, `asset management`, `delegation`, `expo support`
+- **test_or_run**: `run sdk tests`, `vitest`, `nigiri`, `integration test`, `regtest`
+- **debug**: `sse not working`, `crypto polyfill`, `service worker error`, `vtxo expired`, `settlement timeout`
+
+**Dependencies**: `arkd` (REST API + SSE), `fulmine` (delegator service, optional)
+**Depended On By**: `wallet`, `arkade-escrow`
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
 
 ```
 arkd (core)
-   go-sdk (client library)
-      ark-faucet (uses go-sdk)
-      ark-simulator (uses go-sdk)
-   wallet (uses @arkade-os/sdk, TypeScript equivalent)
-   arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
-   ark-faucet (uses arkd APIs)
-   kms-unlocker (unlocks arkd-wallet)
-   fulmine (independent, but can integrate)
-   ark-telemetry (monitors arkd)
-   ark-infra (deploys arkd + dependencies)
-   ark-docs (documents arkd)
+ go-sdk (client library, Go)
+    ark-faucet (uses go-sdk)
+    ark-simulator (uses go-sdk)
+ ts-sdk (client library, TypeScript - @arkade-os/sdk)
+    wallet (uses ts-sdk)
+    arkade-escrow (uses ts-sdk)
+ ark-faucet (uses arkd APIs)
+ kms-unlocker (unlocks arkd-wallet)
+ fulmine (independent, but can integrate; delegator for ts-sdk)
+ ark-telemetry (monitors arkd)
+ ark-infra (deploys arkd + dependencies)
+ ark-docs (documents arkd)
 ```
 
 ### Correlation Matrix
@@ -431,12 +473,16 @@ arkd (core)
 | wallet | fulmine | Integrates Lightning swaps |
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
+| ts-sdk | arkd | Client-Server (REST/SSE) |
+| ts-sdk | wallet | Library-Consumer |
+| ts-sdk | arkade-escrow | Library-Consumer |
+| ts-sdk | fulmine | Delegator-Integration |
 | ark-docs | All | Documentation-Reference |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow
+**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-escrow
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 
@@ -447,37 +493,37 @@ arkd (core)
 ### Intent-Based Project Selection
 
 **Q&A / Conceptual Questions**:
-- Ark protocol concepts � `ark-docs`, `arkd`
-- VTXOs, rounds, settlement � `arkd`, `ark-docs`
-- Wallet usage � `wallet`, `go-sdk`, `ark-docs`
-- Lightning swaps � `wallet`, `fulmine`, `ark-docs`
-- Escrow system � `arkade-escrow`
-- Security model � `ark-docs`, `arkd`
+- Ark protocol concepts → `ark-docs`, `arkd`
+- VTXOs, rounds, settlement → `arkd`, `ark-docs`
+- Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `ark-docs`
+- Lightning swaps → `wallet`, `fulmine`, `ark-docs`
+- Escrow system → `arkade-escrow`
+- Security model → `ark-docs`, `arkd`
 
 **Development Tasks**:
-- Add arkd feature � `arkd`
-- Build wallet � `go-sdk`, `wallet` (depending on language)
-- Escrow development � `arkade-escrow`
-- Lightning integration � `fulmine`, `wallet`
-- Infrastructure changes � `ark-infra`
+- Add arkd feature → `arkd`
+- Build wallet → `ts-sdk`, `go-sdk`, `wallet` (depending on language)
+- Escrow development → `arkade-escrow`
+- Lightning integration → `fulmine`, `wallet`
+- Infrastructure changes → `ark-infra`
 
 **Testing & QA**:
-- Integration testing � `arkd`, `ark-simulator`
-- Load testing � `ark-simulator`
-- E2E testing � `arkd`, `go-sdk`, `arkade-escrow`
-- Local dev stack � `ark-infra`
+- Integration testing → `arkd`, `ark-simulator`
+- Load testing → `ark-simulator`
+- E2E testing → `arkd`, `go-sdk`, `arkade-escrow`
+- Local dev stack → `ark-infra`
 
 **Monitoring & Debugging**:
-- Metrics, dashboards � `ark-telemetry`
-- Logs, traces � `ark-telemetry`
-- Debug arkd issues � `arkd`, `ark-telemetry`
-- Production monitoring � `ark-infra`, `ark-telemetry`
+- Metrics, dashboards → `ark-telemetry`
+- Logs, traces → `ark-telemetry`
+- Debug arkd issues → `arkd`, `ark-telemetry`
+- Production monitoring → `ark-infra`, `ark-telemetry`
 
 **Operations & Deployment**:
-- Deploy to AWS � `ark-infra`
-- Local dev environment � `ark-infra`
-- Wallet unlock automation � `kms-unlocker`
-- Testnet faucet � `ark-faucet`
+- Deploy to AWS → `ark-infra`
+- Local dev environment → `ark-infra`
+- Wallet unlock automation → `kms-unlocker`
+- Testnet faucet → `ark-faucet`
 
 ---
 
@@ -500,9 +546,10 @@ When a user asks about topics spanning multiple projects, load context from all 
 
 When working on a project, consider loading dependent projects:
 
-- Working on `ark-simulator` � Also load `arkd`, `go-sdk`
-- Working on `wallet` � Also load `arkd` (for server API reference)
-- Working on `ark-infra` � Also load `arkd`, `ark-telemetry` (deployment targets)
+- Working on `ark-simulator` → Also load `arkd`, `go-sdk`
+- Working on `wallet` → Also load `ts-sdk`, `arkd` (for SDK and server API reference)
+- Working on `ts-sdk` → Also load `arkd` (for server API reference)
+- Working on `ark-infra` → Also load `arkd`, `ark-telemetry` (deployment targets)
 
 ### Documentation Priority
 
@@ -518,17 +565,18 @@ For conceptual questions, prioritize documentation loading order:
 
 | Project | Status | Production Ready | Notes |
 |---------|--------|------------------|-------|
-| arkd | Stable | � Alpha | Core protocol, active development |
-| go-sdk | Stable | � Alpha | Client library, API may change |
+| arkd | Stable | → Alpha | Core protocol, active development |
+| go-sdk | Stable | → Alpha | Client library, API may change |
 | wallet | Active Dev | L Alpha | PWA wallet, under development |
-| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
-| ark-simulator | Stable |  | Testing tool, production-ready |
-| ark-telemetry | Stable |  | Monitoring stack, production-ready |
-| ark-infra | Active Dev | � Beta | IaC, production configurations available |
-| kms-unlocker | Stable |  | Production-ready with AWS |
-| fulmine | Active Dev | � Alpha | Lightning wallet, under development |
-| ark-docs | Active |  | Documentation site, continuously updated |
+| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
+| ark-simulator | Stable |  | Testing tool, production-ready |
+| ark-telemetry | Stable |  | Monitoring stack, production-ready |
+| ark-infra | Active Dev | → Beta | IaC, production configurations available |
+| kms-unlocker | Stable |  | Production-ready with AWS |
+| fulmine | Active Dev | → Alpha | Lightning wallet, under development |
+| ark-docs | Active |  | Documentation site, continuously updated |
 | arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
+| ts-sdk | Active Dev | ✓ Beta | v0.3.13, npm published, multi-platform |
 
 ---
 
@@ -539,8 +587,8 @@ This index should be updated when:
 - Project relationships change
 - Major architectural changes occur
 - New capabilities are added to existing projects
-- Project status changes (alpha � beta � stable)
+- Project status changes (alpha → beta → stable)
 
-**Last Updated**: 2025-10-16
+**Last Updated**: 2026-02-19
 **Version**: 1.0.0
 **Maintained By**: Arkadian Documentation Team
