@@ -3,7 +3,8 @@
 ## Prerequisites
 
 - **Node.js**: Version 20+ (`node --version`)
-- **pnpm**: Version 8+ (`pnpm --version`) - Install: `npm install -g pnpm`
+- **pnpm**: Version 10.25.0+ (`pnpm --version`) - Install: `npm install -g pnpm`
+- **Docker**: Required for E2E test environment (`docker --version`)
 
 ## Clone and Install
 
@@ -83,6 +84,19 @@ CMD ["nginx", "-g", "daemon off;"]
 ```bash
 docker build -t arkade-wallet .
 docker run -d -p 80:80 arkade-wallet
+```
+
+## E2E Test Environment
+
+```bash
+# Start test backend (arkd + nak Nostr relay)
+docker compose -f test.docker-compose.yml up -d
+
+# Run Playwright tests
+pnpm exec playwright test
+
+# Stop test backend
+docker compose -f test.docker-compose.yml down
 ```
 
 ## Common Commands

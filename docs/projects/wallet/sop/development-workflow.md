@@ -140,6 +140,25 @@ pnpm run test:ui
 pnpm run test:coverage
 ```
 
+### E2E Tests (Playwright)
+
+```bash
+# Start test services (arkd + nak Nostr relay)
+docker compose -f test.docker-compose.yml up -d
+
+# Run all E2E tests
+pnpm exec playwright test
+
+# Run specific test file
+pnpm exec playwright test src/test/e2e/send.test.ts
+
+# Run with Playwright UI
+pnpm exec playwright test --ui
+
+# Stop test services
+docker compose -f test.docker-compose.yml down
+```
+
 ### Manual Testing
 
 1. **Browser Testing**

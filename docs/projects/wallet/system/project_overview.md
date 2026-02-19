@@ -35,20 +35,42 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Cross-platform**: Single codebase for all platforms
 
 ### Lightning Network Swaps
-- **Boltz integration**: Submarine and reverse submarine swaps
+- **Boltz integration**: Submarine and reverse submarine swaps via SwapManager
 - **On-chain to Lightning**: Convert Bitcoin to Lightning capacity
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
+- **Swap restoration**: Restore pending swaps from Boltz endpoint
+
+### Announcements & Support
+- **In-app announcements**: Server-pushed notification banners
+- **Chatwoot integration**: Live customer support chat
+- **Support page**: Dedicated support screen in Settings
+
+### Nostr Backup
+- **Encrypted Nostr backups**: Backup wallet data to Nostr relays
+- **Chunked storage**: Large backups split into relay-compatible chunks
+- **Restore from Nostr**: Recover wallet data from relay backups
+
+### Deep Linking & Accessibility
+- **URL hash deep-links**: Link directly to wallet actions via URL
+- **Keyboard navigation**: Full keyboard support with Focusable component
+- **JS/JIT detection**: Informative error screens in restricted environments (some WebViews)
+
+### Fees & Settlement
+- **Fees provider**: Dedicated fee estimation and display
+- **Collaborative exit with fees**: On-chain fee handling for exits
 
 ## Technology Stack
 
 - **React 18** with TypeScript for type-safe UI development
 - **Ionic React** for cross-platform mobile-first components
 - **Vite** for fast builds and development server
-- **@arkade-os/sdk** for Ark protocol operations
-- **@arkade-os/boltz-swap** for Lightning swap integration
+- **@arkade-os/sdk** (0.3.12) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.2.19) for Lightning swap integration
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
+- **nostr-tools** for Nostr relay backup integration
+- **Playwright** for E2E browser testing
 
 ## Use Cases
 
@@ -62,11 +84,17 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - Swap between on-chain Bitcoin and Lightning capacity
 - No need to run Lightning node
 - Trustless atomic swaps via Boltz
+- Restore pending swaps from Boltz endpoint
+
+### DeFi User
+- **Lendaswap**: Swap integration via Lendaswap service
+- **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
 
 ### Ark Protocol Developer
 - Test Ark protocol functionality
 - Integrate with custom arkd instances
 - Example implementation for wallet developers
+- Full E2E test suite with Playwright for integration testing
 
 ### Privacy-Conscious Users
 - No KYC or registration required
@@ -129,10 +157,10 @@ Built with Ionic components optimized for mobile touch interfaces, but fully fun
 
 Arkade Wallet is under active development as part of the Arkade ecosystem. It serves as both a production wallet for end users and a reference implementation for wallet developers building on the Ark protocol.
 
-**Version**: 0.1.0 (Alpha)
-**License**: MIT (or as specified in repository)
+**Version**: 0.1.0
+**License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.3.1-alpha.4, @arkade-os/boltz-swap 0.2.1-alpha.4
+**Dependencies**: @arkade-os/sdk 0.3.12, @arkade-os/boltz-swap 0.2.19
 
 ## Getting Started
 
@@ -157,7 +185,7 @@ Arkade Wallet is one component in the larger Arkade ecosystem:
 - **arkd**: Server daemon that facilitates Ark protocol operations
 - **go-sdk**: Go library for building Ark wallets (server-side)
 - **@arkade-os/sdk**: JavaScript/TypeScript SDK used by this wallet
+- **@arkade-os/boltz-swap**: Lightning swap provider integration
 - **ark-faucet**: Testnet faucet for distributing test coins
-- **boltz-swap**: Lightning swap provider integration
 
 The wallet communicates with arkd servers via gRPC-web or REST APIs, using the @arkade-os/sdk as an abstraction layer.

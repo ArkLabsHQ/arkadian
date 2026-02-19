@@ -2,11 +2,11 @@
 
 ## Testing Strategy
 
-- **Unit Tests**: Component logic with mocked dependencies
-- **Integration Tests**: SDK integration, data flow, IndexedDB operations
-- **E2E Tests** (Future): Full user workflows with browser automation
+- **Unit Tests** (Vitest): Component logic, utility functions, mocked dependencies
+- **Screen Tests** (Vitest): Settings and wallet screen rendering with mock providers
+- **E2E Tests** (Playwright): Full browser automation with Docker-based arkd backend
 
-## Running Tests
+## Running Unit Tests
 
 ```bash
 pnpm run test              # Run once
@@ -17,101 +17,103 @@ pnpm run test -- --watch   # Watch mode
 
 View coverage: `open coverage/index.html`
 
+## Running E2E Tests
+
+```bash
+# Start test environment (arkd + nak Nostr relay)
+docker compose -f test.docker-compose.yml up -d
+
+# Run all E2E tests
+pnpm exec playwright test
+
+# Run specific E2E test
+pnpm exec playwright test src/test/e2e/send.test.ts
+
+# Run with UI mode
+pnpm exec playwright test --ui
+
+# Stop test environment
+docker compose -f test.docker-compose.yml down
+```
+
 ## Test Structure
 
 ```
 src/test/
-├── components/      # Component tests
-├── lib/             # Utility tests
-├── screens/         # Screen tests
-├── hooks/           # React hooks tests
-└── setup.ts         # Test config
+├── e2e/                 # Playwright E2E tests
+│   ├── utils.ts         # Shared helpers (wallet setup, navigation)
+│   ├── init.test.ts     # Wallet creation flow
+│   ├── backup.test.ts   # Seed phrase backup
+│   ├── restore.test.ts  # Wallet restoration
+│   ├── send.test.ts     # Send Bitcoin flow
+│   ├── receive.test.ts  # Receive flow
+│   ├── swap.test.ts     # Lightning swap integration
+│   ├── keyboard.test.ts # Keyboard navigation
+│   ├── nostr.test.ts    # Nostr backup/restore
+│   ├── pwa.test.ts      # PWA installation
+│   └── serverdown.test.ts # Offline behavior
+├── lib/                 # Utility unit tests
+│   ├── address.test.ts
+│   ├── fiat.test.ts
+│   ├── utxo.test.ts
+│   └── jsCapabilities.test.ts
+├── screens/             # Screen component tests
+│   ├── mocks.ts         # Shared mock providers
+│   ├── settings/        # Settings screen tests
+│   │   ├── about.test.tsx
+│   │   ├── backup.test.tsx
+│   │   ├── display.test.tsx
+│   │   ├── fiat.test.tsx
+│   │   ├── notifications.test.tsx
+│   │   └── theme.test.tsx
+│   └── wallet/
+│       ├── send.test.tsx
+│       └── transaction.test.tsx
+├── fixtures.json        # Test fixture data
+└── setup.mjs            # Test setup (mocks for SDK, IndexedDB, etc.)
 ```
 
-## Writing Tests
+## Writing Unit Tests
 
 **Framework**: Vitest + Testing Library
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 describe('SendScreen', () => {
   it('validates address', async () => {
-    const user = userEvent.setup();
     render(<SendScreen />);
-
-    await user.type(screen.getByLabelText('Address'), 'invalid');
     expect(screen.getByText('Invalid address')).toBeInTheDocument();
   });
 });
 ```
 
-**Mock Ark SDK:**
+## Writing E2E Tests
+
+**Framework**: Playwright
+
 ```typescript
-vi.mock('@arkade-os/sdk', () => ({
-  ArkClient: vi.fn().mockImplementation(() => ({
-    getBalance: vi.fn().mockResolvedValue({ confirmed: 1000000 }),
-    sendTransaction: vi.fn().mockResolvedValue({ txid: 'abc123' }),
-  })),
-}));
+import { test, expect } from '@playwright/test';
+
+test('can send bitcoin', async ({ page }) => {
+  await page.goto('/');
+  // ... wallet setup via utils.ts helpers
+  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByLabel('Address').fill('ark1...');
+  await page.getByLabel('Amount').fill('1000');
+  await page.getByRole('button', { name: 'Confirm' }).click();
+  await expect(page.getByText('Transaction sent')).toBeVisible();
+});
 ```
 
-**Mock IndexedDB:**
-```typescript
-vi.mock('dexie', () => ({
-  Dexie: class MockDexie {
-    table() {
-      return {
-        toArray: vi.fn().mockResolvedValue([]),
-        add: vi.fn().mockResolvedValue(1),
-      };
-    }
-  },
-}));
-```
+## CI/CD Integration
 
-## Testing Patterns
-
-**User interactions:**
-```typescript
-const user = userEvent.setup();
-await user.click(screen.getByRole('button', { name: 'Send' }));
-await user.type(screen.getByLabelText('Amount'), '0.001');
-```
-
-**Async assertions:**
-```typescript
-await screen.findByText('Transaction sent');
-expect(screen.getByText('Success')).toBeInTheDocument();
-expect(screen.queryByText('Error')).not.toBeInTheDocument();
-```
+**Unit Tests** (`.github/workflows/ci.yml`): Run on push/PR
+**E2E Tests** (`.github/workflows/playwright.yml`): Run with Docker services
 
 ## Coverage Goals
 
 - **Core logic**: >80% (transactions, crypto, state)
 - **Components**: >60% (UI, forms)
-- **Overall**: >70% project coverage
-
-## CI/CD Integration
-
-**GitHub Actions:**
-```yaml
-name: Test
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - run: pnpm install
-      - run: pnpm run test:coverage
-      - run: pnpm run lint
-```
-
-**Pre-commit hooks** (`.husky/pre-commit`): `pnpm run test && pnpm run lint`
+- **E2E**: Cover all critical user flows (init, send, receive, swap, backup)

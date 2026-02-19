@@ -11,41 +11,81 @@ src/
 ├── App.tsx                    # Root component, routing
 ├── index.tsx                  # Entry point
 ├── components/                # Reusable components
-│   ├── AddressDisplay.tsx
-│   ├── BalanceCard.tsx
-│   ├── QRCode.tsx
-│   ├── QRScanner.tsx
-│   ├── TransactionItem.tsx
-│   ├── TransactionList.tsx
-│   ├── VTXOItem.tsx
-│   ├── LoadingSpinner.tsx
-│   ├── ErrorBoundary.tsx
+│   ├── Announcement.tsx       # In-app announcement banners
+│   ├── Button.tsx
+│   ├── ChatWoot.tsx           # Customer support chat widget
+│   ├── Details.tsx
+│   ├── Focusable.tsx          # Keyboard navigation wrapper
+│   ├── Header.tsx
+│   ├── InputAmount.tsx        # Amount input with fiat/sats toggle
+│   ├── InputFake.tsx          # Display-only input
+│   ├── Keyboard.tsx           # Custom numeric keyboard
+│   ├── Modal.tsx              # Reusable modal component
+│   ├── QrCode.tsx
+│   ├── Scanner.tsx            # QR scanner (refactored)
+│   ├── SwapsList.tsx          # Swap history list
+│   ├── Table.tsx              # Data table
+│   ├── TransactionsList.tsx   # Transaction history
+│   ├── Warning.tsx            # Warning/info boxes
 │   └── ...
-├── screens/                   # Full-page components
+├── screens/
 │   ├── Init/
-│   │   ├── CreateWallet.tsx
-│   │   ├── RestoreWallet.tsx
-│   │   └── SeedPhrase.tsx
+│   │   ├── Connect.tsx        # Server connection
+│   │   ├── Restore.tsx        # Wallet restoration
+│   │   └── Success.tsx        # Setup complete
 │   ├── Wallet/
-│   │   ├── Home.tsx
-│   │   ├── Send.tsx
-│   │   ├── Receive.tsx
-│   │   └── VTXOs.tsx
+│   │   ├── Index.tsx          # Main wallet screen
+│   │   ├── Send/              # Multi-step send flow
+│   │   │   ├── Form.tsx       # Send form with fiat toggle
+│   │   │   └── Details.tsx    # Confirmation details
+│   │   ├── Receive/
+│   │   │   ├── Amount.tsx     # Amount with fiat toggle
+│   │   │   └── QrCode.tsx     # QR display
+│   │   ├── Transaction.tsx    # Transaction detail
+│   │   └── Unavailable.tsx    # JS/JIT restricted error
 │   ├── Settings/
-│   │   ├── Network.tsx
-│   │   ├── Server.tsx
-│   │   └── Security.tsx
+│   │   ├── Backup.tsx         # Nostr backup management
+│   │   ├── Display.tsx        # Display preferences
+│   │   ├── Fiat.tsx           # Fiat currency (USD, EUR, CHF)
+│   │   ├── General.tsx        # General settings
+│   │   ├── Logs.tsx           # Log viewer with size limits
+│   │   ├── Server.tsx         # Server configuration
+│   │   ├── Support.tsx        # Support & Chatwoot
+│   │   ├── Theme.tsx          # Theme settings
+│   │   └── Vtxos.tsx          # VTXO management / coin control
 │   └── Apps/
-│       ├── Lightning.tsx
-│       └── SwapStatus.tsx
-├── providers/                 # Context providers
-│   ├── WalletProvider.tsx
-│   ├── NetworkProvider.tsx
-│   └── ThemeProvider.tsx
-└── lib/                       # Utilities
-    ├── db.ts                  # Dexie database
-    ├── utils.ts
-    └── constants.ts
+│       ├── Boltz/             # Lightning swaps (SwapManager)
+│       │   ├── Index.tsx
+│       │   ├── Settings.tsx
+│       │   └── Swap.tsx
+│       ├── Lendasat/          # Bitcoin lending
+│       └── Lendaswap/         # Lendaswap integration
+├── providers/
+│   ├── wallet.tsx             # Core wallet state
+│   ├── lightning.tsx          # SwapManager-based swaps
+│   ├── fees.tsx               # Fee estimation
+│   ├── fiat.tsx               # Fiat conversion
+│   ├── announcements.tsx      # Announcements
+│   ├── config.tsx             # App config
+│   ├── navigation.tsx         # Navigation & back button
+│   ├── flow.tsx               # Multi-step flow state
+│   ├── limits.tsx             # Swap limits
+│   └── options.tsx            # User preferences
+├── lib/
+│   ├── asp.ts                 # ASP interaction
+│   ├── backup.ts              # Nostr backup logic
+│   ├── chatwoot.ts            # Chatwoot integration
+│   ├── deepLink.ts            # URL hash deep links
+│   ├── fiat.ts                # Fiat currency helpers
+│   ├── format.ts              # Formatting utilities
+│   ├── indexer.ts             # Indexer API client
+│   ├── jsCapabilities.ts      # JS/JIT detection
+│   ├── logs.ts                # Log management
+│   ├── nostr.ts               # Nostr relay operations
+│   ├── utxo.ts                # UTXO/VTXO utilities
+│   ├── vtxo.ts                # VTXO helpers
+│   └── wallet.ts              # Wallet utilities
+└── icons/                     # SVG icon components
 ```
 
 ## Core Patterns
@@ -450,34 +490,25 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 
 ### Settings Screens
 
-**Network.tsx**:
-- Network selector (testnet, mainnet, signet, mutinynet)
-- Warning when switching networks
-
-**Server.tsx**:
-- arkd server URL input
-- Connection status indicator
-- Default server restore button
-
-**Security.tsx**:
-- Wallet password setup
-- Seed phrase backup reminder
-- Auto-lock timeout
+**Backup.tsx**: Nostr-based wallet backup and restore (chunked, encrypted)
+**Display.tsx**: Display unit preferences (BTC/sats)
+**Fiat.tsx**: Fiat currency selection (USD, EUR, CHF, etc.)
+**General.tsx**: General settings (notifications, announcements)
+**Logs.tsx**: Log viewer with configurable size limits
+**Server.tsx**: arkd server URL configuration
+**Support.tsx**: Support page with Chatwoot integration
+**Theme.tsx**: Light/dark theme selection
+**Vtxos.tsx**: VTXO management, coin control, expiry thresholds
 
 ### Apps Screens
 
-**Lightning.tsx**:
-- Swap type selector (on-chain → Lightning, Lightning → on-chain)
-- Amount input
-- Invoice input (for submarine swaps)
-- Fee display
-- Initiate swap button
+**Boltz/** (Lightning Swaps via SwapManager):
+- `Index.tsx`: Swap list and navigation
+- `Settings.tsx`: Boltz provider configuration
+- `Swap.tsx`: Create/monitor swaps with description, address display
 
-**SwapStatus.tsx**:
-- Swap progress indicator
-- Status messages
-- HTLC details
-- Transaction IDs (on-chain and Lightning)
+**Lendasat/**: Bitcoin lending/borrowing integration
+**Lendaswap/**: Lendaswap service integration
 
 ## Ionic Components Used
 

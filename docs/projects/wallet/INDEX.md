@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.0.0
-last_sync_commit: a1c45ff0ac7230ca1f39cc365edd82fc9e44c7c7
+version: 1.1.0
+last_sync_commit: 556735acb0fbdff1a4b382089850cb8a096e3005
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -127,6 +127,10 @@ pnpm run test:ui
 
 # Coverage report
 pnpm run test:coverage
+
+# Run E2E tests (requires Docker services running)
+docker compose -f test.docker-compose.yml up -d
+pnpm exec playwright test
 ```
 
 ### Code Quality
@@ -195,6 +199,7 @@ pnpm run format:check
 
 ### Development
 - **Vitest**: Unit testing framework
+- **Playwright**: E2E browser testing
 - **ESLint**: Code linting
 - **Prettier**: Code formatting
 - **Husky**: Git hooks
@@ -225,13 +230,20 @@ src/
 App
 ├── Providers (Context)
 │   ├── WalletProvider (Ark SDK)
-│   ├── ThemeProvider
-│   └── NetworkProvider
+│   ├── LightningProvider (SwapManager)
+│   ├── FeesProvider
+│   ├── FiatProvider
+│   ├── ConfigProvider
+│   ├── AnnouncementsProvider
+│   ├── NavigationProvider
+│   ├── FlowProvider
+│   ├── LimitsProvider
+│   └── OptionsProvider
 └── Router (Ionic Router)
-    ├── Init Screens (New wallet, Restore)
-    ├── Wallet Screens (Home, Send, Receive)
-    ├── Settings Screens
-    └── Apps Screens (Lightning swaps)
+    ├── Init Screens (Connect, Restore, Success)
+    ├── Wallet Screens (Home, Send, Receive, Unavailable)
+    ├── Settings Screens (Backup, Display, Fiat, Logs, Support, Vtxos, ...)
+    └── Apps Screens (Boltz swaps, Lendasat, Lendaswap)
 ```
 
 ### Data Flow
@@ -265,18 +277,34 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### DeFi Integration
 - **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
+- **Lendaswap**: Swap service integration
 - **PSBT signing**: Sign and finalize PSBTs for DeFi interactions
 
 ### Lightning Integration
-- **Submarine swaps**: On-chain → Lightning
+- **Submarine swaps**: On-chain → Lightning via SwapManager
 - **Reverse submarine swaps**: Lightning → On-chain
 - **Boltz provider**: Configurable swap backend
 - **Atomic swaps**: HTLC-based trustless execution
+- **Swap restoration**: Restore pending swaps from Boltz endpoint
+
+### Announcements & Support
+- **In-app announcements**: Server-pushed notification banners
+- **Chatwoot**: Live customer support chat widget
+- **Support page**: Dedicated help and support screen
+
+### Nostr Backup
+- **Encrypted backup**: Backup wallet data to Nostr relays
+- **Chunked storage**: Split large backups for relay compatibility
+- **Nostr restore**: Recover wallet from relay backups
+
+### Accessibility & Deep Linking
+- **Keyboard navigation**: Full keyboard support via Focusable component
+- **URL deep-links**: Link to wallet actions via URL hash
+- **JS/JIT detection**: Informative errors in restricted environments
 
 ### PWA Features
 - **Install prompt**: Add to home screen on mobile/desktop
 - **Offline mode**: View wallet even without internet
-- **Push notifications**: Transaction notifications (future)
 - **Background sync**: Sync when connection restored
 - **Fast loading**: Service worker caching
 

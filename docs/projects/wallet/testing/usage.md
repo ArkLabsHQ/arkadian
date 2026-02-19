@@ -59,22 +59,35 @@ Apps → Lightning → "Swap to Lightning" → Enter amount and invoice → Conf
 ### Swap from Lightning
 Apps → Lightning → "Swap from Lightning" → Enter amount → Pay generated invoice
 
+## Nostr Backup
+
+### Backup to Nostr
+Settings → "Backup" → Enable Nostr backup → Enter relay URL → Backup
+- Wallet data encrypted and split into relay-compatible chunks
+- Automatic periodic backups available
+
+### Restore from Nostr
+Settings → "Backup" → Restore from Nostr → Enter relay URL → Restore
+
 ## Settings
 
 ### Change Ark Server
-Settings → "Server Configuration" → Enter URL: `http://your-server:7070` → Save
-
-### Toggle Network
-Settings → "Network" → Choose: Testnet, Signet, or Mainnet
+Settings → "Server" → Enter URL: `http://your-server:7070` → Save
 
 ### Theme
-Settings → "Appearance" → Choose: Light, Dark, or System
+Settings → "Theme" → Choose: Light, Dark, or System
+
+### Fiat Currency
+Settings → "Fiat" → Choose: USD, EUR, CHF, or other
+
+### Support
+Settings → "Support" → Access Chatwoot live support chat
 
 ### Other Options
 - Display units (BTC/sats)
-- Currency conversion
-- Language preferences
-- Backup wallet data
+- Fiat currency toggle on amount inputs
+- Log viewer with configurable size limits
+- VTXO management / coin control
 
 ## Security Best Practices
 

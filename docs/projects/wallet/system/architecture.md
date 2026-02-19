@@ -97,37 +97,18 @@ Arkade Wallet follows a **client-side first architecture** where all sensitive o
 
 **Responsibility**: Global application state and business logic coordination
 
-**Key Providers**:
+**Key Providers** (`src/providers/`):
 
-**WalletProvider**: Core wallet state
-```typescript
-interface WalletContextType {
-  wallet: ArkWallet | null;
-  balance: { onchain: number; offchain: number };
-  vtxos: VTXO[];
-  send: (address: string, amount: number) => Promise<string>;
-  receive: () => Promise<string>;
-  // ... other wallet operations
-}
-```
-
-**NetworkProvider**: Network configuration
-```typescript
-interface NetworkContextType {
-  network: 'testnet' | 'mainnet' | 'signet' | 'mutinynet';
-  arkdUrl: string;
-  setNetwork: (network: string) => void;
-  setArkdUrl: (url: string) => void;
-}
-```
-
-**ThemeProvider**: UI theme management
-```typescript
-interface ThemeContextType {
-  theme: 'light' | 'dark';
-  toggleTheme: () => void;
-}
-```
+- **WalletProvider** (`wallet.tsx`): Core wallet state — balance, VTXOs, send/receive, settlement
+- **LightningProvider** (`lightning.tsx`): SwapManager-based Lightning swap orchestration (submarine, reverse, chain swaps)
+- **FeesProvider** (`fees.tsx`): Fee estimation and display for on-chain/collaborative exit
+- **FiatProvider** (`fiat.tsx`): Fiat currency conversion (USD, EUR, CHF, etc.)
+- **ConfigProvider** (`config.tsx`): App configuration, announcements tracking
+- **AnnouncementsProvider** (`announcements.tsx`): In-app announcement banners
+- **NavigationProvider** (`navigation.tsx`): Browser back button handling, flow state
+- **FlowProvider** (`flow.tsx`): Multi-step flow state management
+- **LimitsProvider** (`limits.tsx`): Swap limits from Boltz
+- **OptionsProvider** (`options.tsx`): User preferences and display options
 
 ### 3. Business Logic Layer (@arkade-os/sdk)
 
@@ -415,25 +396,20 @@ CDN / Static Host (Vercel, Netlify, GitHub Pages)
 ## Testing Architecture
 
 **Unit Tests** (Vitest):
-- Component rendering tests
-- Context provider logic tests
-- Utility function tests
+- Component rendering tests (`src/test/screens/`)
+- Utility function tests (`src/test/lib/`)
+- Mock infrastructure (`src/test/screens/mocks.ts`, `src/test/setup.mjs`)
 
-**Integration Tests** (Future):
-- End-to-end flows with arkd test instance
-- Wallet creation → send → receive flow
-- Lightning swap flow
+**E2E Tests** (Playwright):
+- Full browser automation with Chromium
+- Tests in `src/test/e2e/`: init, backup, restore, send, receive, swap, keyboard, nostr, pwa, serverdown
+- Shared utilities in `src/test/e2e/utils.ts`
+- Docker-based test environment (`test.docker-compose.yml`) with arkd + nak (Nostr relay)
+- CI via `.github/workflows/playwright.yml`
 
-**Test Configuration** (`vitest.config.ts`):
-```typescript
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.ts',
-  },
-});
-```
+**Test Configuration**:
+- Unit: Vitest with jsdom environment (`src/test/setup.mjs`)
+- E2E: Playwright (`playwright.config.ts`) running against local dev server
 
 ## Browser Compatibility
 

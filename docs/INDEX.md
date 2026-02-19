@@ -102,23 +102,29 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 **Key Capabilities**:
 - Create and restore wallets (BIP39 seed phrases)
 - Send and receive Bitcoin (onchain and offchain via Ark)
-- VTXO management and visualization
-- Lightning Network swaps (submarine and reverse submarine via Boltz)
-- Progressive Web App features (installable, offline-capable, auto-updates)
-- IndexedDB storage with Dexie (encrypted client-side)
-- Service worker for offline functionality
-- @arkade-os/sdk integration for Ark protocol operations
+- VTXO management, coin control, and expiry threshold handling
+- Lightning Network swaps via SwapManager (submarine, reverse submarine, chain swaps via Boltz)
+- Swap restoration from Boltz endpoint
+- Nostr-based encrypted wallet backups (chunked for relay compatibility)
+- In-app announcements and Chatwoot customer support
+- Keyboard navigation and URL hash deep-linking
+- JS/JIT capability detection for restricted environments
+- Fees provider for on-chain and collaborative exit fee estimation
+- Fiat currency toggle (USD, EUR, CHF) on amount inputs
+- E2E testing with Playwright (Docker-based test environment)
+- Progressive Web App features (installable, offline-capable)
+- @arkade-os/sdk 0.3.12 and @arkade-os/boltz-swap 0.2.19
 
-**Tags**: `wallet`, `pwa`, `react`, `typescript`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `self-custodial`, `offline`, `indexeddb`
+**Tags**: `wallet`, `pwa`, `react`, `typescript`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`
 
 **Synonyms**: `arkade-wallet`, `web-wallet`, `pwa-wallet`, `client-app`
 
 **Triggers**:
-- **ask_question**: `how to use wallet`, `pwa features`, `lightning swap`, `install wallet`
-- **develop**: `add wallet feature`, `fix ui bug`, `update sdk version`
-- **test_or_run**: `start wallet dev server`, `build pwa`, `test components`
+- **ask_question**: `how to use wallet`, `pwa features`, `lightning swap`, `install wallet`, `nostr backup`, `announcements`
+- **develop**: `add wallet feature`, `fix ui bug`, `update sdk version`, `playwright test`, `swap manager`
+- **test_or_run**: `start wallet dev server`, `build pwa`, `test components`, `playwright`, `e2e test`
 
-**Dependencies**: `@arkade-os/sdk` (JavaScript SDK, separate from go-sdk), `@arkade-os/boltz-swap`, `arkd` (server connection)
+**Dependencies**: `@arkade-os/sdk` (0.3.12, JavaScript SDK), `@arkade-os/boltz-swap` (0.2.19), `arkd` (server connection), `nostr-tools`
 **Depended On By**: None (end-user application)
 
 ---
