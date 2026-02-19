@@ -17,7 +17,8 @@ Arkade Explorer is a modern blockchain explorer for the Arkade Protocol, providi
 - **Arkade Transaction View** (`/tx/:txid`)
   - Auto-detect transaction type
   - Auto-redirect to commitment-tx if applicable
-  - Display transaction details
+  - Display transaction details with timestamps (createdAt, expiry)
+  - Spent status indicators and spending transaction links on outputs
 
 ### 2. Address Explorer (`/address/:address`)
 - **Address Overview**
@@ -51,10 +52,16 @@ Arkade Explorer is a modern blockchain explorer for the Arkade Protocol, providi
   - Black (#1A1A1A) - Background
 
 - **Design Elements**:
+  - Light/dark theme toggle (persistent preference)
   - Retro borders and glow effects
   - Monospace font styling
   - Dual-ring animated loading spinners
   - Responsive design (mobile + desktop)
+
+### 5. OP_RETURN Script Handling
+- Sub-dust VTXO outputs use OP_RETURN scripts instead of P2TR
+- Explorer automatically detects OP_RETURN format and extracts the taproot key
+- Correctly constructs Ark addresses from both P2TR and OP_RETURN scripts
 
 ## Use Cases
 

@@ -99,6 +99,7 @@ Manages client-side navigation using React Router:
 - `Pagination` - Page navigation
 - `Tooltip` - Hover information
 - `Tabs` - Tab navigation
+- `ThemeToggle` - Light/dark theme switcher
 
 **Feature Components**
 - `Transaction/TransactionDetails` - Transaction metadata display
@@ -136,6 +137,11 @@ Manages client-side navigation using React Router:
 - Transaction hex parsing
 - Outpoint parsing
 - Base64/hex conversion
+
+**Ark Address** (`arkAddress.ts`)
+- Construct Ark addresses from script pubkeys
+- Handle both P2TR (SegWit v1) and OP_RETURN sub-dust scripts
+- Decode Ark address strings to components
 
 ### 4. Data Layer (TanStack Query)
 

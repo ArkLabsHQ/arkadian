@@ -3,7 +3,7 @@ project_id: arkade-explorer
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
-  dev:        ["system/architecture.md", "system/tech-stack.md", "system/components.md", "testing/how_to_run.md"]
+  dev:        ["system/architecture.md", "system/tech-stack.md", "system/components.md", "testing/how_to_run.md", "sop/development-workflow.md"]
   debug:      ["testing/troubleshooting.md"]
   monitoring: ["testing/troubleshooting.md"]
 aliases:
@@ -39,16 +39,15 @@ Practical guides for using and operating Arkade Explorer:
 - **testing/troubleshooting.md** - Common issues and solutions
 
 ### `${ARKADIAN_DIR}/docs/projects/arkade-explorer/sop/` - Standard Operating Procedures
-Step-by-step guides for operations.
+Step-by-step guides for operations:
 
-### `${ARKADIAN_DIR}/docs/projects/arkade-explorer/tasks/` - Product Requirements & Plans
-Feature specifications and implementation tracking.
+- **sop/development-workflow.md** - Build, test, and PR workflow
 
-### `change-log/` - Recent Changes
-Curated summaries of significant changes.
+### `${ARKADIAN_DIR}/docs/projects/arkade-explorer/change-log/` - Sync Tracking
+Documentation sync history and tracking:
 
-### `pr-report/` - Pull Request Summaries
-Analysis and summaries of pull requests.
+- **change-log/last-sync.txt** - Last synced commit hash
+- **change-log/SYNC_HISTORY.md** - Sync history log
 
 ---
 
@@ -102,6 +101,7 @@ arkade-explorer/
 │   ├── hooks/                # useDebounce
 │   ├── lib/
 │   │   ├── api/              # indexer.ts (API client)
+│   │   ├── arkAddress.ts     # Ark address construction (P2TR + OP_RETURN)
 │   │   ├── constants.ts      # App constants
 │   │   ├── decode.ts         # Bitcoin decoding utilities
 │   │   ├── formatters.ts     # Additional formatters
