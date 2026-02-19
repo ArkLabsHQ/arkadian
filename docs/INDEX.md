@@ -612,6 +612,46 @@ Arkade Script execution and signing microservice for the Ark protocol. Receives 
 
 ---
 
+### dotnet-sdk
+**ID**: `dotnet-sdk`
+**Name**: NArk (.NET Ark SDK)
+**Type**: Client Library
+**Language**: C# / .NET 8+
+**Index**: `${ARKADIAN_DIR}/docs/projects/dotnet-sdk/INDEX.md`
+**Repository**: `${DOTNET_SDK_REPO}`
+**GitHub**: `arkade-os/dotnet-sdk`
+
+**Description**:
+.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, and Boltz atomic swap integration (ARK<->BTC). Published as NuGet packages with a fluent builder pattern for DI configuration.
+
+**Key Capabilities**:
+- VTXO lifecycle management (polling, sync, expiry tracking)
+- Batch round participation with MuSig2 tree signing
+- Intent-based off-chain transactions (create, register, sync, schedule)
+- Automatic coin selection with dust and sub-dust handling
+- Taproot contracts (payment, note, hash-locked, VHTLC)
+- On-chain boarding, settlement, and collaborative exit
+- Sweeping expired/swept VTXOs on-chain
+- Boltz chain swaps (ARK<->BTC) with MuSig2 cross-signatures
+- HD wallet support with descriptor recycling
+- EF Core storage package (pluggable DB provider)
+- .NET Aspire AppHost for comprehensive E2E test infrastructure
+
+**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `efcore`, `aspire`, `grpc-client`, `taproot`
+
+**Synonyms**: `nark`, `nark-sdk`, `dotnet-client`, `csharp-sdk`, `.net-sdk`
+
+**Triggers**:
+- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`
+- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`
+- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`
+- **debug**: `grpc connection`, `batch session error`, `musig2 mismatch`, `swap failed`
+
+**Dependencies**: `arkd` (server communication via gRPC), `fulmine` (Boltz-side wallet in E2E), `boltz` (swap provider)
+**Depended On By**: .NET applications building on Ark protocol
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -621,6 +661,7 @@ arkd (core)
    go-sdk (client library)
       ark-faucet (uses go-sdk)
       ark-simulator (uses go-sdk)
+   dotnet-sdk (.NET client library, gRPC to arkd)
    wallet (uses @arkade-os/sdk, TypeScript equivalent)
    ark-faucet (uses arkd APIs)
    kms-unlocker (unlocks arkd-wallet)
@@ -644,6 +685,7 @@ wallet / @arkade-os/sdk
 | Project | Related To | Relationship Type |
 |---------|-----------|-------------------|
 | arkd | go-sdk | Server-Client |
+| arkd | dotnet-sdk | Server-Client (via gRPC) |
 | arkd | wallet | Server-Client (via @arkade-os/sdk) |
 | arkd | ark-faucet | Server-Client |
 | arkd | ark-simulator | Server-Under-Test |
@@ -670,10 +712,14 @@ wallet / @arkade-os/sdk
 | arkade-escrow | arkd | Server-Client (via @arkade-os/sdk) |
 | arkade-escrow | @arkade-os/sdk | Library-Consumer |
 | introspector | arkd | Co-Signer (Arkade Script validation) |
+| dotnet-sdk | arkd | Client-Server (via gRPC) |
+| dotnet-sdk | fulmine | E2E-Test-Dependency |
+| dotnet-sdk | boltz | Swap-Integration |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
+**C#/.NET Projects**: dotnet-sdk
 **TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
@@ -699,7 +745,7 @@ wallet / @arkade-os/sdk
 
 **Development Tasks**:
 - Add arkd feature → `arkd`
-- Build wallet → `go-sdk`, `wallet` (depending on language)
+- Build wallet → `go-sdk`, `dotnet-sdk`, `wallet` (depending on language)
 - Escrow development → `arkade-escrow`
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
@@ -774,6 +820,8 @@ For conceptual questions, prioritize documentation loading order:
 | arkade-escrow | POC | L Alpha | Escrow platform, proof-of-concept |
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
+| dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages |
+| boltz-swap | Active Dev | Alpha | TypeScript Boltz swap library |
 
 ---
 
