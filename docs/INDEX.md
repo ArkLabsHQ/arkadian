@@ -700,6 +700,46 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 
 ---
 
+### rust-sdk
+**ID**: `rust-sdk`
+**Name**: Arkade Rust SDK (ark-rs)
+**Type**: Library/SDK
+**Language**: Rust
+**Index**: `${ARKADIAN_DIR}/docs/projects/rust-sdk/INDEX.md`
+**Repository**: `${RUST_SDK_REPO}`
+**GitHub**: `${RUST_SDK_GITHUB}`
+
+**Description**:
+Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection), ark-client (high-level API), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), and ark-fees (fee estimation). Supports WASM compilation for browser use.
+
+**Key Capabilities**:
+- Core Ark protocol types (ArkAddress, VTXO, BoardingOutput, ArkNote, vHTLC)
+- High-level client API (send VTXOs, settle rounds, check balances, transaction history)
+- gRPC transport (tonic) and REST transport (reqwest, WASM-compatible)
+- MuSig2 cooperative signing for round participation
+- BDK wallet integration for on-chain operations
+- Boltz submarine and reverse submarine swap integration
+- DLC (Discreet Log Contracts) support
+- VTXO delegation and key discovery
+- Coin selection algorithms and fee estimation
+- WASM build support (ark-core, ark-rest)
+- Comprehensive E2E test suite against live arkd
+
+**Tags**: `rust`, `sdk`, `ark`, `vtxo`, `musig2`, `grpc`, `rest`, `wasm`, `bdk`, `boltz`, `bitcoin`, `wallet-library`
+
+**Synonyms**: `ark-rs`, `rust-ark-sdk`, `ark-rust`
+
+**Triggers**:
+- **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `rust wallet`, `wasm ark`, `bdk integration`
+- **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`
+- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`
+- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`
+
+**Dependencies**: `arkd` (gRPC/REST server), `boltz-backend` (swap provider, optional), `Nigiri` (testing)
+**Depended On By**: None (library — consumed by external wallet applications)
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -710,6 +750,7 @@ arkd (core)
       ark-faucet (uses go-sdk)
       ark-simulator (uses go-sdk)
    dotnet-sdk (.NET client library, gRPC to arkd)
+   rust-sdk (Rust client library - ark-rs, gRPC/REST to arkd)
    ts-sdk (TypeScript client library - @arkade-os/sdk)
       wallet (uses ts-sdk)
       arkade-escrow (uses ts-sdk)
@@ -769,10 +810,15 @@ wallet / @arkade-os/sdk
 | ts-sdk | wallet | Library-Consumer |
 | ts-sdk | arkade-escrow | Library-Consumer |
 | ts-sdk | fulmine | Delegator-Integration |
+| rust-sdk | arkd | Client-Server (via gRPC/REST) |
+| rust-sdk | go-sdk | Sibling SDK (same protocol, different language) |
+| rust-sdk | ts-sdk | Sibling SDK (same protocol, different language) |
+| rust-sdk | dotnet-sdk | Sibling SDK (same protocol, different language) |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
+**Rust Projects**: rust-sdk
 **C#/.NET Projects**: dotnet-sdk
 **TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
@@ -790,7 +836,7 @@ wallet / @arkade-os/sdk
 **Q&A / Conceptual Questions**:
 - Ark protocol concepts → `ark-docs`, `arkd`
 - VTXOs, rounds, settlement → `arkd`, `ark-docs`
-- Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `ark-docs`
+- Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `rust-sdk`, `ark-docs`
 - Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
@@ -799,7 +845,7 @@ wallet / @arkade-os/sdk
 
 **Development Tasks**:
 - Add arkd feature → `arkd`
-- Build wallet → `go-sdk`, `dotnet-sdk`, `wallet` (depending on language)
+- Build wallet → `go-sdk`, `rust-sdk`, `dotnet-sdk`, `wallet` (depending on language)
 - Escrow development → `arkade-escrow`
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
