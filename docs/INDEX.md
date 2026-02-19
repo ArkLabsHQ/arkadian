@@ -652,6 +652,47 @@ Arkade Script execution and signing microservice for the Ark protocol. Receives 
 
 ---
 
+### ts-sdk
+**ID**: `ts-sdk`
+**Name**: Ark TypeScript SDK
+**Type**: Client Library
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/ts-sdk/INDEX.md`
+**Repository**: `${TS_SDK_REPO}`
+**GitHub**: `arkade-os/ts-sdk`
+
+**Description**:
+Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a complete client library for building Bitcoin wallets with Taproot and Ark VTXO support. Features wallet management (full + watch-only), HD identity (BIP39/BIP86), VTXO operations, batch settlement with MuSig2, asset management, VTXO delegation, unilateral exit, and service worker support. Runs in browsers, Node.js, React Native/Expo with pluggable storage adapters.
+
+**Key Capabilities**:
+- Wallet creation and management (Wallet, ReadonlyWallet, ServiceWorkerWallet, OnchainWallet)
+- HD identity with BIP39 mnemonic and BIP86 Taproot derivation
+- VTXO operations (send, receive, settle, renew, recover)
+- Batch settlement with MuSig2 tree signing
+- Asset management (issue, reissue, burn, transfer)
+- VTXO delegation to third-party delegator services
+- Onboarding/offboarding (on-chain to off-chain conversion)
+- Unilateral exit (unroll + timelock)
+- Service worker wallet for background operation
+- 5 storage adapters (InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage)
+- Expo/React Native support with SSE-compatible providers
+- ArkNote serializable payment format
+
+**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`
+
+**Synonyms**: `@arkade-os/sdk`, `ark-ts-sdk`, `typescript-sdk`, `js-sdk`
+
+**Triggers**:
+- **ask_question**: `typescript sdk`, `wallet api`, `vtxo management`, `storage adapter`, `service worker wallet`, `ark address`, `boarding address`
+- **develop**: `add wallet feature`, `new provider`, `storage adapter`, `asset management`, `delegation`, `expo support`
+- **test_or_run**: `run sdk tests`, `vitest`, `nigiri`, `integration test`, `regtest`
+- **debug**: `sse not working`, `crypto polyfill`, `service worker error`, `vtxo expired`, `settlement timeout`
+
+**Dependencies**: `arkd` (REST API + SSE), `fulmine` (delegator service, optional)
+**Depended On By**: `wallet`, `arkade-escrow`
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -662,7 +703,9 @@ arkd (core)
       ark-faucet (uses go-sdk)
       ark-simulator (uses go-sdk)
    dotnet-sdk (.NET client library, gRPC to arkd)
-   wallet (uses @arkade-os/sdk, TypeScript equivalent)
+   ts-sdk (TypeScript client library - @arkade-os/sdk)
+      wallet (uses ts-sdk)
+      arkade-escrow (uses ts-sdk)
    ark-faucet (uses arkd APIs)
    kms-unlocker (unlocks arkd-wallet)
    fulmine (independent, but can integrate)
@@ -715,12 +758,16 @@ wallet / @arkade-os/sdk
 | dotnet-sdk | arkd | Client-Server (via gRPC) |
 | dotnet-sdk | fulmine | E2E-Test-Dependency |
 | dotnet-sdk | boltz | Swap-Integration |
+| ts-sdk | arkd | Client-Server (REST/SSE) |
+| ts-sdk | wallet | Library-Consumer |
+| ts-sdk | arkade-escrow | Library-Consumer |
+| ts-sdk | fulmine | Delegator-Integration |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
 **C#/.NET Projects**: dotnet-sdk
-**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
@@ -736,7 +783,7 @@ wallet / @arkade-os/sdk
 **Q&A / Conceptual Questions**:
 - Ark protocol concepts → `ark-docs`, `arkd`
 - VTXOs, rounds, settlement → `arkd`, `ark-docs`
-- Wallet usage → `wallet`, `go-sdk`, `ark-docs`
+- Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `ark-docs`
 - Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
@@ -789,7 +836,8 @@ When a user asks about topics spanning multiple projects, load context from all 
 When working on a project, consider loading dependent projects:
 
 - Working on `ark-simulator` → Also load `arkd`, `go-sdk`
-- Working on `wallet` → Also load `arkd` (for server API reference)
+- Working on `wallet` → Also load `ts-sdk`, `arkd` (for SDK and server API reference)
+- Working on `ts-sdk` → Also load `arkd` (for server API reference)
 - Working on `ark-infra` → Also load `arkd`, `ark-telemetry` (deployment targets)
 
 ### Documentation Priority
@@ -822,6 +870,7 @@ For conceptual questions, prioritize documentation loading order:
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
 | dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages |
 | boltz-swap | Active Dev | Alpha | TypeScript Boltz swap library |
+| ts-sdk | Active Dev | ✓ Beta | v0.3.13, npm published, multi-platform |
 
 ---
 
