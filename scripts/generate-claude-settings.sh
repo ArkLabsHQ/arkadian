@@ -8,7 +8,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ARKADIAN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$ARKADIAN_DIR/.env"
 TEMPLATE_FILE="$ARKADIAN_DIR/.claude-settings.template.json"
-SETTINGS_FILE="$HOME/.claude/settings.json"
+SETTINGS_FILE="$HOME/.claude/settings-arkadian.json"
 
 # Check if .env exists
 if [ ! -f "$ENV_FILE" ]; then
@@ -23,11 +23,17 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
   exit 1
 fi
 
-# Backup existing settings
+# Backup existing arkadian settings (not vanilla settings.json)
 if [ -f "$SETTINGS_FILE" ]; then
   backup_file="$SETTINGS_FILE.backup.$(date +%Y%m%d_%H%M%S)"
   cp "$SETTINGS_FILE" "$backup_file"
-  echo "✓ Backed up existing settings to: $backup_file"
+  echo "✓ Backed up existing arkadian settings to: $backup_file"
+fi
+
+# Check if vanilla settings.json exists and inform user it won't be modified
+if [ -f "$HOME/.claude/settings.json" ]; then
+  echo "ℹ️  Your vanilla Claude settings.json will NOT be modified"
+  echo "   Regular Claude will continue using: ~/.claude/settings.json"
 fi
 
 # Source .env to get all variables
@@ -104,5 +110,10 @@ echo "✅ Generated $SETTINGS_FILE with $(grep -c '=' "$ENV_FILE") environment v
 echo ""
 echo "Variables configured:"
 grep -v '^#' "$ENV_FILE" | grep -v '^$' | sed 's/=.*//' | sed 's/^/  - /'
+echo ""
+echo "📋 Three modes configured:"
+echo "  1. claude          → Vanilla Claude (uses ~/.claude/settings.json)"
+echo "  2. claude (in arkadian dir) → Dev mode (uses .claude/CLAUDE.md)"
+echo "  3. arkadian        → Orchestrator mode (uses ~/.claude/settings-arkadian.json)"
 echo ""
 echo "⚠️  Important: Restart Claude Code for settings to take effect"

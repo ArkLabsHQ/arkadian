@@ -59,12 +59,24 @@ install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-wi
 		echo "  source $(SHELL_CONFIG)"; \
 	fi
 	@echo ""
-	@echo "$(GREEN)Usage:$(NC)"
-	@echo "  $(GREEN)arkadian$(NC)  - Launch with orchestrator mode (recommended)"
-	@echo "             Uses --append-system-prompt for strict instruction following"
+	@echo "$(GREEN)📋 Three Modes Configured:$(NC)"
 	@echo ""
-	@echo "  $(YELLOW)claude$(NC)    - Standard mode with CLAUDE.md (less strict)"
-	@echo "             Instructions may be ignored as 'not relevant'"
+	@echo "  $(GREEN)1. claude$(NC)          → Vanilla Claude (no arkadian)"
+	@echo "     Uses: ~/.claude/settings.json"
+	@echo "     For: Regular coding, debugging, general tasks"
+	@echo ""
+	@echo "  $(GREEN)2. claude$(NC)          → Arkadian Dev Mode (in arkadian dir)"
+	@echo "     Uses: .claude/CLAUDE.md for context"
+	@echo "     For: Working on arkadian repository itself"
+	@echo ""
+	@echo "  $(GREEN)3. arkadian$(NC)        → Orchestrator Mode (strict delegation)"
+	@echo "     Uses: ~/.claude/settings-arkadian.json + ORCHESTRATOR.md"
+	@echo "     For: Working on Ark projects (arkd, fulmine, etc.)"
+	@echo ""
+	@echo "$(YELLOW)Examples:$(NC)"
+	@echo "  claude 'Help me debug this code'           # Regular Claude"
+	@echo "  cd $(ARKADIAN_DIR) && claude               # Dev mode"
+	@echo "  arkadian 'Add GetRoundMetrics to arkd'     # Orchestrator"
 	@echo ""
 	@echo "Test with: make test-hook"
 
@@ -79,6 +91,14 @@ setup-dirs: ## Create necessary directories
 	@echo "$(YELLOW)Creating directories...$(NC)"
 	@mkdir -p $$HOME/.claude
 	@echo "$(GREEN)✓ Created ~/.claude/$(NC)"
+	@# Create vanilla settings.json if it doesn't exist
+	@if [ ! -f "$$HOME/.claude/settings.json" ]; then \
+		echo "$(YELLOW)Creating vanilla Claude settings.json...$(NC)"; \
+		cp .claude-settings-vanilla.template.json $$HOME/.claude/settings.json; \
+		echo "$(GREEN)✓ Created ~/.claude/settings.json (vanilla Claude)$(NC)"; \
+	else \
+		echo "$(GREEN)✓ Existing settings.json preserved$(NC)"; \
+	fi
 
 install-data-dir: ## Create OS-specific data directory for runtime state
 	@echo "$(YELLOW)Creating data directory...$(NC)"
@@ -97,16 +117,10 @@ copy-settings-with-env: ## Generate settings.json with all env vars from .env
 	@echo "$(YELLOW)Installing settings.json with environment variables...$(NC)"
 	@bash scripts/generate-claude-settings.sh
 
-copy-settings: ## Copy settings.json to ~/.claude/ (legacy - use copy-settings-with-env)
-	@echo "$(YELLOW)Installing settings.json...$(NC)"
-	@if [ -f "$$HOME/.claude/settings.json" ]; then \
-		echo "$(YELLOW)⚠️  Backing up existing settings.json to settings.json.backup$(NC)"; \
-		cp $$HOME/.claude/settings.json $$HOME/.claude/settings.json.backup; \
-	fi
-	@# Create settings.json with ARKADIAN_DIR substituted
-	@sed "s|ARKADIAN_DIR_PLACEHOLDER|$(ARKADIAN_DIR)|g" .claude-settings.template.json > $$HOME/.claude/settings.json
-	@echo "$(GREEN)✓ Installed ~/.claude/settings.json$(NC)"
-	@echo "$(GREEN)  ARKADIAN_DIR set to: $(ARKADIAN_DIR)$(NC)"
+copy-settings: ## DEPRECATED - Use copy-settings-with-env instead
+	@echo "$(RED)⚠️  This target is deprecated$(NC)"
+	@echo "$(YELLOW)Use 'make copy-settings-with-env' instead$(NC)"
+	@echo "$(YELLOW)This preserves your vanilla Claude settings$(NC)"
 
 export-env: ## Add ARKADIAN_DIR and ARKADIAN_DATA_DIR to shell config
 	@echo "$(YELLOW)Configuring environment variables...$(NC)"
@@ -190,17 +204,17 @@ test-hook: ## Test the context loading hook
 
 verify: ## Verify installation
 	@echo "$(YELLOW)Verifying installation...$(NC)"
-	@# Check settings.json
-	@if [ -f "$$HOME/.claude/settings.json" ]; then \
-		echo "$(GREEN)✓ Settings file exists (settings.json)$(NC)"; \
+	@# Check settings-arkadian.json
+	@if [ -f "$$HOME/.claude/settings-arkadian.json" ]; then \
+		echo "$(GREEN)✓ Arkadian settings file exists (settings-arkadian.json)$(NC)"; \
 	else \
-		echo "$(RED)❌ Settings file missing$(NC)"; exit 1; \
+		echo "$(RED)❌ Arkadian settings file missing (run: make copy-settings-with-env)$(NC)"; exit 1; \
 	fi
-	@# Check ARKADIAN_DIR in settings.json
-	@if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings.json; then \
+	@# Check ARKADIAN_DIR in settings-arkadian.json
+	@if grep -q "$(ARKADIAN_DIR)" $$HOME/.claude/settings-arkadian.json; then \
 		echo "$(GREEN)✓ ARKADIAN_DIR configured correctly$(NC)"; \
 	else \
-		echo "$(RED)❌ ARKADIAN_DIR not found in settings file$(NC)"; exit 1; \
+		echo "$(RED)❌ ARKADIAN_DIR not found in arkadian settings file$(NC)"; exit 1; \
 	fi
 	@# Check arkadian command (uses --append-system-prompt for strict instruction following)
 	@if [ -x "$$HOME/bin/arkadian" ]; then \
@@ -263,12 +277,16 @@ verify: ## Verify installation
 
 uninstall: ## Remove Arkadian installation
 	@echo "$(YELLOW)Uninstalling Arkadian...$(NC)"
-	@# Backup settings.json
+	@# Remove settings-arkadian.json (NOT vanilla settings.json)
+	@if [ -f "$$HOME/.claude/settings-arkadian.json" ]; then \
+		echo "$(YELLOW)Removing arkadian settings...$(NC)"; \
+		cp $$HOME/.claude/settings-arkadian.json $$HOME/.claude/settings-arkadian.json.pre-uninstall; \
+		rm $$HOME/.claude/settings-arkadian.json; \
+		echo "$(GREEN)✓ Removed settings-arkadian.json (backup saved)$(NC)"; \
+	fi
+	@# Note: Vanilla settings.json is preserved
 	@if [ -f "$$HOME/.claude/settings.json" ]; then \
-		echo "$(YELLOW)Backing up settings.json...$(NC)"; \
-		cp $$HOME/.claude/settings.json $$HOME/.claude/settings.json.pre-uninstall; \
-		rm $$HOME/.claude/settings.json; \
-		echo "$(GREEN)✓ Removed settings.json (backup saved)$(NC)"; \
+		echo "$(GREEN)✓ Vanilla Claude settings.json preserved$(NC)"; \
 	fi
 	@# Remove CLAUDE.md (orchestrator)
 	@if [ -f "$$HOME/.claude/CLAUDE.md" ]; then \
@@ -333,7 +351,8 @@ status: ## Show installation status
 	@echo "  Shell config: $(SHELL_CONFIG)"
 	@echo ""
 	@echo "$(YELLOW)Installation:$(NC)"
-	@[ -f "$$HOME/.claude/settings.json" ] && echo "$(GREEN)✓ settings.json installed$(NC)" || echo "$(RED)✗ settings.json missing$(NC)"
+	@[ -f "$$HOME/.claude/settings-arkadian.json" ] && echo "$(GREEN)✓ settings-arkadian.json installed$(NC)" || echo "$(RED)✗ settings-arkadian.json missing$(NC)"
+	@[ -f "$$HOME/.claude/settings.json" ] && echo "$(GREEN)✓ settings.json (vanilla Claude preserved)$(NC)" || echo "$(YELLOW)⚠️  settings.json missing (vanilla Claude may not work)$(NC)"
 	@[ -d "$(ARKADIAN_DATA_DIR)" ] && echo "$(GREEN)✓ Data directory exists$(NC)" || echo "$(RED)✗ Data directory missing$(NC)"
 	@grep -q "ARKADIAN_DIR" $(SHELL_CONFIG) 2>/dev/null && echo "$(GREEN)✓ ARKADIAN_DIR in shell config$(NC)" || echo "$(RED)✗ ARKADIAN_DIR not in shell config$(NC)"
 	@grep -q "ARKADIAN_DATA_DIR" $(SHELL_CONFIG) 2>/dev/null && echo "$(GREEN)✓ ARKADIAN_DATA_DIR in shell config$(NC)" || echo "$(RED)✗ ARKADIAN_DATA_DIR not in shell config$(NC)"

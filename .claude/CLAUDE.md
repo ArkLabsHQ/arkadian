@@ -192,16 +192,47 @@ Sessions are created in `sessions/<SESSION_ID>/`:
 ```
 sessions/<SESSION_ID>/
 ├── metadata.json         # Session info
-├── artifacts/            # Agent outputs
-│   └── <step_id>/
-│       ├── report.md
-│       └── logs/
-└── specs/                # PM artifacts
-    └── <feature-id>/
-        ├── spec.md
-        ├── plan.md
-        └── tasks.md
+├── artifacts/            # Execution artifacts (session-scoped)
+│   ├── explore/          # ark-guru analysis
+│   │   ├── assessment.yaml
+│   │   ├── *_patterns.md
+│   │   └── _result.json
+│   └── implement/        # ark-developer code changes
+│       ├── detailed_report.md
+│       ├── test-evidence.md
+│       └── _result.json
+└── specs/                # Planning artifacts (project-scoped)
+    ├── S1.yaml           # Execution spec for explore
+    ├── S2.yaml           # Execution spec for plan
+    ├── S3.yaml           # Execution spec for implement
+    └── {project}/        # Planning by project
+        └── {feature-id}/
+            ├── spec.md
+            ├── plan.md
+            ├── tasks.md
+            └── _result.json
 ```
+
+## Artifact Organization
+
+Arkadian uses a **hybrid artifact organization** strategy:
+
+### Planning Artifacts → `specs/{project}/{feature-id}/`
+- **Who:** ark-project-manager
+- **What:** spec.md, plan.md, tasks.md, _result.json
+- **Why:** Project-scoped, reusable across sessions
+- **Example:** `specs/arkd/001-round-metrics/`
+
+### Execution Artifacts → `artifacts/{phase}/`
+- **Who:** ark-guru, ark-developer
+- **What:** Analysis reports, code diffs, test results, _result.json
+- **Why:** Session-scoped, disposable after completion
+- **Example:** `artifacts/explore/`, `artifacts/implement/`
+
+**Resume Detection:** Orchestrator checks both locations:
+- Explore phase: `artifacts/explore/_result.json`
+- Plan phase: `specs/{project}/*/_result.json`
+- Implement phase: `artifacts/implement/_result.json`
 
 ## Development Guidelines
 

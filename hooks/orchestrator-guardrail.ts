@@ -329,7 +329,24 @@ async function main() {
         // Check if tool is explicitly blocked
         if (BLOCKED_TOOLS.includes(toolName)) {
             log(sessionId, 'blocked-tool', toolName);
-            console.error(getOrchestratorReminder());
+            if (toolName === 'Bash') {
+                const cmd = (toolInput.command || '').trim();
+                if (cmd.startsWith('mkdir')) {
+                    console.error(
+                        '❌ Bash is blocked for the orchestrator. You do NOT need mkdir — ' +
+                        'the Write tool automatically creates parent directories. ' +
+                        'Just use Write to create the file directly.'
+                    );
+                } else {
+                    console.error(
+                        '❌ Bash is blocked for the orchestrator. ' +
+                        'Use Write/Edit for files, Task for delegating to agents. ' +
+                        'If you need shell commands, delegate to ark-developer.'
+                    );
+                }
+            } else {
+                console.error(getOrchestratorReminder());
+            }
             process.exit(2);
         }
 

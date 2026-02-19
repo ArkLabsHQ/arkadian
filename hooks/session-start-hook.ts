@@ -32,7 +32,7 @@
  * - Tracks workflow state and active sub-agents
  */
 
-import { appendFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, readFileSync } from 'fs';
+import { appendFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, readFileSync, cpSync, rmSync } from 'fs';
 import { join, resolve } from 'path';
 
 
@@ -240,19 +240,71 @@ function createInitialState(sessionId: string, transcriptPath: string): SessionS
 /**
  * Register this session as the orchestrator session.
  * Creates per-session state and log files.
+ *
+ * State preservation rules (3 cases):
+ *
+ * 1. NEW SESSION (no state file):
+ *    Create fresh state with active_agent: null.
+ *
+ * 2. EXPLICIT RESUME (--resume, isResume=true, state file exists):
+ *    Preserve workflow/phases/approvals but RESET active_agent to null.
+ *    The old agent is dead (session ended/crashed), keeping a stale
+ *    active_agent would let orchestrator calls bypass the guardrail.
+ *
+ * 3. CONTEXT COMPRESSION (same session continuing, isResume=false, state file exists):
+ *    Preserve EVERYTHING including active_agent.
+ *    A sub-agent may still be running. Resetting active_agent here would
+ *    cause orchestrator-guardrail to block the sub-agent's tool calls.
+ *    This was the root cause of the S3 guardrail bug.
  */
-function registerOrchestratorSession(sessionId: string, transcriptPath: string): void {
+function registerOrchestratorSession(sessionId: string, transcriptPath: string, isResume: boolean): void {
     if (!ORCHESTRATOR_MODE) {
         log(sessionId, 'skip-registration', 'ORCHESTRATOR_MODE not set');
         return;
     }
 
-    // Create state file for this orchestrator session
     const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
-    const state = createInitialState(sessionId, transcriptPath);
 
+    // State file exists — either resume or context compression
+    if (existsSync(stateFile)) {
+        try {
+            const existingState = JSON.parse(readFileSync(stateFile, 'utf-8'));
+
+            // Always update process-level fields
+            existingState.pid = process.ppid;
+            existingState.transcript_path = transcriptPath;
+
+            if (isResume) {
+                // EXPLICIT RESUME: Old agent is dead → reset active_agent
+                // pre-agent-validator will set it when Task tool is invoked
+                existingState.active_agent = null;
+                log(sessionId, 'resumed-state', {
+                    active_agent: null,
+                    workflow_status: existingState.workflow?.status,
+                    current_phase: existingState.workflow?.current_phase
+                });
+            } else {
+                // CONTEXT COMPRESSION / CONTINUATION: Agent may be alive → preserve
+                log(sessionId, 'preserved-state', {
+                    active_agent: existingState.active_agent?.agent_type || null,
+                    spec_id: existingState.active_agent?.spec_id || null,
+                    workflow_status: existingState.workflow?.status,
+                    current_phase: existingState.workflow?.current_phase
+                });
+            }
+
+            writeFileSync(stateFile, JSON.stringify(existingState, null, 2));
+            return;
+        } catch (e: any) {
+            log(sessionId, 'state-preserve-error', `Failed to preserve state: ${e.message}`);
+            // Fall through to create fresh state (better than crashing)
+        }
+    }
+
+    // No existing state file — truly new session, create fresh
+    const state = createInitialState(sessionId, transcriptPath);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
-    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid });
+    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid, mode: 'new' });
 }
 
 function createSessionFolder(hookInput: HookInput): string {
@@ -265,10 +317,9 @@ function createSessionFolder(hookInput: HookInput): string {
         mkdirSync(join(sessionDir, 'artifacts'), { recursive: true });
         mkdirSync(join(sessionDir, 'specs'), { recursive: true });
 
-        // Create common artifact subdirectories for dev workflow phases
-        // Each phase gets its own directory. Agents write all outputs (including _result.json) here.
+        // Create artifact subdirectories for execution phases (session-scoped)
+        // Planning artifacts go to specs/{project}/{feature-id}/ (project-scoped)
         mkdirSync(join(sessionDir, 'artifacts', 'explore'), { recursive: true });
-        mkdirSync(join(sessionDir, 'artifacts', 'plan'), { recursive: true });
         mkdirSync(join(sessionDir, 'artifacts', 'implement'), { recursive: true });
 
         // Create session.md with minimal info (summary added on session end)
@@ -285,6 +336,58 @@ _Summary will be generated when session ends._
     }
 
     return sessionDir;
+}
+
+/**
+ * Copy files from a previous session into a new session folder.
+ * Updates workflow_id and session paths in copied files.
+ * Deletes the old session folder after copying.
+ */
+function copyPreviousSession(oldSessionDir: string, newSessionDir: string, newSessionId: string, logSessionId: string): void {
+    // Copy all files from old session (overwrite the empty structure)
+    cpSync(oldSessionDir, newSessionDir, { recursive: true, force: true });
+
+    // Extract old workflow_id before replacing
+    const workflowPath = join(newSessionDir, 'workflow.yaml');
+    let oldWorkflowId = '';
+    if (existsSync(workflowPath)) {
+        const content = readFileSync(workflowPath, 'utf-8');
+        const match = content.match(/^workflow_id:\s*"?([^"\n]+)"?/m);
+        if (match) oldWorkflowId = match[1].trim();
+
+        // Update workflow_id
+        const updated = content.replace(/^workflow_id:.*$/m, `workflow_id: "${newSessionId}"`);
+        writeFileSync(workflowPath, updated);
+    }
+
+    // Update parent_session_id and session dir paths in spec files
+    const specsDir = join(newSessionDir, 'specs');
+    if (existsSync(specsDir)) {
+        for (const file of readdirSync(specsDir)) {
+            if (!file.endsWith('.yaml')) continue;
+            const specPath = join(specsDir, file);
+            let content = readFileSync(specPath, 'utf-8');
+
+            // Replace parent_session_id
+            if (oldWorkflowId) {
+                content = content.replaceAll(oldWorkflowId, newSessionId);
+            }
+            // Replace old session dir paths with new
+            content = content.replaceAll(oldSessionDir, newSessionDir);
+            writeFileSync(specPath, content);
+        }
+    }
+
+    // Delete old session folder
+    rmSync(oldSessionDir, { recursive: true, force: true });
+
+    log(logSessionId, 'resume-copy', {
+        from: oldSessionDir,
+        to: newSessionDir,
+        old_workflow_id: oldWorkflowId,
+        new_session_id: newSessionId,
+        old_deleted: true
+    });
 }
 
 /**
@@ -307,9 +410,9 @@ async function main() {
         // Clean up stale files from crashed sessions (runs for ALL sessions, not just orchestrator)
         cleanupStaleFiles(hookInput.session_id);
 
-        // Initialize log file with session start marker
+        // Append session start marker to log file (preserve previous entries)
         const logFile = join(ARKADIAN_DATA_DIR, `${hookInput.session_id}_log.txt`);
-        writeFileSync(logFile, `=== Session Start: ${new Date().toISOString()} ===\n`);
+        appendFileSync(logFile, `=== Session Start: ${new Date().toISOString()} ===\n`);
 
         log(hookInput.session_id, 'session-start input:', hookInput);
 
@@ -331,44 +434,56 @@ async function main() {
             process.exit(0);
         }
 
-        // Check for RESUME MODE - use existing session directory instead of creating new one
-        const resumeSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
-        const resumeSession = process.env.ARKADIAN_RESUME_SESSION;
+        // Check for RESUME MODE
+        // CRITICAL: Only treat as resume if EXPLICITLY requested via environment variable
+        // Don't assume resume just because workflow.yaml exists (could be same session continuing)
+        const explicitResume = process.env.ARKADIAN_RESUME_SESSION_DIR || process.env.ARKADIAN_RESUME_SESSION;
+        const oldSessionDir = process.env.ARKADIAN_RESUME_SESSION_DIR;
 
         let sessionDir: string;
+        let isResumeMode = false;
+        const potentialSessionDir = join(SESSIONS_DIR, hookInput.session_id);
+        const workflowFile = join(potentialSessionDir, 'workflow.yaml');
 
-        if (resumeSessionDir && existsSync(resumeSessionDir)) {
-            // RESUME MODE: Use the existing session directory
-            sessionDir = resumeSessionDir;
-            log(hookInput.session_id, 'resume-mode', {
-                resume_session: resumeSession,
-                resume_dir: resumeSessionDir,
-                new_session_id: hookInput.session_id
+        if (!explicitResume && existsSync(workflowFile)) {
+            // SAME SESSION CONTINUING: workflow.yaml exists but not explicit resume
+            // This happens when SessionStart hook runs multiple times in same session
+            sessionDir = potentialSessionDir;
+            log(hookInput.session_id, 'continuing-session', {
+                session_id: hookInput.session_id,
+                session_dir: sessionDir,
+                workflow_exists: true,
+                explicit: false
             });
-
-            // Create symlink from new session ID to old session directory
-            // This allows validators to find the session by either ID
-            const newSessionLink = join(SESSIONS_DIR, hookInput.session_id);
-            if (!existsSync(newSessionLink)) {
-                try {
-                    // Use relative path for portability
-                    const relPath = join('..', resumeSessionDir.replace(SESSIONS_DIR + '/', ''));
-                    require('fs').symlinkSync(relPath, newSessionLink, 'dir');
-                    log(hookInput.session_id, 'symlink-created', { from: newSessionLink, to: resumeSessionDir });
-                } catch (e: any) {
-                    log(hookInput.session_id, 'symlink-failed', { error: e.message });
-                }
-            }
+            console.error(`[session-start] Continuing existing session ${hookInput.session_id}`);
         } else {
-            // NORMAL MODE: Create new session folder
+            // NEW SESSION or RESUME: Always create fresh session folder
             sessionDir = createSessionFolder(hookInput);
+            log(hookInput.session_id, 'new-session', {
+                session_id: hookInput.session_id,
+                session_dir: sessionDir
+            });
+        }
+
+        // If resuming, copy files from old session into the new folder
+        if (explicitResume && oldSessionDir && existsSync(oldSessionDir)) {
+            try {
+                copyPreviousSession(oldSessionDir, sessionDir, hookInput.session_id, hookInput.session_id);
+                isResumeMode = true;
+                console.error(`[session-start] Resume: copied ${oldSessionDir} → ${sessionDir}, old deleted`);
+            } catch (e: any) {
+                log(hookInput.session_id, 'resume-copy-error', e.message);
+                console.error(`[session-start] Resume copy failed: ${e.message}`);
+            }
         }
 
         // Write active session pointer to data dir (parallel-safe: one file per session)
         writeFileSync(join(ARKADIAN_DATA_DIR, `${hookInput.session_id}_active.txt`), `${sessionDir}\n`);
 
-        // Register this session as orchestrator (only in orchestrator mode, NOT in dev mode)
-        registerOrchestratorSession(hookInput.session_id, hookInput.transcript_path);
+        // Register this session as orchestrator
+        // Resume: reset active_agent (old agent is dead)
+        // Context compression: preserve active_agent (agent may be running)
+        registerOrchestratorSession(hookInput.session_id, hookInput.transcript_path, isResumeMode);
 
         const quickCommands = `
 I am Arkadian, your Ark Digital Assistant. I provide intelligent, context-aware assistance across the entire Ark protocol ecosystem (12+ repositories).
@@ -412,16 +527,17 @@ Just describe what you need - I'll route to the right specialist automatically.`
 
 **Session ID:** ${hookInput.session_id}
 **Session Directory:** ${sessionDir}
-**Artifacts Directory:** ${join(sessionDir, 'artifacts')}/<phase>
-**Specs Directory:** ${join(sessionDir, 'specs')}
+**Artifacts Directory (execution):** ${join(sessionDir, 'artifacts')}/<phase>
+**Specs Directory (planning):** ${join(sessionDir, 'specs')}/<project>/<feature-id>
 
-IMPORTANT: When generating execution specs, set artifacts_dir to the phase subdirectory:
+IMPORTANT: When generating execution specs, use the correct artifact location per agent:
 - ark-guru (explore): artifacts_dir = ${join(sessionDir, 'artifacts')}/explore
-- ark-project-manager (plan): artifacts_dir = ${join(sessionDir, 'artifacts')}/plan
+- ark-project-manager (plan): artifacts_dir = ${join(sessionDir, 'specs')}  (writes to specs/{project}/{feature-id}/)
 - ark-developer (implement): artifacts_dir = ${join(sessionDir, 'artifacts')}/implement
 - ark-guru (qna): artifacts_dir = ${join(sessionDir, 'artifacts')}/qna
 
-All agent outputs (including _result.json) go into their phase-specific artifacts directory.
+Execution artifacts (explore, implement) go to artifacts/{phase}/.
+Planning artifacts (spec, plan, tasks) go to specs/{project}/{feature-id}/.
 `;
 
         // ORCHESTRATOR.md is now symlinked to ~/.claude/CLAUDE.md

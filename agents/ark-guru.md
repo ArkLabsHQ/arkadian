@@ -1390,6 +1390,31 @@ As your **ABSOLUTE LAST ACTION** before finishing, you MUST write a `_result.jso
 
 ---
 
+## ARTIFACT LOCATIONS
+
+All artifacts MUST be written to **session-scoped execution directories**:
+
+### Q&A Mode
+```
+artifacts/qna/
+└── response.md          # Full markdown answer
+```
+
+### Exploration Mode (Development Intent)
+```
+artifacts/explore/
+├── assessment.yaml      # MANDATORY - Complexity assessment (hook enforced)
+├── response.md          # Exploration report with findings
+├── *_patterns.md        # Code pattern analysis files
+├── *_structure.md       # Data structure analysis files
+└── _result.json         # MANDATORY - Phase completion marker
+```
+
+**Location Type:** Session-scoped (execution artifacts)
+**Why:** Exploration artifacts are specific to this session's investigation and are not reused across sessions.
+
+---
+
 ## OUTPUT CONTRACT
 
 **IMPORTANT**: You MUST write your answer to the session artifacts folder before responding.

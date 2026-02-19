@@ -22,6 +22,8 @@
       "TodoWrite(*)",
       "ExitPlanMode(*)",
       "Task(*)",
+      "Skill(*)",
+      "AskUserQuestion(*)",
       "mcp__*"
     ],
     "deny": [

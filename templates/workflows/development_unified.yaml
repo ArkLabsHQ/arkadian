@@ -1,23 +1,23 @@
 name: "development_unified"
 description: |
-  Unified development workflow with explore→plan→implement phases.
-  Complexity is determined by exploration phase, not pre-guessed.
+  Unified development workflow with fixed pipeline: explore→plan→implement→review.
+  All phases ALWAYS execute - no conditional skipping based on complexity.
 
   MANDATORY PIPELINE: Each phase receives artifacts from ALL prior phases.
   Hooks enforce prerequisites — agents cannot be invoked without upstream artifacts.
 
-version: "4.0.0"
+version: "5.0.0"
 author: "arkadian-system"
 created: "2025-12-15"
 last_modified: "2026-02-11"
 
-# This workflow replaces: quick_fix, small_feature, feature_full_lifecycle
-# It adapts based on the explore phase output
+# This workflow enforces a consistent pipeline for all development tasks.
+# No conditional skipping - all phases always execute.
 
 applies_to:
   primary_intent: "develop"
-  sub_intent: ["quick_fix", "small_feature", "medium_feature", "large_feature"]
-  complexity: ["simple", "medium", "complex"]
+  sub_intent: ["quick_fix", "small_feature", "medium_feature", "large_feature", "refactor"]
+  complexity: ["any"]  # All complexities follow the same pipeline
   urgency: ["low", "normal", "high", "critical"]
   multi_project: true  # Can handle cross-project work
 
@@ -45,6 +45,7 @@ pipeline:
         - "specs/{project_id}/{feature_id}/spec.md"
         - "specs/{project_id}/{feature_id}/plan.md"
         - "specs/{project_id}/{feature_id}/tasks.md"
+      note: "ALWAYS REQUIRED - no skip conditions"
     implement:
       receives:
         - from: "explore"
@@ -58,17 +59,34 @@ pipeline:
         - "artifacts/implement/detailed_report.md"
         - "artifacts/implement/test-evidence.md"
         - "artifacts/implement/changes.yaml"
+    review:
+      receives:
+        - from: "explore"
+          artifacts: ["artifacts/explore/assessment.yaml"]
+        - from: "plan"
+          artifacts:
+            - "specs/{project_id}/{feature_id}/spec.md"
+            - "specs/{project_id}/{feature_id}/plan.md"
+            - "specs/{project_id}/{feature_id}/tasks.md"
+        - from: "implement"
+          artifacts:
+            - "artifacts/implement/detailed_report.md"
+            - "artifacts/implement/test-evidence.md"
+            - "artifacts/implement/changes.yaml"
+      produces:
+        - "artifacts/review/review_report.md"
+        - "artifacts/review/_result.json"
 
 execution:
-  agents: ["ark-guru", "ark-project-manager", "ark-developer"]
+  agents: ["ark-guru", "ark-project-manager", "ark-developer", "ark-pr-reviewer"]
 
   phases:
     # ═══════════════════════════════════════════════════════════════════
-    # PHASE 1: EXPLORE (Always runs, determines workflow shape)
+    # PHASE 1: EXPLORE (Always runs)
     # Hook enforcement: Post-agent FAILS if assessment.yaml missing (HG-PIPE-GURU-01)
     # ═══════════════════════════════════════════════════════════════════
     - id: "explore"
-      name: "Explore & Assess Complexity"
+      name: "Explore & Understand Context"
       agent: "ark-guru"
       depends_on: null
       approval_required: false  # Auto-proceed after explore
@@ -77,12 +95,11 @@ execution:
         - "Search prior sessions for related work (MANDATORY)"
         - "Read relevant codebase files to understand context"
         - "Verify stated scope by checking ≥3 related files"
-        - "Challenge assumptions about scope and complexity"
+        - "Challenge assumptions about scope and approach"
         - "Identify affected components, files, dependencies"
-        - "Assess scope: number of files, complexity of changes"
+        - "Assess scope: number of files, type of changes needed"
         - "Determine if existing tests cover the change area"
         - "Check if infrastructure setup is needed for testing"
-        - "Output complexity recommendation with rationale"
         - "Write assessment.yaml with full schema (HOOK ENFORCED)"
 
       # Artifacts received from prior phases
@@ -94,9 +111,8 @@ execution:
           required: true
           hook_enforced: "HG-PIPE-GURU-01"
           schema: |
-            complexity: "quick_fix" | "small_feature" | "medium_feature" | "large_feature"
             confidence: 0.0-1.0
-            rationale: "<why this complexity level>"
+            rationale: "<exploration summary>"
 
             input_critical_analysis:
               scope_verified: true | false
@@ -131,10 +147,6 @@ execution:
                 chosen: "<what was decided>"
                 rationale: "<why>"
 
-            planning_needed:
-              requires_spec: true | false
-              requires_architecture_decisions: true | false
-
             risks:
               - "<potential issue 1>"
               - "<potential issue 2>"
@@ -148,7 +160,7 @@ execution:
       timeout_seconds: 600
 
     # ═══════════════════════════════════════════════════════════════════
-    # PHASE 2: PLAN (Conditional - skipped for quick_fix)
+    # PHASE 2: PLAN (Always runs - no skipping)
     # Hook enforcement:
     #   Pre-agent BLOCKS if assessment.yaml missing
     # ═══════════════════════════════════════════════════════════════════
@@ -157,22 +169,15 @@ execution:
       agent: "ark-project-manager"
       depends_on: "explore"
 
-      # Condition: Skip if complexity is quick_fix
-      condition:
-        check: "artifacts/explore/assessment.yaml"
-        skip_if:
-          - "complexity == 'quick_fix'"
-          - "planning_needed.requires_spec == false"
-        skip_reason: "Quick fix - direct implementation"
-
       approval_required: true
       approval_message: "Planning complete. Review spec and proceed to implementation?"
 
       actions:
         - "Read explore assessment (artifacts_in) and verify ≥2 claims"
-        - "Cross-check complexity assessment independently"
-        - "For small_feature: Create lightweight plan inline"
-        - "For medium/large: Use pm-spec, pm-plan, pm-tasks skills"
+        - "Create spec.md with requirements and acceptance criteria"
+        - "Create plan.md with implementation approach and architecture decisions"
+        - "Create tasks.md with dependency-ordered task breakdown"
+        - "Use pm-spec, pm-plan, pm-tasks skills for consistent output"
         - "Define success criteria and acceptance tests"
         - "Identify test strategy based on explore recommendation"
 
@@ -184,12 +189,13 @@ execution:
 
       outputs:
         - path: "specs/{project-id}/{feature-id}/spec.md"
-          condition: "complexity in ['medium_feature', 'large_feature']"
+          required: true
         - path: "specs/{project-id}/{feature-id}/plan.md"
-          condition: "complexity in ['medium_feature', 'large_feature']"
+          required: true
         - path: "specs/{project-id}/{feature-id}/tasks.md"
-          condition: "complexity in ['medium_feature', 'large_feature']"
+          required: true
         - path: "specs/{project-id}/{feature-id}/_result.json"
+          required: true
           schema: |
             status: "success | partial | failure"
             phase_completed: "plan"
@@ -313,42 +319,101 @@ execution:
       max_retries: 3
 
     # ═══════════════════════════════════════════════════════════════════
-    # NOTE: COMPLETION HANDLED BY ORCHESTRATOR
+    # PHASE 4: REVIEW (Always runs after implementation)
+    # Comprehensive code review of all changes made during implementation
     # ═══════════════════════════════════════════════════════════════════
-    # After "implement" phase completes:
-    # - The post-agent-validator hook validates artifacts
-    # - Orchestrator presents results to user
-    # - User decides next steps (create PR, manual fixes, etc.)
+    - id: "review"
+      name: "Code Review & Quality Check"
+      agent: "ark-pr-reviewer"
+      depends_on: "implement"
+
+      approval_required: true
+      approval_message: "Implementation complete. Proceed with code review?"
+
+      actions:
+        - "Read ALL artifacts from previous phases (assessment, spec, plan, tasks, implementation report)"
+        - "Review all code changes from the implementation"
+        - "Check adherence to plan.md and tasks.md"
+        - "Verify test coverage and test quality"
+        - "Check for security issues, bugs, and edge cases"
+        - "Validate conventional commit messages"
+        - "Verify no regressions introduced"
+        - "Create comprehensive review report with findings"
+        - "Recommend approval, changes, or rejection"
+
+      artifacts_in:
+        - path: "artifacts/explore/assessment.yaml"
+          from_step: "explore"
+          description: "Original scope and requirements"
+        - path: "specs/{feature-id}/spec.md"
+          from_step: "plan"
+          description: "Feature specification"
+        - path: "specs/{feature-id}/plan.md"
+          from_step: "plan"
+          description: "Implementation plan"
+        - path: "specs/{feature-id}/tasks.md"
+          from_step: "plan"
+          description: "Task breakdown"
+        - path: "artifacts/implement/detailed_report.md"
+          from_step: "implement"
+          description: "Implementation details and decisions"
+        - path: "artifacts/implement/test-evidence.md"
+          from_step: "implement"
+          description: "Test results and evidence"
+        - path: "artifacts/implement/changes.yaml"
+          from_step: "implement"
+          description: "Changes summary"
+
+      outputs:
+        - path: "artifacts/review/review_report.md"
+          required: true
+          description: "Comprehensive code review with findings, recommendations, and approval decision"
+        - path: "artifacts/review/_result.json"
+          required: true
+          schema: |
+            status: "approved" | "needs_changes" | "rejected"
+            phase_completed: "review"
+            agent: "ark-pr-reviewer"
+            completed_at: "<ISO timestamp>"
+            findings:
+              critical_issues: <count>
+              major_issues: <count>
+              minor_issues: <count>
+              suggestions: <count>
+            recommendation: "approve" | "request_changes" | "reject"
+            summary: "<brief summary>"
+
+      checkpoint:
+        path: "artifacts/review/_result.json"
+        required_for_next_phase: false  # This is the final phase
+      timeout_seconds: 900
 
 # Success criteria for the entire workflow
 success_criteria:
   - "Explore phase completed with assessment.yaml (hook enforced)"
+  - "Planning phase completed with spec.md, plan.md, tasks.md (always required)"
   - "Implementation verified ≥3 guru claims and ≥2 PM tasks"
   - "All automated tests pass OR manual verification complete"
   - "No regressions in existing tests"
-  - "PR created (if not quick_fix)"
+  - "Code review completed with findings and recommendation"
 
 # Workflow phase transitions
 loop_control:
   entry_point: "explore"
-  terminal_phase: "implement"  # Last agent phase
+  terminal_phase: "review"  # Last agent phase
 
-  # Phase transitions (normal flow)
+  # Phase transitions (normal flow - all phases always execute)
   transitions:
     explore: "plan"
     plan: "implement"
+    implement: "review"
 
-# Performance estimates (vary by complexity)
+# Performance estimates (all tasks follow same pipeline)
 performance:
-  quick_fix:
-    estimated_seconds: 600
-    max_seconds: 1200
-  small_feature:
-    estimated_seconds: 1800
-    max_seconds: 3600
-  medium_feature:
-    estimated_seconds: 3600
-    max_seconds: 7200
-  large_feature:
-    estimated_seconds: 7200
-    max_seconds: 14400
+  estimated_seconds: 3600  # 60 minutes for full pipeline
+  max_seconds: 7200  # 120 minutes maximum
+  phase_breakdown:
+    explore: 600  # 10 minutes
+    plan: 900  # 15 minutes
+    implement: 2400  # 40 minutes
+    review: 900  # 15 minutes

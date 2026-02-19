@@ -24,7 +24,7 @@
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
@@ -810,30 +810,59 @@ function validatePipelinePrerequisites(
             );
         }
 
-        // Check if plan phase was required (read assessment to check)
-        // If assessment exists and says planning_needed, check for plan artifacts
+        // ALWAYS require planning phase before implementation
+        // The workflow enforces: guru → project-manager → developer (no skipping)
         if (existsSync(assessmentPath)) {
             try {
-                const assessment = readFileSync(assessmentPath, 'utf-8');
-                const needsPlan = assessment.includes('requires_spec: true') ||
-                    assessment.includes("complexity: 'medium_feature'") ||
-                    assessment.includes("complexity: 'large_feature'") ||
-                    assessment.includes('complexity: "medium_feature"') ||
-                    assessment.includes('complexity: "large_feature"');
-                if (needsPlan) {
-                    // Check that plan artifacts exist (specs dir should have something)
-                    const specsDir = join(sessionDir, 'specs');
-                    const hasSpecs = existsSync(specsDir) &&
-                        readdirSync(specsDir).length > 0;
-                    if (!hasSpecs) {
-                        errors.push(
-                            'Guru assessment indicates planning is needed but no specs found. ' +
-                            'Invoke ark-project-manager before ark-developer.'
-                        );
-                    }
+                // Extract project ID from spec
+                const projectId = spec.projects?.[0]?.id;
+                if (!projectId) {
+                    warnings.push('Cannot validate PM artifacts - no project ID in execution spec');
+                    return { errors, warnings };
+                }
+
+                // Check PM planning specs directory (ALWAYS REQUIRED)
+                const projectSpecsDir = join(sessionDir, 'specs', projectId);
+                if (!existsSync(projectSpecsDir)) {
+                    errors.push(
+                        `Planning phase required but no PM specs found for ${projectId}. ` +
+                        `Expected directory: ${projectSpecsDir}. ` +
+                        `Mandatory pipeline: ark-guru → ark-project-manager → ark-developer. ` +
+                        `Invoke ark-project-manager before ark-developer.`
+                    );
+                    return { errors, warnings };
+                }
+
+                // Validate specific PM artifact files exist (ALWAYS REQUIRED)
+                const contents = readdirSync(projectSpecsDir, { recursive: true, withFileTypes: true });
+                const files = contents
+                    .filter(dirent => dirent.isFile())
+                    .map(dirent => {
+                        // Handle both Node.js versions (with/without dirent.path)
+                        const parentPath = (dirent as any).path || projectSpecsDir;
+                        return join(parentPath, dirent.name);
+                    });
+
+                const hasSpec = files.some(f => f.endsWith('spec.md'));
+                const hasPlan = files.some(f => f.endsWith('plan.md'));
+                const hasTasks = files.some(f => f.endsWith('tasks.md'));
+
+                if (!hasSpec || !hasPlan || !hasTasks) {
+                    const missing = [
+                        !hasSpec && 'spec.md',
+                        !hasPlan && 'plan.md',
+                        !hasTasks && 'tasks.md'
+                    ].filter(Boolean).join(', ');
+
+                    errors.push(
+                        `Planning artifacts required but missing for ${projectId}: ${missing}. ` +
+                        `Found files: ${files.map(f => basename(f)).join(', ') || '(none)'}. ` +
+                        `Mandatory pipeline: ark-guru → ark-project-manager → ark-developer. ` +
+                        `Invoke ark-project-manager to generate: spec.md, plan.md, tasks.md.`
+                    );
                 }
             } catch (e) {
-                warnings.push('Could not read assessment.yaml to check planning requirements.');
+                warnings.push(`Could not validate PM artifacts: ${e}`);
             }
         }
 

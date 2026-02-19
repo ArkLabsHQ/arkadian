@@ -1006,13 +1006,17 @@ execution:
 - The `workflow_id` field MUST match `parent_session_id` to enable session resumption after folder renaming
 - The `terminal_phase` must reference the last phase ID. The `post-agent-validator.ts` hook uses this to detect workflow completion and output appropriate signals.
 
-## Step 7.5: Evaluate Phase Skip Conditions
+## Step 7.5: Phase Skip Conditions (DEPRECATED - NO LONGER USED)
 
-After selecting the workflow template and BEFORE creating execution specifications, evaluate conditional skip logic for phases.
+**IMPORTANT**: As of version 5.0.0, phase skip conditions have been REMOVED from the development workflow.
 
-### Skip Condition Mechanism
+**The development workflow now ALWAYS enforces the full pipeline**:
+- guru (explore) → project-manager (plan) → developer (implement) → pr-reviewer (review)
+- ALL phases execute, NO conditional skipping
 
-Workflow phases may define `condition.skip_if` expressions that control whether the phase runs:
+**Legacy information** (for reference only - no longer applicable):
+
+Previously, workflow phases could define `condition.skip_if` expressions that controlled whether the phase runs:
 
 ```yaml
 - id: "plan"
@@ -1136,12 +1140,21 @@ When presenting the plan for approval, clearly show which phases are skipped:
 - Direct implementation without formal planning (guru assessment sufficient)
 ```
 
-### Important Notes
+### Important Notes (LEGACY - NO LONGER APPLICABLE)
 
-1. **Conservative approach**: If skip condition evaluation fails (file missing, parse error), DO NOT skip the phase
-2. **One-time evaluation**: Skip conditions are evaluated ONCE after explore phase completes, not re-evaluated later
-3. **Transparent to user**: Always show which phases are skipped and why
-4. **Hook compatibility**: Pre-agent-validator hook respects skipped phases (validates only for non-skipped plan phases)
+**⚠️ THIS ENTIRE SECTION IS DEPRECATED AS OF VERSION 5.0.0**
+
+The orchestrator NO LONGER evaluates skip conditions. All development tasks follow the same mandatory pipeline:
+1. **S1 (explore)** - ark-guru - ALWAYS runs
+2. **S2 (plan)** - ark-project-manager - ALWAYS runs (no skipping)
+3. **S3 (implement)** - ark-developer - ALWAYS runs
+4. **S4 (review)** - ark-pr-reviewer - ALWAYS runs
+
+**Rationale for removal**:
+- Simplifies workflow logic and reduces orchestrator complexity
+- Eliminates conflicts between orchestrator skip logic and hook enforcement
+- Ensures consistent quality gates for all development tasks
+- Planning phase provides value for all task sizes, not just large features
 
 ### Step-by-Step Implementation
 
@@ -1365,6 +1378,8 @@ Invoking agent...
 - Never assume docs and repo are the same folder
 
 If a field cannot be derived, emit it as empty (`[]` or `{}`) but do NOT omit it.
+
+**NEVER use Bash**: You do not have access to the Bash tool. When saving specs or workflow files, use the `Write` tool directly — it automatically creates parent directories. Do NOT attempt `mkdir` via Bash.
 
 # Post-Agent Validation Handling
 
