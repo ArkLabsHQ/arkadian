@@ -1,4 +1,4 @@
-# Arkadian  Project Index & Registry
+# Arkadian   Project Index & Registry
 
 This is the **master index** for all projects in the Arkade ecosystem. It provides a machine-readable registry with project metadata, dependencies, and routing hints for AI agents.
 
@@ -43,7 +43,7 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - **monitor_or_alert**: `arkd metrics`, `round latency`, `vtxo expiry`
 
 **Dependencies**: `arkd-wallet`, `go-sdk` (protocol implementation)
-**Depended On By**: `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `arkade-escrow`, `ark-telemetry`
+**Depended On By**: `go-sdk`, `wallet`, `ark-faucet`, `ark-simulator`, `ark-telemetry`
 
 ---
 
@@ -351,7 +351,7 @@ Automated wallet unlock service with AWS KMS integration. Monitors arkd-wallet f
 **GitHub**: `${FULMINE_GITHUB}`
 
 **Description**:
-Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain � Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
+Bitcoin wallet daemon with Lightning Network swap integration via Boltz. Provides both CLI and web interface for wallet management, submarine swaps (onchain → Lightning), and VHTLC (Virtual Hash Time-Locked Contract) support for Ark integration. Built with btcd wallet backend.
 
 **Key Capabilities**:
 - Bitcoin wallet operations (send, receive, balance)
@@ -536,45 +536,6 @@ Official documentation repository for the Ark protocol and ecosystem. Built with
 
 ---
 
-### arkade-escrow
-**ID**: `arkade-escrow`
-**Name**: Arkade Escrow
-**Type**: Service/Application
-**Language**: TypeScript/NestJS
-**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-escrow/INDEX.md`
-**Repository**: `${ARKADE_ESCROW_REPO}`
-**GitHub**: `${ARKADE_ESCROW_GITHUB}`
-
-**Description**:
-Generic 3-party escrow system built on Ark protocol. Provides secure escrow contracts between sender (buyer), receiver (seller), and arbitrator using Virtual Escrow Contracts (VEC) with 6 spending paths (collaborative and unilateral). NestJS backend with Schnorr signature authentication, REST API, and Swagger documentation. POC/alpha status.
-
-**Key Capabilities**:
-- Virtual Escrow Contract (VEC) with Taproot multisig
-- 6 spending paths: direct, release, refund (collaborative + unilateral with timelock)
-- Schnorr signature-based authentication (no passwords)
-- JWT token management
-- Escrow request orderbook (public/private listings)
-- Automated funding detection
-- Dispute resolution and arbitration
-- NestJS REST API with Swagger UI
-- SQLite (dev) / PostgreSQL (production)
-- TypeORM entities and migrations
-
-**Tags**: `escrow`, `typescript`, `nestjs`, `taproot`, `multisig`, `schnorr`, `jwt`, `rest-api`, `swagger`, `postgres`, `arbitration`, `vec`
-
-**Synonyms**: `escrow-service`, `3-party-escrow`, `vec-escrow`
-
-**Triggers**:
-- **ask_question**: `escrow how to`, `vec implementation`, `taproot escrow`, `arbitration process`
-- **develop**: `add escrow feature`, `improve vec`, `web app`
-- **test_or_run**: `start escrow api`, `test e2e`, `signup user`
-- **debug**: `psbt error`, `funding not detected`, `execution failed`
-
-**Dependencies**: `arkd` (server connection), `@arkade-os/sdk` (TypeScript SDK for Ark protocol)
-**Depended On By**: E-commerce platforms, P2P marketplaces requiring escrow
-
----
-
 ### arkade-explorer
 **ID**: `arkade-explorer`
 **Name**: Arkade Explorer
@@ -619,17 +580,16 @@ Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders t
 
 ```
 arkd (core)
-   go-sdk (client library)
-      ark-faucet (uses go-sdk)
-      ark-simulator (uses go-sdk)
-   wallet (uses @arkade-os/sdk, TypeScript equivalent)
-   arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
-   ark-faucet (uses arkd APIs)
-   kms-unlocker (unlocks arkd-wallet)
-   fulmine (independent, but can integrate)
-   ark-telemetry (monitors arkd)
-   ark-infra (deploys arkd + dependencies)
-   ark-docs (documents arkd)
+   go-sdk (client library)
+      ark-faucet (uses go-sdk)
+      ark-simulator (uses go-sdk)
+   wallet (uses @arkade-os/sdk, TypeScript equivalent)
+   ark-faucet (uses arkd APIs)
+   kms-unlocker (unlocks arkd-wallet)
+   fulmine (independent, but can integrate)
+   ark-telemetry (monitors arkd)
+   ark-infra (deploys arkd + dependencies)
+   ark-docs (documents arkd)
 
 boltz-backend (external swap provider)
    fulmine (uses Boltz for Lightning swaps)
@@ -645,7 +605,6 @@ wallet / @arkade-os/sdk
 |---------|-----------|-------------------|
 | arkd | go-sdk | Server-Client |
 | arkd | wallet | Server-Client (via @arkade-os/sdk) |
-| arkd | arkade-escrow | Server-Client (via @arkade-os/sdk) |
 | arkd | ark-faucet | Server-Client |
 | arkd | ark-simulator | Server-Under-Test |
 | arkd | ark-telemetry | Instrumented-Service |
@@ -672,7 +631,7 @@ wallet / @arkade-os/sdk
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, fulmine-simulator
-**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-escrow, arkade-explorer, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: wallet, arkade-assets, arkade-explorer, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 **External Services**: boltz-backend
@@ -686,39 +645,37 @@ wallet / @arkade-os/sdk
 ### Intent-Based Project Selection
 
 **Q&A / Conceptual Questions**:
-- Ark protocol concepts � `ark-docs`, `arkd`
-- VTXOs, rounds, settlement � `arkd`, `ark-docs`
-- Wallet usage � `wallet`, `go-sdk`, `ark-docs`
-- Lightning swaps � `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
-- Escrow system � `arkade-escrow`
-- Security model � `ark-docs`, `arkd`
-- Asset protocol, NFTs, tokens � `arkade-assets`, `ark-docs`
+- Ark protocol concepts → `ark-docs`, `arkd`
+- VTXOs, rounds, settlement → `arkd`, `ark-docs`
+- Wallet usage → `wallet`, `go-sdk`, `ark-docs`
+- Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
+- Security model → `ark-docs`, `arkd`
+- Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
 
 **Development Tasks**:
-- Add arkd feature � `arkd`
-- Build wallet � `go-sdk`, `wallet` (depending on language)
-- Escrow development � `arkade-escrow`
-- Lightning integration � `fulmine`, `boltz-swap`, `wallet`
-- Infrastructure changes � `ark-infra`
-- Asset implementation � `arkade-assets`, `arkd`
+- Add arkd feature → `arkd`
+- Build wallet → `go-sdk`, `wallet` (depending on language)
+- Lightning integration → `fulmine`, `boltz-swap`, `wallet`
+- Infrastructure changes → `ark-infra`
+- Asset implementation → `arkade-assets`, `arkd`
 
 **Testing & QA**:
-- Integration testing � `arkd`, `ark-simulator`
-- Load testing � `ark-simulator`
-- E2E testing � `arkd`, `go-sdk`, `arkade-escrow`
-- Local dev stack � `ark-infra`
+- Integration testing → `arkd`, `ark-simulator`
+- Load testing → `ark-simulator`
+- E2E testing → `arkd`, `go-sdk`
+- Local dev stack → `ark-infra`
 
 **Monitoring & Debugging**:
-- Metrics, dashboards � `ark-telemetry`
-- Logs, traces � `ark-telemetry`
-- Debug arkd issues � `arkd`, `ark-telemetry`
-- Production monitoring � `ark-infra`, `ark-telemetry`
+- Metrics, dashboards → `ark-telemetry`
+- Logs, traces → `ark-telemetry`
+- Debug arkd issues → `arkd`, `ark-telemetry`
+- Production monitoring → `ark-infra`, `ark-telemetry`
 
 **Operations & Deployment**:
-- Deploy to AWS � `ark-infra`
-- Local dev environment � `ark-infra`
-- Wallet unlock automation � `kms-unlocker`
-- Testnet faucet � `ark-faucet`
+- Deploy to AWS → `ark-infra`
+- Local dev environment → `ark-infra`
+- Wallet unlock automation → `kms-unlocker`
+- Testnet faucet → `ark-faucet`
 
 ---
 
@@ -734,16 +691,13 @@ When a user asks about topics spanning multiple projects, load context from all 
 **Example**: "Set up monitoring for production arkd deployment"
 - Load: `arkd` (instrumentation), `ark-telemetry` (monitoring stack), `ark-infra` (deployment)
 
-**Example**: "Build an escrow application"
-- Load: `arkade-escrow` (example implementation), `arkd` (server requirements), `ark-docs` (protocol concepts)
-
 ### Dependency Loading
 
 When working on a project, consider loading dependent projects:
 
-- Working on `ark-simulator` � Also load `arkd`, `go-sdk`
-- Working on `wallet` � Also load `arkd` (for server API reference)
-- Working on `ark-infra` � Also load `arkd`, `ark-telemetry` (deployment targets)
+- Working on `ark-simulator` → Also load `arkd`, `go-sdk`
+- Working on `wallet` → Also load `arkd` (for server API reference)
+- Working on `ark-infra` → Also load `arkd`, `ark-telemetry` (deployment targets)
 
 ### Documentation Priority
 
@@ -759,18 +713,17 @@ For conceptual questions, prioritize documentation loading order:
 
 | Project | Status | Production Ready | Notes |
 |---------|--------|------------------|-------|
-| arkd | Stable | � Alpha | Core protocol, active development |
-| go-sdk | Stable | � Alpha | Client library, API may change |
+| arkd | Stable | →  Alpha | Core protocol, active development |
+| go-sdk | Stable | →  Alpha | Client library, API may change |
 | wallet | Active Dev | L Alpha | PWA wallet, under development |
-| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
-| ark-simulator | Stable |  | Testing tool, production-ready |
-| ark-telemetry | Stable |  | Monitoring stack, production-ready |
-| ark-infra | Active Dev | � Beta | IaC, production configurations available |
-| kms-unlocker | Stable |  | Production-ready with AWS |
-| fulmine | Active Dev | � Alpha | Lightning wallet, under development |
-| ark-docs | Active |  | Documentation site, continuously updated |
+| ark-faucet | Stable |   (Testnet) | Production-ready for testnet |
+| ark-simulator | Stable |   | Testing tool, production-ready |
+| ark-telemetry | Stable |   | Monitoring stack, production-ready |
+| ark-infra | Active Dev | →  Beta | IaC, production configurations available |
+| kms-unlocker | Stable |   | Production-ready with AWS |
+| fulmine | Active Dev | →  Alpha | Lightning wallet, under development |
+| ark-docs | Active |   | Documentation site, continuously updated |
 | arkade-assets | Specification | N/A | Protocol spec + reference implementation |
-| arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 
 ---
@@ -782,7 +735,7 @@ This index should be updated when:
 - Project relationships change
 - Major architectural changes occur
 - New capabilities are added to existing projects
-- Project status changes (alpha � beta � stable)
+- Project status changes (alpha → beta → stable)
 
 **Last Updated**: 2026-02-19
 **Version**: 1.3.0
