@@ -52,7 +52,10 @@ arkd uses environment variables with the `ARKD_` prefix for configuration. The s
 - `ARKD_VTXO_MIN_AMOUNT` (default: -1) - Minimum VTXO amount (-1 = dust limit)
 
 ### Transaction Fees
-- `ARKD_ONCHAIN_OUTPUT_FEE` (default: 0) - Fee for collaborative exit outputs (in sats)
+Fees are now managed via a programmable CEL formula engine (see Admin Fee APIs). The static `ARKD_ONCHAIN_OUTPUT_FEE` has been **[DEPRECATED]** and replaced by the dynamic fee system.
+
+### Database Auto-Creation
+- `ARKD_PG_DB_AUTOCREATE` (default: false) - Automatically create PostgreSQL databases if they don't exist
 
 ### Wallet Unlocking
 - `ARKD_UNLOCKER_TYPE` - Unlocker type: env, file

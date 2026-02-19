@@ -24,17 +24,20 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - Covenantless Bitcoin architecture (no consensus changes required)
 - Onchain boarding and offchain payment processing
 - Collaborative and unilateral exit mechanisms
+- Arkade Assets: UTXO-native fungible/non-fungible token protocol with teleport transfers
+- CEL-based programmable fee system with admin management APIs
+- Liquidity analysis and manual sweep admin tools
 - gRPC and REST API interfaces
-- Multiple database backends (PostgreSQL, SQLite, Badger, MongoDB)
+- Multiple database backends (PostgreSQL with auto-creation, SQLite, Badger)
 - Multiple cache backends (Redis, in-memory)
 
-**Tags**: `ark`, `protocol`, `server`, `vtxo`, `rounds`, `bitcoin`, `layer2`, `grpc`, `rest-api`, `postgresql`, `sqlite`, `redis`
+**Tags**: `ark`, `protocol`, `server`, `vtxo`, `rounds`, `bitcoin`, `layer2`, `grpc`, `rest-api`, `postgresql`, `sqlite`, `redis`, `assets`, `teleport`, `fees`, `cel`
 
 **Synonyms**: `ark-server`, `arkd-server`, `ark-daemon`, `operator`
 
 **Triggers**:
-- **ask_question**: `vtxo`, `rounds`, `settlement`, `boarding`, `offchain`, `ark protocol`, `how does ark work`
-- **develop**: `add endpoint`, `new database`, `migration`, `grpc service`, `round logic`
+- **ask_question**: `vtxo`, `rounds`, `settlement`, `boarding`, `offchain`, `ark protocol`, `how does ark work`, `arkade assets`, `fees`, `teleport`
+- **develop**: `add endpoint`, `new database`, `migration`, `grpc service`, `round logic`, `asset`, `fee program`
 - **test_or_run**: `start arkd`, `run rounds`, `integration test`, `e2e test`, `simulation`
 - **debug**: `vtxo not found`, `round failed`, `settlement error`, `database issue`
 - **monitor_or_alert**: `arkd metrics`, `round latency`, `vtxo expiry`
@@ -773,6 +776,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha � beta � stable)
 
-**Last Updated**: 2026-01-12
-**Version**: 1.2.0
+**Last Updated**: 2026-02-19
+**Version**: 1.3.0
 **Maintained By**: Arkadian Documentation Team

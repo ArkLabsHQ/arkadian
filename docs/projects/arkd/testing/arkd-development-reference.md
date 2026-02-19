@@ -523,5 +523,5 @@ go tool cover -html=coverage.out
 
 ---
 
-**Last Updated**: 2025-01-16
+**Last Updated**: 2026-02-19
 **For**: ark-developer agent (code writing only, no service execution)

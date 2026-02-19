@@ -44,9 +44,10 @@ arkd follows **Hexagonal Architecture** (Ports and Adapters pattern), ensuring c
 Pure business logic with zero external dependencies.
 
 **Contains:**
-- Entities: `Round`, `Vtxo`, `Intent`, `OffchainTx`
-- Business rules: round state machine, VTXO lifecycle
+- Entities: `Round`, `Vtxo`, `Intent`, `OffchainTx`, `Asset`, `Fee`
+- Business rules: round state machine, VTXO lifecycle, asset validation
 - Domain events: `RoundFinalizationStarted`, `VtxoCreated`
+- Asset domain: `asset.go`, `asset_repo.go` - asset entities and repository contracts
 
 **Rules:**
 - ✅ Pure Go (no frameworks, no external dependencies)
@@ -58,7 +59,7 @@ Defines contracts for external services.
 **Contains:**
 - Repository interfaces: `RepoManager`
 - External service interfaces: `WalletService`, `SignerService`, `Scanner`
-- Infrastructure interfaces: `TxBuilder`, `LiveStore`, `Scheduler`
+- Infrastructure interfaces: `TxBuilder`, `LiveStore`, `Scheduler`, `FeeManager`
 
 **Rules:**
 - ✅ Only interfaces (no implementations)
@@ -71,7 +72,8 @@ Orchestrates business use cases.
 **Contains:**
 - Main service: `service.go`
 - Background services: `sweeper.go`, `fraud.go`, `indexer.go`
-- Use cases: register payment, finalize round, redeem VTXO
+- Asset validation: `asset_validation.go`
+- Use cases: register payment, finalize round, redeem VTXO, estimate fees
 
 **Rules:**
 - ✅ Depends on domain and ports only
@@ -97,7 +99,8 @@ Implements port interfaces with real services.
 Exposes application services via external protocols.
 
 **Contains:**
-- gRPC handlers: `arkservice.go`, `adminservice.go`
+- gRPC handlers: `arkservice.go`, `adminservice.go`, `indexer.go`
+- Event broker: `broker.go` (stream events with topic management)
 - Interceptors: authentication, logging
 - Type conversions: proto ↔ domain
 
