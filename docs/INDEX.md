@@ -468,6 +468,45 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 
 ---
 
+### compiler
+**ID**: `compiler`
+**Name**: Arkade Compiler
+**Type**: Tool/Compiler
+**Language**: Rust
+**Index**: `${ARKADIAN_DIR}/docs/projects/compiler/INDEX.md`
+**Repository**: `${COMPILER_REPO}`
+**GitHub**: `${COMPILER_GITHUB}`
+
+**Description**:
+Rust-based compiler for the Arkade Script language that transforms `.ark` smart contract source files into JSON artifacts containing Bitcoin Taproot script assembly (ASM). Uses a three-stage pipeline: PEG parsing (pest) → typed AST → JSON output with dual-variant compilation (cooperative server path + unilateral exit path). Supports transaction and asset introspection, 64-bit arithmetic, and compile-time loop unrolling.
+
+**Key Capabilities**:
+- Compiles `.ark` source files to JSON with Bitcoin Taproot ASM
+- Three-stage pipeline: PEG parser (pest) → typed AST → JSON output
+- Dual-variant compilation: cooperative (server signature) + exit (timelock or N-of-N)
+- 8 data types: pubkey, signature, bytes, bytes20, bytes32, int, bool, asset
+- Cryptographic primitives: checkSig, checkMultisig, checkSigFromStack, sha256
+- Transaction introspection: tx.version, tx.locktime, tx.inputs, tx.outputs
+- Asset introspection: assetLookup, assetCount, assetAt, group operations
+- Compile-time loop unrolling and array flattening
+- 64-bit arithmetic with OP_*64 opcodes
+- CLI tool (`arkadec`) and Rust library (`arkade_compiler`)
+
+**Tags**: `compiler`, `arkade-script`, `rust`, `pest`, `peg`, `bitcoin`, `taproot`, `asm`, `smart-contract`, `introspection`, `opcodes`, `json`
+
+**Synonyms**: `arkadec`, `arkade-compiler`, `ark-compiler`, `script-compiler`
+
+**Triggers**:
+- **ask_question**: `arkade script`, `compiler`, `ark language`, `.ark files`, `contract syntax`, `opcode`, `introspection`, `asset group`
+- **develop**: `add opcode`, `new language feature`, `update grammar`, `compiler bug`, `expression type`
+- **test_or_run**: `compile contract`, `cargo test`, `test compilation`, `example contract`
+- **debug**: `parse error`, `compilation error`, `unexpected rule`, `asm output wrong`
+
+**Dependencies**: None (standalone tool)
+**Depended On By**: `introspector` (executes compiled Arkade Script), `arkd` (uses compiled contract artifacts)
+
+---
+
 ### ark-docs
 **ID**: `ark-docs`
 **Name**: Ark Documentation
@@ -759,6 +798,7 @@ arkd (core)
    fulmine (independent, but can integrate)
    ark-telemetry (monitors arkd)
    introspector (Arkade Script co-signer)
+   compiler (Arkade Script compiler, produces contract artifacts)
    ark-infra (deploys arkd + dependencies)
    ark-docs (documents arkd)
 
@@ -814,11 +854,14 @@ wallet / @arkade-os/sdk
 | rust-sdk | go-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | ts-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | dotnet-sdk | Sibling SDK (same protocol, different language) |
+| compiler | introspector | Compiler-Runtime (compiler produces, introspector executes) |
+| compiler | arkd | Compiler-Consumer (arkd uses compiled contract artifacts) |
+| compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
 
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
-**Rust Projects**: rust-sdk
+**Rust Projects**: rust-sdk, compiler
 **C#/.NET Projects**: dotnet-sdk
 **TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
@@ -841,7 +884,7 @@ wallet / @arkade-os/sdk
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
 - Escrow system → `arkade-escrow`
-- Arkade Script, covenants → `introspector`, `arkd`
+- Arkade Script, covenants → `compiler`, `introspector`, `arkd`
 
 **Development Tasks**:
 - Add arkd feature → `arkd`
@@ -850,7 +893,7 @@ wallet / @arkade-os/sdk
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
 - Asset implementation → `arkade-assets`, `arkd`
-- Arkade Script/opcode development → `introspector`
+- Arkade Script/opcode development → `compiler`, `introspector`
 
 **Testing & QA**:
 - Integration testing → `arkd`, `ark-simulator`
@@ -923,6 +966,7 @@ For conceptual questions, prioritize documentation loading order:
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
 | dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages |
 | boltz-swap | Active Dev | Alpha | TypeScript Boltz swap library |
+| compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
 | ts-sdk | Active Dev | ✓ Beta | v0.3.13, npm published, multi-platform |
 
 ---
@@ -937,5 +981,5 @@ This index should be updated when:
 - Project status changes (alpha → beta → stable)
 
 **Last Updated**: 2026-02-19
-**Version**: 1.3.0
+**Version**: 1.4.0
 **Maintained By**: Arkadian Documentation Team
