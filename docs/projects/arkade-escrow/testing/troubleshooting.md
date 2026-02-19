@@ -228,14 +228,14 @@ curl -X POST http://localhost:3002/api/v1/auth/signup/challenge \
 
 1. Stop all API instances:
 ```bash
-pkill -f "npm run api:dev"
+pkill -f "npm run dev:api"
 docker compose down
 ```
 
 2. Remove database and restart:
 ```bash
 rm ./data/ark-escrow.sqlite
-npm run api:dev
+npm run dev:api
 ```
 
 3. For production, consider using PostgreSQL instead of SQLite.
@@ -261,7 +261,7 @@ npm run migration:revert
 3. Drop database and re-migrate:
 ```bash
 rm ./data/ark-escrow.sqlite
-npm run api:dev  # Migrations run automatically
+npm run dev:api  # Migrations run automatically
 ```
 
 4. Create a new migration if schema changed:
@@ -515,7 +515,7 @@ curl http://localhost:3002/health
 
 **Local:**
 ```bash
-npm run api:dev  # Shows logs in console
+npm run dev:api  # Shows logs in console
 ```
 
 **Docker:**
@@ -538,7 +538,7 @@ rm -rf ./node_modules
 # Fresh start
 npm install
 nigiri start --ark
-npm run api:dev
+npm run dev:api
 ```
 
 ---

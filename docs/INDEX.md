@@ -400,37 +400,38 @@ Official documentation repository for the Ark protocol and ecosystem. Built with
 **ID**: `arkade-escrow`
 **Name**: Arkade Escrow
 **Type**: Service/Application
-**Language**: TypeScript/NestJS
+**Language**: TypeScript (NestJS + React)
 **Index**: `${ARKADIAN_DIR}/docs/projects/arkade-escrow/INDEX.md`
-**Repository**: `${ARKADE_ESCROW_REPO}`
+**Repository**: `/Users/dusansekulic/code/typescript/arkade-escrow`
+**GitHub**: `ArkLabsHQ/arkade-escrow`
 
 **Description**:
-Generic 3-party escrow system built on Ark protocol. Provides secure escrow contracts between sender (buyer), receiver (seller), and arbitrator using Virtual Escrow Contracts (VEC) with 6 spending paths (collaborative and unilateral). NestJS backend with Schnorr signature authentication, REST API, and Swagger documentation. POC/alpha status.
+Lightweight, browser-native escrow platform for instant, trust-minimized Bitcoin deals on Ark. Monorepo with NestJS API server, React client SPA, and React backoffice admin panel. Uses 2-of-3 multisig Virtual Escrow Contracts (VEC) with 6 Taproot spending paths (collaborative and unilateral). Deployable standalone or embedded inside Ark-enabled wallets via iframe.
 
 **Key Capabilities**:
-- Virtual Escrow Contract (VEC) with Taproot multisig
-- 6 spending paths: direct, release, refund (collaborative + unilateral with timelock)
-- Schnorr signature-based authentication (no passwords)
-- JWT token management
+- Virtual Escrow Contract (VEC) with 6 Taproot spending paths
 - Escrow request orderbook (public/private listings)
-- Automated funding detection
-- Dispute resolution and arbitration
-- NestJS REST API with Swagger UI
-- SQLite (dev) / PostgreSQL (production)
-- TypeORM entities and migrations
+- Full contract lifecycle: request → accept → fund → execute/dispute → settle
+- Automated VTXO funding detection (FundingWatcherService)
+- Schnorr signature-based authentication (no passwords, JWT tokens)
+- React client SPA for escrow users (orderbook, contracts, identity)
+- React backoffice SPA for admin/arbitrator (contract management, dispute resolution)
+- NestJS REST API with Swagger UI documentation
+- Server-Sent Events for real-time contract updates
+- SQLite storage with TypeORM (better-sqlite3)
 
-**Tags**: `escrow`, `typescript`, `nestjs`, `taproot`, `multisig`, `schnorr`, `jwt`, `rest-api`, `swagger`, `postgres`, `arbitration`, `vec`
+**Tags**: `escrow`, `typescript`, `nestjs`, `react`, `taproot`, `multisig`, `schnorr`, `jwt`, `rest-api`, `swagger`, `sqlite`, `arbitration`, `vec`, `vtxo`, `vite`, `tailwind`
 
-**Synonyms**: `escrow-service`, `3-party-escrow`, `vec-escrow`
+**Synonyms**: `escrow-service`, `3-party-escrow`, `vec-escrow`, `arkade-escrow-api`
 
 **Triggers**:
-- **ask_question**: `escrow how to`, `vec implementation`, `taproot escrow`, `arbitration process`
-- **develop**: `add escrow feature`, `improve vec`, `web app`
-- **test_or_run**: `start escrow api`, `test e2e`, `signup user`
-- **debug**: `psbt error`, `funding not detected`, `execution failed`
+- **ask_question**: `escrow`, `vec`, `taproot escrow`, `arbitration`, `3-party multisig`, `escrow contract`
+- **develop**: `add escrow feature`, `escrow ui`, `contract lifecycle`, `arbitration`, `escrow api`
+- **test_or_run**: `start escrow`, `test escrow`, `escrow e2e`, `run escrow`
+- **debug**: `psbt error`, `funding not detected`, `execution failed`, `escrow contract error`
 
 **Dependencies**: `arkd` (server connection), `@arkade-os/sdk` (TypeScript SDK for Ark protocol)
-**Depended On By**: E-commerce platforms, P2P marketplaces requiring escrow
+**Depended On By**: Arkade wallet (iframe embedding), P2P marketplaces requiring escrow
 
 ---
 
@@ -477,9 +478,12 @@ arkd (core)
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow
+**TypeScript/JavaScript Projects**: wallet, arkade-escrow, arkade-assets, arkade-explorer, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
+**Frontend Applications**: wallet (PWA), arkade-explorer (Web App), arkade-escrow (Client + Backoffice)
+**External Services**: boltz-backend
+**Protocol Specifications**: arkade-assets
 
 ---
 
@@ -578,7 +582,7 @@ For conceptual questions, prioritize documentation loading order:
 | fulmine | Active Dev | Alpha | Lightning wallet, under development |
 | introspector | Active Dev | Alpha | Arkade Script co-signer, under development |
 | ark-docs | Active | Yes | Documentation site, continuously updated |
-| arkade-escrow | POC | Alpha | Proof-of-concept, known issues |
+| arkade-escrow | Active Dev | Alpha | Monorepo: API + Client + Backoffice |
 
 ---
 

@@ -1,453 +1,81 @@
-# Architecture: NestJS Backend
+# Architecture: arkade-escrow
 
 ## Overview
 
-arkade-escrow is built using NestJS, an opinionated Node.js framework that brings Angular-like architectural patterns to backend development. The framework provides dependency injection, modular organization, and extensive decorator-based metadata for building scalable, maintainable APIs.
+arkade-escrow is a TypeScript monorepo with three applications sharing the root `package.json` for the server and independent `package.json` files for each frontend app.
 
-The application follows a **domain-driven modular architecture** where each business domain is encapsulated in its own module with clearly defined responsibilities. This approach promotes code organization, testability, and separation of concerns.
-
-## Module Structure
-
-The application is organized into seven main modules, each handling a distinct domain:
-
-### AppModule (Root)
-
-The root module (`app.module.ts`) orchestrates the entire application:
-
-```typescript
-@Module({
-  imports: [
-    EventEmitterModule.forRoot(),
-    ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      useFactory: () => ({
-        type: "sqlite",
-        database: isTest ? ":memory:" : process.env.SQLITE_DB_PATH,
-        synchronize: true,
-        autoLoadEntities: true,
-      }),
-    }),
-    AuthModule,
-    EscrowsModule,
-    UsersModule,
-    HealthModule,
-    AdminModule,
-  ],
-})
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestLoggingMiddleware)
-      .exclude({ path: "health", method: RequestMethod.ALL })
-      .forRoutes({ path: "*", method: RequestMethod.ALL });
-  }
-}
+```
+arkade-escrow/
+├── server/src/            # NestJS API server (port 3002)
+│   ├── app.module.ts      # Root module — wires everything together
+│   ├── main.ts            # Bootstrap, Swagger setup, asset rewriting
+│   ├── ark/               # Ark protocol integration
+│   ├── auth/              # JWT + Schnorr signature auth
+│   ├── escrows/           # Core escrow domain
+│   │   ├── contracts/     # Contract CRUD, execution, signing
+│   │   ├── requests/      # Orderbook and request lifecycle
+│   │   └── arbitration/   # Dispute resolution
+│   ├── admin/             # Backoffice admin API (basic auth)
+│   ├── common/            # Shared types, SSE, events, filters, pipes
+│   ├── users/             # User entity and management
+│   ├── crypto/            # Crypto utilities
+│   └── health.controller  # Health check endpoint
+├── client/                # React SPA — user-facing escrow interface
+│   └── src/pages/         # Orderbook, Contracts, Requests, Identity, etc.
+├── backoffice/            # React SPA — admin/arbitrator panel
+│   └── src/components/    # ContractTimeline, StatusBadge, DemoModeBanner
+└── data/db.sqlite         # SQLite database (auto-created)
 ```
 
-**Key responsibilities:**
-- Database configuration (SQLite for POC, PostgreSQL-ready via TypeORM)
-- Global module imports (Config, EventEmitter)
-- Middleware registration (request logging for all routes except health checks)
-- Auto-loading TypeORM entities from all modules
+## NestJS Module Graph
 
-### AuthModule
-
-Handles user authentication using Schnorr signatures and JWT tokens.
-
-**Exports:**
-- `AuthService`: Challenge creation, signature verification, JWT generation
-- `AuthGuard`: Protects routes requiring authentication
-
-**Dependencies:**
-- `UsersModule` (imports User entity repository)
-- `@nestjs/jwt` (JWT generation and validation)
-
-**Key files:**
-- `auth.service.ts`: Challenge-response authentication logic
-- `auth.controller.ts`: Endpoints for signup/challenge and verification
-- `auth.guard.ts`: CanActivate guard validating JWT tokens
-- `user.decorator.ts`: Custom decorator extracting authenticated user from request
-
-### UsersModule
-
-Manages user entity and basic user operations.
-
-**Exports:**
-- `UsersService`: User CRUD operations
-- `User` entity repository (via TypeOrmModule.forFeature)
-
-**Key files:**
-- `user.entity.ts`: User entity with public key, challenge fields, timestamps
-- `users.service.ts`: User lookup and management
-- `users.controller.ts`: User profile endpoints
-
-### EscrowsModule
-
-The core business domain handling escrow requests, contracts, arbitration, and execution.
-
-**Sub-domains:**
-- **Requests**: Creation and discovery of escrow requests (orderbook)
-- **Contracts**: Contract lifecycle management (creation, funding detection, status tracking)
-- **Arbitration**: Dispute resolution workflow
-- **Execution**: Multi-party signature collection and transaction submission
-
-**Exports:**
-- `EscrowRequestsService`: Manages escrow request lifecycle
-- `EscrowsContractsService`: Contract state management and funding detection
-- `ArbitrationService`: Dispute handling
-
-**Dependencies:**
-- `AuthModule` (for protected routes)
-- `UsersModule` (user lookups)
-- `ArkModule` (blockchain interaction)
-
-**Key files:**
-- `escrows.module.ts`: Aggregates all escrow-related submodules
-- `requests/escrow-requests.service.ts`: Orderbook and request management
-- `contracts/escrows-contracts.service.ts`: Contract state machine
-- `arbitration/arbitration.service.ts`: Arbitration workflow
-- Entity files defining the escrow domain model
-
-### ArkModule
-
-Provides blockchain integration with the Arkade protocol.
-
-**Exports:**
-- `ArkService`: Transaction building and submission
-- `ArkFundingWatcher`: Background service monitoring VTXO funding events
-- `ARK_PROVIDER`: RestArkProvider instance (injectable token)
-
-**Provider factory:**
-```typescript
-{
-  provide: ARK_PROVIDER,
-  inject: [ConfigService],
-  useFactory: (cfg: ConfigService) => {
-    const arkServerUrl = cfg.get<string>("ARK_SERVER_URL");
-    return new RestArkProvider(
-      arkServerUrl ?? "https://mutinynet.arkade.sh",
-    );
-  },
-}
+```
+AppModule
+├── ServeStaticModule      # Serves client/ and backoffice/ as static files
+├── EventEmitterModule     # Decoupled event-driven communication
+├── ConfigModule           # Global env var access
+├── TypeOrmModule          # SQLite with auto-load entities
+├── AuthModule             # JWT + Schnorr challenge-response
+├── EscrowsModule          # Core escrow logic
+│   ├── ContractsController + Service
+│   ├── RequestsController + Service
+│   └── ArbitrationController + Service
+├── UsersModule            # User CRUD
+├── AdminModule            # Backoffice-only admin API
+├── ArkModule              # Ark SDK integration
+│   ├── ArkService         # VEC scripts, tx building, execution
+│   └── FundingWatcherService  # Polls for funded VTXOs
+└── HealthModule           # GET /health
 ```
 
-**Key files:**
-- `ark.service.ts`: VEC script creation, transaction building, VTXO queries
-- `funding-watcher.service.ts`: Polls for funded VTXOs, emits events
-- `escrow.ts`: Virtual Escrow Contract script implementation
+## Key Architectural Decisions
 
-### AdminModule
+**Static Serving**: The NestJS server serves both client and backoffice SPAs via `@nestjs/serve-static`, so all three apps run behind a single port (3002). Asset URL rewriting in `main.ts` routes `/assets/*` to the correct app based on the Referer header.
 
-Provides administrative endpoints for server operators.
+**Authentication**: Users authenticate by signing a random challenge with their Bitcoin private key (Schnorr/BIP340). The server verifies the signature against the claimed public key and issues a JWT. No passwords are stored.
 
-**Exports:**
-- `AdminService`: Server management operations
-- `AdminController`: Admin-only API endpoints
+**Ark Integration**: `ArkService` uses `@arkade-os/sdk` to build Virtual Escrow Contract (VEC) scripts, construct off-chain transactions (PSBTs), and submit them to arkd. `FundingWatcherService` polls the Ark indexer for funded VTXOs and emits events.
 
-**Key files:**
-- `admin.service.ts`: Administrative business logic
-- `admin.controller.ts`: Admin API routes
+**Event-Driven**: `@nestjs/event-emitter` decouples funding detection from contract updates. `ServerSentEventsService` pushes real-time updates to connected clients.
 
-### HealthModule
+**Backoffice Protection**: The backoffice routes are protected by `BasicAuthMiddleware` with configurable username/password via env vars.
 
-Simple health check endpoint for monitoring and load balancers.
+## Data Model (TypeORM Entities)
 
-**Key files:**
-- `health.controller.ts`: Returns 200 OK for health probes
-- Excluded from request logging middleware
+| Entity | Key Fields |
+|--------|-----------|
+| User | id, publicKey, challengeId, challengeHash |
+| EscrowRequest | id, creatorId, side (sender/receiver), amount, description, status |
+| EscrowContract | id, requestId, senderId, receiverId, senderPubKey, receiverPubKey, contractNonce, status |
+| ContractExecution | id, contractId, action, arkTx, checkpoints, signatures, txid |
+| ContractArbitration | id, contractId, decision, reason, executionId |
 
-## Dependency Injection Pattern
+## Request Flow Example: Direct Settlement
 
-NestJS uses a powerful dependency injection (DI) system inspired by Angular:
-
-### Constructor Injection
-
-Services are injected via constructor parameters with TypeScript decorators:
-
-```typescript
-@Injectable()
-export class EscrowRequestsService {
-  constructor(
-    @InjectRepository(EscrowRequest)
-    private readonly requestsRepo: Repository<EscrowRequest>,
-    private readonly contractsService: EscrowsContractsService,
-    private readonly eventEmitter: EventEmitter2,
-  ) {}
-}
-```
-
-### Provider Registration
-
-Services must be registered in module providers:
-
-```typescript
-@Module({
-  providers: [AuthService, AuthGuard],
-  exports: [AuthService, AuthGuard],
-})
-export class AuthModule {}
-```
-
-### Custom Providers
-
-Factory providers allow dynamic configuration:
-
-```typescript
-{
-  provide: ARK_PROVIDER,
-  inject: [ConfigService],
-  useFactory: (cfg: ConfigService) => {
-    return new RestArkProvider(cfg.get("ARK_SERVER_URL"));
-  },
-}
-```
-
-## Service Layer Organization
-
-Services contain business logic and are organized by responsibility:
-
-### Transaction Script Pattern
-
-Most services follow a transaction script pattern where each method handles one use case:
-
-```typescript
-@Injectable()
-export class EscrowRequestsService {
-  async create(dto: CreateEscrowRequestInDto, creatorPubkey: string) {
-    // Validation
-    // Entity creation
-    // Persistence
-    // Event emission
-    return result;
-  }
-
-  async orderbook(limit: number, cursor: Cursor) {
-    // Query building
-    // Pagination logic
-    // Transformation
-    return { items, nextCursor, total };
-  }
-}
-```
-
-### Service Composition
-
-Complex workflows compose multiple services:
-
-```typescript
-@Injectable()
-export class EscrowsContractsService {
-  constructor(
-    private readonly arkService: ArkService,
-    private readonly usersService: UsersService,
-    @InjectRepository(EscrowContract) private readonly repo: Repository<EscrowContract>,
-  ) {}
-}
-```
-
-## Controller Design
-
-Controllers handle HTTP concerns and delegate to services:
-
-### Route Organization
-
-```typescript
-@ApiTags("1 - Escrow Requests")
-@Controller("api/v1/escrows/requests")
-export class EscrowRequestsController {
-  constructor(
-    private readonly requestsService: EscrowRequestsService,
-    private readonly contractsService: EscrowsContractsService,
-  ) {}
-
-  @Get("orderbook")
-  @ApiOkResponse(/* ... */)
-  async orderbook(
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query("cursor", ParseCursorPipe) cursor: Cursor,
-  ): Promise<ApiEnvelope<OrderbookItemDto[]>> {
-    const { items, nextCursor, total } = await this.requestsService.orderbook(limit, cursor);
-    return paginatedEnvelope(items, { total, nextCursor });
-  }
-
-  @Post("")
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth()
-  async create(
-    @Body() dto: CreateEscrowRequestInDto,
-    @UserFromJwt() user: User,
-  ): Promise<ApiEnvelope<CreateEscrowRequestOutDto>> {
-    const data = await this.requestsService.create(dto, user.publicKey);
-    return envelope(data);
-  }
-}
-```
-
-**Key patterns:**
-- Decorators define HTTP methods, routes, guards, and documentation
-- Query/body parameters are extracted with validation pipes
-- Custom decorators like `@UserFromJwt()` inject authenticated user
-- Services handle all business logic
-- Response envelopes provide consistent API structure
-
-## Middleware
-
-### Request Logging Middleware
-
-Applied globally to all routes (except health checks):
-
-```typescript
-@Injectable()
-export class RequestLoggingMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    const { method, path } = req;
-    Logger.log(`${method} ${path}`, "IncomingRequest");
-
-    res.on("finish", () => {
-      const { statusCode } = res;
-      Logger.log(`${method} ${path} ${statusCode}`, "OutgoingResponse");
-    });
-
-    next();
-  }
-}
-```
-
-Logs both incoming requests and outgoing responses with status codes.
-
-## Validation Pipes
-
-### Global Validation Pipe
-
-Configured in `main.ts` to validate all DTOs:
-
-```typescript
-app.useGlobalPipes(
-  new ValidationPipe({
-    whitelist: true,           // Strip properties not in DTO
-    forbidNonWhitelisted: true, // Reject requests with extra properties
-    transform: true,            // Auto-transform primitives to correct types
-  }),
-);
-```
-
-### DTO Validation
-
-Uses `class-validator` decorators:
-
-```typescript
-export class CreateEscrowRequestInDto {
-  @ApiProperty({ enum: ["receiver", "sender"] })
-  @IsEnum(["receiver", "sender"])
-  side!: "receiver" | "sender";
-
-  @ApiProperty({ minimum: 0 })
-  @IsNumber()
-  @Min(0)
-  amount!: number;
-
-  @ApiProperty({ maxLength: 1000 })
-  @IsString()
-  @MaxLength(1000)
-  description!: string;
-}
-```
-
-Validation occurs automatically before controller methods execute. Invalid requests return 400 Bad Request with detailed error messages.
-
-## Exception Filters
-
-### Global HTTP Exception Filter
-
-Configured in `main.ts`:
-
-```typescript
-app.useGlobalFilters(new HttpExceptionFilter());
-```
-
-Standardizes error responses across the application, ensuring consistent error formats for clients.
-
-## Event Emitters
-
-### Event-Driven Architecture
-
-The application uses `@nestjs/event-emitter` for decoupled communication:
-
-```typescript
-@Injectable()
-export class ArkFundingWatcher {
-  constructor(private readonly eventEmitter: EventEmitter2) {}
-
-  async checkFunding(contract: EscrowContract) {
-    const vtxos = await this.arkService.getSpendableVtxoForContract(address);
-    if (vtxos.length > 0) {
-      this.eventEmitter.emit('contract.funded', { contractId, vtxos });
-    }
-  }
-}
-```
-
-Services can listen for events without tight coupling to emitters:
-
-```typescript
-@OnEvent('contract.funded')
-handleContractFunded(payload: { contractId: string; vtxos: VirtualCoin[] }) {
-  // Update contract status
-}
-```
-
-## TypeORM Entities
-
-Entities define the database schema and are auto-loaded:
-
-```typescript
-@Entity("users")
-export class User {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string;
-
-  @Index({ unique: true })
-  @Column({ type: "text" })
-  publicKey!: string;
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
-}
-```
-
-Repositories are injected via `@InjectRepository()` decorator and provide type-safe database access.
-
-## Configuration Management
-
-Environment variables are managed via `@nestjs/config`:
-
-```typescript
-ConfigModule.forRoot({ isGlobal: true })
-```
-
-Services inject `ConfigService` to access configuration:
-
-```typescript
-constructor(private readonly configService: ConfigService) {}
-
-const arkUrl = this.configService.get<string>('ARK_SERVER_URL');
-```
-
-## Testing Architecture
-
-NestJS provides excellent testing utilities:
-
-### Unit Tests
-- Mock dependencies using `@nestjs/testing`
-- Test services in isolation
-
-### Integration Tests
-- Spin up in-memory database (SQLite `:memory:`)
-- Test full request/response cycles with `supertest`
-
-### E2E Tests
-- Located in `server/test/`
-- Test complete user journeys (e.g., escrow creation to execution)
+1. Client calls `POST /api/v1/escrows/contracts/:id/execute` with `action: "direct-settle"`
+2. `EscrowsContractsService` loads contract, calls `ArkService.createEscrowTransaction()`
+3. `ArkService` restores VEC script, selects spending path, builds PSBT via `buildOffchainTx()`
+4. Returns unsigned PSBT to client — both sender and receiver sign in browser
+5. Each party calls `POST /api/v1/escrows/contracts/:id/sign-execution` with their signature
+6. When all required signatures collected, server co-signs and calls `ArkService.executeEscrowTransaction()`
+7. Transaction submitted to arkd via `provider.submitTx()` + `provider.finalizeTx()`
