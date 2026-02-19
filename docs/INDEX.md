@@ -1,4 +1,4 @@
-# Arkadian  Project Index & Registry
+# Arkadian  Project Index & Registry
 
 This is the **master index** for all projects in the Arkade ecosystem. It provides a machine-readable registry with project metadata, dependencies, and routing hints for AI agents.
 
@@ -396,23 +396,103 @@ Generic 3-party escrow system built on Ark protocol. Provides secure escrow cont
 
 ---
 
+### boltz-swap
+**ID**: `boltz-swap`
+**Name**: Boltz Swap Library
+**Type**: Library
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/boltz-swap/INDEX.md`
+**Repository**: `/Users/dusansekulic/code/typescript/boltz-swap`
+**GitHub**: `arkade-os/boltz-swap`
+
+**Description**:
+Production-ready TypeScript library (`@arkade-os/boltz-swap`) that brings Boltz submarine swaps to Arkade wallets. Enables Lightning payments (send/receive) and BTC<->ARK chain swaps through the Boltz exchange protocol using Virtual HTLCs (VHTLCs). Provides ArkadeLightning, ArkadeChainSwap, BoltzSwapProvider, and SwapManager classes.
+
+**Key Capabilities**:
+- Lightning send (submarine swaps): Pay invoices from Ark wallet
+- Lightning receive (reverse swaps): Create invoices that deposit to Ark wallet
+- Chain swaps (ARK->BTC): Convert Ark virtual coins to on-chain BTC
+- Chain swaps (BTC->ARK): Convert on-chain BTC to Ark virtual coins
+- SwapManager: Background swap monitoring with WebSocket + polling fallback
+- Auto-claim and auto-refund when swap states change
+- VHTLC script validation (anti-fraud verification)
+- Swap restoration from Boltz API
+- Event subscription pattern for UI integration
+- Runtime type validation for all Boltz API responses
+
+**Tags**: `boltz`, `swap`, `lightning`, `submarine`, `reverse`, `chain-swap`, `vhtlc`, `typescript`, `library`, `websocket`, `bitcoin`, `ark`, `taproot`
+
+**Synonyms**: `boltz-swap-lib`, `arkade-lightning`, `arkade-swap`, `boltz-client`
+
+**Triggers**:
+- **ask_question**: `lightning swap`, `submarine swap`, `reverse swap`, `chain swap`, `boltz`, `vhtlc`, `swap manager`
+- **develop**: `add swap feature`, `lightning integration`, `chain swap`, `swap monitoring`, `boltz api`
+- **test_or_run**: `test swaps`, `regtest boltz`, `run e2e swap`, `test lightning`
+- **debug**: `swap failed`, `claim error`, `refund error`, `websocket disconnect`, `vhtlc not found`
+
+**Dependencies**: `@arkade-os/sdk` (TypeScript SDK), `boltz-core` (Boltz protocol), `arkd` (via SDK providers)
+**Depended On By**: `wallet` (Arkade PWA wallet)
+
+---
+
+### dotnet-sdk
+**ID**: `dotnet-sdk`
+**Name**: NArk (.NET Ark SDK)
+**Type**: Client Library
+**Language**: C# / .NET 8+
+**Index**: `${ARKADIAN_DIR}/docs/projects/dotnet-sdk/INDEX.md`
+**Repository**: `${DOTNET_SDK_REPO}`
+**GitHub**: `arkade-os/dotnet-sdk`
+
+**Description**:
+.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, and Boltz atomic swap integration (ARK<->BTC). Published as NuGet packages with a fluent builder pattern for DI configuration.
+
+**Key Capabilities**:
+- VTXO lifecycle management (polling, sync, expiry tracking)
+- Batch round participation with MuSig2 tree signing
+- Intent-based off-chain transactions (create, register, sync, schedule)
+- Automatic coin selection with dust and sub-dust handling
+- Taproot contracts (payment, note, hash-locked, VHTLC)
+- On-chain boarding, settlement, and collaborative exit
+- Sweeping expired/swept VTXOs on-chain
+- Boltz chain swaps (ARK<->BTC) with MuSig2 cross-signatures
+- HD wallet support with descriptor recycling
+- EF Core storage package (pluggable DB provider)
+- .NET Aspire AppHost for comprehensive E2E test infrastructure
+
+**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `efcore`, `aspire`, `grpc-client`, `taproot`
+
+**Synonyms**: `nark`, `nark-sdk`, `dotnet-client`, `csharp-sdk`, `.net-sdk`
+
+**Triggers**:
+- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`
+- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`
+- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`
+- **debug**: `grpc connection`, `batch session error`, `musig2 mismatch`, `swap failed`
+
+**Dependencies**: `arkd` (server communication via gRPC), `fulmine` (Boltz-side wallet in E2E), `boltz` (swap provider)
+**Depended On By**: .NET applications building on Ark protocol
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
 
 ```
 arkd (core)
-   go-sdk (client library)
-      ark-faucet (uses go-sdk)
-      ark-simulator (uses go-sdk)
-   wallet (uses @arkade-os/sdk, TypeScript equivalent)
-   arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
-   ark-faucet (uses arkd APIs)
-   kms-unlocker (unlocks arkd-wallet)
-   fulmine (independent, but can integrate)
-   ark-telemetry (monitors arkd)
-   ark-infra (deploys arkd + dependencies)
-   ark-docs (documents arkd)
+ go-sdk (Go client library)
+    ark-faucet (uses go-sdk)
+    ark-simulator (uses go-sdk)
+ dotnet-sdk (.NET client library, gRPC to arkd)
+ wallet (uses @arkade-os/sdk, TypeScript equivalent)
+ arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
+ ark-faucet (uses arkd APIs)
+ kms-unlocker (unlocks arkd-wallet)
+ fulmine (independent, but can integrate)
+ ark-telemetry (monitors arkd)
+ ark-infra (deploys arkd + dependencies)
+ ark-docs (documents arkd)
 ```
 
 ### Correlation Matrix
@@ -420,6 +500,7 @@ arkd (core)
 | Project | Related To | Relationship Type |
 |---------|-----------|-------------------|
 | arkd | go-sdk | Server-Client |
+| arkd | dotnet-sdk | Server-Client (via gRPC) |
 | arkd | wallet | Server-Client (via @arkade-os/sdk) |
 | arkd | arkade-escrow | Server-Client (via @arkade-os/sdk) |
 | arkd | ark-faucet | Server-Client |
@@ -428,6 +509,8 @@ arkd (core)
 | arkd | kms-unlocker | Unlocks arkd-wallet |
 | go-sdk | ark-simulator | Library-Consumer |
 | go-sdk | ark-faucet | Library-Consumer |
+| dotnet-sdk | fulmine | E2E-Test-Dependency |
+| dotnet-sdk | boltz | Swap-Integration |
 | wallet | fulmine | Integrates Lightning swaps |
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
@@ -436,7 +519,8 @@ arkd (core)
 ### Technology Groupings
 
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine
-**TypeScript/JavaScript Projects**: wallet, arkade-escrow
+**C#/.NET Projects**: dotnet-sdk
+**TypeScript/JavaScript Projects**: wallet, arkade-escrow, boltz-swap
 **Infrastructure/Config**: ark-infra, ark-telemetry
 **Documentation**: ark-docs
 
@@ -456,7 +540,7 @@ arkd (core)
 
 **Development Tasks**:
 - Add arkd feature � `arkd`
-- Build wallet � `go-sdk`, `wallet` (depending on language)
+- Build wallet → `go-sdk`, `dotnet-sdk`, `wallet` (depending on language)
 - Escrow development � `arkade-escrow`
 - Lightning integration � `fulmine`, `wallet`
 - Infrastructure changes � `ark-infra`
@@ -518,17 +602,19 @@ For conceptual questions, prioritize documentation loading order:
 
 | Project | Status | Production Ready | Notes |
 |---------|--------|------------------|-------|
-| arkd | Stable | � Alpha | Core protocol, active development |
-| go-sdk | Stable | � Alpha | Client library, API may change |
+| arkd | Stable | � Alpha | Core protocol, active development |
+| go-sdk | Stable | � Alpha | Client library, API may change |
 | wallet | Active Dev | L Alpha | PWA wallet, under development |
-| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
-| ark-simulator | Stable |  | Testing tool, production-ready |
-| ark-telemetry | Stable |  | Monitoring stack, production-ready |
-| ark-infra | Active Dev | � Beta | IaC, production configurations available |
-| kms-unlocker | Stable |  | Production-ready with AWS |
-| fulmine | Active Dev | � Alpha | Lightning wallet, under development |
-| ark-docs | Active |  | Documentation site, continuously updated |
+| ark-faucet | Stable |  (Testnet) | Production-ready for testnet |
+| ark-simulator | Stable |  | Testing tool, production-ready |
+| ark-telemetry | Stable |  | Monitoring stack, production-ready |
+| ark-infra | Active Dev | � Beta | IaC, production configurations available |
+| kms-unlocker | Stable |  | Production-ready with AWS |
+| fulmine | Active Dev | � Alpha | Lightning wallet, under development |
+| ark-docs | Active |  | Documentation site, continuously updated |
 | arkade-escrow | POC | L Alpha | Proof-of-concept, known issues |
+| dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages |
+| boltz-swap | Active Dev | Alpha | TypeScript Boltz swap library |
 
 ---
 
@@ -541,6 +627,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha � beta � stable)
 
-**Last Updated**: 2025-10-16
+**Last Updated**: 2026-02-19
 **Version**: 1.0.0
 **Maintained By**: Arkadian Documentation Team
