@@ -486,6 +486,7 @@ arkd (core)
     ark-simulator (uses go-sdk)
  dotnet-sdk (.NET client library, gRPC to arkd)
  wallet (uses @arkade-os/sdk, TypeScript equivalent)
+    boltz-swap (Lightning + chain swap library)
  arkade-escrow (uses @arkade-os/sdk, TypeScript equivalent)
  ark-faucet (uses arkd APIs)
  kms-unlocker (unlocks arkd-wallet)
@@ -511,7 +512,9 @@ arkd (core)
 | go-sdk | ark-faucet | Library-Consumer |
 | dotnet-sdk | fulmine | E2E-Test-Dependency |
 | dotnet-sdk | boltz | Swap-Integration |
+| wallet | boltz-swap | Lightning + chain swap library |
 | wallet | fulmine | Integrates Lightning swaps |
+| boltz-swap | boltz-core | Protocol implementation dependency |
 | ark-infra | arkd | Deployment-Target |
 | ark-infra | ark-telemetry | Deployment-Target |
 | ark-docs | All | Documentation-Reference |
@@ -534,7 +537,7 @@ arkd (core)
 - Ark protocol concepts � `ark-docs`, `arkd`
 - VTXOs, rounds, settlement � `arkd`, `ark-docs`
 - Wallet usage � `wallet`, `go-sdk`, `ark-docs`
-- Lightning swaps � `wallet`, `fulmine`, `ark-docs`
+- Lightning swaps -> `boltz-swap`, `wallet`, `fulmine`, `ark-docs`
 - Escrow system � `arkade-escrow`
 - Security model � `ark-docs`, `arkd`
 
@@ -542,7 +545,7 @@ arkd (core)
 - Add arkd feature � `arkd`
 - Build wallet → `go-sdk`, `dotnet-sdk`, `wallet` (depending on language)
 - Escrow development � `arkade-escrow`
-- Lightning integration � `fulmine`, `wallet`
+- Lightning integration -> `boltz-swap`, `fulmine`, `wallet`
 - Infrastructure changes � `ark-infra`
 
 **Testing & QA**:
@@ -628,5 +631,5 @@ This index should be updated when:
 - Project status changes (alpha � beta � stable)
 
 **Last Updated**: 2026-02-19
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Maintained By**: Arkadian Documentation Team
