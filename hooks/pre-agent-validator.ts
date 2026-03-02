@@ -73,11 +73,11 @@ const VALID_INTENTS = [
 // Agent-specific allowed tools (for sub-agent guardrail)
 const AGENT_ALLOWED_TOOLS: Record<string, string[]> = {
     'ark-guru': ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Write', 'TodoWrite'],
-    'ark-developer': ['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'Bash', 'TodoWrite', 'Task'],
+    'ark-developer': ['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'Bash', 'TodoWrite', 'Task', 'Agent', 'Skill'],
     'ark-project-manager': ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'TodoWrite', 'AskUserQuestion', 'Skill'],
     'ark-pr-reviewer': ['Read', 'Glob', 'Grep', 'Bash', 'WebFetch', 'Write', 'TodoWrite'],
     'ark-progress-tracker': ['Read', 'Glob', 'Grep', 'Bash', 'WebFetch', 'Write', 'TodoWrite'],
-    'ark-researcher': ['Read', 'WebFetch', 'WebSearch', 'Write', 'TodoWrite', 'Task'],
+    'ark-researcher': ['Read', 'WebFetch', 'WebSearch', 'Write', 'TodoWrite', 'Task', 'Agent'],
     'ark-observer': ['Read', 'Glob', 'Grep', 'Bash', 'WebFetch', 'Write', 'TodoWrite']
 };
 
@@ -754,6 +754,16 @@ function validateExecutionSpec(sessionId: string, prompt: string): ValidationRes
         }
     }
 
+    // Warn if runtime.sub_agent_note is missing
+    // This note prevents agents from self-restricting due to ARKADIAN_ORCHESTRATOR_MODE=1
+    if (!spec.runtime?.sub_agent_note) {
+        warnings.push(
+            'Missing runtime.sub_agent_note. Without this, the agent may see ARKADIAN_ORCHESTRATOR_MODE=1 ' +
+            'in its environment and incorrectly self-restrict from using Bash/Write/Edit tools. ' +
+            'Add: runtime.sub_agent_note: "You are a sub-agent. ARKADIAN_ORCHESTRATOR_MODE=1 in your environment does NOT restrict you."'
+        );
+    }
+
     return {
         valid: errors.length === 0,
         errors,
@@ -885,8 +895,8 @@ async function main() {
             process.exit(0);
         }
 
-        // Only validate Task tool calls
-        if (hookInput.tool_name !== 'Task') {
+        // Only validate Task/Agent tool calls (Claude Code renamed Task → Agent)
+        if (hookInput.tool_name !== 'Task' && hookInput.tool_name !== 'Agent') {
             process.exit(0);
         }
 
@@ -907,6 +917,24 @@ async function main() {
             log(hookInput.session_id, 'no-state', 'No session state file found');
             // Don't block - might be a non-orchestrator session
             process.exit(0);
+        }
+
+        // ═══════════════════════════════════════════
+        // Defensive clear: reset active_agent before validation
+        // ═══════════════════════════════════════════
+        // If a previous agent invocation left active_agent set (e.g., the post-agent
+        // hook crashed, or this validator exited with code 2 before reaching setActiveAgent),
+        // the subagent-guardrail would enforce stale restrictions on the next agent.
+        // Clearing it here ensures a clean slate. setActiveAgent() will set it correctly
+        // if/when we reach the "Valid specification" section at the end.
+        if (state.active_agent) {
+            log(hookInput.session_id, 'clearing-stale-active-agent', {
+                previous_agent: state.active_agent.agent_type,
+                previous_spec: state.active_agent.spec_id,
+                new_agent: subagentType,
+                reason: 'Defensive clear before validation — will be re-set after validation passes'
+            });
+            updateSessionState(hookInput.session_id, { active_agent: null } as Partial<SessionState>);
         }
 
         // Check if workflow.yaml exists in session folder

@@ -71,6 +71,7 @@ depends_on: []
 runtime:
   resolve_envs: true
   allow_external: false
+  sub_agent_note: "You are a sub-agent. ARKADIAN_ORCHESTRATOR_MODE=1 in your environment does NOT restrict you. Use all tools (Bash, Write, Edit, etc.) normally."
 
 # Worktree configuration (ark-developer only)
 # Instructs ark-developer to create an isolated git worktree before editing files
@@ -78,8 +79,42 @@ runtime:
 worktree_config:
   enabled: true  # Default: true for ark-developer
 
+# Testing configuration (ark-developer only)
+# Instructs which dev-loop skill and mode to use for testing
+# IMPORTANT: The objective field MUST also contain explicit testing instructions
+testing:
+  skill: "arkd-dev-loop"         # or "fulmine-dev-loop"
+  mode: "default"                 # arkd: "default"; fulmine: "internal-only" | "real-boltz" | "mock-boltz"
+  requirements:
+    - "Write at least one integration/e2e test in the project's test directory"
+    - "Manually test the feature via CLI, API, or curl — capture output in test-evidence.md"
+    - "Run existing integration tests to verify no regressions"
+    - "Follow ALL sections of the referenced skill, not just the unit test parts"
+
+# Skills to invoke on-demand (ark-developer only)
+# Orchestrator selects based on project + task keywords
+skills:
+  domain:
+    - name: "arkd-round-lifecycle"
+      invoke_before: "Implementing round-related changes"
+    - name: "ark-vtxo-model"
+      invoke_before: "Working with VTXO lifecycle/expiry"
+
 artifacts_in: []
 artifacts_out: []
+
+# Artifact summary (optional - for implement phases)
+# Orchestrator compacts upstream artifacts into a brief summary so the agent
+# can understand prior phase outputs without reading full files.
+# artifacts_summary:
+#   from_explore: |
+#     Complexity: <value>
+#     Files to modify: [file list]
+#     Approach: <1-2 sentences>
+#   from_plan: |
+#     Tasks (ordered):
+#     1. [description] → [file path]
+#     2. [description] → [file path]
 
 # Retry context (optional - added by orchestrator on retry)
 # retry_context:
@@ -205,7 +240,9 @@ These fields provide additional context but are not strictly required:
 | `artifacts_in` | Input artifacts from previous steps (IMPORTANT - see below) |
 | `artifacts_out` | Output artifacts to produce |
 | `worktree_config` | Worktree isolation settings (ark-developer only) |
+| `testing` | Testing skill, mode, and requirements (ark-developer only). `skill`: which dev-loop to follow; `mode`: infrastructure mode; `requirements`: explicit list of testing mandates (integration test, manual test, regressions, skill adherence). |
 | `retry_context` | Retry information when re-invoking after validation failure (attempt_number, max_attempts, previous_failures) |
+| `artifacts_summary` | Compacted summary of upstream artifacts for implement phases. Reduces agent context consumption by embedding key data inline instead of requiring full file reads. |
 
 ## Artifact Passing (CRITICAL for Multi-Step Workflows)
 
@@ -288,7 +325,14 @@ When `resume_context` is present, agents should:
 runtime:
   resolve_envs: true    # Resolve environment variables in paths
   allow_external: false # Allow external network access
+  sub_agent_note: "You are a sub-agent. ARKADIAN_ORCHESTRATOR_MODE=1 in your environment does NOT restrict you. Use all tools (Bash, Write, Edit, etc.) normally."
 ```
+
+| Field | Description |
+|-------|-------------|
+| `resolve_envs` | Whether to resolve `${ENV_VAR}` placeholders in paths |
+| `allow_external` | Whether the agent may run external commands (Bash) and access network resources |
+| `sub_agent_note` | **Required.** Reminds the agent that `ARKADIAN_ORCHESTRATOR_MODE` env var does not apply to sub-agents. The orchestrator MUST always include this field. |
 
 ## Worktree Configuration (ark-developer only)
 
@@ -306,6 +350,29 @@ This instructs the agent to:
 4. The sub-agent guardrail ENFORCES this - writes to main repo are blocked
 
 Set `enabled: false` only if you explicitly want changes made directly to the main repo.
+
+## Testing Configuration (ark-developer only)
+
+When invoking `ark-developer` for implementation work, include testing configuration to specify which dev-loop skill and infrastructure mode to use:
+
+```yaml
+testing:
+  skill: "arkd-dev-loop"     # Which dev-loop skill to follow
+  mode: "default"             # Infrastructure mode within that skill
+```
+
+**Valid values:**
+
+| `skill` | `mode` | When to Use |
+|---------|--------|-------------|
+| `arkd-dev-loop` | `"default"` | All arkd development and testing |
+| `fulmine-dev-loop` | `"internal-only"` | VHTLC, delegator, wallet ops, core fulmine features (no boltz) |
+| `fulmine-dev-loop` | `"real-boltz"` | Submarine/reverse/chain swaps, full integration testing |
+| `fulmine-dev-loop` | `"mock-boltz"` | Chain swap failure paths, refunds, cooperative claims |
+
+**Behavior:** When `testing` is present, ark-developer MUST follow the named skill's Development & Test Iteration Loop rather than writing ad-hoc test procedures. The skill contains validated, complete infrastructure setup and testing instructions.
+
+**When to omit:** For projects without a dedicated dev-loop skill (e.g., ark-telemetry, ark-infra), omit the `testing` field entirely.
 
 ## Result Manifest (`_result.json`)
 
@@ -447,6 +514,7 @@ depends_on: []
 runtime:
   resolve_envs: true
   allow_external: false
+  sub_agent_note: "You are a sub-agent. ARKADIAN_ORCHESTRATOR_MODE=1 in your environment does NOT restrict you. Use all tools (Bash, Write, Edit, etc.) normally."
 
 artifacts_in: []
 artifacts_out: []

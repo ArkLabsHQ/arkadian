@@ -928,6 +928,34 @@ Map each agent to a doc intent using `@templates/agent_catalog.md`:
 - `ark-progress-tracker` → `qna`
 - `ark-observer` → `debug`
 
+## Step 5.5: Select Developer Skills (ark-developer phases only)
+
+When building execution specs for ark-developer, select relevant skills:
+
+**Testing skill** (always include one):
+- arkd → `arkd-dev-loop`
+- fulmine, boltz-backend → `fulmine-dev-loop`
+
+**Domain skills** (max 4, based on project + keywords):
+
+| Project | Keywords | Skills |
+|---------|----------|--------|
+| arkd | round, lifecycle, intent | arkd-round-lifecycle |
+| arkd | vtxo, tree, connector | arkd-tree-construction, ark-vtxo-model |
+| arkd | grpc, endpoint, proto | arkd-grpc-api |
+| arkd | offchain, checkpoint | arkd-offchain-tx |
+| arkd | database, repository | ark-repository-patterns |
+| go-sdk | payment, sendoffchain | ark-sdk-payments |
+| go-sdk | settle, exit, unroll | ark-sdk-settlement |
+| go-sdk | batch, session, round | ark-sdk-batch-session |
+| fulmine | vhtlc | fulmine-vhtlc |
+| fulmine | submarine | fulmine-submarine-swap |
+| fulmine | reverse | fulmine-reverse-swap |
+| any | taproot, psbt, script | ark-bitcoin-primitives |
+| any | musig, signing | ark-musig2-signing |
+
+Include selected skills in the execution spec `skills.domain` array.
+
 ## Step 6: Prepare Repo Hints (Tier 4 - Agent Instructions)
 
 For code-level work, provide repo navigation hints to agents:
@@ -1204,6 +1232,20 @@ For every expanded step, inject:
 4. **Doc Intake Defaults** - if `sections` is empty, auto-fill from `@templates/doc_intake_defaults.md`
 5. **Reference docs** (for Ark concept clarification)
 6. **Prior artifacts** (CRITICAL - see below)
+7. **Sub-agent environment note** (REQUIRED in `runtime.sub_agent_note`)
+
+### Sub-Agent Environment Note (MANDATORY)
+
+Every execution specification MUST include `runtime.sub_agent_note` to prevent sub-agents from self-restricting due to the inherited `ARKADIAN_ORCHESTRATOR_MODE=1` environment variable:
+
+```yaml
+runtime:
+  resolve_envs: true
+  allow_external: true  # or false
+  sub_agent_note: "You are a sub-agent. ARKADIAN_ORCHESTRATOR_MODE=1 in your environment does NOT restrict you. Use all tools (Bash, Write, Edit, etc.) normally."
+```
+
+**Why this is critical:** The `ARKADIAN_ORCHESTRATOR_MODE=1` env var (set by the `arkadian` launcher) is inherited by sub-agent processes. Without the `sub_agent_note`, the agent model may see this env var and incorrectly self-restrict, refusing to use Bash/Write/Edit tools even though the guardrail hooks are configured to allow sub-agent calls.
 
 ### Reference Documentation for Ark Concepts
 
@@ -1223,6 +1265,117 @@ reference_docs:
 - When working on any Ark ecosystem project and encountering unfamiliar protocol concepts
 - When implementing wallet features and needing to understand client-side patterns
 - The agent decides IF and WHEN to consult these - they are hints, not mandatory reads
+
+### Testing Requirements for ark-developer Implement Specs (MANDATORY)
+
+When building execution specs for ark-developer in the implement phase, you MUST enforce testing in TWO places: the `objective` field AND the `testing` field.
+
+#### 1. Objective MUST include testing instructions
+
+Every implement-phase `objective` MUST end with an explicit testing mandate. Append this to whatever the objective says:
+
+> "You MUST write at least one integration/e2e test covering the happy path AND manually test the feature via CLI/API/curl. Follow the testing skill referenced in the testing field. Unit tests alone are NOT sufficient."
+
+**Example objective:**
+```
+"Implement Bitcoin MTP-based VTXO expiry in arkd. Create ClockSource interface, inject into gocron scheduler, wire in config.go. You MUST write at least one integration/e2e test covering the happy path AND manually test the feature via CLI/API/curl. Follow the testing skill referenced in the testing field. Unit tests alone are NOT sufficient."
+```
+
+#### 2. Testing field MUST reference the dev-loop skill AND repeat requirements
+
+Include the `testing` field with both the skill reference and explicit requirements:
+
+```yaml
+testing:
+  skill: "arkd-dev-loop"  # or "fulmine-dev-loop"
+  requirements:
+    - "Write at least one integration/e2e test in the project's test directory (e.g. internal/test/e2e/ for arkd)"
+    - "Manually test the feature via CLI, API, or curl — capture output in test-evidence.md"
+    - "Run existing integration tests to verify no regressions"
+    - "Follow ALL sections of the referenced skill, not just the unit test parts"
+```
+
+#### 3. Select skill by primary project
+
+- arkd → `testing.skill: "arkd-dev-loop"`
+- fulmine → `testing.skill: "fulmine-dev-loop"`
+- go-sdk → `testing.skill: "arkd-dev-loop"` (SDK tests run against arkd)
+- Other projects → omit testing field
+
+#### 4. Select mode for fulmine
+
+- Task involves boltz swap integration (submarine, reverse, chain swaps) → `mode: "real-boltz"`
+- Task involves testing failure/refund paths (non-happy paths) → `mode: "mock-boltz"`
+- Task is internal fulmine functionality (VHTLC, delegator, wallet, core) → `mode: "internal-only"`
+- Default when unclear → `mode: "real-boltz"` (safest, full stack)
+
+#### 5. NEVER write ad-hoc test procedures in the execution spec
+
+The testing skill contains the complete, validated procedure. Reference the skill, do not duplicate it. But DO repeat the hard requirements (integration test + manual test) because the agent may not follow the skill otherwise.
+
+### Artifact Compaction for Implement Phases (MANDATORY for S3+)
+
+**Problem:** ark-developer has a finite context window. In medium/large features, the S3 (implement) execution spec plus upstream artifacts (assessment.yaml, spec.md, plan.md, tasks.md) plus source files can exhaust the agent's context before any implementation work begins.
+
+**Solution:** When building execution specs for **implement phases** (S3 or later), the orchestrator MUST compact upstream artifact data into an `artifacts_summary` field embedded directly in the spec.
+
+**How to build the summary:**
+
+1. **Read `artifacts/explore/assessment.yaml`** and extract ONLY:
+   - `complexity` value
+   - `affected_files` list (file paths only)
+   - `fix_approach` or `implementation_approach` (1-2 sentences)
+   - `success_criteria` (brief list)
+
+2. **Read planning artifacts** (`spec.md`, `plan.md`, `tasks.md`) and extract ONLY:
+   - Ordered task list with: task description + target file path
+   - Key constraints or requirements (max 3-5 bullet points)
+   - Skip background/rationale sections entirely
+
+3. **Embed in the spec:**
+
+```yaml
+# Compacted upstream artifact summaries — agent should use these first
+# before reading full artifact files (which are still available via artifacts_in)
+artifacts_summary:
+  from_explore: |
+    Complexity: medium_feature
+    Files to modify:
+      - internal/core/application/service.go
+      - internal/infrastructure/db/sqlite/vtxo_repository.go
+    Approach: Add expiry tracking to onWalletUnlock() and filter expired VTXOs separately
+    Success criteria:
+      - Expired VTXOs handled in onWalletUnlock
+      - Unit tests cover expiry edge cases
+  from_plan: |
+    Tasks (ordered):
+    1. Add ExpiredVTXO query method → vtxo_repository.go
+    2. Implement expiry check in onWalletUnlock → service.go
+    3. Add unit tests → service_test.go
+    Key constraints:
+    - Must not change VTXO domain model
+    - Backward compatible with existing DB schema
+```
+
+4. **Still include `artifacts_in` paths** — the agent can fall back to full files if the summary is insufficient:
+
+```yaml
+artifacts_in:
+  - path: "artifacts/explore/assessment.yaml"
+    from_step: "S1"
+    description: "Full assessment (use artifacts_summary first)"
+    note: "Compacted summary provided in artifacts_summary.from_explore"
+  - path: "specs/{project}/{feature}/tasks.md"
+    from_step: "S2"
+    description: "Full task breakdown (use artifacts_summary first)"
+    note: "Compacted summary provided in artifacts_summary.from_plan"
+```
+
+**Rules:**
+- `artifacts_summary` is REQUIRED for implement phases (S3+) when upstream artifacts exist
+- Keep summaries under 40 lines total (both `from_explore` and `from_plan` combined)
+- The agent should read `artifacts_summary` FIRST and only consult full artifact files when it needs details not in the summary
+- Do NOT put the full artifact contents into the summary — that defeats the purpose
 
 ### Passing Artifacts Between Steps (MANDATORY)
 
@@ -1249,13 +1402,14 @@ artifacts_in:
 - Every step after S1 MUST include `artifacts_in` with paths from prior steps
 - Use session-relative paths (e.g., `artifacts/explore/assessment.yaml`)
 - The agent will read these files to understand context from previous phases
-- Do NOT manually summarize artifact contents in the spec - let the agent read the full file
+- For implement phases (S3+): also include `artifacts_summary` with compacted data (see above)
 - Include ALL prior artifacts, not just the immediate dependency
 
 **Why this matters:**
 - Agents are stateless - they don't have access to previous agent outputs
 - Without `artifacts_in`, agents must guess or infer what previous steps discovered
 - This causes context loss and potential rework
+- Without `artifacts_summary`, agents may exhaust context reading full upstream artifacts before reaching implementation
 
 If `repo_path` is missing from registry:
 - Keep the step

@@ -1,11 +1,11 @@
 ---
 name: fulmine-dev-loop
-description: Fast iteration loop for developing fulmine locally. Start the full docker-compose stack, stop the fulmine instance(s) being developed, run locally with adapted env vars, test with single e2e tests, check logs, fix, repeat.
+description: Fast iteration loop for developing fulmine locally. Three infrastructure modes (internal-only, real-boltz, mock-boltz), smart pre-flight checks, and a build-test-fix iteration loop with mandatory log capture.
 ---
 
 # Fulmine Dev Loop
 
-Fast-iteration development workflow for fulmine: run all dependencies in Docker, stop the service(s) you're developing, run them locally, iterate with single tests.
+Fast-iteration development workflow for fulmine with three infrastructure modes. Smart pre-flight checks detect running services, then iterate with build-test-fix cycles including mandatory multi-service log capture.
 
 Fulmine has many dependencies (arkd, boltz, LN nodes, mock-boltz) that are complex to run individually. The dev loop pattern is: **run everything in Docker first, then stop the container(s) you're working on and run locally.**
 
@@ -16,13 +16,15 @@ Fulmine has many dependencies (arkd, boltz, LN nodes, mock-boltz) that are compl
 - Go toolchain, `templ`, `yarn` (for static assets)
 - fulmine repo at `${FULMINE_REPO}`
 
-## Step 0: Pre-Flight Checks
+## Section 1: Pre-Flight Checks
 
-Before starting anything, check what's already running and adapt:
+Before starting anything, detect what's already running and decide how to adapt.
+
+### 1a. Service Detection
 
 ```bash
-# Check if nigiri is already running
-curl -s http://localhost:3000/api/blocks/tip/height && echo " -> Nigiri running, skip nigiri start"
+# Check if nigiri/Esplora is already running
+curl -s http://localhost:3000/api/blocks/tip/height && echo " -> Esplora responding"
 
 # Check if the full docker stack is already running
 docker ps --format '{{.Names}}' | grep -E 'arkd|fulmine|boltz' && echo " -> Docker stack (partially) running"
@@ -43,14 +45,114 @@ curl -s http://localhost:7070/v1/info 2>/dev/null | jq . && echo " -> arkd respo
 curl -s http://localhost:9001/version 2>/dev/null | jq . && echo " -> boltz responding on :9001"
 ```
 
-**Decision tree:**
-- Full stack running from previous session? Just `docker stop fulmine` (or whichever instance) and go to Step 3
-- Nigiri running but no docker stack? Go to Step 1 (start docker-compose only, skip nigiri)
-- Nothing running? Start from Step 1
-- Fulmine running locally from previous iteration? Ctrl+C it and go to Step 4
-- Port conflicts? Check `docker ps` and `lsof` to find what's using the port, stop it
+### 1b. Health Classification
 
-## Step 1: Full Environment Setup (First Time)
+For each detected service, classify its state:
+
+| Service State | Action |
+|--------------|--------|
+| Running + healthy + correct config | **Reuse** — skip setup for that service |
+| Running in Docker but need local | `docker stop <service>` then run locally |
+| Port in use by unknown process | **STOP** — report conflict, ask user |
+| Not running | Start normally |
+
+### 1c. Which Fulmine Instances Are Running?
+
+Check if fulmine instances are in Docker vs running locally:
+- If `docker ps` shows `fulmine` → it's in Docker, will need `docker stop fulmine` to run locally
+- If port 7000/7001 is in use but no Docker container → it's already running locally
+
+## Section 2: Choose Infrastructure Mode
+
+Choose the mode based on what you're testing:
+
+---
+
+### Mode A: Internal-Only (fulmine + arkd, no boltz)
+
+**When to use:** VHTLC, delegator, wallet ops, core protocol features — anything that doesn't involve boltz swaps.
+
+**Applicable tests:** `TestVHTLC`, `TestClaimVhtlcSettlement`, `TestRefundVhtlcSettlement`, `TestSettleVHTLCByDelegateRefund`, `TestDelegate`, `TestDelegateCollaborativeExit`, `TestDelegateSameInput`, `TestDelegateSeveralInputs`
+
+#### Setup (skip services detected as healthy in pre-flight):
+
+```bash
+cd ${FULMINE_REPO}
+
+# Start nigiri (skip if Esplora already responding on :3000)
+nigiri start
+
+# Start minimal Docker stack (arkd + its deps, but NOT fulmine containers)
+docker compose -f test.docker-compose.yml up -d pgnbxplorer nbxplorer arkd-wallet arkd
+```
+
+Wait for arkd:
+
+```bash
+until curl -s http://localhost:7070/v1/info 2>/dev/null > /dev/null; do sleep 3; done
+echo "arkd ready"
+```
+
+#### Provision arkd wallet:
+
+```bash
+# Check status
+curl -s http://localhost:7071/v1/admin/wallet/status | jq .
+
+# Create wallet (if not initialized)
+SEED=$(curl -s http://localhost:7071/v1/admin/wallet/seed | jq -r '.seed')
+curl -X POST http://localhost:7071/v1/admin/wallet/create \
+  -H "Content-Type: application/json" \
+  -d "{\"seed\": \"$SEED\", \"password\": \"password\"}"
+
+# Unlock wallet (if locked)
+curl -X POST http://localhost:7071/v1/admin/wallet/unlock \
+  -H "Content-Type: application/json" \
+  -d '{"password":"password"}'
+
+# Fund with 21 BTC
+ARKD_ADDR=$(curl -s http://localhost:7071/v1/admin/wallet/address | jq -r '.address')
+for i in $(seq 1 21); do nigiri faucet $ARKD_ADDR 1; done
+nigiri rpc generatetoaddress 1 $ARKD_ADDR
+```
+
+#### Run fulmine locally:
+
+Source of truth: `test.docker-compose.yml` → `fulmine` service, minus boltz-specific vars since no boltz in Mode A.
+
+```bash
+cd ${FULMINE_REPO}
+make build-static-assets
+
+FULMINE_DATADIR=./datadir FULMINE_NO_MACAROONS=true FULMINE_LOG_LEVEL=5 \
+  FULMINE_SCHEDULER_POLL_INTERVAL=10 FULMINE_DISABLE_TELEMETRY=true \
+  FULMINE_ARK_SERVER=localhost:7070 \
+  FULMINE_ESPLORA_URL=http://localhost:3000 \
+  go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
+```
+
+**CAVEAT:** Cannot use the e2e package's `TestMain` (it tries to connect to all 3 fulmine instances). Two options:
+- Write focused test as standalone (outside e2e package)
+- OR start full stack with Mode B and just run internal tests
+
+#### Mode A Cleanup:
+
+```bash
+# Stop local fulmine (Ctrl+C)
+cd ${FULMINE_REPO}
+docker compose -f test.docker-compose.yml down -v
+nigiri stop
+```
+
+---
+
+### Mode B: Real Boltz Integration (full stack)
+
+**When to use:** Submarine/reverse/chain swaps, full integration testing — anything involving real boltz swap operations.
+
+**Applicable tests:** `TestSubmarineSwap`, `TestReverseSwap`, `TestCircularSwap`, `TestConcurrentSwaps`, `TestChainSwapArkToBTC`, `TestChainSwapBTCtoARK`, `TestChainSwapBTCtoARKWithQuote`, `TestChainSwapRecovery`
+
+#### Setup (skip if stack already healthy):
 
 ```bash
 cd ${FULMINE_REPO}
@@ -58,137 +160,36 @@ cd ${FULMINE_REPO}
 # Build Docker images
 make build-test-env
 
-# Start everything + provision wallets, LN channels, funds (~3 minutes)
+# Start everything + provision wallets, LN channels, funds (~3 min)
 make setup-test-env
 ```
 
-This runs `scripts/setup` which:
-- Starts nigiri with Lightning (`nigiri start --ln`)
-- Starts all docker-compose services
-- Creates and funds arkd wallet
-- Opens LN channels between nodes
-- Provisions all 3 fulmine instances with funds
+This runs `scripts/setup` which starts nigiri with Lightning, all docker-compose services, creates and funds arkd wallet, opens LN channels, and provisions all 3 fulmine instances.
 
-If nigiri is already running, `scripts/setup` will tear it down and restart. To avoid this and just start docker services on an existing nigiri:
-```bash
-cd ${FULMINE_REPO}
-docker compose -f test.docker-compose.yml up -d
-# Then provision manually (see Step 5 for wallet operations)
-```
+#### Stop fulmine container and run locally:
 
-Verify the stack is healthy:
-
-```bash
-curl -s http://localhost:7001/api/v1/info | jq .          # fulmine
-curl -s http://localhost:7003/api/v1/info | jq .          # boltz-fulmine
-curl -s http://localhost:7101/api/v1/info | jq .          # fulmine-mock
-curl -s http://localhost:7070/v1/info | jq .              # arkd
-curl -s http://localhost:9001/version | jq .              # boltz
-```
-
-## Step 2: Stop the Fulmine Instance(s) You're Developing
-
-### Main client fulmine (most common):
 ```bash
 docker stop fulmine
 ```
 
-### Boltz's fulmine instance:
-```bash
-docker stop boltz-fulmine
-```
-
-### Mock boltz fulmine instance:
-```bash
-docker stop fulmine-mock
-```
-
-All other services remain running (arkd, boltz, LN nodes, etc.).
-
-## Step 3: Adapt Environment Variables for Local Run
-
-**Source of truth**: Read the `environment:` section of the stopped container in `${FULMINE_REPO}/test.docker-compose.yml`.
-
-**Key translation rule**: Replace Docker container hostnames with `localhost`:
-- `arkd:7070` → `localhost:7070`
-- `chopsticks:3000` → `localhost:3000`
-- `boltz:9001` → `localhost:9001`
-- `boltz:9004` → `localhost:9004`
-- `mock-boltz:9001` → `localhost:9101` (mock-boltz maps container 9001 to host 9101)
-
-**Existing env files for reference**: `${FULMINE_REPO}/envs/dev.env`, `${FULMINE_REPO}/envs/dev.2.env`
-
-### Per-Instance Quick Reference
-
-#### fulmine (client, ports 7000/7001):
-```bash
-export FULMINE_DATADIR=./datadir
-export FULMINE_NO_MACAROONS=true
-export FULMINE_LOG_LEVEL=5
-export FULMINE_SCHEDULER_POLL_INTERVAL=10
-export FULMINE_DISABLE_TELEMETRY=true
-export FULMINE_SWAP_TIMEOUT=120
-export FULMINE_ARK_SERVER=localhost:7070
-export FULMINE_ESPLORA_URL=http://localhost:3000
-export FULMINE_BOLTZ_URL=http://localhost:9001
-export FULMINE_BOLTZ_WS_URL=ws://localhost:9004
-```
-
-#### boltz-fulmine (Boltz's instance, ports 7002/7003):
-```bash
-export FULMINE_DATADIR=./datadir-boltz
-export FULMINE_GRPC_PORT=7002
-export FULMINE_HTTP_PORT=7003
-export FULMINE_NO_MACAROONS=true
-export FULMINE_LOG_LEVEL=5
-export FULMINE_SCHEDULER_POLL_INTERVAL=10
-export FULMINE_DISABLE_TELEMETRY=true
-export FULMINE_SWAP_TIMEOUT=120
-export FULMINE_ARK_SERVER=localhost:7070
-export FULMINE_ESPLORA_URL=http://localhost:3000
-export FULMINE_BOLTZ_URL=http://localhost:9001
-export FULMINE_BOLTZ_WS_URL=ws://localhost:9004
-```
-
-#### fulmine-mock (mock boltz client, ports 7100/7101):
-```bash
-export FULMINE_DATADIR=./datadir-mock
-export FULMINE_GRPC_PORT=7100
-export FULMINE_HTTP_PORT=7101
-export FULMINE_NO_MACAROONS=true
-export FULMINE_LOG_LEVEL=5
-export FULMINE_SCHEDULER_POLL_INTERVAL=10
-export FULMINE_DISABLE_TELEMETRY=true
-export FULMINE_SWAP_TIMEOUT=120
-export FULMINE_ARK_SERVER=localhost:7070
-export FULMINE_ESPLORA_URL=http://localhost:3000
-export FULMINE_BOLTZ_URL=http://localhost:9101
-export FULMINE_BOLTZ_WS_URL=ws://localhost:9104
-```
-
-Note: fulmine-mock connects to mock-boltz (host port 9101), not the real boltz.
-
-## Step 4: Run Fulmine Locally
+Source of truth for env vars: `test.docker-compose.yml` → `fulmine` service `environment:` section. The skill provides the localhost-translated version. Agent should NOT invent env vars — only add/modify if a specific test case requires it.
 
 ```bash
 cd ${FULMINE_REPO}
-
-# Build static assets first (required)
 make build-static-assets
 
-# Run with the exported env vars from Step 3
-go run ./cmd/fulmine
-```
-
-Or inline for the main fulmine instance:
-
-```bash
 FULMINE_DATADIR=./datadir FULMINE_NO_MACAROONS=true FULMINE_LOG_LEVEL=5 \
   FULMINE_SCHEDULER_POLL_INTERVAL=10 FULMINE_DISABLE_TELEMETRY=true \
   FULMINE_SWAP_TIMEOUT=120 FULMINE_ARK_SERVER=localhost:7070 \
   FULMINE_ESPLORA_URL=http://localhost:3000 \
   FULMINE_BOLTZ_URL=http://localhost:9001 FULMINE_BOLTZ_WS_URL=ws://localhost:9004 \
-  go run ./cmd/fulmine
+  go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
+```
+
+**NOTE on delegator port conflict:** When running main fulmine locally alongside boltz-fulmine in Docker, the delegator defaults to port 7002 which conflicts with boltz-fulmine's gRPC on host port 7002. Set `FULMINE_DELEGATOR_PORT=7004` when running locally alongside boltz-fulmine:
+
+```bash
+FULMINE_DELEGATOR_PORT=7004 FULMINE_DATADIR=./datadir ... go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
 ```
 
 Verify:
@@ -197,141 +198,195 @@ Verify:
 curl -s http://localhost:7001/api/v1/info | jq .
 ```
 
-## Step 5: Fulmine Wallet Operations
-
-All endpoints at `http://localhost:7001` (no auth when `FULMINE_NO_MACAROONS=true`).
-
-### Check wallet status (do this first to decide what's needed)
+#### Mode B Cleanup:
 
 ```bash
-curl -s http://localhost:7001/api/v1/wallet/status | jq .
-# Returns: {"initialized": bool, "synced": bool, "unlocked": bool}
+# Stop local fulmine (Ctrl+C)
+cd ${FULMINE_REPO}
+make down-test-env
+nigiri stop --delete
 ```
 
-### If NOT initialized — create wallet:
+---
+
+### Mode C: Mock Boltz Testing (non-happy paths)
+
+**When to use:** Chain swap failures, refunds, cooperative claims/refunds — testing non-happy-path scenarios using mock-boltz.
+
+**Applicable tests:** `TestChainSwapMockArkToBTCScriptPathClaim`, `TestChainSwapMockArkToBTCCooperativeRefund`, `TestChainSwapMockArkToBTCUnilateralRefund`, `TestChainSwapMockBTCToARKUnilateralRefund`, `TestChainSwapMockRefundChainSwapRPC`
+
+#### Setup: Same as Mode B (full stack needed for mock-boltz to connect to arkd):
 
 ```bash
-# Generate a seed
-SEED=$(curl -s http://localhost:7001/api/v1/wallet/genseed | jq -r '.hex')
-echo "Seed hex: $SEED"
+cd ${FULMINE_REPO}
+make build-test-env
+make setup-test-env
+```
 
-# Create wallet (server_url points to arkd)
+#### Stop fulmine-mock container and run locally:
+
+```bash
+docker stop fulmine-mock
+```
+
+Source of truth: `test.docker-compose.yml` → `fulmine-mock` service. mock-boltz maps `9101:9001`, so both API and WS use `localhost:9101`.
+
+```bash
+cd ${FULMINE_REPO}
+make build-static-assets
+
+FULMINE_DATADIR=./datadir-mock FULMINE_GRPC_PORT=7100 FULMINE_HTTP_PORT=7101 \
+  FULMINE_NO_MACAROONS=true FULMINE_LOG_LEVEL=5 \
+  FULMINE_SCHEDULER_POLL_INTERVAL=10 FULMINE_DISABLE_TELEMETRY=true \
+  FULMINE_SWAP_TIMEOUT=120 FULMINE_ARK_SERVER=localhost:7070 \
+  FULMINE_ESPLORA_URL=http://localhost:3000 \
+  FULMINE_BOLTZ_URL=http://localhost:9101 FULMINE_BOLTZ_WS_URL=ws://localhost:9101 \
+  go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-mock-dev.log
+```
+
+Agent should NOT modify env vars unless a specific test case requires it.
+
+#### Mock-boltz admin API for configuring failure scenarios:
+
+```bash
+POST http://localhost:9101/admin/config
+```
+
+Verify:
+
+```bash
+curl -s http://localhost:7101/api/v1/info | jq .
+```
+
+#### Mode C Cleanup:
+
+```bash
+# Stop local fulmine-mock (Ctrl+C)
+cd ${FULMINE_REPO}
+make down-test-env
+nigiri stop --delete
+```
+
+---
+
+## Section 3: Wallet Setup
+
+### Mode A: Manual provisioning
+
+arkd wallet is provisioned as part of Mode A setup above. For the fulmine wallet:
+
+```bash
+# Check wallet status
+curl -s http://localhost:7001/api/v1/wallet/status | jq .
+
+# If NOT initialized — create wallet:
+SEED=$(curl -s http://localhost:7001/api/v1/wallet/genseed | jq -r '.hex')
 curl -X POST http://localhost:7001/api/v1/wallet/create \
   -H "Content-Type: application/json" \
   -d "{\"private_key\": \"$SEED\", \"password\": \"password\", \"server_url\": \"localhost:7070\"}"
-```
 
-### If initialized but locked — unlock:
-
-```bash
+# If initialized but locked — unlock:
 curl -X POST http://localhost:7001/api/v1/wallet/unlock \
   -H "Content-Type: application/json" \
   -d '{"password":"password"}'
-```
 
-### Fund fulmine (onboard + settle):
-
-```bash
-# Check current balance
-curl -s http://localhost:7001/api/v1/balance | jq .
-# Returns: {"amount": <sats>}
-
-# Get onboard address (on-chain address for funding)
+# Fund fulmine (onboard + settle):
 ADDR=$(curl -s -X POST http://localhost:7001/api/v1/onboard \
   -H "Content-Type: application/json" \
   -d '{"amount": 100000}' | jq -r '.address')
-echo "Onboard address: $ADDR"
-
-# Fund with nigiri faucet
 nigiri faucet $ADDR 0.001
-
-# Wait for confirmation
 sleep 5
-
-# Settle (converts boarding UTXOs to VTXOs)
 curl -s http://localhost:7001/api/v1/settle | jq .
-
-# Verify balance
 curl -s http://localhost:7001/api/v1/balance | jq .
 ```
 
-### Get offchain address (for receiving):
+### Mode B/C: Automatic provisioning
+
+`make setup-test-env` handles all wallet provisioning automatically (arkd wallet, fulmine wallets, LN channel funding).
+
+If you need to top up arkd balance after setup:
 
 ```bash
-curl -s http://localhost:7001/api/v1/address | jq .
-# Returns: {"address": "ark1...", "pubkey": "02..."}
-```
-
-## Step 6: Manual Testing
-
-```bash
-# Service info
-curl -s http://localhost:7001/api/v1/info | jq .
-
-# Wallet status
-curl -s http://localhost:7001/api/v1/wallet/status | jq .
-
-# Balance
-curl -s http://localhost:7001/api/v1/balance | jq .
-
-# List swaps
-curl -s http://localhost:7001/api/v1/swaps | jq .
-
-# gRPC (if grpcurl installed)
-grpcurl -plaintext localhost:7000 fulmine.v1.FulmineService/GetBalance
-grpcurl -plaintext localhost:7000 list  # list all services
-```
-
-### Fund arkd via docker (needed if arkd balance is low):
-
-```bash
-# Check arkd balance
-docker exec arkd arkd wallet balance
-
-# Fund arkd
 ARKD_ADDR=$(docker exec arkd arkd wallet address | tr -d '\n')
 nigiri faucet $ARKD_ADDR 1
 ```
 
-## Step 7: Run a SINGLE E2E Test
+## Section 4: Development & Test Iteration Loop
+
+This is the core of the skill. Repeat this cycle until all tests pass.
+
+```
+REPEAT:
+  a. Write/modify code
+
+  b. Write unit test where suitable:
+     go test -v -count=1 ./internal/path/to/package/...
+
+  c. Write e2e test in internal/test/e2e/ (or standalone for Mode A)
+
+  d. Rebuild static assets if frontend changed:
+     make build-static-assets
+
+  e. Restart fulmine locally (Ctrl+C → re-run with env vars):
+     go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
+
+  f. Run specific test:
+     go test -v -count=1 -run TestName -timeout 20m -race -p=1 ./internal/test/e2e/...
+
+  g. MANDATORY: Read ALL relevant logs:
+     - Test output (terminal)
+     - /tmp/fulmine-dev.log (fulmine logs)
+     - docker logs arkd (arkd logs — always relevant)
+     - docker logs boltz (Mode B only)
+     - docker logs mock-boltz (Mode C only)
+     - tail -100 /tmp/fulmine-dev.log | grep -i "error\|panic\|fatal"
+
+  h. If test fails → fix code → go back to (a)
+
+  i. If test passes → verify no errors in all logs → done
+```
+
+**Key rules:**
+- Always redirect fulmine output to log file via `tee`
+- At EVERY iteration, check ALL relevant logs (not just test output)
+- Docker deps stay running between iterations — only restart fulmine
+- `TestMain` in e2e tests uses `docker exec arkd arkd` for CLI commands — arkd MUST stay in Docker
+- `TestMain` calls `refillArkd` and `refillFulmine` which auto-top-up balances if below threshold (arkd < 5 BTC, fulmine < 100k sats)
+
+### Running a specific sub-test:
 
 ```bash
-cd ${FULMINE_REPO}
-
-# Run one specific test
-go test -v -count=1 -run TestSubmarineSwap -timeout 20m -race -p=1 ./internal/test/e2e/...
-
-# Run a specific sub-test
 go test -v -count=1 -run "TestChainSwapArkToBTC" -timeout 20m -race -p=1 ./internal/test/e2e/...
+```
 
-# Run all integration tests (slow, use for final verification only)
+### Running all integration tests (slow, final verification only):
+
+```bash
 make integrationtest
 ```
 
-**Caveats:**
-- `TestMain` uses `docker exec arkd arkd` for arkd CLI commands — arkd MUST stay in Docker
-- `TestMain` calls `refillArkd` and `refillFulmine` which auto-top-up balances if below threshold (arkd < 5 BTC, fulmine < 100k sats)
-- Tests connect to `localhost:7000` (your local fulmine), `localhost:7002` (boltz-fulmine in docker), `localhost:7100` (fulmine-mock in docker)
+### If wallet state is corrupt, wipe and reinitialize:
 
-## Step 8: Iterate
-
-1. **Ctrl+C** fulmine in its terminal
-2. Fix code
-3. If template/UI changes: `make build-static-assets`
-4. Re-run: `go run ./cmd/fulmine` (with env vars)
-5. Re-run the specific test
-6. Docker deps stay running — no restart needed
-
-If wallet state is corrupt, wipe and reinitialize:
 ```bash
 rm -rf ${FULMINE_REPO}/datadir
-# Then restart fulmine and redo Step 5
+# Then restart fulmine and redo Section 3 (Wallet Setup)
 ```
 
-## Step 9: Cleanup
+## Section 5: Cleanup
+
+### Mode A:
 
 ```bash
 # Stop local fulmine (Ctrl+C)
+cd ${FULMINE_REPO}
+docker compose -f test.docker-compose.yml down -v
+nigiri stop
+```
+
+### Mode B/C:
+
+```bash
+# Stop local fulmine/fulmine-mock (Ctrl+C)
 cd ${FULMINE_REPO}
 make down-test-env
 nigiri stop --delete
@@ -354,13 +409,14 @@ When adapting from docker-compose to local, always translate container hostnames
 | fulmine HTTP | 7001 | HTTP | Main client REST API |
 | boltz-fulmine gRPC | 7002 | gRPC | Boltz's fulmine (Docker or local) |
 | boltz-fulmine HTTP | 7003 | HTTP | Boltz's fulmine REST |
+| fulmine delegator | 7004 | gRPC | Main fulmine delegator (host 7004 → container 7002) |
 | fulmine-mock gRPC | 7100 | gRPC | Mock client (Docker or local) |
 | fulmine-mock HTTP | 7101 | HTTP | Mock client REST |
 | arkd gRPC | 7070 | gRPC | Docker |
 | arkd admin | 7071 | HTTP | Docker |
 | Boltz API | 9001 | HTTP | Docker |
 | Boltz WS | 9004 | WS | Docker |
-| mock-boltz API | 9101 | HTTP | Docker (maps to container 9001) |
+| mock-boltz API/WS | 9101 | HTTP/WS | Docker (maps container 9001 → host 9101) |
 | Esplora | 3000 | HTTP | Nigiri |
 
 ## Fulmine API Quick Reference
@@ -383,22 +439,26 @@ All endpoints at `http://localhost:7001` (no auth when `FULMINE_NO_MACAROONS=tru
 
 ## Available E2E Tests
 
-| Test | File | Description |
-|------|------|-------------|
-| TestSubmarineSwap | swap_test.go | Basic submarine swap |
-| TestReverseSwap | swap_test.go | Reverse swap |
-| TestCircularSwap | swap_test.go | Circular swap |
-| TestConcurrentSwaps | swap_test.go | Multiple concurrent swaps |
-| TestChainSwapArkToBTC | chainswap_test.go | Chain swap Ark to BTC |
-| TestChainSwapBTCtoARK | chainswap_test.go | Chain swap BTC to Ark |
-| TestChainSwapBTCtoARKWithQuote | chainswap_test.go | Chain swap with quote |
-| TestChainSwapMockArkToBTCScriptPathClaim | chainswap_test.go | Mock: script path claim |
-| TestChainSwapMockArkToBTCCooperativeRefund | chainswap_test.go | Mock: cooperative refund |
-| TestChainSwapMockArkToBTCUnilateralRefund | chainswap_test.go | Mock: unilateral refund |
-| TestChainSwapMockBTCToARKUnilateralRefund | chainswap_test.go | Mock: BTC to Ark refund |
-| TestChainSwapMockRefundChainSwapRPC | chainswap_test.go | Mock: refund via RPC |
-| TestChainSwapRecovery | chainswap_test.go | Chain swap recovery flow |
-| TestVHTLC | vhtlc_test.go | VHTLC create and settle |
-| TestClaimVhtlcSettlement | vhtlc_test.go | Claim path settlement |
-| TestRefundVhtlcSettlement | vhtlc_test.go | Refund path settlement |
-| TestSettleVHTLCByDelegateRefund | vhtlc_test.go | Delegate refund settlement |
+| Test | File | Description | Mode |
+|------|------|-------------|------|
+| TestSubmarineSwap | swap_test.go | Basic submarine swap | B |
+| TestReverseSwap | swap_test.go | Reverse swap | B |
+| TestCircularSwap | swap_test.go | Circular swap | B |
+| TestConcurrentSwaps | swap_test.go | Multiple concurrent swaps | B |
+| TestChainSwapArkToBTC | chainswap_test.go | Chain swap Ark to BTC | B |
+| TestChainSwapBTCtoARK | chainswap_test.go | Chain swap BTC to Ark | B |
+| TestChainSwapBTCtoARKWithQuote | chainswap_test.go | Chain swap with quote | B |
+| TestChainSwapRecovery | chainswap_test.go | Chain swap recovery flow | B |
+| TestChainSwapMockArkToBTCScriptPathClaim | chainswap_test.go | Mock: script path claim | C |
+| TestChainSwapMockArkToBTCCooperativeRefund | chainswap_test.go | Mock: cooperative refund | C |
+| TestChainSwapMockArkToBTCUnilateralRefund | chainswap_test.go | Mock: unilateral refund | C |
+| TestChainSwapMockBTCToARKUnilateralRefund | chainswap_test.go | Mock: BTC to Ark refund | C |
+| TestChainSwapMockRefundChainSwapRPC | chainswap_test.go | Mock: refund via RPC | C |
+| TestVHTLC | vhtlc_test.go | VHTLC create and settle | A/B |
+| TestClaimVhtlcSettlement | vhtlc_test.go | Claim path settlement | A/B |
+| TestRefundVhtlcSettlement | vhtlc_test.go | Refund path settlement | A/B |
+| TestSettleVHTLCByDelegateRefund | vhtlc_test.go | Delegate refund settlement | A/B |
+| TestDelegate | delegator_test.go | Basic delegator operation | A/B |
+| TestDelegateCollaborativeExit | delegator_test.go | Delegator collaborative exit | A/B |
+| TestDelegateSameInput | delegator_test.go | Delegator same input handling | A/B |
+| TestDelegateSeveralInputs | delegator_test.go | Delegator multiple inputs | A/B |

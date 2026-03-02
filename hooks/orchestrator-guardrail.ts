@@ -33,13 +33,16 @@ import { getOrchestratorReminder } from './orchestrator-reminder';
 const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
 
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
+const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
 
 // Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
 const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
 
 // Tools the orchestrator is ALLOWED to use (some restricted to ARKADIAN_DIR)
+// Note: Claude Code renamed Task → Agent in newer versions; accept both
 const ALLOWED_TOOLS = [
-    'Task',           // Delegate to agents
+    'Task',           // Delegate to agents (legacy name)
+    'Agent',          // Delegate to agents (new name since Claude Code ~2.2)
     'Read',           // Read docs (restricted to ARKADIAN_DIR)
     'Write',          // Write files (restricted to ARKADIAN_DIR)
     'Edit',           // Edit files (restricted to ARKADIAN_DIR)
@@ -82,6 +85,14 @@ const BLOCKED_SUBAGENT_TYPES = [
     'Plan',            // Use ark-project-manager instead
     'general-purpose', // Use specific Arkadian agent instead
 ];
+
+// Directories within session artifacts that ONLY sub-agents should write to.
+// The orchestrator can READ from these, but writing would mean it's self-implementing
+// instead of delegating to an agent (which violates its role).
+const AGENT_ONLY_ARTIFACT_DIRS = ['/artifacts/implement/', '/artifacts/test/'];
+
+// Write-capable tools (subset of PATH_RESTRICTED_TOOLS that modify files)
+const WRITE_TOOLS = ['Write', 'Edit'];
 
 // Project repo environment variables (orchestrator should NOT access these directly)
 const REPO_ENV_VARS = [
@@ -197,6 +208,118 @@ function getSessionState(sessionId: string): SessionState | null {
 }
 
 /**
+ * Expand environment variables in a string.
+ * Handles ${VAR} and $VAR formats.
+ */
+function expandEnvVars(str: string): string {
+    if (!str) return str;
+
+    // Replace ${VAR} format
+    let result = str.replace(/\$\{(\w+)\}/g, (_, varName) => {
+        return process.env[varName] || '';
+    });
+
+    // Replace $VAR format (word boundary)
+    result = result.replace(/\$(\w+)/g, (match, varName) => {
+        return process.env[varName] || match;
+    });
+
+    return result;
+}
+
+/**
+ * Reconstruct allowed_paths and blocked_paths from the execution spec YAML.
+ * Used during context compaction recovery to avoid empty-paths bypass.
+ *
+ * Mirrors the path construction logic in pre-agent-validator.ts:setActiveAgent()
+ */
+function reconstructPathsFromSpec(
+    sessionId: string,
+    sessionDir: string,
+    specId: string
+): { allowedPaths: string[]; blockedPaths: string[] } {
+    // Conservative fallback: limit to session dir + docs only
+    // This ensures allowed_paths.length > 0, triggering path checks in subagent-guardrail
+    const fallbackPaths = {
+        allowedPaths: [sessionDir, join(ARKADIAN_DIR, 'docs')],
+        blockedPaths: [] as string[]
+    };
+
+    const specFile = join(sessionDir, 'specs', `${specId}.yaml`);
+    if (!existsSync(specFile)) {
+        log(sessionId, 'recovery-spec-missing', { specFile, using: 'fallback paths' });
+        return fallbackPaths;
+    }
+
+    try {
+        const specContent = readFileSync(specFile, 'utf-8');
+
+        const allowedPaths: string[] = [];
+        const blockedPaths: string[] = [];
+
+        // Always allow session dir and docs
+        allowedPaths.push(sessionDir);
+        allowedPaths.push(join(ARKADIAN_DIR, 'docs'));
+
+        // Extract session_dir from spec (may differ from sessionDir if renamed)
+        const sessionDirMatch = specContent.match(/session_dir:\s*["']?([^\s"'#]+)/);
+        if (sessionDirMatch) {
+            const specSessionDir = expandEnvVars(sessionDirMatch[1]);
+            if (specSessionDir && !allowedPaths.includes(specSessionDir)) {
+                allowedPaths.push(specSessionDir);
+            }
+        }
+
+        // Extract repo_root values from projects array and top-level repo_source
+        const repoRootRegex = /repo_root:\s*["']?([^\s"'#]+)/g;
+        let match;
+        const repoRoots: string[] = [];
+        while ((match = repoRootRegex.exec(specContent)) !== null) {
+            const expanded = expandEnvVars(match[1]);
+            if (expanded && !repoRoots.includes(expanded)) {
+                repoRoots.push(expanded);
+            }
+        }
+
+        // Check if worktree mode is enabled (default: true)
+        const worktreeMatch = specContent.match(/worktree_config:\s*\n\s*enabled:\s*(true|false)/);
+        const worktreeEnabled = !worktreeMatch || worktreeMatch[1] !== 'false';
+
+        for (const repoPath of repoRoots) {
+            // Allow READ from main repo
+            allowedPaths.push(repoPath);
+
+            if (worktreeEnabled) {
+                // Block WRITE to main repo (must use worktree)
+                blockedPaths.push(repoPath);
+
+                // Also allow worktree paths (any .worktrees/ subdir of this repo)
+                // We can't know the exact branch name, so we allow the .worktrees parent
+                allowedPaths.push(join(repoPath, '.worktrees'));
+            }
+        }
+
+        log(sessionId, 'recovery-paths-reconstructed', {
+            specFile,
+            allowedPaths,
+            blockedPaths,
+            repoRoots,
+            worktreeEnabled
+        });
+
+        // If we couldn't extract any repo paths, return at least the fallback
+        if (allowedPaths.length === 0) {
+            return fallbackPaths;
+        }
+
+        return { allowedPaths, blockedPaths };
+    } catch (e: any) {
+        log(sessionId, 'recovery-spec-parse-error', { specFile, error: e.message });
+        return fallbackPaths;
+    }
+}
+
+/**
  * Check if the current session is an orchestrator making a direct call.
  *
  * Detection:
@@ -223,6 +346,49 @@ function isOrchestratorCall(sessionId: string): { isOrchestrator: boolean; activ
         // Sub-agent is active - this call is from sub-agent
         log(sessionId, 'subagent-active', { agent: state.active_agent.agent_type, spec: state.active_agent.spec_id });
         return { isOrchestrator: false, activeAgent: state.active_agent };
+    }
+
+    // Recovery: After context compaction, a sub-agent session may continue
+    // with active_agent cleared (post-agent-validator cleared it when the
+    // previous sub-agent context ended). Check if the session directory has
+    // a workflow.yaml file (indicating work was started) — if so, this is
+    // likely a continued sub-agent that needs its active_agent restored.
+    const sessionDir = join(SESSIONS_DIR, sessionId);
+    const workflowFile = join(sessionDir, 'workflow.yaml');
+    if (existsSync(workflowFile)) {
+        const specId = state.workflow.current_phase || 'S3';
+
+        // Reconstruct paths from the execution spec to avoid empty allowed_paths bypass
+        const { allowedPaths, blockedPaths } = reconstructPathsFromSpec(sessionId, sessionDir, specId);
+
+        const recoveredAgent: ActiveAgent = {
+            agent_type: 'ark-developer',
+            spec_id: specId,
+            invoked_at: new Date().toISOString(),
+            expected_artifacts: ['detailed_report.md', 'test-evidence.md', '_result.json'],
+            allowed_tools: ['Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'Bash', 'TodoWrite', 'Task', 'Agent', 'Skill'],
+            allowed_paths: allowedPaths,
+            blocked_paths: blockedPaths
+        };
+
+        // Persist the recovery to state file
+        try {
+            state.active_agent = recoveredAgent;
+            const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
+            writeFileSync(stateFile, JSON.stringify(state, null, 2));
+            log(sessionId, 'subagent-recovered', {
+                reason: 'Context compaction recovery - workflow in active phase',
+                agent: recoveredAgent.agent_type,
+                phase: state.workflow.current_phase,
+                workflow_status: state.workflow.status,
+                allowed_paths: allowedPaths,
+                blocked_paths: blockedPaths
+            });
+        } catch (e: any) {
+            log(sessionId, 'recovery-write-error', e.message);
+        }
+
+        return { isOrchestrator: false, activeAgent: recoveredAgent };
     }
 
     // No active agent - this is orchestrator's own call
@@ -369,10 +535,28 @@ async function main() {
                 console.error(getOrchestratorReminder());
                 process.exit(2);
             }
+
+            // Block orchestrator from WRITING to agent-only artifact directories.
+            // These dirs (artifacts/implement/, artifacts/test/) should only be written
+            // by sub-agents. If the orchestrator tries to write here, it's self-implementing
+            // instead of delegating — which violates its role.
+            if (WRITE_TOOLS.includes(toolName)) {
+                const normalizedPath = resolveToAbsolute(filePath);
+                const isAgentOnlyDir = AGENT_ONLY_ARTIFACT_DIRS.some(
+                    dir => normalizedPath.includes(dir)
+                );
+                if (isAgentOnlyDir) {
+                    const reason = 'Implementation artifacts can only be written by sub-agents. Retry via a new agent invocation instead of self-implementing.';
+                    log(sessionId, 'blocked-agent-only-path', { tool: toolName, path: filePath, reason });
+                    console.error(`❌ ${reason}`);
+                    process.exit(2);
+                }
+            }
         }
 
-        // Task tool - validate sub-agent type
-        if (toolName === 'Task') {
+        // Task/Agent tool - validate sub-agent type
+        // (Claude Code renamed Task → Agent in newer versions)
+        if (toolName === 'Task' || toolName === 'Agent') {
             const subagentType = toolInput.subagent_type || '';
 
             // Check if using a blocked default agent

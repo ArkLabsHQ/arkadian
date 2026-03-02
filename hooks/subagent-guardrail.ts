@@ -228,6 +228,38 @@ const ALWAYS_ALLOWED_PATHS = [
 ];
 
 /**
+ * Infrastructure paths that NO sub-agent can ever WRITE to.
+ * These protect the orchestrator's own hooks, agents, scripts, and runtime state.
+ * READ access remains allowed (agents legitimately read docs and reference files).
+ */
+const INFRASTRUCTURE_WRITE_BLOCKED_PATHS = [
+    join(ARKADIAN_DIR, 'hooks'),
+    join(ARKADIAN_DIR, 'scripts'),
+    join(ARKADIAN_DIR, 'agents'),
+    join(ARKADIAN_DIR, 'skills'),
+    join(ARKADIAN_DIR, 'commands'),
+    join(ARKADIAN_DIR, 'templates'),
+    join(ARKADIAN_DIR, 'ORCHESTRATOR.md'),
+    join(ARKADIAN_DIR, '.claude'),
+    ARKADIAN_DATA_DIR,
+];
+
+/**
+ * Check if a write to this path should be blocked by infrastructure protection.
+ * Returns true if the path is within any INFRASTRUCTURE_WRITE_BLOCKED_PATHS.
+ */
+function isInfrastructureWriteBlocked(filePath: string): boolean {
+    const absolutePath = resolveToAbsolute(filePath);
+    for (const infraPath of INFRASTRUCTURE_WRITE_BLOCKED_PATHS) {
+        const resolved = resolveToAbsolute(infraPath);
+        if (absolutePath === resolved || absolutePath.startsWith(resolved + '/')) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Check if a path is in the always-allowed system paths
  */
 function isSystemSafePath(filePath: string): boolean {
@@ -377,6 +409,17 @@ function validateSubagentCall(
 
             const absolutePath = resolveToAbsolute(path);
 
+            // Infrastructure protection: block writes to hooks, scripts, agents, etc.
+            if (isWrite && isInfrastructureWriteBlocked(path)) {
+                return {
+                    allowed: false,
+                    reason: `INFRASTRUCTURE PROTECTION: Cannot write to "${path}". ` +
+                        `This path is part of the Arkadian orchestrator infrastructure (hooks, scripts, agents, templates, or runtime state). ` +
+                        `Sub-agents must never modify orchestrator infrastructure. ` +
+                        `If you encountered an error with hooks, write your _result.json with status: "partial" and describe the issue.`
+                };
+            }
+
             // Check if path is in blocked_paths (main repo in worktree mode)
             if (isPathBlocked(path, activeAgent.blocked_paths)) {
                 if (isWrite) {
@@ -411,6 +454,17 @@ function validateSubagentCall(
             if (isSystemSafePath(path)) continue;
 
             const absolutePath = resolveToAbsolute(path);
+
+            // Infrastructure protection: block writes to hooks, scripts, agents, etc.
+            if (isWriteTool && isInfrastructureWriteBlocked(path)) {
+                return {
+                    allowed: false,
+                    reason: `INFRASTRUCTURE PROTECTION: Cannot ${toolName} to "${path}". ` +
+                        `This path is part of the Arkadian orchestrator infrastructure (hooks, scripts, agents, templates, or runtime state). ` +
+                        `Sub-agents must never modify orchestrator infrastructure. ` +
+                        `If you encountered an error with hooks, write your _result.json with status: "partial" and describe the issue.`
+                };
+            }
 
             // Check blocked paths (main repo in worktree mode)
             if (isPathBlocked(path, activeAgent.blocked_paths)) {
@@ -479,6 +533,26 @@ async function main() {
         }
 
         const activeAgent = state.active_agent;
+
+        // Staleness check: if active_agent was set more than 60 minutes ago,
+        // it's likely stale from a crashed/interrupted agent. Allow the call
+        // rather than enforcing stale restrictions from a different phase.
+        if (activeAgent.invoked_at) {
+            const invokedAt = new Date(activeAgent.invoked_at).getTime();
+            const now = Date.now();
+            const ageMinutes = (now - invokedAt) / (1000 * 60);
+            if (ageMinutes > 60) {
+                log(hookInput.session_id, 'stale-active-agent', {
+                    agent: activeAgent.agent_type,
+                    spec_id: activeAgent.spec_id,
+                    invoked_at: activeAgent.invoked_at,
+                    age_minutes: Math.round(ageMinutes),
+                    action: 'Allowing call — active_agent is stale (>60 min old)'
+                });
+                process.exit(0);
+            }
+        }
+
         log(hookInput.session_id, 'validating-subagent', {
             agent: activeAgent.agent_type,
             spec_id: activeAgent.spec_id,
@@ -487,8 +561,9 @@ async function main() {
             allowed_paths: activeAgent.allowed_paths
         });
 
-        // Special case: Task tool invocations need special handling
-        if (hookInput.tool_name === 'Task') {
+        // Special case: Task/Agent tool invocations need special handling
+        // (Claude Code renamed Task → Agent in newer versions)
+        if (hookInput.tool_name === 'Task' || hookInput.tool_name === 'Agent') {
             const prompt = hookInput.tool_input.prompt || '';
             const stepIdMatch = prompt.match(/step_id:\s*["']?(\S+)["']?/);
             const newStepId = stepIdMatch ? stepIdMatch[1] : null;

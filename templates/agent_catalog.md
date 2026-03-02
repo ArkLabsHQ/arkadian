@@ -6,7 +6,7 @@
 |-------|---------|
 | `ark-guru` | Q&A, concepts, internal docs, explanations |
 | `ark-project-manager` | specs, scoping, task trees, multi-agent workflows, acceptance criteria |
-| `ark-developer` | **Full-stack implementation agent**: code changes, fixes, debugging, implementation, AND testing. Uses `ark-ops` skill for commands. Uses `arkd-dev-loop` and `fulmine-dev-loop` skills for fast iteration. Runs tests internally with retry loop (up to 10 attempts). |
+| `ark-developer` | **Full-stack implementation agent**: code changes, fixes, debugging, implementation, AND testing. Uses `arkd-dev-loop` and `fulmine-dev-loop` skills for testing — the orchestrator specifies which skill and mode via `testing` field in the execution spec. Runs tests internally with retry loop (up to 10 attempts). |
 | `ark-researcher` | external research, prior art, API/library evaluation (fallback: ark-guru) |
 | `ark-pr-reviewer` | Reviewer's assistant: PR analysis, attention ranking, draft review comments, Ark-specific context, risk assessment. Prepares briefings for human reviewers. |
 | `ark-progress-tracker` | progress reports across 12 Ark projects, PR tracking via GitHub CLI, business value translation, cross-project coordination (has 4 modes: weekly, project-specific, feature, cross-project) |

@@ -182,15 +182,36 @@ function updateSessionState(sessionId: string, state: SessionState): boolean {
 }
 
 /**
- * Resolve artifact path relative to session directory
+ * Map context_intent to the standard artifact subfolder name.
  */
-function resolveArtifactPath(sessionId: string, artifactPath: string): string {
+const INTENT_TO_SUBFOLDER: Record<string, string> = {
+    'dev': 'implement',
+    'implement': 'implement',
+    'qna': 'explore',
+    'explore': 'explore',
+    'debug': 'investigate',
+    'monitoring': 'investigate',
+    'pr_review': 'review',
+    'research': 'research',
+    'progress': 'progress',
+};
+
+/**
+ * Resolve artifact path relative to session directory.
+ *
+ * @param sessionId - The session UUID
+ * @param artifactPath - The artifact path (absolute, session-relative, or bare filename)
+ * @param contextIntent - Optional context_intent from the active agent, used to resolve
+ *   bare filenames (e.g. "detailed_report.md") to the correct subfolder
+ *   (e.g. "artifacts/implement/detailed_report.md" for dev intent).
+ */
+function resolveArtifactPath(sessionId: string, artifactPath: string, contextIntent?: string): string {
     // If already absolute, use as-is
     if (artifactPath.startsWith('/')) {
         return artifactPath;
     }
 
-    // If starts with session-relative markers, resolve
+    // If starts with session-relative markers, resolve directly
     if (artifactPath.startsWith('artifacts/')) {
         return join(SESSIONS_DIR, sessionId, artifactPath);
     }
@@ -198,7 +219,25 @@ function resolveArtifactPath(sessionId: string, artifactPath: string): string {
         return join(SESSIONS_DIR, sessionId, artifactPath);
     }
 
-    // Default: assume relative to session artifacts
+    // Bare filename (e.g. "detailed_report.md", "_result.json"):
+    // Use context_intent to determine the correct subfolder
+    if (contextIntent) {
+        const subfolder = INTENT_TO_SUBFOLDER[contextIntent];
+        if (subfolder) {
+            return join(SESSIONS_DIR, sessionId, 'artifacts', subfolder, artifactPath);
+        }
+    }
+
+    // Fallback: try to find the file in known subfolders before defaulting
+    const knownSubfolders = ['implement', 'explore', 'qna', 'review', 'research', 'investigate', 'progress'];
+    for (const sub of knownSubfolders) {
+        const candidate = join(SESSIONS_DIR, sessionId, 'artifacts', sub, artifactPath);
+        if (existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    // Last resort: assume relative to session artifacts root
     return join(SESSIONS_DIR, sessionId, 'artifacts', artifactPath);
 }
 
@@ -220,7 +259,7 @@ function getArtifactPath(artifact: ExpectedArtifact): string {
 /**
  * Check if expected artifacts exist (Tier 1 - file existence)
  */
-function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifact[]): PhaseValidation {
+function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifact[], contextIntent?: string): PhaseValidation {
     const missing: string[] = [];
     const found: string[] = [];
 
@@ -231,7 +270,7 @@ function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifac
             continue;
         }
 
-        const resolvedPath = resolveArtifactPath(sessionId, artifactPath);
+        const resolvedPath = resolveArtifactPath(sessionId, artifactPath, contextIntent);
 
         if (existsSync(resolvedPath)) {
             found.push(artifactPath);
@@ -252,38 +291,71 @@ function validateArtifacts(sessionId: string, expectedArtifacts: ExpectedArtifac
 
 /**
  * Load _result.json from the session artifacts directory.
- * Searches multiple locations: artifacts root, per-step subfolder, and direct paths.
+ *
+ * Search priority:
+ * 1. Context-intent-specific subfolder (e.g., implement/ for dev, explore/ for qna)
+ * 2. Step-ID-named subfolder
+ * 3. Agent-type validation: if found, verify the `agent` field matches the expected agent
+ *
+ * CRITICAL: The search MUST verify the agent field to prevent cross-contamination
+ * (e.g., finding guru's _result.json when looking for developer's).
  */
-function loadResultJson(sessionId: string, specId: string): ResultJson | null {
+function loadResultJson(sessionId: string, specId: string, agentType?: string, contextIntent?: string): ResultJson | null {
     const artifactsDir = join(SESSIONS_DIR, sessionId, 'artifacts');
 
-    // Search locations for _result.json
-    const searchPaths = [
-        join(artifactsDir, '_result.json'),
-        join(artifactsDir, specId.toLowerCase(), '_result.json'),
-        join(artifactsDir, 'implement', '_result.json'),
-        join(artifactsDir, 'explore', '_result.json'),
-        join(artifactsDir, 'qna', '_result.json'),
-        join(artifactsDir, 'review', '_result.json'),
-        join(artifactsDir, 'research', '_result.json'),
-        join(artifactsDir, 'investigate', '_result.json'),
-        join(artifactsDir, 'progress', '_result.json'),
-    ];
+    // Build prioritized search paths: context_intent subfolder first
+    const searchPaths: string[] = [];
+
+    // Priority 1: Context-intent-specific subfolder
+    if (contextIntent) {
+        const subfolder = INTENT_TO_SUBFOLDER[contextIntent];
+        if (subfolder) {
+            searchPaths.push(join(artifactsDir, subfolder, '_result.json'));
+        }
+    }
+
+    // Priority 2: Step-ID-named subfolder
+    searchPaths.push(join(artifactsDir, specId.toLowerCase(), '_result.json'));
+
+    // Priority 3: Artifacts root
+    searchPaths.push(join(artifactsDir, '_result.json'));
+
+    // Priority 4: All known subfolders (fallback)
+    const allSubfolders = ['implement', 'explore', 'qna', 'review', 'research', 'investigate', 'progress'];
+    for (const sub of allSubfolders) {
+        const path = join(artifactsDir, sub, '_result.json');
+        if (!searchPaths.includes(path)) {
+            searchPaths.push(path);
+        }
+    }
 
     for (const searchPath of searchPaths) {
         if (existsSync(searchPath)) {
             try {
                 const content = readFileSync(searchPath, 'utf-8');
-                const parsed = JSON.parse(content);
-                log(sessionId, 'result-json-found', { path: searchPath });
-                return parsed as ResultJson;
+                const parsed = JSON.parse(content) as ResultJson;
+
+                // CRITICAL: Verify the agent field matches to prevent cross-contamination
+                // e.g., don't return guru's _result.json when validating developer
+                if (agentType && parsed.agent && parsed.agent !== agentType) {
+                    log(sessionId, 'result-json-agent-mismatch', {
+                        path: searchPath,
+                        expected_agent: agentType,
+                        found_agent: parsed.agent,
+                        skipping: true
+                    });
+                    continue; // Skip this file, try next search path
+                }
+
+                log(sessionId, 'result-json-found', { path: searchPath, agent: parsed.agent });
+                return parsed;
             } catch (e: any) {
                 log(sessionId, 'result-json-parse-error', { path: searchPath, error: e.message });
             }
         }
     }
 
-    log(sessionId, 'result-json-not-found', { searched: searchPaths.length });
+    log(sessionId, 'result-json-not-found', { searched: searchPaths.length, agent: agentType });
     return null;
 }
 
@@ -418,12 +490,12 @@ async function main() {
         // ═══════════════════════════════════════════════
         // TIER 1: File existence check (existing logic)
         // ═══════════════════════════════════════════════
-        const validation = validateArtifacts(hookInput.session_id, activeAgent.expected_artifacts);
+        const validation = validateArtifacts(hookInput.session_id, activeAgent.expected_artifacts, activeAgent.context_intent);
 
         // ═══════════════════════════════════════════════
         // TIER 2: Load _result.json
         // ═══════════════════════════════════════════════
-        const resultJson = loadResultJson(hookInput.session_id, specId);
+        const resultJson = loadResultJson(hookInput.session_id, specId, activeAgent.agent_type, activeAgent.context_intent);
 
         // Get retry count from previous phase state
         const previousRetryCount = state.phases[specId]?.retry_count || 0;
@@ -453,7 +525,7 @@ async function main() {
         } else {
             // Run contract-driven validation
             const artifactsDir = join(SESSIONS_DIR, hookInput.session_id, 'artifacts');
-            const contractResult = validateAgentResult(activeAgent.agent_type, resultJson, artifactsDir);
+            const contractResult = validateAgentResult(activeAgent.agent_type, resultJson, artifactsDir, activeAgent.context_intent);
 
             // Compute outcome
             let outcome: ValidationOutcome;

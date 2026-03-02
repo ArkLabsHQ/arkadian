@@ -8,6 +8,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'fs';
+import { join } from 'path';
 
 // ========================================
 // INTERFACES
@@ -197,6 +198,23 @@ export const AGENT_CONTRACTS: Record<string, AgentContract> = {
 };
 
 // ========================================
+// CONTEXT-INTENT ARTIFACT OVERRIDES
+// ========================================
+// Some agents produce different artifacts depending on the context_intent.
+// For example, ark-guru in "dev" mode produces assessment.yaml (in explore/),
+// while in "qna" mode it produces qna/response.md.
+
+const ARTIFACT_OVERRIDES: Record<string, Record<string, ArtifactRequirement[]>> = {
+    'ark-guru': {
+        'dev': [
+            { path: 'explore/assessment.yaml', minBytes: 100 },
+            { path: 'explore/response.md', minBytes: 200 },
+        ],
+        // qna mode uses the default from GURU_CONTRACT (qna/response.md)
+    },
+};
+
+// ========================================
 // VALIDATION FUNCTIONS
 // ========================================
 
@@ -238,22 +256,20 @@ function checkHardGate(check: ValidationCheck, result: ResultJson): ValidationFa
             break;
 
         case 'HG-DEV-03':
-            // manual_test_passed must be true
+            // manual_test_passed must be true — NO partial bypass
+            // Setting status=partial does NOT exempt from manual testing.
+            // The agent must actually start infrastructure and test the feature.
             if (value !== true) {
-                // Allow if status=partial (agent acknowledged it couldn't test)
-                if (result.status !== 'partial') {
-                    return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true — must manually test the feature)` };
-                }
+                return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true — must manually test the feature via CLI/API/curl. Setting status=partial does not bypass this gate.)` };
             }
             break;
 
         case 'HG-DEV-04':
-            // integration_test_written must be true
+            // integration_test_written must be true — NO partial bypass
+            // Setting status=partial does NOT exempt from writing integration tests.
+            // The agent must follow the dev-loop skill to set up infrastructure and run tests.
             if (value !== true) {
-                // Allow if status=partial (agent acknowledged it couldn't write tests)
-                if (result.status !== 'partial') {
-                    return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true — must write at least one integration test)` };
-                }
+                return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true — must write and run at least one integration test. Setting status=partial does not bypass this gate.)` };
             }
             break;
 
@@ -447,27 +463,161 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Patterns in test-evidence.md that indicate tests were NOT actually run.
+ * If an agent claims integration_test_written=true or manual_test_passed=true
+ * but test-evidence.md contains these patterns, the claim is fraudulent.
+ */
+const NOT_RUN_PATTERNS = [
+    /\bNOT RUN\b/i,
+    /\bNOT EXECUTED\b/i,
+    /\bSKIPPED.*requires infrastructure\b/i,
+    /\bStatus:\s*NOT RUN\b/i,
+    /\bnot available in this environment\b/i,
+    /\brequires running (?:arkd|infrastructure|nigiri)\b/i,
+];
+
+/**
+ * Cross-validate _result.json boolean claims against actual test-evidence.md content.
+ *
+ * Detects when an agent sets integration_test_written=true or manual_test_passed=true
+ * in _result.json, but test-evidence.md reveals the tests were never actually run.
+ */
+function crossValidateTestEvidence(
+    artifactsDir: string,
+    result: ResultJson
+): ValidationFailure[] {
+    const failures: ValidationFailure[] = [];
+
+    // Only applies to ark-developer
+    if (result.agent !== 'ark-developer') return failures;
+
+    // Find test-evidence.md
+    const evidencePaths = [
+        join(artifactsDir, 'implement', 'test-evidence.md'),
+        join(artifactsDir, 'test-evidence.md'),
+    ];
+    let evidenceContent: string | null = null;
+    for (const p of evidencePaths) {
+        if (existsSync(p)) {
+            try {
+                evidenceContent = readFileSync(p, 'utf-8');
+                break;
+            } catch { /* ignore read errors */ }
+        }
+    }
+
+    if (!evidenceContent) return failures; // No evidence file to cross-validate
+
+    // Extract Integration Test and Manual Testing sections for targeted scanning
+    const integrationSection = extractSection(evidenceContent, 'Integration Test');
+    const manualSection = extractSection(evidenceContent, 'Manual Test');
+
+    // Cross-validate integration_test_written
+    const claimsIntegration = result.agent_specific?.integration_test_written === true;
+    if (claimsIntegration && integrationSection) {
+        for (const pattern of NOT_RUN_PATTERNS) {
+            if (pattern.test(integrationSection)) {
+                failures.push({
+                    check: {
+                        id: 'HG-DEV-04-XVAL',
+                        field: 'agent_specific.integration_test_written',
+                        severity: 'hard',
+                        description: 'Integration test claim contradicts test-evidence.md content',
+                        remediation: 'Agent claimed integration_test_written=true but test-evidence.md shows integration tests were NOT RUN. Must actually run integration tests and capture real output.',
+                    },
+                    actual: `_result.json says true, but test-evidence.md says: "${integrationSection.substring(0, 200).trim()}"`,
+                    message: 'Cross-validation FAILED: integration_test_written=true in _result.json but test-evidence.md contains "NOT RUN" or equivalent for integration tests',
+                });
+                break; // One failure is enough
+            }
+        }
+    }
+
+    // Cross-validate manual_test_passed
+    const claimsManual = result.agent_specific?.manual_test_passed === true;
+    if (claimsManual && manualSection) {
+        for (const pattern of NOT_RUN_PATTERNS) {
+            if (pattern.test(manualSection)) {
+                failures.push({
+                    check: {
+                        id: 'HG-DEV-03-XVAL',
+                        field: 'agent_specific.manual_test_passed',
+                        severity: 'hard',
+                        description: 'Manual test claim contradicts test-evidence.md content',
+                        remediation: 'Agent claimed manual_test_passed=true but test-evidence.md shows manual tests were NOT RUN. Must actually test the feature via CLI/API/curl and capture real output.',
+                    },
+                    actual: `_result.json says true, but test-evidence.md says: "${manualSection.substring(0, 200).trim()}"`,
+                    message: 'Cross-validation FAILED: manual_test_passed=true in _result.json but test-evidence.md contains "NOT RUN" or equivalent for manual tests',
+                });
+                break;
+            }
+        }
+    }
+
+    return failures;
+}
+
+/**
+ * Extract a markdown section by heading name (case-insensitive).
+ * Returns content from the heading to the next heading of same or higher level, or end of string.
+ */
+function extractSection(content: string, headingName: string): string | null {
+    const headingPattern = new RegExp(`^(#{1,3})\\s+.*${escapeRegex(headingName)}.*$`, 'mi');
+    const match = headingPattern.exec(content);
+    if (!match) return null;
+
+    const headingLevel = match[1].length;
+    const startIdx = match.index + match[0].length;
+
+    // Find next heading of same or higher level
+    const nextHeadingPattern = new RegExp(`^#{1,${headingLevel}}\\s+`, 'm');
+    const remaining = content.substring(startIdx);
+    const nextMatch = nextHeadingPattern.exec(remaining);
+    const endIdx = nextMatch ? startIdx + nextMatch.index : content.length;
+
+    return content.substring(startIdx, endIdx).trim();
+}
+
+/**
  * Run the full agent contract validation against a _result.json.
+ *
+ * @param agentType - The agent type (e.g. 'ark-developer')
+ * @param result - The parsed _result.json
+ * @param artifactsDir - Base artifacts directory (e.g. sessions/<id>/artifacts/)
+ * @param contextIntent - Optional context_intent for resolving artifact subfolders
  */
 export function validateAgentResult(
     agentType: string,
     result: ResultJson,
-    artifactsDir: string
+    artifactsDir: string,
+    contextIntent?: string
 ): { failures: ValidationFailure[]; warnings: ValidationFailure[]; artifactChecks: ExtendedValidationResult['artifact_checks'] } {
-    const contract = AGENT_CONTRACTS[agentType];
+    const baseContract = AGENT_CONTRACTS[agentType];
     const failures: ValidationFailure[] = [];
     const warnings: ValidationFailure[] = [];
     const artifactChecks: ExtendedValidationResult['artifact_checks'] = [];
 
-    if (!contract) {
+    if (!baseContract) {
         return { failures, warnings, artifactChecks };
     }
+
+    // Apply context-intent artifact overrides if available
+    const overrides = contextIntent ? ARTIFACT_OVERRIDES[agentType]?.[contextIntent] : undefined;
+    const contract: AgentContract = overrides
+        ? { ...baseContract, requiredArtifacts: overrides }
+        : baseContract;
 
     // Check hard gates
     for (const gate of contract.hardGates) {
         const failure = checkHardGate(gate, result);
         if (failure) failures.push(failure);
     }
+
+    // Cross-validate test evidence content against _result.json claims
+    // This catches agents that set integration_test_written=true / manual_test_passed=true
+    // while test-evidence.md reveals the tests were never actually run.
+    const xvalFailures = crossValidateTestEvidence(artifactsDir, result);
+    failures.push(...xvalFailures);
 
     // Check warnings
     for (const warn of contract.warnings) {
@@ -476,10 +626,46 @@ export function validateAgentResult(
     }
 
     // Check required artifacts with content inspection
+    // Resolve paths using context_intent subfolder, with fallback search
+    const INTENT_SUBFOLDER: Record<string, string> = {
+        'dev': 'implement', 'implement': 'implement',
+        'qna': 'explore', 'explore': 'explore',
+        'debug': 'investigate', 'monitoring': 'investigate',
+        'pr_review': 'review', 'research': 'research', 'progress': 'progress',
+    };
+    const knownSubfolders = ['implement', 'explore', 'qna', 'review', 'research', 'investigate', 'progress'];
+
     for (const artifact of contract.requiredArtifacts) {
-        const resolvedPath = artifact.path.startsWith('/')
-            ? artifact.path
-            : `${artifactsDir}/${artifact.path}`;
+        let resolvedPath: string;
+        if (artifact.path.startsWith('/')) {
+            resolvedPath = artifact.path;
+        } else {
+            // Check if the path already includes a subfolder (e.g., "explore/assessment.yaml")
+            const hasSubfolder = artifact.path.includes('/');
+
+            if (hasSubfolder) {
+                // Path already includes subfolder — resolve directly from artifactsDir
+                resolvedPath = join(artifactsDir, artifact.path);
+            } else {
+                // Bare filename — use context_intent subfolder
+                const subfolder = contextIntent ? INTENT_SUBFOLDER[contextIntent] : undefined;
+                if (subfolder) {
+                    resolvedPath = join(artifactsDir, subfolder, artifact.path);
+                } else {
+                    resolvedPath = join(artifactsDir, artifact.path);
+                }
+            }
+            // If not found, search known subfolders (only for bare filenames)
+            if (!existsSync(resolvedPath) && !hasSubfolder) {
+                for (const sub of knownSubfolders) {
+                    const candidate = join(artifactsDir, sub, artifact.path);
+                    if (existsSync(candidate)) {
+                        resolvedPath = candidate;
+                        break;
+                    }
+                }
+            }
+        }
         const check = validateArtifactContent(resolvedPath, artifact.minBytes, artifact.requiredHeadings);
         artifactChecks.push({ path: artifact.path, ...check });
 

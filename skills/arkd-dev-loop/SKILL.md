@@ -1,11 +1,11 @@
 ---
 name: arkd-dev-loop
-description: Fast iteration loop for developing arkd locally. Start dependencies in Docker, run arkd locally, test with single e2e tests, check logs, fix, repeat.
+description: Fast iteration loop for developing arkd locally. Smart pre-flight detects running services, sets up infrastructure, manages wallet state, then iterates with build-test-fix cycles including mandatory log capture.
 ---
 
 # Arkd Dev Loop
 
-Fast-iteration development workflow for arkd: run dependencies in Docker, run arkd locally, iterate with single tests.
+Fast-iteration development workflow for arkd: smart pre-flight checks, infrastructure setup, wallet management, and a build-test-fix iteration loop with mandatory log capture.
 
 ## Prerequisites
 
@@ -14,97 +14,103 @@ Fast-iteration development workflow for arkd: run dependencies in Docker, run ar
 - Go toolchain
 - arkd repo at `${ARKD_REPO}`
 
-## Step 0: Pre-Flight Checks
+## Section 1: Pre-Flight Checks
 
-Before starting anything, check what's already running and adapt:
+Before starting anything, detect what's already running and decide how to adapt.
+
+### 1a. Service Detection
 
 ```bash
-# Check if nigiri is already running
-curl -s http://localhost:3000/api/blocks/tip/height && echo " -> Nigiri already running, skip Step 1"
+# Check if nigiri/Esplora is already running
+curl -s http://localhost:3000/api/blocks/tip/height && echo " -> Esplora responding"
 
-# Check if docker deps are running
-docker ps --format '{{.Names}}' | grep -E 'nbxplorer|pgnbxplorer' && echo " -> Docker deps already running, skip Step 2"
+# Check if Docker deps are running
+docker ps --format '{{.Names}}' | grep -E 'nbxplorer|pgnbxplorer' && echo " -> Docker deps running"
 
 # Check if arkd-wallet is running
-curl -s http://localhost:6060/v1/wallet/status 2>/dev/null && echo " -> arkd-wallet already running, skip Step 3"
+curl -s http://localhost:6060/v1/wallet/status 2>/dev/null && echo " -> arkd-wallet responding"
 
-# Check if arkd is running (locally or in docker)
-curl -s http://localhost:7070/v1/info 2>/dev/null && echo " -> arkd already running on :7070"
+# Check if arkd is running (locally or in Docker)
+curl -s http://localhost:7070/v1/info 2>/dev/null && echo " -> arkd responding on :7070"
 
-# Check if arkd is running in docker (need to stop it for local dev)
-docker ps --format '{{.Names}}' | grep -w arkd && echo " -> arkd running in Docker, stop it: docker stop arkd"
+# Check if arkd is running in Docker (need to stop for local dev)
+docker ps --format '{{.Names}}' | grep -w arkd && echo " -> arkd running in Docker"
 
 # Check for port conflicts
-lsof -i :7070 -i :7071 -i :6060 2>/dev/null | grep LISTEN && echo " -> Ports in use, check what's occupying them"
+lsof -i :7070 -i :7071 -i :6060 2>/dev/null | grep LISTEN && echo " -> Ports in use"
 ```
 
-**Decision tree:**
-- Nigiri running? Skip to Step 2
-- Docker deps running? Skip to Step 3
-- arkd in Docker? `docker stop arkd` then run locally
-- arkd-wallet in Docker? `docker stop arkd-wallet` then run locally
-- arkd already running locally? Ctrl+C and restart with your changes
-- Wallet already initialized? Skip to "Unlock and Fund" in Step 5
+### 1b. Health Classification
 
-## Step 1: Start Nigiri (Bitcoin Regtest)
+For each detected service, classify its state:
+
+| Service State | Action |
+|--------------|--------|
+| Running + healthy + correct config | **Reuse** — skip setup for that service |
+| Running in Docker but need local | `docker stop <service>` then run locally |
+| Port in use by unknown process | **STOP** — report conflict, ask user |
+| Not running | Start normally |
+
+### 1c. Wallet State Detection
+
+```bash
+# Check arkd admin wallet status
+curl -s http://localhost:7071/v1/admin/wallet/status | jq .
+# Returns: {"initialized": bool, "unlocked": bool, "synced": bool}
+```
+
+- If `initialized: true, unlocked: true, synced: true` → skip wallet setup entirely
+- If `initialized: true, unlocked: false` → just unlock
+- If `initialized: false` → full wallet creation needed
+
+## Section 2: Infrastructure Setup
+
+Consolidate all infrastructure into one section. **Skip any service detected as healthy in pre-flight.**
+
+### Start Nigiri (skip if Esplora already responding on :3000)
 
 ```bash
 nigiri start
 ```
 
-Wait ~10s for Bitcoin and Esplora to be ready:
+Wait for Esplora:
 
 ```bash
-# Poll until Esplora responds
 until curl -s http://localhost:3000/api/blocks/tip/height > /dev/null 2>&1; do sleep 2; done
 echo "Nigiri ready"
 ```
 
-## Step 2: Start ONLY arkd Dependencies via Docker Compose
-
-Start postgres-for-nbxplorer and nbxplorer, but NOT arkd-wallet or arkd:
-
-```bash
-cd ${ARKD_REPO}
-docker compose -f docker-compose.regtest.yml up -d pgnbxplorer nbxplorer
-```
-
-Wait for nbxplorer to sync:
-
-```bash
-# Poll until synced (may take 15-30s)
-until curl -s http://localhost:32838/v1/cryptos/BTC/status 2>/dev/null | jq -e '.isFullySynced == true' > /dev/null 2>&1; do
-  sleep 3
-done
-echo "NBXplorer synced"
-```
-
-If arkd or arkd-wallet containers are also running from a previous `docker-compose up`:
-```bash
-docker stop arkd arkd-wallet 2>/dev/null
-```
-
-## Step 3: Run arkd-wallet Locally
+### Start arkd-wallet (skip if already responding on :6060)
 
 ```bash
 cd ${ARKD_REPO}
 make run-wallet
 ```
 
+**NOTE:** `make run-wallet` automatically starts Docker deps (`pg`, `nbxplorer`) via `docker compose -f docker-compose.regtest.yml up -d pg nbxplorer`. Do NOT start Docker deps separately.
+
 Uses `envs/arkd-wallet.regtest.env` → points at `localhost:32838` for nbxplorer.
 
-Verify (in another terminal):
+Wait for arkd-wallet:
+
 ```bash
-curl -s http://localhost:6060/v1/wallet/status | jq .
+until curl -s http://localhost:6060/v1/wallet/status 2>/dev/null > /dev/null; do sleep 2; done
+echo "arkd-wallet ready"
 ```
 
-## Step 4: Run arkd Locally
+### Run arkd Locally (redirect output to log file — MANDATORY)
 
-### Light Mode (fastest, no PostgreSQL/Redis needed):
+If arkd is running in Docker, stop it first:
+
+```bash
+docker stop arkd 2>/dev/null
+```
+
+#### Light Mode (fastest, no PostgreSQL/Redis needed):
 
 ```bash
 cd ${ARKD_REPO}
-make run-light
+make run-light 2>&1 | tee /tmp/arkd-dev.log
 ```
 
 Uses `envs/arkd.light.env`. Key env vars:
@@ -113,26 +119,28 @@ Uses `envs/arkd.light.env`. Key env vars:
 - `ARKD_DB_TYPE=sqlite`, `ARKD_LIVE_STORE_TYPE=inmemory`
 - `ARKD_SESSION_DURATION=10`
 
-### Full Mode (PostgreSQL + Redis):
+#### Full Mode (PostgreSQL + Redis):
 
 ```bash
 cd ${ARKD_REPO}
-make run
+make run 2>&1 | tee /tmp/arkd-dev.log
 ```
 
 Uses `envs/arkd.dev.env`. Requires PostgreSQL at `:5433` and Redis at `:6379` (auto-started by `make run`).
 
-Verify arkd is running:
+### Verify All Services Healthy
 
 ```bash
-curl -s http://localhost:7070/v1/info | jq .
+curl -s http://localhost:3000/api/blocks/tip/height > /dev/null && echo "Esplora OK"
+curl -s http://localhost:6060/v1/wallet/status > /dev/null && echo "arkd-wallet OK"
+curl -s http://localhost:7070/v1/info | jq . && echo "arkd OK"
 ```
 
-## Step 5: arkd Wallet Operations
+## Section 3: Wallet Setup
 
-All admin endpoints use `http://localhost:7071` with basic auth header `Authorization: Basic YWRtaW46YWRtaW4=` (admin:admin).
+**CRITICAL: arkd will not function correctly without a funded wallet. This is the #1 cause of test failures.**
 
-### Check wallet status (do this first to decide what's needed)
+### Check wallet status first
 
 ```bash
 curl -s http://localhost:7071/v1/admin/wallet/status | jq .
@@ -160,7 +168,7 @@ curl -X POST http://localhost:7071/v1/admin/wallet/unlock \
   -d '{"password":"password"}'
 ```
 
-### Fund the wallet (top up):
+### Fund the wallet (CRITICAL — always check balance and top up):
 
 ```bash
 # Check current balance
@@ -190,52 +198,61 @@ curl -X POST http://localhost:7071/v1/admin/note \
 # Returns: {"note": "ark:..."}
 ```
 
-## Step 6: Manual Testing
+## Section 4: Development & Test Iteration Loop
 
-```bash
-# Server info (public gRPC gateway)
-curl -s http://localhost:7070/v1/info | jq .
+This is the core of the skill. Repeat this cycle until all tests pass.
 
-# List rounds
-curl -s http://localhost:7071/v1/admin/rounds | jq .
+```
+REPEAT:
+  a. Write/modify code for bug fix or feature
 
-# grpcurl (if installed)
-grpcurl -plaintext localhost:7070 ark.v1.ArkService/GetInfo
-grpcurl -plaintext localhost:7070 list  # list all services
+  b. Write unit test where suitable:
+     go test -v -count=1 ./internal/path/to/package/...
+
+  c. Write e2e test in internal/test/e2e/ following existing patterns
+
+  d. Restart arkd (Ctrl+C → make run-light 2>&1 | tee /tmp/arkd-dev.log)
+     NOTE: arkd-wallet and Docker deps stay running — do NOT restart them
+
+  e. Run specific e2e test:
+     go test -v -count=1 -run TestName -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
+
+  f. MANDATORY: Read BOTH test output AND arkd logs:
+     - Terminal: test assertions and failures
+     - /tmp/arkd-dev.log: panics, errors, unexpected warnings
+     - tail -100 /tmp/arkd-dev.log | grep -i "error\|panic\|fatal"
+
+  g. If test fails → fix code → go back to (a)
+
+  h. If test passes → verify no errors in arkd logs → done
 ```
 
-## Step 7: Run a SINGLE E2E Test
+**Key rules:**
+- Always redirect arkd output to `/tmp/arkd-dev.log` via `tee`
+- At EVERY iteration, check both test output AND arkd logs
+- `TestMain` in e2e tests auto-handles wallet state — it checks balance and refills if below 15 BTC threshold. Your wallet just needs to be unlocked.
+- arkd-wallet and Docker deps stay running between iterations — only restart arkd itself
+
+### Running a specific sub-test:
 
 ```bash
-cd ${ARKD_REPO}
-
-# Run one specific test
-go test -v -count=1 -run TestBatchSession -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
-
-# Run a specific sub-test
 go test -v -count=1 -run "TestUnilateralExit/preconfirmed_vtxo" -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
+```
 
-# Run all integration tests (slow, use for final verification only)
+### Running all integration tests (slow, final verification only):
+
+```bash
 make integrationtest
 ```
 
-Note: `TestMain` in e2e tests auto-handles wallet state — it checks balance and refills if below 15 BTC threshold. Your wallet just needs to be unlocked.
+### If wallet state is corrupt, wipe and reinitialize:
 
-## Step 8: Iterate
-
-1. **Ctrl+C** arkd in its terminal
-2. Fix code
-3. Re-run: `make run-light` (or `make run`)
-4. Re-run the specific test
-5. Docker deps (nigiri, nbxplorer) and arkd-wallet stay running — no restart needed
-
-If wallet state is corrupt, wipe and reinitialize:
 ```bash
 rm -rf ${ARKD_REPO}/data/regtest
-# Then restart arkd and redo Step 5
+# Then restart arkd and redo Section 3 (Wallet Setup)
 ```
 
-## Step 9: Cleanup
+## Section 5: Cleanup
 
 ```bash
 # Stop arkd (Ctrl+C)

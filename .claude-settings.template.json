@@ -22,6 +22,7 @@
       "TodoWrite(*)",
       "ExitPlanMode(*)",
       "Task(*)",
+      "Agent(*)",
       "Skill(*)",
       "AskUserQuestion(*)",
       "mcp__*"
@@ -60,6 +61,15 @@
     "PreToolUse": [
       {
         "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/pre-agent-validator.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
         "hooks": [
           {
             "type": "command",
