@@ -1313,6 +1313,35 @@ testing:
 
 The testing skill contains the complete, validated procedure. Reference the skill, do not duplicate it. But DO repeat the hard requirements (integration test + manual test) because the agent may not follow the skill otherwise.
 
+#### 6. Lift e2e_test_to_write from assessment.yaml into spec (when present)
+
+Before building the implement-phase objective, read `assessment.yaml`. If it contains `e2e_test_to_write`:
+
+a. Replace the generic testing mandate in `objective` with a SPECIFIC one:
+   > "You MUST write a NEW test function named `{function_name}` in `{file}`.
+   > Do NOT re-use existing test names. Scenario: {scenario}.
+   > Invoke Skill("arkd-dev-loop") and follow the e2e test template in Section 4c."
+
+b. Add `new_e2e_test` to the `testing` field:
+   ```yaml
+   testing:
+     skill: "arkd-dev-loop"
+     new_e2e_test:
+       function_name: "<from assessment.yaml>"
+       file: "<from assessment.yaml>"
+       scenario: "<from assessment.yaml>"
+     requirements:
+       - "Write NEW function {function_name} — must NOT exist before implementation"
+       - "Run: go test -v -run {function_name} -timeout 800s .../test/e2e"
+       - "Capture output in test-evidence.md under '## Integration Test'"
+       - "Run existing integration tests for regression check"
+   ```
+
+c. Add to `success_criteria`:
+   ```yaml
+   - "New e2e test {function_name} written and passing"
+   ```
+
 ### Artifact Compaction for Implement Phases (MANDATORY for S3+)
 
 **Problem:** ark-developer has a finite context window. In medium/large features, the S3 (implement) execution spec plus upstream artifacts (assessment.yaml, spec.md, plan.md, tasks.md) plus source files can exhaust the agent's context before any implementation work begins.
@@ -1533,7 +1562,17 @@ Invoking agent...
 
 If a field cannot be derived, emit it as empty (`[]` or `{}`) but do NOT omit it.
 
-**NEVER use Bash**: You do not have access to the Bash tool. When saving specs or workflow files, use the `Write` tool directly — it automatically creates parent directories. Do NOT attempt `mkdir` via Bash.
+**Bash is restricted**: You cannot use Bash for general commands. When saving specs or workflow files, use the `Write` tool directly — it automatically creates parent directories. Do NOT attempt `mkdir` via Bash.
+
+**Exception — read-only `gh` CLI**: You CAN use Bash to run read-only GitHub CLI commands for fetching issue/PR context. Allowed patterns:
+- `gh issue view <number> --json title,body,labels,state,comments`
+- `gh issue list --repo org/repo --state open`
+- `gh pr view <number> --json title,body,files,commits`
+- `gh pr list --state open`
+- `gh api repos/org/repo/issues/<number>`
+- Piping to `jq`, `head`, `tail`, `grep` is allowed for output formatting
+
+**Blocked**: Any destructive `gh` operations (`close`, `edit`, `merge`, `create`, `comment`, `review`, `delete`, `--approve`, `--request-changes`). Command chaining (`&&`, `;`, `||`) and piping to arbitrary commands are also blocked.
 
 # Post-Agent Validation Handling
 

@@ -57,10 +57,75 @@ const PATH_RESTRICTED_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep'];
 
 // Tools that are BLOCKED for orchestrator (always blocked)
 const BLOCKED_TOOLS = [
-    'Bash',           // Orchestrator doesn't run commands
+    'Bash',           // Orchestrator doesn't run commands (except allowlisted gh commands)
     'NotebookEdit',   // Orchestrator doesn't edit notebooks
     'MultiEdit'       // Orchestrator doesn't multi-edit code
 ];
+
+// Allowlisted read-only `gh` subcommands for the orchestrator.
+// These let the orchestrator fetch GitHub issue/PR context without full Bash access.
+const GH_ALLOWED_SUBCOMMANDS = ['issue', 'pr', 'api', 'release', 'repo'];
+
+// Destructive gh action subcommands that are NEVER allowed for the orchestrator.
+// These appear as the action word after `gh <resource>` (e.g., `gh issue close`, `gh pr merge`).
+const GH_BLOCKED_ACTIONS = [
+    'close', 'edit', 'delete', 'merge', 'reopen', 'create',
+    'comment', 'review', 'ready', 'lock', 'unlock', 'transfer',
+    'pin', 'unpin', 'develop', 'label',
+];
+
+// Destructive gh flags that are NEVER allowed for the orchestrator.
+const GH_BLOCKED_FLAGS = [
+    '--delete', '--edit', '--close', '--merge', '--reopen',
+    '--approve', '--request-changes', '--comment',
+    '-d',  // short for --delete in some contexts
+];
+
+/**
+ * Check if a Bash command is an allowlisted read-only `gh` command.
+ * Returns true if the command should be ALLOWED through the Bash block.
+ */
+function isAllowlistedGhCommand(command: string): boolean {
+    const trimmed = command.trim();
+
+    // Must start with "gh "
+    if (!trimmed.startsWith('gh ')) return false;
+
+    // Extract the subcommand (first word after "gh")
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) return false;
+
+    const subcommand = parts[1];
+    if (!GH_ALLOWED_SUBCOMMANDS.includes(subcommand)) return false;
+
+    // Check the action word (third token, e.g., "close" in "gh issue close 942")
+    // For `gh api` the action word is the URL path, so skip this check for `api`
+    if (subcommand !== 'api' && parts.length >= 3) {
+        const action = parts[2];
+        if (GH_BLOCKED_ACTIONS.includes(action)) return false;
+    }
+
+    // Block any destructive flags anywhere in the command
+    for (const flag of GH_BLOCKED_FLAGS) {
+        if (trimmed.includes(flag)) return false;
+    }
+
+    // Block piping to other commands (prevents `gh ... | bash` etc.)
+    // Allow piping to jq/head/tail/grep for output formatting
+    if (trimmed.includes('|')) {
+        const pipeParts = trimmed.split('|').slice(1);
+        const SAFE_PIPE_TARGETS = ['jq', 'head', 'tail', 'grep', 'wc', 'sort', 'uniq', 'cut'];
+        for (const pipePart of pipeParts) {
+            const pipeCmd = pipePart.trim().split(/\s+/)[0];
+            if (!SAFE_PIPE_TARGETS.includes(pipeCmd)) return false;
+        }
+    }
+
+    // Block command chaining (&&, ;, ||) that could run arbitrary commands
+    if (/[;&]|(\|\|)/.test(trimmed.replace(/\|(?!\|)/g, ''))) return false;
+
+    return true;
+}
 
 // Allowed sub-agent types for Task tool
 const ALLOWED_SUBAGENT_TYPES = [
@@ -494,9 +559,15 @@ async function main() {
 
         // Check if tool is explicitly blocked
         if (BLOCKED_TOOLS.includes(toolName)) {
-            log(sessionId, 'blocked-tool', toolName);
+            // Special case: allow read-only `gh` commands through the Bash block
             if (toolName === 'Bash') {
                 const cmd = (toolInput.command || '').trim();
+                if (isAllowlistedGhCommand(cmd)) {
+                    log(sessionId, 'allowed-gh-command', { command: cmd });
+                    process.exit(0);
+                }
+
+                log(sessionId, 'blocked-tool', toolName);
                 if (cmd.startsWith('mkdir')) {
                     console.error(
                         '❌ Bash is blocked for the orchestrator. You do NOT need mkdir — ' +
@@ -507,10 +578,12 @@ async function main() {
                     console.error(
                         '❌ Bash is blocked for the orchestrator. ' +
                         'Use Write/Edit for files, Task for delegating to agents. ' +
-                        'If you need shell commands, delegate to ark-developer.'
+                        'If you need shell commands, delegate to ark-developer. ' +
+                        'Exception: read-only `gh` commands are allowed (e.g., gh issue view, gh pr view).'
                     );
                 }
             } else {
+                log(sessionId, 'blocked-tool', toolName);
                 console.error(getOrchestratorReminder());
             }
             process.exit(2);

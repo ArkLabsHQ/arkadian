@@ -223,6 +223,21 @@ Deeply analyze the affected codebase:
 4. Assess cross-project impact
 5. Output a `codebase_analysis` block with concrete file paths, function signatures, and line numbers
 
+### E3-TEST: E2E Test Gap Analysis (MANDATORY when context_intent == "dev" and project is arkd or go-sdk)
+
+Scan existing e2e test functions:
+```
+Grep: pattern="^func Test", path=${ARKD_REPO}/internal/test/e2e/
+```
+Record the function names in `codebase_analysis.test_coverage.existing_tests`.
+
+Decide: Does any existing test function SPECIFICALLY exercise the new feature's behavior?
+- If YES → `existing_tests_sufficient: true`, no `e2e_test_to_write` needed
+- If NO → `existing_tests_sufficient: false`, populate `e2e_test_to_write` with:
+  - A NEW function name that does NOT exist in the file
+  - The specific scenario (setup → action → assertion)
+  - Which helpers are needed
+
 ### E4: Produce Assessment (MANDATORY)
 
 Write `{artifacts_dir}/explore/assessment.yaml` with the following schema:
@@ -279,11 +294,26 @@ codebase_analysis:
     setup_complexity: "none" | "light" | "heavy"
 
 testing_recommendation:
-  strategy: "existing_tests" | "unit_tests" | "integration_tests" | "infra_setup" | "manual"
+  strategies:                           # list — can include multiple
+    - "unit_tests"
+    - "e2e_test_required"               # signals e2e_test_to_write is populated
   existing_tests_sufficient: true | false
   infra_required: true | false
   infra_complexity: "none" | "light" | "heavy"
   suggested_approach: "<description>"
+
+# Populated ONLY when existing_tests_sufficient: false
+# Guru MUST have scanned internal/test/e2e/ to produce this
+e2e_test_to_write:
+  function_name: "TestYourFeatureName"         # MUST NOT already exist
+  file: "internal/test/e2e/e2e_test.go"        # or new *_test.go in same dir
+  scenario: |
+    1. setupArkSDK(t) → alice
+    2. faucetOffchain(t, alice, 0.001)
+    3. <specific action exercising new feature>
+    4. require.<assertion>(t, <expected>, <actual>)
+  helpers_needed: ["setupArkSDK", "faucetOffchain", "generateBlocks"]
+  rationale: "Why this scenario tests the new behavior specifically"
 
 decisions_made:
   - question: "<what was ambiguous>"

@@ -86,6 +86,9 @@ const DEV_CONTRACT: AgentContract = {
         { id: 'HG-DEV-02', field: 'agent_specific.tests.failed', severity: 'hard', description: 'Zero test failures expected', remediation: 'Fix failing tests or set status=partial with justification' },
         { id: 'HG-DEV-03', field: 'agent_specific.manual_test_passed', severity: 'hard', description: 'Must manually test the feature', remediation: 'Run manual tests via CLI/API/curl, capture output in test-evidence.md, set manual_test_passed=true' },
         { id: 'HG-DEV-04', field: 'agent_specific.integration_test_written', severity: 'hard', description: 'Must write at least one integration test with happy path', remediation: 'Write and run at least one integration test covering the happy path, set integration_test_written=true' },
+        { id: 'HG-DEV-04-NEW', field: 'agent_specific.new_test_created', severity: 'hard',
+          description: 'Must create a NEW test function, not re-run existing tests',
+          remediation: 'Write a new test function. Set new_test_created=true only if the function in integration_test_name did not exist before. Running pre-existing tests does not satisfy this gate.' },
     ],
     warnings: [
         { id: 'W-DEV-01', field: 'agent_specific.tests.skipped', severity: 'warn', description: 'Skipped tests detected', remediation: 'Review whether skipped tests are intentional' },
@@ -270,6 +273,14 @@ function checkHardGate(check: ValidationCheck, result: ResultJson): ValidationFa
             // The agent must follow the dev-loop skill to set up infrastructure and run tests.
             if (value !== true) {
                 return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true — must write and run at least one integration test. Setting status=partial does not bypass this gate.)` };
+            }
+            break;
+
+        case 'HG-DEV-04-NEW':
+            // new_test_created must be true
+            if (value !== true) {
+                return { check, actual: value,
+                  message: `new_test_created = ${JSON.stringify(value)} (expected true — must write a NEW test function. Re-running TestSweep/TestBatchSession/etc does not count.)` };
             }
             break;
 
@@ -579,6 +590,70 @@ function extractSection(content: string, headingName: string): string | null {
 }
 
 /**
+ * Cross-validate that the claimed integration_test_name actually appears
+ * in test-evidence.md and shows a PASS result.
+ * This catches the exploit where agents re-run pre-existing tests and
+ * claim credit for "writing" them.
+ */
+function crossValidateNewTestFunction(
+    artifactsDir: string,
+    result: ResultJson
+): ValidationFailure[] {
+    const failures: ValidationFailure[] = [];
+    if (result.agent !== 'ark-developer') return failures;
+
+    const testName = result.agent_specific?.integration_test_name;
+    if (!testName || typeof testName !== 'string') return failures;
+
+    // Find test-evidence.md
+    const paths = [
+        join(artifactsDir, 'implement', 'test-evidence.md'),
+        join(artifactsDir, 'test-evidence.md'),
+    ];
+    let content: string | null = null;
+    for (const p of paths) {
+        if (existsSync(p)) {
+            try { content = readFileSync(p, 'utf-8'); break; } catch {}
+        }
+    }
+    if (!content) return failures;
+
+    const section = extractSection(content, 'Integration Test');
+    if (!section) return failures;
+
+    // Check: Does the specific function name appear in the section?
+    if (!section.includes(testName)) {
+        failures.push({
+            check: {
+                id: 'HG-DEV-04-SPEC', field: 'agent_specific.integration_test_name',
+                severity: 'hard',
+                description: 'Integration test evidence must show the specific new test function ran',
+                remediation: `test-evidence.md must contain "${testName}" in Integration Test section. Write and run that specific function.`,
+            },
+            actual: `"${testName}" not found in test-evidence.md Integration Test section`,
+            message: `Cross-validation FAILED: "${testName}" not in Integration Test section`,
+        });
+    }
+
+    // Check: Does the test show PASS?
+    const passPattern = new RegExp(`---\\s+PASS:\\s+${escapeRegex(testName)}`, 'i');
+    if (!passPattern.test(section)) {
+        failures.push({
+            check: {
+                id: 'HG-DEV-04-PASS', field: 'agent_specific.integration_test_name',
+                severity: 'hard',
+                description: 'New test function must show PASS in output',
+                remediation: `Run: go test -v -run ${testName} -timeout 800s .../test/e2e and capture "--- PASS: ${testName}" in test-evidence.md`,
+            },
+            actual: `"--- PASS: ${testName}" not found`,
+            message: `Cross-validation FAILED: No PASS for "${testName}"`,
+        });
+    }
+
+    return failures;
+}
+
+/**
  * Run the full agent contract validation against a _result.json.
  *
  * @param agentType - The agent type (e.g. 'ark-developer')
@@ -618,6 +693,10 @@ export function validateAgentResult(
     // while test-evidence.md reveals the tests were never actually run.
     const xvalFailures = crossValidateTestEvidence(artifactsDir, result);
     failures.push(...xvalFailures);
+
+    // Cross-validate that the named test function appears in test-evidence.md with PASS
+    const newTestFailures = crossValidateNewTestFunction(artifactsDir, result);
+    failures.push(...newTestFailures);
 
     // Check warnings
     for (const warn of contract.warnings) {

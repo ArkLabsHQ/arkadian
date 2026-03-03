@@ -901,6 +901,20 @@ tail -f ${ARKD_REPO}/logs/arkd.log | grep "your_feature"
 
 This is non-negotiable. If your feature adds a gRPC endpoint, there must be an integration test that calls it and verifies the response. If it adds a database migration, there must be a test that writes and reads the new data. The happy path must be confirmed working via a real test, not just manual verification.
 
+**CRITICAL: "Written" means a NEW function you created, not an existing one you ran.**
+
+If your execution spec contains `testing.new_e2e_test`:
+1. Grep to confirm function does NOT exist:
+   `grep -n "func {function_name}" ${ARKD_REPO}/internal/test/e2e/e2e_test.go`
+   Must return zero results. If it exists, invent a unique name.
+2. Invoke `Skill("arkd-dev-loop")` and follow the e2e test template in Section 4c.
+3. Create the function, run it, capture output in test-evidence.md.
+4. Set `integration_test_name` to EXACTLY the new function name.
+5. Set `new_test_created: true` in _result.json.
+
+Running pre-existing tests (TestSweep, TestBatchSession, etc.) does NOT satisfy this requirement.
+Those are for regression checking only.
+
 **You MUST also run existing integration tests to verify backward compatibility.**
 
 ```bash
@@ -1482,8 +1496,13 @@ PRE-ARTIFACT CHECKLIST:
        (e.g., Skill("arkd-dev-loop")) and follow its infrastructure setup.
      → If it failed: Retry up to 3 times. Document each error.
 
-□ 2. Did I run at least one integration/e2e test?
-     → If NO: Write one covering the happy path, then run it.
+□ 2. Did I WRITE a NEW e2e test function (not just run existing ones)?
+     → If spec has `testing.new_e2e_test.function_name`:
+       a. Grep the file — function must NOT already exist
+       b. Write it using template from Skill("arkd-dev-loop") Section 4c
+       c. Run: go test -v -run {function_name} -timeout 800s .../test/e2e
+       d. Set integration_test_name and new_test_created in _result.json
+     → Running TestSweep, TestBatchSession, etc. does NOT count as "written"
 
 □ 3. Did I manually test the feature via CLI/API/curl?
      → If NO: Start the service, call the relevant endpoint, verify behavior.
@@ -1775,6 +1794,8 @@ As your **ABSOLUTE LAST ACTION** before finishing, you MUST write a `_result.jso
     "manual_test_passed": true,
     "integration_test_written": true,
     "integration_test_name": "TestYourFeatureHappyPath",
+    "new_test_created": true,
+    "integration_test_file": "internal/test/e2e/e2e_test.go",
     "validation_attempts": 3,
     "files_changed": ["path/to/file1.go", "path/to/file2.go"]
   }
@@ -1792,6 +1813,7 @@ As your **ABSOLUTE LAST ACTION** before finishing, you MUST write a `_result.jso
 | `tests.failed == 0` | HARD | Zero test failures (or status=partial with justification) |
 | `manual_test_passed == true` | HARD | Must manually test the feature |
 | `integration_test_written == true` | HARD | Must write at least one integration test |
+| `new_test_created == true` | HARD | Must create new test function (HG-DEV-04-NEW) |
 | `manual_test_passed` cross-validated | HARD | test-evidence.md must NOT contain "NOT RUN" for manual tests when claiming true |
 | `integration_test_written` cross-validated | HARD | test-evidence.md must NOT contain "NOT RUN" for integration tests when claiming true |
 | `tests.skipped > 0` | WARN | Skipped tests are reported |

@@ -59,7 +59,9 @@ The tasks.md should be immediately executable - each task must be specific enoug
 
 **CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
 
-**Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature specification or if user requests TDD approach.
+**Test task rules:**
+- When `assessment.yaml` (from artifacts_in) contains `e2e_test_to_write`, generating a test task is **MANDATORY**. The task MUST reference the exact function name, file path, and scenario from `e2e_test_to_write`. Place it as the FINAL implementation task.
+- For all other cases, generate test tasks if the spec's success criteria include testing requirements.
 
 ### Checklist Format (REQUIRED)
 

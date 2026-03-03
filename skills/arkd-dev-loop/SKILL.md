@@ -209,7 +209,81 @@ REPEAT:
   b. Write unit test where suitable:
      go test -v -count=1 ./internal/path/to/package/...
 
-  c. Write e2e test in internal/test/e2e/ following existing patterns
+  c. Write NEW e2e test function (MANDATORY for features):
+
+     **Before writing:** Verify the function does NOT already exist:
+     ```bash
+     grep -n "func TestYourFunctionName" ${ARKD_REPO}/internal/test/e2e/e2e_test.go
+     # Must return NO output — if it exists, choose a different name
+     ```
+
+     **File and package:**
+     - Add to `${ARKD_REPO}/internal/test/e2e/e2e_test.go` (or new `*_test.go` in same dir)
+     - Package: `package e2e_test` (external test package, same as existing tests)
+     - No TestMain setup needed — shared TestMain auto-manages wallet state
+
+     **Minimal template:**
+     ```go
+     func TestYourFeatureName(t *testing.T) {
+         ctx := t.Context()
+
+         // 1. Fresh wallet per client
+         alice := setupArkSDK(t)
+
+         // 2. Fund offchain (amount in BTC as float64)
+         faucetOffchain(t, alice, 0.001)
+
+         // 3. For two-party tests:
+         bob := setupArkSDK(t)
+         _, bobOffchainAddr, _, err := bob.Receive(ctx)
+         require.NoError(t, err)
+
+         // 4. CRITICAL: notification goroutine BEFORE the action
+         wg := &sync.WaitGroup{}
+         wg.Add(1)
+         var notifyErr error
+         go func() {
+             defer wg.Done()
+             _, notifyErr = bob.NotifyIncomingFunds(ctx, bobOffchainAddr)
+         }()
+
+         // 5. Exercise your feature
+         _, err = alice.SendOffChain(ctx, false, []types.Receiver{{
+             To:     bobOffchainAddr,
+             Amount: 21000,
+         }})
+         require.NoError(t, err)
+         wg.Wait()
+         require.NoError(t, notifyErr)
+
+         // 6. Assert feature-specific behavior
+         balance, err := bob.Balance(ctx)
+         require.NoError(t, err)
+         require.NotZero(t, balance.OffchainBalance.Total)
+     }
+     ```
+
+     **Available helpers** (all in `utils_test.go`):
+     | Helper | Purpose |
+     |--------|---------|
+     | `setupArkSDK(t)` | Fresh random-key wallet, initialized+unlocked |
+     | `faucet(t, client, amt)` | Fund offchain + tiny onchain for fees |
+     | `faucetOffchain(t, client, amt)` | Fund offchain only (via admin note) |
+     | `faucetOnchain(t, addr, amt)` | Fund onchain only (via nigiri) |
+     | `generateBlocks(n)` | Mine n blocks via nigiri rpc |
+     | `generateNote(t, sats)` | Create admin note for given sat amount |
+
+     **Rules:**
+     - Always `require.*` (not `assert.*`) — stops on first failure
+     - Always start `NotifyIncomingFunds` goroutine BEFORE send/settle/redeem
+     - After `generateBlocks`: `time.Sleep(5-10 * time.Second)` for indexer sync
+     - Esplora hardcoded to `localhost:3000` in test code (not env var)
+
+     **Run your test:**
+     ```bash
+     go test -v -count=1 -run TestYourFeatureName -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
+     ```
+     Capture output in `test-evidence.md` under `## Integration Test`.
 
   d. Restart arkd (Ctrl+C → make run-light 2>&1 | tee /tmp/arkd-dev.log)
      NOTE: arkd-wallet and Docker deps stay running — do NOT restart them
