@@ -954,7 +954,16 @@ When building execution specs for ark-developer, select relevant skills:
 | any | taproot, psbt, script | ark-bitcoin-primitives |
 | any | musig, signing | ark-musig2-signing |
 
+**CI skill** (include for CI phase, `context_intent: "ci"`):
+- arkd → `arkd-gha`
+- fulmine, boltz-backend → `fulmine-gha`
+- go-sdk → `gosdk-gha`
+
+**Utility skills** (auto-include when project matches):
+- arkd → `arkd-makefile-ref` (build, proto, sqlc, lint commands)
+
 Include selected skills in the execution spec `skills.domain` array.
+For CI phase specs, include the CI skill in `skills.ci` field.
 
 ## Step 6: Prepare Repo Hints (Tier 4 - Agent Instructions)
 
@@ -1034,12 +1043,43 @@ execution:
 - The `workflow_id` field MUST match `parent_session_id` to enable session resumption after folder renaming
 - The `terminal_phase` must reference the last phase ID. The `post-agent-validator.ts` hook uses this to detect workflow completion and output appropriate signals.
 
+## Workflow History Preservation
+
+When overwriting an existing `workflow.yaml` (e.g., when a session evolves from Q&A to development, or when adding a retry phase), you MUST preserve the previous workflow state in a `workflow_history` array.
+
+**Before overwriting workflow.yaml:**
+1. Read the existing `workflow.yaml`
+2. Move the existing content (minus any existing `workflow_history`) into a new entry in `workflow_history`
+3. Write the new workflow with the history appended
+
+**Format:**
+```yaml
+# New workflow content
+workflow_id: "<session_id>"
+name: "new-workflow-name"
+# ... all new workflow fields ...
+
+# REQUIRED when overwriting: preserve previous workflow states
+workflow_history:
+  - overwritten_at: "<ISO timestamp>"
+    previous_workflow:
+      name: "<old workflow name>"
+      description: "<old description>"
+      terminal_phase: "<old terminal phase>"
+      phases_completed: ["S1", "QA-1"]  # summarize, don't copy full phase definitions
+```
+
+**Rules:**
+- Each overwrite appends to `workflow_history` (never discard previous entries)
+- Keep history entries concise — summarize phases, don't copy full definitions
+- If `workflow_history` already exists in the file being overwritten, carry it forward and append the new entry
+
 ## Step 7.5: Phase Skip Conditions (DEPRECATED - NO LONGER USED)
 
 **IMPORTANT**: As of version 5.0.0, phase skip conditions have been REMOVED from the development workflow.
 
 **The development workflow now ALWAYS enforces the full pipeline**:
-- guru (explore) → project-manager (plan) → developer (implement) → pr-reviewer (review)
+- guru (explore) → project-manager (plan) → developer (implement) → developer (ci) → pr-reviewer (review)
 - ALL phases execute, NO conditional skipping
 
 **Legacy information** (for reference only - no longer applicable):
@@ -1176,7 +1216,8 @@ The orchestrator NO LONGER evaluates skip conditions. All development tasks foll
 1. **S1 (explore)** - ark-guru - ALWAYS runs
 2. **S2 (plan)** - ark-project-manager - ALWAYS runs (no skipping)
 3. **S3 (implement)** - ark-developer - ALWAYS runs
-4. **S4 (review)** - ark-pr-reviewer - ALWAYS runs
+4. **S4 (ci)** - ark-developer (context_intent: ci) - ALWAYS runs, auto-proceeds
+5. **S5 (review)** - ark-pr-reviewer - ALWAYS runs
 
 **Rationale for removal**:
 - Simplifies workflow logic and reduces orchestrator complexity
@@ -1536,6 +1577,25 @@ This instructs ark-developer to:
 
 Set `enabled: false` only when you explicitly want changes made directly to the main repo.
 
+### Work Continuation: Passing Existing Worktree
+
+When a session is a **continuation of prior work** (e.g., adding tests to existing implementation), the orchestrator MUST pass the existing worktree path so the agent works on the same branch/code:
+
+```yaml
+worktree_config:
+  enabled: true
+  existing_worktree: "/path/to/repo/.worktrees/existing-branch"
+  existing_branch: "feat/existing-branch"
+  base_ref: "origin/feat/existing-branch"  # Branch to base new worktree on
+```
+
+**Detection**: Check prior session's `_result.json` → `worktree` field for `worktree_path` and `branch`. If present and the task is continuation work:
+1. Set `base_ref` to `origin/{prior_branch}` (or the branch itself if local-only)
+2. Set `existing_worktree` to inform the agent of the prior work location
+3. The agent creates a NEW worktree based on `base_ref`, inheriting all prior changes
+
+**Why**: Without this, the agent creates a worktree from `origin/main` and loses all implementation from the prior session. This was the root cause of Session 2 needing to verify the old worktree manually.
+
 ## Spec Presentation Rules
 
 1. **Completeness**: Every field must be populated (use `[]` or `{}` for empty, never omit)
@@ -1750,7 +1810,7 @@ retry_context:
 For **all dev workflows**, the following pipeline is MANDATORY and HOOK-ENFORCED:
 
 ```
-ark-guru (explore) → ark-project-manager (plan) → ark-developer (implement) → ark-developer (test)
+ark-guru (explore) → ark-project-manager (plan) → ark-developer (implement) → ark-developer (ci) → ark-pr-reviewer (review)
 ```
 
 **Hooks enforce this — the orchestrator will be BLOCKED if it tries to skip steps.**
@@ -1763,15 +1823,17 @@ Each phase receives artifacts from ALL prior phases, not just the immediate pred
 |-------|-------|----------|----------|
 | **S1: Explore** | ark-guru | (nothing) | `artifacts/explore/assessment.yaml` |
 | **S2: Plan** | ark-project-manager | S1: assessment.yaml | `specs/.../spec.md`, `plan.md`, `tasks.md` |
-| **S3: Implement** | ark-developer | S1: assessment.yaml + S2: spec, plan, tasks | `artifacts/implement/detailed_report.md`, `changes.yaml` |
-| **S4: Test** | ark-developer | S1: assessment.yaml + S2: tasks.md + S3: report, changes | `artifacts/test/report.yaml` |
+| **S3: Implement** | ark-developer | S1: assessment.yaml + S2: spec, plan, tasks | `artifacts/implement/detailed_report.md`, `test-evidence.md`, `changes.yaml` |
+| **S4: CI** | ark-developer | S3: changes.yaml, detailed_report.md | `artifacts/ci/ci-evidence.md` |
+| **S5: Review** | ark-pr-reviewer | S1 + S2 + S3 + S4 artifacts | `artifacts/review/review_report.md` |
 
 ## Artifact Injection Rules
 
 When building execution specifications:
 - **S2** gets: `artifacts_in` from S1
 - **S3** gets: `artifacts_in` from S1 AND S2
-- **S4** gets: `artifacts_in` from S1, S2, AND S3
+- **S4** gets: `artifacts_in` from S3 (changes.yaml with worktree path)
+- **S5** gets: `artifacts_in` from S1, S2, S3, AND S4
 
 **CRITICAL**: Every `artifacts_in` entry must use session-relative paths and include `from_step` to identify the source phase.
 
@@ -1782,14 +1844,17 @@ When building execution specifications:
 | PM requires guru assessment | pre-agent-validator | Check `assessment.yaml` exists | **BLOCK** (exit 2) |
 | Developer requires guru assessment | pre-agent-validator | Check `assessment.yaml` exists | **BLOCK** (exit 2) |
 | Developer requires PM specs (when needed) | pre-agent-validator | Check `specs/` non-empty | **BLOCK** (exit 2) |
+| CI requires implement artifacts | pre-agent-validator | Check `changes.yaml` exists | **BLOCK** (exit 2) |
 | Guru must produce assessment.yaml in dev | post-agent-validator | HG-PIPE-GURU-01 | **FAIL** (retry) |
+| CI must produce ci-evidence.md | post-agent-validator | HG-PIPE-CI-01 | **FAIL** (retry) |
 
 ## What This Means for the Orchestrator
 
 1. **You cannot skip the guru phase** — the pre-agent hook will block PM and developer without `assessment.yaml`
-2. **You cannot skip the PM phase** (for medium/large features) — the pre-agent hook will block developer without specs
-3. **Agent instructions describe HOW** to produce artifacts; **hooks enforce THAT** they are produced
-4. **If a hook blocks**, the error message will explain what's missing — fix it and retry
+2. **You cannot skip the PM phase** — the pre-agent hook will block developer without specs
+3. **You cannot skip the CI phase** — it auto-proceeds after implement (no approval needed)
+4. **Agent instructions describe HOW** to produce artifacts; **hooks enforce THAT** they are produced
+5. **If a hook blocks**, the error message will explain what's missing — fix it and retry
 
 ---
 

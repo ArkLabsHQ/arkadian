@@ -1,15 +1,15 @@
 name: "development_unified"
 description: |
-  Unified development workflow with fixed pipeline: explore→plan→implement→review.
+  Unified development workflow with fixed pipeline: explore→plan→implement→ci→review.
   All phases ALWAYS execute - no conditional skipping based on complexity.
 
   MANDATORY PIPELINE: Each phase receives artifacts from ALL prior phases.
   Hooks enforce prerequisites — agents cannot be invoked without upstream artifacts.
 
-version: "5.0.0"
+version: "6.0.0"
 author: "arkadian-system"
 created: "2025-12-15"
-last_modified: "2026-02-11"
+last_modified: "2026-03-09"
 
 # This workflow enforces a consistent pipeline for all development tasks.
 # No conditional skipping - all phases always execute.
@@ -59,6 +59,16 @@ pipeline:
         - "artifacts/implement/detailed_report.md"
         - "artifacts/implement/test-evidence.md"
         - "artifacts/implement/changes.yaml"
+    ci:
+      receives:
+        - from: "implement"
+          artifacts:
+            - "artifacts/implement/changes.yaml"
+            - "artifacts/implement/detailed_report.md"
+      produces:
+        - "artifacts/ci/ci-evidence.md"
+        - "artifacts/ci/_result.json"
+      note: "Simulates GitHub Actions CI pipeline locally"
     review:
       receives:
         - from: "explore"
@@ -73,6 +83,9 @@ pipeline:
             - "artifacts/implement/detailed_report.md"
             - "artifacts/implement/test-evidence.md"
             - "artifacts/implement/changes.yaml"
+        - from: "ci"
+          artifacts:
+            - "artifacts/ci/ci-evidence.md"
       produces:
         - "artifacts/review/review_report.md"
         - "artifacts/review/_result.json"
@@ -224,7 +237,7 @@ execution:
     - id: "implement"
       name: "Implement & Test Changes"
       agent: "ark-developer"
-      depends_on: "plan"  # Or "explore" if plan was skipped
+      depends_on: "plan"
 
       approval_required: true
       approval_message: "Ready to implement. Proceed?"
@@ -237,7 +250,6 @@ execution:
         - "Document discrepancies in detailed_report.md"
         - "Create feature branch: feat/<area>-<slug> or fix/<area>-<slug>"
         - "Implement code changes following plan"
-        - "Commit with conventional commit message"
         # Testing (same session — do NOT defer to a separate phase)
         - "Write unit tests for new/changed code"
         - "Run unit tests (make test / go test)"
@@ -282,6 +294,7 @@ execution:
           required: true
           schema: |
             branch: "<branch name>"
+            worktree_path: "<absolute path to worktree>"
             input_verification:
               guru_claims_verified: <count>
               pm_tasks_verified: <count>
@@ -317,24 +330,94 @@ execution:
       max_retries: 3
 
     # ═══════════════════════════════════════════════════════════════════
-    # PHASE 4: REVIEW (Always runs after implementation)
+    # PHASE 4: CI SIMULATION (Auto-proceeds — no approval gate)
+    # Simulates GitHub Actions CI pipeline locally.
+    # Runs lint, vet, build, unit tests, and integration tests.
+    # Auto-fixes lint issues and retries on failure.
+    # Uses the same worktree from the implement phase.
+    # ═══════════════════════════════════════════════════════════════════
+    - id: "ci"
+      name: "CI Pipeline Simulation"
+      agent: "ark-developer"
+      depends_on: "implement"
+
+      approval_required: false  # Auto-proceed — CI is mechanical
+      context_intent: "ci"
+
+      actions:
+        - "Read changes.yaml from implement phase to get worktree path"
+        - "Navigate to the worktree directory"
+        - "Invoke CI skill (arkd-gha or fulmine-gha) based on project"
+        - "Run all CI checks: lint, vet, build, unit tests"
+        - "If lint fails: auto-fix and re-run"
+        - "Run integration tests (reuse existing infrastructure)"
+        - "If any check fails: fix and re-run (max 5 attempts per check)"
+        - "Write ci-evidence.md with results of each check"
+
+      artifacts_in:
+        - path: "artifacts/implement/changes.yaml"
+          from_step: "implement"
+          description: "Implementation changes including worktree path, branch, files changed"
+        - path: "artifacts/implement/detailed_report.md"
+          from_step: "implement"
+          description: "Implementation details for context"
+
+      outputs:
+        - path: "artifacts/ci/ci-evidence.md"
+          required: true
+          description: |
+            CI check results with pass/fail for each step.
+            MUST include: lint, vet, build, unit tests, AND integration test results.
+            Integration tests are MANDATORY — never skip them.
+            Optionally: proto lint, db vet results (conditional on file changes).
+        - path: "artifacts/ci/_result.json"
+          required: true
+          schema: |
+            status: "success | partial | failure"
+            phase_completed: "ci"
+            agent: "ark-developer"
+            completed_at: "<ISO timestamp>"
+            agent_specific:
+              lint_passed: true | false
+              vet_passed: true | false
+              build_passed: true | false
+              unit_tests_passed: true | false
+              proto_lint_passed: true | false
+              proto_lint_skipped: true | false
+              integration_tests_passed: true | false
+              integration_tests_skipped: true | false
+              checks_run: <n>
+              checks_passed: <n>
+              checks_failed: <n>
+              auto_fixes_applied: <n>
+              files_changed: [<list of files auto-fixed>]
+
+      checkpoint:
+        path: "artifacts/ci/_result.json"
+        required_for_next_phase: true
+      timeout_seconds: 900  # 15min — CI checks including integration tests
+      auto_retry: true
+      max_retries: 3
+
+    # ═══════════════════════════════════════════════════════════════════
+    # PHASE 5: REVIEW (Always runs after CI)
     # Comprehensive code review of all changes made during implementation
     # ═══════════════════════════════════════════════════════════════════
     - id: "review"
       name: "Code Review & Quality Check"
       agent: "ark-pr-reviewer"
-      depends_on: "implement"
+      depends_on: "ci"
 
       approval_required: true
-      approval_message: "Implementation complete. Proceed with code review?"
+      approval_message: "CI passed. Proceed with code review?"
 
       actions:
-        - "Read ALL artifacts from previous phases (assessment, spec, plan, tasks, implementation report)"
+        - "Read ALL artifacts from previous phases (assessment, spec, plan, tasks, implementation report, CI evidence)"
         - "Review all code changes from the implementation"
         - "Check adherence to plan.md and tasks.md"
         - "Verify test coverage and test quality"
+        - "Verify CI passed (check ci-evidence.md)"
         - "Check for security issues, bugs, and edge cases"
-        - "Validate conventional commit messages"
         - "Verify no regressions introduced"
         - "Create comprehensive review report with findings"
         - "Recommend approval, changes, or rejection"
@@ -361,6 +444,9 @@ execution:
         - path: "artifacts/implement/changes.yaml"
           from_step: "implement"
           description: "Changes summary"
+        - path: "artifacts/ci/ci-evidence.md"
+          from_step: "ci"
+          description: "CI pipeline check results"
 
       outputs:
         - path: "artifacts/review/review_report.md"
@@ -392,6 +478,7 @@ success_criteria:
   - "Planning phase completed with spec.md, plan.md, tasks.md (always required)"
   - "Implementation verified ≥3 guru claims and ≥2 PM tasks"
   - "All automated tests pass OR manual verification complete"
+  - "CI pipeline simulation passed (lint, vet, build, tests)"
   - "No regressions in existing tests"
   - "Code review completed with findings and recommendation"
 
@@ -404,14 +491,16 @@ loop_control:
   transitions:
     explore: "plan"
     plan: "implement"
-    implement: "review"
+    implement: "ci"
+    ci: "review"
 
 # Performance estimates (all tasks follow same pipeline)
 performance:
-  estimated_seconds: 3600  # 60 minutes for full pipeline
-  max_seconds: 7200  # 120 minutes maximum
+  estimated_seconds: 4500  # 75 minutes for full pipeline
+  max_seconds: 9000  # 150 minutes maximum
   phase_breakdown:
-    explore: 600  # 10 minutes
-    plan: 900  # 15 minutes
+    explore: 600   # 10 minutes
+    plan: 900      # 15 minutes
     implement: 2400  # 40 minutes
-    review: 900  # 15 minutes
+    ci: 900        # 15 minutes
+    review: 900    # 15 minutes

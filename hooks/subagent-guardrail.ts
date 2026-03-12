@@ -400,6 +400,28 @@ function validateSubagentCall(
     // For Bash, we need special handling
     if (toolName === 'Bash') {
         const command = toolInput.command || '';
+
+        // ABSOLUTE BLOCK: git commit, git push, gh pr create/merge — regardless of path
+        // User always reviews and decides whether to commit/push.
+        const absolutelyBlockedPatterns = [
+            { pattern: /\bgit\s+commit\b/, label: 'git commit' },
+            { pattern: /\bgit\s+push\b/, label: 'git push' },
+            { pattern: /\bgit\s+tag\b/, label: 'git tag' },
+            { pattern: /\bgh\s+pr\s+(create|merge|close|edit|comment|review)\b/, label: 'gh pr mutation' },
+            { pattern: /\bgh\s+issue\s+(create|close|edit|comment)\b/, label: 'gh issue mutation' },
+        ];
+
+        const expandedForCheck = expandEnvVars(command);
+        for (const { pattern, label } of absolutelyBlockedPatterns) {
+            if (pattern.test(expandedForCheck)) {
+                return {
+                    allowed: false,
+                    reason: `BLOCKED: "${label}" is never allowed for sub-agents. ` +
+                        `Leave changes uncommitted — the user reviews and decides whether to commit/push.`
+                };
+            }
+        }
+
         const pathResults = extractPathsFromBashCommand(command);
 
         log(sessionId, 'bash-paths-extracted', { command: command.substring(0, 100), paths: pathResults });

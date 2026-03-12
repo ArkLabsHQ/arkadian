@@ -35,6 +35,7 @@ When determining which documentation sections to include:
 |-------|------------|----------|
 | `ark-guru` | `qna` | - |
 | `ark-developer` | `dev` | `qa` |
+| `ark-developer` (CI) | `ci` | `dev` |
 | `ark-project-manager` | `dev` | - |
 | `ark-pr-reviewer` | `pr_review` | `dev` |
 | `ark-researcher` | `research` | - |
@@ -49,6 +50,7 @@ Use this mapping to select doc sections from `@templates/doc_intake_defaults.md`
 |-----------|--------|
 | **Development workflows** (code changes, fixes, features) | Route to `ark-developer` - it handles implement+test internally |
 | **Testing requests** (run tests, test a feature, validate) | Route to `ark-developer` - it handles testing with dev-loop skills |
+| **CI simulation** (lint, vet, build, unit tests) | Route to `ark-developer` with `context_intent: ci` and GHA skill (arkd-gha or fulmine-gha) |
 | **Environment setup** (start stack, run simulation) | Route to `ark-developer` - it knows how via dev-loop skills |
 | Telemetry investigation, anomaly detection, performance troubleshooting | Route to `ark-observer` |
 | High CPU/memory, error spikes, latency issues | `ark-observer` for investigation, `ark-developer` for fixes |

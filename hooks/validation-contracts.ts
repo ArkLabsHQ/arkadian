@@ -93,6 +93,7 @@ const DEV_CONTRACT: AgentContract = {
     warnings: [
         { id: 'W-DEV-01', field: 'agent_specific.tests.skipped', severity: 'warn', description: 'Skipped tests detected', remediation: 'Review whether skipped tests are intentional' },
         { id: 'W-DEV-02', field: 'confidence', severity: 'warn', description: 'Low confidence flagged', remediation: 'Review agent output for uncertainty' },
+        { id: 'W-DEV-03', field: 'agent_specific.integration_test_file', severity: 'warn', description: 'Integration test file should be in e2e/integration directory', remediation: 'Write tests in internal/test/e2e/ not internal/core/' },
     ],
 };
 
@@ -175,6 +176,26 @@ const PROGRESS_CONTRACT: AgentContract = {
     ],
 };
 
+// CI contract: used when ark-developer runs with context_intent === 'ci'
+// Different from DEV_CONTRACT — no manual_test_passed or integration_test_written required
+const CI_CONTRACT: AgentContract = {
+    agentType: 'ark-developer',  // Same agent, different context
+    requiredArtifacts: [
+        { path: 'ci-evidence.md', minBytes: 100, requiredHeadings: ['CI Evidence', 'Check Results'] },
+    ],
+    hardGates: [
+        { id: 'HG-CI-01', field: 'agent_specific.lint_passed', severity: 'hard', description: 'Lint must pass', remediation: 'Run make lint to auto-fix, then re-check. Fix remaining issues manually.' },
+        { id: 'HG-CI-02', field: 'agent_specific.build_passed', severity: 'hard', description: 'Build must pass', remediation: 'Fix compilation errors in the worktree.' },
+        { id: 'HG-CI-03', field: 'agent_specific.unit_tests_passed', severity: 'hard', description: 'Unit tests must pass', remediation: 'Fix failing unit tests or the code under test.' },
+        { id: 'HG-CI-04', field: 'agent_specific.integration_tests_skipped', severity: 'hard', description: 'Integration tests must NOT be skipped — they are the most critical CI check', remediation: 'Integration tests are MANDATORY in CI. If infrastructure is not running, start it with make build-test-env && make setup-test-env, then run make integrationtest. Never skip integration tests.' },
+        { id: 'HG-CI-05', field: 'agent_specific.integration_tests_passed', severity: 'hard', description: 'Integration tests must pass', remediation: 'Fix failing integration tests. Debug test failures, check service logs, and iterate until all tests pass.' },
+    ],
+    warnings: [
+        { id: 'W-CI-01', field: 'agent_specific.vet_passed', severity: 'warn', description: 'Go vet warnings detected', remediation: 'Fix vet warnings (unused vars, shadowed vars, wrong types)' },
+        { id: 'W-CI-03', field: 'agent_specific.proto_lint_skipped', severity: 'warn', description: 'Proto lint was skipped', remediation: 'No proto files changed — skipping is expected' },
+    ],
+};
+
 // ========================================
 // PIPELINE ENFORCEMENT GATES
 // ========================================
@@ -213,7 +234,24 @@ const ARTIFACT_OVERRIDES: Record<string, Record<string, ArtifactRequirement[]>> 
             { path: 'explore/assessment.yaml', minBytes: 100 },
             { path: 'explore/response.md', minBytes: 200 },
         ],
-        // qna mode uses the default from GURU_CONTRACT (qna/response.md)
+        // QA mode: don't require fixed artifact path — QA responses use dynamic names
+        // (QA-1-response.md, QA-2-response.md) specified in the execution spec's expected_artifacts.
+        // The Tier 1 file existence check (validateArtifacts) already validates those.
+        'qna': [],
+    },
+    'ark-developer': {
+        // CI mode: use CI_CONTRACT instead of DEV_CONTRACT
+        'ci': [
+            { path: 'ci-evidence.md', minBytes: 100, requiredHeadings: ['CI Evidence', 'Check Results'] },
+        ],
+    },
+};
+
+// CONTRACT OVERRIDES by context_intent
+// When context_intent matches, use this contract instead of the default agent contract
+const CONTRACT_OVERRIDES: Record<string, Record<string, AgentContract>> = {
+    'ark-developer': {
+        'ci': CI_CONTRACT,
     },
 };
 
@@ -277,7 +315,9 @@ function checkHardGate(check: ValidationCheck, result: ResultJson): ValidationFa
             break;
 
         case 'HG-DEV-04-NEW':
-            // new_test_created must be true
+            // new_test_created must be true — but ONLY for primary implement phases (S3).
+            // Fix/review-fix phases (S5, S7, etc.) may modify existing tests, not create new ones.
+            // The stepId is passed via the extra context parameter on the check object.
             if (value !== true) {
                 return { check, actual: value,
                   message: `new_test_created = ${JSON.stringify(value)} (expected true — must write a NEW test function. Re-running TestSweep/TestBatchSession/etc does not count.)` };
@@ -330,6 +370,24 @@ function checkHardGate(check: ValidationCheck, result: ResultJson): ValidationFa
             // projects_analyzed must be > 0
             if (typeof value !== 'number' || value <= 0) {
                 return { check, actual: value, message: `projects_analyzed = ${JSON.stringify(value)} (expected > 0)` };
+            }
+            break;
+
+        // CI gates
+        case 'HG-CI-01':
+        case 'HG-CI-02':
+        case 'HG-CI-03':
+        case 'HG-CI-05':
+            // These must be true (lint_passed, build_passed, unit_tests_passed, integration_tests_passed)
+            if (value !== true) {
+                return { check, actual: value, message: `${check.field} = ${JSON.stringify(value)} (expected true)` };
+            }
+            break;
+
+        case 'HG-CI-04':
+            // integration_tests_skipped must be FALSE (inverted logic — skipping is the failure)
+            if (value === true) {
+                return { check, actual: value, message: `${check.field} = true (integration tests were skipped — they are MANDATORY and must NOT be skipped)` };
             }
             break;
 
@@ -419,6 +477,27 @@ function checkWarning(check: ValidationCheck, result: ResultJson): ValidationFai
             // prs_analyzed == 0
             if (value === 0 || value === undefined || value === null) {
                 return { check, actual: value, message: `No PRs analyzed - may indicate access issues` };
+            }
+            break;
+
+        case 'W-CI-01':
+            // vet_passed should be true
+            if (value !== true) {
+                return { check, actual: value, message: `Go vet warnings detected (vet_passed = ${JSON.stringify(value)})` };
+            }
+            break;
+
+        case 'W-CI-03':
+            // proto_lint_skipped — informational only
+            if (value === true) {
+                return { check, actual: value, message: `Proto lint was skipped (no proto changes detected)` };
+            }
+            break;
+
+        case 'W-DEV-03':
+            // integration_test_file should be in e2e directory
+            if (value && typeof value === 'string' && !value.includes('e2e')) {
+                return { check, actual: value, message: `Integration test file not in e2e directory: ${value}` };
             }
             break;
 
@@ -618,36 +697,117 @@ function crossValidateNewTestFunction(
     }
     if (!content) return failures;
 
-    const section = extractSection(content, 'Integration Test');
-    if (!section) return failures;
+    // Search ALL test-related sections, not just "Integration Test"
+    // The test may appear in "Unit Test", "Test Results", "Integration Test", etc.
+    const testSectionNames = ['Integration Test', 'Unit Test', 'Test Results', 'Test Evidence', 'E2E Test'];
+    let combinedSections = '';
+    for (const sectionName of testSectionNames) {
+        const section = extractSection(content, sectionName);
+        if (section) combinedSections += '\n' + section;
+    }
+    // Fallback: if no sections matched, search the entire file
+    if (!combinedSections.trim()) combinedSections = content;
 
-    // Check: Does the specific function name appear in the section?
-    if (!section.includes(testName)) {
+    // Check: Does the specific function name appear in any test section?
+    if (!combinedSections.includes(testName)) {
         failures.push({
             check: {
                 id: 'HG-DEV-04-SPEC', field: 'agent_specific.integration_test_name',
                 severity: 'hard',
-                description: 'Integration test evidence must show the specific new test function ran',
-                remediation: `test-evidence.md must contain "${testName}" in Integration Test section. Write and run that specific function.`,
+                description: 'Test evidence must show the specific test function ran',
+                remediation: `test-evidence.md must contain "${testName}" in a test section. Write and run that specific function.`,
             },
-            actual: `"${testName}" not found in test-evidence.md Integration Test section`,
-            message: `Cross-validation FAILED: "${testName}" not in Integration Test section`,
+            actual: `"${testName}" not found in test-evidence.md`,
+            message: `Cross-validation FAILED: "${testName}" not found in any test section`,
         });
     }
 
     // Check: Does the test show PASS?
     const passPattern = new RegExp(`---\\s+PASS:\\s+${escapeRegex(testName)}`, 'i');
-    if (!passPattern.test(section)) {
+    if (!passPattern.test(combinedSections)) {
         failures.push({
             check: {
                 id: 'HG-DEV-04-PASS', field: 'agent_specific.integration_test_name',
                 severity: 'hard',
-                description: 'New test function must show PASS in output',
-                remediation: `Run: go test -v -run ${testName} -timeout 800s .../test/e2e and capture "--- PASS: ${testName}" in test-evidence.md`,
+                description: 'Test function must show PASS in output',
+                remediation: `Run the test and capture "--- PASS: ${testName}" in test-evidence.md`,
             },
             actual: `"--- PASS: ${testName}" not found`,
             message: `Cross-validation FAILED: No PASS for "${testName}"`,
         });
+    }
+
+    return failures;
+}
+
+/**
+ * Cross-validate that manual testing actually involved real API/service interaction.
+ * Build, vet, and lint commands alone do NOT qualify as manual testing.
+ * Manual test = testing the feature via its API (curl, grpcurl, HTTP client) against a running instance.
+ */
+function crossValidateManualTestContent(
+    artifactsDir: string,
+): ValidationFailure[] {
+    const failures: ValidationFailure[] = [];
+
+    const evidencePaths = [
+        join(artifactsDir, 'implement', 'test-evidence.md'),
+        join(artifactsDir, 'test-evidence.md'),
+    ];
+    let evidenceContent: string | null = null;
+    for (const p of evidencePaths) {
+        if (existsSync(p)) {
+            try { evidenceContent = readFileSync(p, 'utf-8'); break; } catch {}
+        }
+    }
+
+    if (!evidenceContent) return failures;
+
+    const manualSection = extractSection(evidenceContent, 'Manual Test');
+    if (!manualSection) return failures;
+
+    // Real API interaction patterns — at least one must be present
+    const apiPatterns = [
+        /\bcurl\s/i,
+        /\bgrpcurl\s/i,
+        /\blocalhost:\d+/i,
+        /\b127\.0\.0\.1:\d+/i,
+        /\/api\/v\d+\//i,
+        /\/v\d+\//i,
+        /\bhttp:\/\//i,
+        /\bgrpc:\/\//i,
+        /\bHTTP\s+\d{3}\b/i,
+    ];
+
+    const hasRealApiCall = apiPatterns.some(p => p.test(manualSection));
+
+    if (!hasRealApiCall) {
+        // Check if it's just build/vet/lint commands
+        const buildOnlyPatterns = [
+            /\bgo build\b/i,
+            /\bgo vet\b/i,
+            /\bbuf lint\b/i,
+            /\bmake build\b/i,
+            /\bmake lint\b/i,
+            /\bmake vet\b/i,
+        ];
+        const allBuildOnly = manualSection.split('\n')
+            .filter(l => l.includes('**Command:**') || l.includes('```'))
+            .every(l => buildOnlyPatterns.some(p => p.test(l)) || !l.includes('**Command:**'));
+
+        if (allBuildOnly) {
+            failures.push({
+                check: {
+                    id: 'HG-DEV-03-MANUAL',
+                    field: 'agent_specific.manual_test_passed',
+                    severity: 'hard',
+                    description: 'Manual test must involve real API interaction, not just build/vet/lint',
+                    remediation: 'Manual test = test the feature via curl/grpcurl/HTTP against a running instance. go build/go vet/buf lint are NOT manual tests.',
+                },
+                actual: 'Manual Testing section contains only build/vet/lint commands',
+                message: 'Cross-validation FAILED: manual_test_passed=true but Manual Testing section has no API calls (only build/vet/lint)',
+            });
+        }
     }
 
     return failures;
@@ -665,7 +825,8 @@ export function validateAgentResult(
     agentType: string,
     result: ResultJson,
     artifactsDir: string,
-    contextIntent?: string
+    contextIntent?: string,
+    stepId?: string
 ): { failures: ValidationFailure[]; warnings: ValidationFailure[]; artifactChecks: ExtendedValidationResult['artifact_checks'] } {
     const baseContract = AGENT_CONTRACTS[agentType];
     const failures: ValidationFailure[] = [];
@@ -676,7 +837,44 @@ export function validateAgentResult(
         return { failures, warnings, artifactChecks };
     }
 
-    // Apply context-intent artifact overrides if available
+    // Check for full contract override based on context_intent (e.g., CI mode uses CI_CONTRACT)
+    const contractOverride = contextIntent ? CONTRACT_OVERRIDES[agentType]?.[contextIntent] : undefined;
+    if (contractOverride) {
+        // Use the override contract entirely (different gates, different artifacts)
+        const overrideArtifacts = ARTIFACT_OVERRIDES[agentType]?.[contextIntent];
+        const contract = overrideArtifacts
+            ? { ...contractOverride, requiredArtifacts: overrideArtifacts }
+            : contractOverride;
+
+        // Check hard gates from override contract
+        for (const gate of contract.hardGates) {
+            const failure = checkHardGate(gate, result);
+            if (failure) failures.push(failure);
+        }
+        // Check warnings from override contract
+        for (const warn of contract.warnings) {
+            const warning = checkWarning(warn, result);
+            if (warning) warnings.push(warning);
+        }
+        // Check required artifacts
+        for (const artifact of contract.requiredArtifacts) {
+            const resolvedPath = artifact.path.includes('/')
+                ? join(artifactsDir, artifact.path)
+                : join(artifactsDir, 'ci', artifact.path);
+            const artCheck = validateArtifactContent(resolvedPath, artifact);
+            artifactChecks.push(artCheck);
+            if (!artCheck.found || (artifact.requiredHeadings && !artCheck.heading_ok)) {
+                failures.push({
+                    check: { id: `HG-ART-${artifact.path}`, field: artifact.path, severity: 'hard', description: `Required artifact missing: ${artifact.path}`, remediation: `Agent must produce ${artifact.path}` },
+                    actual: artCheck.found ? 'found but incomplete' : 'missing',
+                    message: `Artifact ${artifact.path}: found=${artCheck.found}, size=${artCheck.size}, headings=${artCheck.heading_ok}`,
+                });
+            }
+        }
+        return { failures, warnings, artifactChecks };
+    }
+
+    // Apply context-intent artifact overrides if available (default path)
     const overrides = contextIntent ? ARTIFACT_OVERRIDES[agentType]?.[contextIntent] : undefined;
     const contract: AgentContract = overrides
         ? { ...baseContract, requiredArtifacts: overrides }
@@ -684,6 +882,11 @@ export function validateAgentResult(
 
     // Check hard gates
     for (const gate of contract.hardGates) {
+        // Skip HG-DEV-04-NEW for non-primary implement phases (S5, S7, etc.)
+        // Fix phases modify existing tests, not create new ones.
+        if (gate.id === 'HG-DEV-04-NEW' && stepId && stepId !== 'S3') {
+            continue;
+        }
         const failure = checkHardGate(gate, result);
         if (failure) failures.push(failure);
     }
@@ -698,6 +901,31 @@ export function validateAgentResult(
     const newTestFailures = crossValidateNewTestFunction(artifactsDir, result);
     failures.push(...newTestFailures);
 
+    // Validate integration_test_file is in an e2e/integration directory, not internal/core/
+    const integTestFile = result.agent_specific?.integration_test_file;
+    if (integTestFile && typeof integTestFile === 'string') {
+        const isE2E = /\/(test\/e2e|test\/integration|e2e_test|integration_test)\//i.test(integTestFile);
+        if (!isE2E) {
+            warnings.push({
+                check: {
+                    id: 'W-DEV-03', field: 'agent_specific.integration_test_file',
+                    severity: 'warn',
+                    description: 'Integration test file should be in e2e/integration directory',
+                    remediation: `File "${integTestFile}" looks like a unit test path. Integration tests should be in internal/test/e2e/ or similar.`,
+                },
+                actual: integTestFile,
+                message: `Integration test file "${integTestFile}" is not in a recognized e2e/integration directory`,
+            });
+        }
+    }
+
+    // Cross-validate manual_test_passed: test-evidence.md must contain real API calls
+    // Build/vet/lint alone do NOT count as manual testing
+    if (result.agent_specific?.manual_test_passed === true && agentType === 'ark-developer') {
+        const manualFailures = crossValidateManualTestContent(artifactsDir);
+        failures.push(...manualFailures);
+    }
+
     // Check warnings
     for (const warn of contract.warnings) {
         const warning = checkWarning(warn, result);
@@ -708,11 +936,12 @@ export function validateAgentResult(
     // Resolve paths using context_intent subfolder, with fallback search
     const INTENT_SUBFOLDER: Record<string, string> = {
         'dev': 'implement', 'implement': 'implement',
+        'ci': 'ci',
         'qna': 'explore', 'explore': 'explore',
         'debug': 'investigate', 'monitoring': 'investigate',
         'pr_review': 'review', 'research': 'research', 'progress': 'progress',
     };
-    const knownSubfolders = ['implement', 'explore', 'qna', 'review', 'research', 'investigate', 'progress'];
+    const knownSubfolders = ['implement', 'explore', 'qna', 'review', 'research', 'investigate', 'progress', 'ci'];
 
     for (const artifact of contract.requiredArtifacts) {
         let resolvedPath: string;

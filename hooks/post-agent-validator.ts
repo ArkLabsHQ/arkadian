@@ -34,7 +34,7 @@
  * - 0: Always (SubagentStop cannot block, only log)
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import {
   AGENT_CONTRACTS,
@@ -329,6 +329,31 @@ function loadResultJson(sessionId: string, specId: string, agentType?: string, c
         }
     }
 
+    // Priority 5: Search specs/ subdirectories (for ark-project-manager)
+    // PM writes _result.json under specs/<project>/<feature>/_result.json
+    const specsDir = join(SESSIONS_DIR, sessionId, 'specs');
+    if (existsSync(specsDir)) {
+        try {
+            const scanForResultJson = (dir: string, depth: number = 0) => {
+                if (depth > 3) return; // Max 3 levels deep
+                const entries = readdirSync(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                    const fullPath = join(dir, entry.name);
+                    if (entry.isFile() && entry.name === '_result.json') {
+                        if (!searchPaths.includes(fullPath)) {
+                            searchPaths.push(fullPath);
+                        }
+                    } else if (entry.isDirectory()) {
+                        scanForResultJson(fullPath, depth + 1);
+                    }
+                }
+            };
+            scanForResultJson(specsDir);
+        } catch {
+            // Ignore scan errors
+        }
+    }
+
     for (const searchPath of searchPaths) {
         if (existsSync(searchPath)) {
             try {
@@ -525,7 +550,7 @@ async function main() {
         } else {
             // Run contract-driven validation
             const artifactsDir = join(SESSIONS_DIR, hookInput.session_id, 'artifacts');
-            const contractResult = validateAgentResult(activeAgent.agent_type, resultJson, artifactsDir, activeAgent.context_intent);
+            const contractResult = validateAgentResult(activeAgent.agent_type, resultJson, artifactsDir, activeAgent.context_intent, specId);
 
             // Compute outcome
             let outcome: ValidationOutcome;
@@ -579,6 +604,25 @@ async function main() {
                     },
                     actual: 'missing',
                     message: 'artifacts/explore/assessment.yaml not found. Guru must write structured assessment in dev mode.'
+                });
+                if (extResult.outcome === 'passed') extResult.outcome = 'failed';
+            }
+        }
+
+        // CI phase MUST produce ci-evidence.md
+        if (activeAgent.agent_type === 'ark-developer' && activeAgent.context_intent === 'ci') {
+            const ciEvidencePath = join(SESSIONS_DIR, hookInput.session_id, 'artifacts', 'ci', 'ci-evidence.md');
+            if (!existsSync(ciEvidencePath)) {
+                extResult.hard_gate_failures.push({
+                    check: {
+                        id: 'HG-PIPE-CI-01',
+                        field: 'ci-evidence.md',
+                        severity: 'hard',
+                        description: 'CI phase must produce ci-evidence.md',
+                        remediation: 'Re-invoke ark-developer with context_intent: ci. Agent must write artifacts/ci/ci-evidence.md with check results for lint, vet, build, and tests.'
+                    },
+                    actual: 'missing',
+                    message: 'artifacts/ci/ci-evidence.md not found. CI phase must produce evidence of all CI checks.'
                 });
                 if (extResult.outcome === 'passed') extResult.outcome = 'failed';
             }

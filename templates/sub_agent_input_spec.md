@@ -97,8 +97,8 @@ skills:
   domain:
     - name: "arkd-round-lifecycle"
       invoke_before: "Implementing round-related changes"
-    - name: "ark-vtxo-model"
-      invoke_before: "Working with VTXO lifecycle/expiry"
+    - name: "arkd-makefile-ref"
+      invoke_before: "Building, proto generation, sqlc, or lint"
 
 artifacts_in: []
 artifacts_out: []

@@ -15,8 +15,8 @@
  * - {DATA_DIR}/{session_id}_log.txt - Per-session log file
  *
  * Rules:
- * 1. Orchestrator can use: Task, Read, Write, Edit (ONLY within ARKADIAN_DIR)
- * 2. ALL paths outside ARKADIAN_DIR are blocked for orchestrator
+ * 1. Orchestrator can use: Task, Read, Write, Edit (within ARKADIAN_DIR + ~/.claude)
+ * 2. Paths outside ARKADIAN_DIR and ~/.claude are blocked for orchestrator
  * 3. Sub-agents: Delegate to subagent-guardrail.ts for per-agent rules
  * 4. Blocks Bash commands for orchestrator
  *
@@ -38,18 +38,23 @@ const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
 // Use ARKADIAN_DATA_DIR for runtime state (OS-specific data directory)
 const ARKADIAN_DATA_DIR = process.env.ARKADIAN_DATA_DIR || join(ARKADIAN_DIR, 'log');
 
-// Tools the orchestrator is ALLOWED to use (some restricted to ARKADIAN_DIR)
+// Tools the orchestrator is ALLOWED to use (some restricted to ARKADIAN_DIR + ~/.claude)
 // Note: Claude Code renamed Task → Agent in newer versions; accept both
 const ALLOWED_TOOLS = [
     'Task',           // Delegate to agents (legacy name)
     'Agent',          // Delegate to agents (new name since Claude Code ~2.2)
-    'Read',           // Read docs (restricted to ARKADIAN_DIR)
-    'Write',          // Write files (restricted to ARKADIAN_DIR)
-    'Edit',           // Edit files (restricted to ARKADIAN_DIR)
-    'Glob',           // Find files (restricted to ARKADIAN_DIR)
-    'Grep',           // Search content (restricted to ARKADIAN_DIR)
+    'Read',           // Read docs (restricted to ARKADIAN_DIR + ~/.claude)
+    'Write',          // Write files (restricted to ARKADIAN_DIR + ~/.claude)
+    'Edit',           // Edit files (restricted to ARKADIAN_DIR + ~/.claude)
+    'Glob',           // Find files (restricted to ARKADIAN_DIR + ~/.claude)
+    'Grep',           // Search content (restricted to ARKADIAN_DIR + ~/.claude)
     'TodoWrite',      // Track workflow state
-    'AskUserQuestion' // Clarify requirements
+    'AskUserQuestion', // Clarify requirements
+    'ToolSearch',     // Meta-tool for loading deferred tools (always allowed)
+    'EnterPlanMode',  // Claude Code plan mode (always allowed)
+    'ExitPlanMode',   // Claude Code plan mode (always allowed)
+    'EnterWorktree',  // Claude Code worktree (always allowed)
+    'Skill',          // Invoke skills (always allowed)
 ];
 
 // Tools that require path checking (restricted to ARKADIAN_DIR)
@@ -414,14 +419,22 @@ function isOrchestratorCall(sessionId: string): { isOrchestrator: boolean; activ
     }
 
     // Recovery: After context compaction, a sub-agent session may continue
-    // with active_agent cleared (post-agent-validator cleared it when the
-    // previous sub-agent context ended). Check if the session directory has
-    // a workflow.yaml file (indicating work was started) — if so, this is
-    // likely a continued sub-agent that needs its active_agent restored.
+    // with active_agent cleared unexpectedly. Check if there's a phase that
+    // is CURRENTLY in_progress — this indicates a sub-agent was running when
+    // context compaction happened and its state was lost.
+    //
+    // IMPORTANT: Only recover when a phase is in_progress, NOT when phases
+    // are merely completed. Completed phases mean the sub-agent finished and
+    // the orchestrator is doing between-phase work (loading specs, presenting
+    // plans, etc.) — recovery in that state incorrectly restricts the
+    // orchestrator's own tool calls to sub-agent paths.
     const sessionDir = join(SESSIONS_DIR, sessionId);
     const workflowFile = join(sessionDir, 'workflow.yaml');
-    if (existsSync(workflowFile)) {
-        const specId = state.workflow.current_phase || 'S3';
+    const inProgressPhase = state.phases && Object.entries(state.phases).find(
+        ([_, p]: [string, any]) => p.status === 'in_progress'
+    );
+    if (existsSync(workflowFile) && inProgressPhase) {
+        const specId = inProgressPhase[0] || state.workflow.current_phase || 'S3';
 
         // Reconstruct paths from the execution spec to avoid empty allowed_paths bypass
         const { allowedPaths, blockedPaths } = reconstructPathsFromSpec(sessionId, sessionDir, specId);
@@ -442,9 +455,10 @@ function isOrchestratorCall(sessionId: string): { isOrchestrator: boolean; activ
             const stateFile = join(ARKADIAN_DATA_DIR, `${sessionId}_state.json`);
             writeFileSync(stateFile, JSON.stringify(state, null, 2));
             log(sessionId, 'subagent-recovered', {
-                reason: 'Context compaction recovery - workflow in active phase',
+                reason: 'Context compaction recovery - phase in_progress',
                 agent: recoveredAgent.agent_type,
-                phase: state.workflow.current_phase,
+                in_progress_phase: inProgressPhase[0],
+                workflow_current_phase: state.workflow.current_phase,
                 workflow_status: state.workflow.status,
                 allowed_paths: allowedPaths,
                 blocked_paths: blockedPaths
@@ -505,6 +519,12 @@ function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
 
     if (absolutePath === arkadianDir || absolutePath.startsWith(arkadianDir + '/')) {
         return { allowed: true, reason: 'Within ARKADIAN_DIR' };
+    }
+
+    // Allow full access to ~/.claude (Claude Code settings, plans, memory, etc.)
+    const claudeDir = resolveToAbsolute(join(process.env.HOME || '', '.claude'));
+    if (absolutePath === claudeDir || absolutePath.startsWith(claudeDir + '/')) {
+        return { allowed: true, reason: 'Within ~/.claude' };
     }
 
     for (let i = 0; i < BLOCKED_PATHS.length; i++) {

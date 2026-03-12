@@ -14,6 +14,17 @@ Fast-iteration development workflow for arkd: smart pre-flight checks, infrastru
 - Go toolchain
 - arkd repo at `${ARKD_REPO}`
 
+## NEVER Use `make test` or `make integrationtest`
+
+These Makefile targets start a PostgreSQL container (`ark-pg-test`) on **port 5432**, which conflicts with the `pgnbxplorer` container started by `make run-wallet`. This causes Docker port binding errors and wastes debugging time.
+
+**Instead, run individual tests:**
+```bash
+go test -v -count=1 -run TestName -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
+```
+
+For Makefile targets (proto, build, sqlc, lint), invoke `Skill("arkd-makefile-ref")`.
+
 ## Section 1: Pre-Flight Checks
 
 Before starting anything, detect what's already running and decide how to adapt.
@@ -313,10 +324,12 @@ REPEAT:
 go test -v -count=1 -run "TestUnilateralExit/preconfirmed_vtxo" -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
 ```
 
-### Running all integration tests (slow, final verification only):
+### Running multiple regression tests (one-by-one, final verification only):
 
 ```bash
-make integrationtest
+# Run specific regression tests individually — do NOT use make integrationtest
+go test -v -count=1 -run TestBatchSession -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
+go test -v -count=1 -run TestCollaborativeExit -timeout 800s github.com/arkade-os/arkd/internal/test/e2e
 ```
 
 ### If wallet state is corrupt, wipe and reinitialize:
@@ -333,7 +346,6 @@ rm -rf ${ARKD_REPO}/data/regtest
 # Stop arkd-wallet (Ctrl+C)
 cd ${ARKD_REPO}
 docker compose -f docker-compose.regtest.yml down -v
-nigiri stop
 ```
 
 ## Env Vars Reference

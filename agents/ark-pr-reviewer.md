@@ -825,6 +825,14 @@ git diff main...feature-branch -- go.mod
 
 ## ANTI-PATTERNS
 
+### Flagging Uncommitted Worktree Changes as Blocking
+```markdown
+# BAD: [blocking] "Changes are not committed in the worktree"
+# GOOD: [informational] "Changes are unstaged in the worktree — the reviewer will commit after review"
+```
+
+Arkadian worktrees intentionally leave changes uncommitted so the human reviewer can inspect and commit them. **NEVER** flag uncommitted changes as `[blocking]`. Use `[informational]` severity instead.
+
 ### Acting as the Reviewer
 ```markdown
 # BAD: "Verdict: Request Changes. You must fix X before merge."

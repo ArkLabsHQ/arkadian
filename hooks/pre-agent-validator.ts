@@ -62,6 +62,7 @@ const REQUIRED_FIELDS = [
 const VALID_INTENTS = [
     'qna',
     'dev',
+    'ci',
     'qa',
     'debug',
     'monitoring',
@@ -877,6 +878,21 @@ function validatePipelinePrerequisites(
             }
         }
 
+    }
+
+    // ═══════════════════════════════════════════
+    // RULE 3: CI phase requires implement artifacts
+    // ═══════════════════════════════════════════
+    if (agent === 'ark-developer' && intent === 'ci') {
+        const changesPath = join(artifactsDir, 'implement', 'changes.yaml');
+        if (!existsSync(changesPath)) {
+            errors.push(
+                'CI phase requires implement phase artifacts first. ' +
+                'Missing: artifacts/implement/changes.yaml. ' +
+                'Mandatory pipeline: implement → ci. ' +
+                'Invoke ark-developer with context_intent: dev before CI phase.'
+            );
+        }
     }
 
     return { errors, warnings };

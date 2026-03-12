@@ -131,9 +131,17 @@ FULMINE_DATADIR=./datadir FULMINE_NO_MACAROONS=true FULMINE_LOG_LEVEL=5 \
   go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
 ```
 
-**CAVEAT:** Cannot use the e2e package's `TestMain` (it tries to connect to all 3 fulmine instances). Two options:
-- Write focused test as standalone (outside e2e package)
-- OR start full stack with Mode B and just run internal tests
+**TestMain workaround for Mode A:** The e2e package's `TestMain` tries to connect to all 3 fulmine instances (fulmine, boltz-fulmine, fulmine-mock), which fails in Mode A. To write and run e2e tests with Mode A:
+
+1. **Comment out `TestMain`** in the e2e test files temporarily:
+   ```go
+   // func TestMain(m *testing.M) { ... }
+   ```
+2. **Write your test** in `internal/test/e2e/` as normal — set up gRPC/HTTP connections directly in your test function
+3. **Run your test** with the minimal stack (arkd in Docker, fulmine running locally)
+4. **Uncomment `TestMain`** when done — verify all tests still pass with the full `TestMain`
+
+This is the **fastest development workflow** — no need to build/start the full 3-instance Docker stack.
 
 #### Mode A Cleanup:
 
@@ -311,9 +319,71 @@ ARKD_ADDR=$(docker exec arkd arkd wallet address | tr -d '\n')
 nigiri faucet $ARKD_ADDR 1
 ```
 
-## Section 4: Development & Test Iteration Loop
+## Section 4: Fast Reuse Path (MOST COMMON)
+
+**If Docker stack is already running** (detected in Section 1 pre-flight), skip straight here:
+
+```bash
+# Verify stack is healthy
+curl -s http://localhost:7001/api/v1/balance | jq .
+curl -s http://localhost:7070/v1/info > /dev/null && echo "arkd OK"
+
+# If healthy → go straight to Section 5 (write code + test)
+# If not healthy → go back to Section 2 to set up
+```
+
+## Section 5: Development & Test Iteration Loop
 
 This is the core of the skill. Repeat this cycle until all tests pass.
+
+### 5a. Write e2e test (MANDATORY — this is the primary deliverable)
+
+**Tests MUST go in `internal/test/e2e/`** — this is non-negotiable. Tests in `internal/core/` are unit tests and do NOT satisfy the e2e requirement.
+
+**File and package:**
+- Add to `${FULMINE_REPO}/internal/test/e2e/` (new `*_test.go` file or add to existing)
+- Package: `package e2e_test` (external test package)
+
+**Before writing:** Verify the function does NOT already exist:
+```bash
+grep -rn "func TestYourFunctionName" ${FULMINE_REPO}/internal/test/e2e/
+# Must return NO output — if it exists, choose a different name
+```
+
+**TestMain handling (CRITICAL):**
+- `TestMain` in this package tries to connect to ALL 3 fulmine instances (fulmine, boltz-fulmine, fulmine-mock)
+- In Mode A (minimal stack), **comment out `TestMain`** temporarily so your test can run with just 1 fulmine instance
+- Set up gRPC/HTTP connections directly in your test function instead
+- **Uncomment `TestMain` before finalizing** — verify all tests still pass
+
+**Minimal e2e test template (with direct connection setup — for Mode A):**
+```go
+func TestYourFeatureName(t *testing.T) {
+    ctx := t.Context()
+
+    // 1. Set up gRPC connection directly (when TestMain is commented out)
+    conn, err := grpc.NewClient("localhost:7000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+    require.NoError(t, err)
+    defer conn.Close()
+    client := pb.NewServiceClient(conn)
+
+    // 2. Exercise your feature
+    resp, err := client.YourEndpoint(ctx, &pb.YourRequest{...})
+    require.NoError(t, err)
+
+    // 3. Assert
+    require.Equal(t, expected, resp.SomeField)
+}
+```
+
+**IMPORTANT:** Always read `utils_test.go` and existing test files to discover the actual helper functions and patterns available in this package.
+
+**Rules:**
+- Always `require.*` (not `assert.*`) — stops on first failure
+- For async events (gRPC streams, callbacks): use goroutines + channels/mutex + timeout
+- When using Mode B (full stack with TestMain active), you can use package-level vars and helpers from `utils_test.go`
+
+### 5b. Iteration Loop
 
 ```
 REPEAT:
@@ -322,41 +392,32 @@ REPEAT:
   b. Write unit test where suitable:
      go test -v -count=1 ./internal/path/to/package/...
 
-  c. Write e2e test in internal/test/e2e/ (or standalone for Mode A)
+  c. Comment out TestMain if using Mode A (so test can run with single fulmine)
 
-  d. Rebuild static assets if frontend changed:
-     make build-static-assets
+  d. Run your e2e test:
+     go test -v -count=1 -run TestYourName -timeout 600s -race -p=1 ./internal/test/e2e/...
 
-  e. Restart fulmine locally (Ctrl+C → re-run with env vars):
-     go run ./cmd/fulmine 2>&1 | tee /tmp/fulmine-dev.log
-
-  f. Run specific test:
-     go test -v -count=1 -run TestName -timeout 20m -race -p=1 ./internal/test/e2e/...
-
-  g. MANDATORY: Read ALL relevant logs:
+  e. MANDATORY on failure: Read ALL relevant logs:
      - Test output (terminal)
-     - /tmp/fulmine-dev.log (fulmine logs)
-     - docker logs arkd (arkd logs — always relevant)
-     - docker logs boltz (Mode B only)
-     - docker logs mock-boltz (Mode C only)
-     - tail -100 /tmp/fulmine-dev.log | grep -i "error\|panic\|fatal"
+     - /tmp/fulmine-dev.log (if running fulmine locally)
+     - docker logs arkd 2>&1 | tail -100
+     - docker logs fulmine 2>&1 | tail -100 (if fulmine is in Docker)
 
-  h. If test fails → fix code → go back to (a)
+  f. If test fails → fix code → go back to (a)
 
-  i. If test passes → verify no errors in all logs → done
+  g. If test passes → UNCOMMENT TestMain → run 1-2 regression tests → done
 ```
 
 **Key rules:**
-- Always redirect fulmine output to log file via `tee`
-- At EVERY iteration, check ALL relevant logs (not just test output)
-- Docker deps stay running between iterations — only restart fulmine
-- `TestMain` in e2e tests uses `docker exec arkd arkd` for CLI commands — arkd MUST stay in Docker
-- `TestMain` calls `refillArkd` and `refillFulmine` which auto-top-up balances if below threshold (arkd < 5 BTC, fulmine < 100k sats)
+- Docker deps stay running between iterations — only restart what you changed
+- arkd MUST stay in Docker (TestMain uses `docker exec arkd arkd` for CLI commands)
+- When using Mode A: fulmine runs locally, comment out TestMain during development
+- When done: uncomment TestMain and verify with full stack if possible
 
 ### Running a specific sub-test:
 
 ```bash
-go test -v -count=1 -run "TestChainSwapArkToBTC" -timeout 20m -race -p=1 ./internal/test/e2e/...
+go test -v -count=1 -run "TestChainSwapArkToBTC" -timeout 600s -race -p=1 ./internal/test/e2e/...
 ```
 
 ### Running all integration tests (slow, final verification only):
@@ -372,7 +433,7 @@ rm -rf ${FULMINE_REPO}/datadir
 # Then restart fulmine and redo Section 3 (Wallet Setup)
 ```
 
-## Section 5: Cleanup
+## Section 6: Cleanup
 
 ### Mode A:
 
@@ -380,7 +441,6 @@ rm -rf ${FULMINE_REPO}/datadir
 # Stop local fulmine (Ctrl+C)
 cd ${FULMINE_REPO}
 docker compose -f test.docker-compose.yml down -v
-nigiri stop
 ```
 
 ### Mode B/C:
@@ -389,7 +449,6 @@ nigiri stop
 # Stop local fulmine/fulmine-mock (Ctrl+C)
 cd ${FULMINE_REPO}
 make down-test-env
-nigiri stop --delete
 ```
 
 ## Env Vars Reference
