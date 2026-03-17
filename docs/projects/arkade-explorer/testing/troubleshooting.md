@@ -1,350 +1,139 @@
-# Arkade Explorer - Troubleshooting Guide
+# Arkade Explorer -- Troubleshooting Guide
 
-## Common Issues
+## Build Issues
 
-### Build Issues
+### TypeScript Errors
 
-#### TypeScript Errors
+**Diagnosis**: `npx tsc --noEmit`
 
-**Problem**: Build fails with type errors
-
-**Diagnosis**:
-```bash
-npx tsc --noEmit
-```
-
-**Common Causes**:
-1. Missing type definitions
-2. Incorrect import paths
-3. Type mismatches in components
+**Common causes**: Missing type definitions, incorrect import paths, type mismatches.
 
 **Solution**:
 ```bash
-# Check for missing types
 npm install -D @types/react @types/react-dom
-
-# Verify tsconfig.json includes all source files
-# Check "include": ["src"]
+# Verify tsconfig.json "include": ["src"]
 ```
 
----
+### ESLint Errors
 
-#### ESLint Errors
+**Diagnosis**: `npm run lint -- --debug`
 
-**Problem**: `npm run lint` fails
+**Common fixes**: Add missing hook dependencies, remove unused variables, ensure exports are HMR-compatible (react-refresh rule).
 
-**Diagnosis**:
+### Module Not Found
+
 ```bash
-npm run lint -- --debug
-```
-
-**Common Fixes**:
-```typescript
-// Error: React Hook useEffect has missing dependency
-// Fix: Add dependency or disable rule if intentional
-useEffect(() => {
-  fetchData();
-}, [fetchData]); // Add missing dep
-
-// Error: Unused variable
-// Fix: Remove or use the variable
-const [data, setData] = useState(null); // Remove if unused
-```
-
----
-
-#### Module Not Found
-
-**Problem**: `Cannot find module 'xyz'`
-
-**Solution**:
-```bash
-# Clear cache and reinstall
 rm -rf node_modules package-lock.json
 npm install
-
-# If specific package missing
-npm install <package-name>
 ```
 
 ---
 
-### Runtime Issues
+## Runtime Issues
 
-#### Blank Page / White Screen
+### Blank Page / White Screen
 
-**Possible Causes**:
-1. JavaScript error preventing render
-2. Missing environment variable
-3. API connection failure
+1. Open browser DevTools Console -- check for red errors
+2. Check `.env` file exists with `VITE_INDEXER_URL`
+3. Verify API accessibility: `curl https://indexer.arkadeos.com/v1/info`
 
-**Diagnosis**:
-1. Open browser DevTools Console
-2. Check for red errors
-3. Check Network tab for failed requests
+### API Connection Failed ("Network Error" or "Failed to fetch")
 
-**Solutions**:
+**Common causes**: Indexer is down, CORS issues, wrong API URL, network connectivity.
+
 ```bash
-# Check environment
-echo $VITE_INDEXER_URL
-cat .env
-
-# Verify API is accessible
-curl https://indexer.arkadeos.com/health
-```
-
----
-
-#### API Connection Failed
-
-**Problem**: "Network Error" or "Failed to fetch"
-
-**Diagnosis**:
-```javascript
-// Check in browser console
-fetch('https://indexer.arkadeos.com/v1/indexer/health')
-  .then(r => r.json())
-  .then(console.log)
-  .catch(console.error)
-```
-
-**Common Causes**:
-1. Indexer is down
-2. CORS issues
-3. Wrong API URL
-4. Network connectivity
-
-**Solutions**:
-```bash
-# Verify indexer URL in .env
+# Verify indexer URL
 cat .env
 
 # Test indexer directly
-curl https://indexer.arkadeos.com/v1/indexer/health
+curl https://indexer.arkadeos.com/v1/info
 
 # Try different indexer
-echo "VITE_INDEXER_URL=https://alt-indexer.arkadeos.com" > .env.local
+echo "VITE_INDEXER_URL=https://alt-indexer.example.com" > .env.local
 npm run dev
 ```
 
----
+### Transaction Not Found
 
-#### Transaction Not Found
+1. Wait for indexer to sync (may take a few seconds)
+2. Verify correct indexer for network (testnet vs mainnet)
+3. Double-check transaction ID (exactly 64 hex characters)
 
-**Problem**: "Transaction not found" error for valid txid
+### VTXO Status Incorrect
 
-**Possible Causes**:
-1. Transaction not yet indexed
-2. Wrong network (mainnet vs testnet)
-3. Typo in transaction ID
+Possible indexer cache lag or recent transaction not yet processed. Wait and refresh. Check indexer sync status if possible.
 
-**Solutions**:
-1. Wait for indexer to sync (may take seconds)
-2. Verify you're using correct indexer for network
-3. Double-check transaction ID (64 hex chars)
+### Asset Icons Not Showing
 
----
-
-#### VTXO Status Incorrect
-
-**Problem**: VTXO shows wrong status (e.g., Active when Spent)
-
-**Possible Causes**:
-1. Indexer cache lag
-2. Recent transaction not yet processed
-
-**Solutions**:
-1. Wait and refresh
-2. Check indexer sync status
-3. Verify with arkd directly if possible
+1. Check `VITE_VERIFIED_ASSETS_URL` is set correctly
+2. Asset may not be in the verified registry -- user must approve manually
+3. Check browser console for fetch errors on the verified assets URL
 
 ---
 
-### Development Issues
+## Development Issues
 
-#### Hot Reload Not Working
+### Hot Reload Not Working
 
-**Problem**: Changes don't reflect in browser
-
-**Solutions**:
 ```bash
-# 1. Hard refresh browser
-# Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
-
-# 2. Clear Vite cache
-rm -rf node_modules/.vite
-
-# 3. Restart dev server
-npm run dev
+# Hard refresh: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows)
+rm -rf node_modules/.vite    # Clear Vite cache
+npm run dev                   # Restart dev server
 ```
 
----
+### Port Already in Use
 
-#### Port Already in Use
-
-**Problem**: `Error: Port 5173 is already in use`
-
-**Solution**:
 ```bash
-# Find and kill process
 lsof -i :5173
 kill -9 <PID>
-
-# Or use different port
-npm run dev -- --port 3000
+# Or: npm run dev -- --port 3000
 ```
 
----
+### Styling Not Applied (TailwindCSS)
 
-#### Styling Not Applied
-
-**Problem**: TailwindCSS classes not working
-
-**Diagnosis**:
 1. Check class names for typos
-2. Verify PostCSS config
-3. Check if class exists in Tailwind
+2. Verify `tailwind.config.js` content paths include `"./src/**/*.{js,ts,jsx,tsx}"`
+3. Check `postcss.config.js` includes tailwindcss plugin
+4. Restart dev server
 
-**Solutions**:
-```bash
-# 1. Restart dev server
-npm run dev
+### Environment Variables Not Working
 
-# 2. Check tailwind.config.js content paths
-module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  // ...
-}
-
-# 3. Verify PostCSS config
-cat postcss.config.js
-```
+1. Variable must start with `VITE_`
+2. Restart dev server after changing `.env`
+3. Access via `import.meta.env.VITE_*` (not `process.env`)
 
 ---
 
-### Deployment Issues
+## Deployment Issues
 
-#### Build Succeeds but App Doesn't Work
+### Build Succeeds but App Doesn't Work in Production
 
-**Common Causes**:
-1. Environment variables not set in production
-2. SPA routing not configured
-3. Base URL mismatch
+1. Environment variables not set in hosting platform
+2. SPA routing not configured (direct URL access returns 404)
 
-**Vercel Solution**:
-```bash
-# Set env vars in Vercel dashboard
-# Settings > Environment Variables
-# Add: VITE_INDEXER_URL = https://indexer.arkadeos.com
-```
+**Vercel/Netlify**: Set `VITE_INDEXER_URL` in platform environment variables dashboard.
 
-**Netlify Solution**:
-```bash
-# Set env vars in Netlify dashboard
-# Site settings > Environment variables
-# Add: VITE_INDEXER_URL = https://indexer.arkadeos.com
-```
+### 404 on Direct URL Access
+
+Server doesn't handle SPA routing. Configure fallback:
+
+**nginx**: `try_files $uri $uri/ /index.html;`
+**Vercel**: Pre-configured via `vercel.json`
+**Netlify**: Pre-configured via `netlify.toml`
 
 ---
 
-#### 404 on Direct URL Access
+## Browser-Specific Issues
 
-**Problem**: Direct links to `/tx/abc` return 404
+### Safari Copy Doesn't Work
 
-**Cause**: Server doesn't handle SPA routing
-
-**Solutions**:
-
-**Vercel** (vercel.json):
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
-}
-```
-
-**Netlify** (netlify.toml):
-```toml
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-```
-
-**Nginx**:
-```nginx
-location / {
-  try_files $uri $uri/ /index.html;
-}
-```
-
----
-
-### Browser-Specific Issues
-
-#### Safari Copy Doesn't Work
-
-**Problem**: Copy to clipboard fails in Safari
-
-**Solution**: Use the Clipboard API with fallback:
-```typescript
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Fallback for Safari
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-  }
-};
-```
-
----
-
-#### Firefox Console Warnings
-
-**Problem**: Multiple warnings in Firefox console
-
-**Common Safe to Ignore**:
-- "Source map warnings" - Development only
-- "Cookie warnings" - Third-party API cookies
-
----
+The Clipboard API may fail in older Safari. The app uses `navigator.clipboard.writeText()` which requires HTTPS or localhost.
 
 ### Performance Issues
 
-#### Slow Initial Load
+**Slow initial load**: Check bundle size with `npm run build`. Enable lazy loading for routes if needed.
 
-**Diagnosis**:
-```bash
-# Check bundle size
-npm run build
-# Look at output sizes
-```
-
-**Solutions**:
-1. Enable code splitting (already configured)
-2. Lazy load routes
-3. Optimize images
-
----
-
-#### Memory Leaks
-
-**Symptoms**: Page becomes slow over time
-
-**Common Causes**:
-1. Uncleared intervals/timeouts
-2. Event listeners not removed
-3. Infinite re-renders
-
-**Diagnosis**: Use Chrome DevTools Performance tab
+**Memory leaks**: Check for uncleared intervals/timeouts. Use Chrome DevTools Performance tab.
 
 ---
 
@@ -362,8 +151,7 @@ npm run build
 
 ## Getting Help
 
-1. Check existing documentation
-2. Search project issues on GitHub
-3. Review browser console for specific errors
-4. Check network tab for API issues
-5. Contact team with error details and reproduction steps
+1. Check browser console for specific error messages
+2. Check Network tab for API response codes
+3. Search project issues: https://github.com/ArkLabsHQ/arkade-explorer/issues
+4. Review the Arkade Protocol docs: https://docs.arkadeos.com/

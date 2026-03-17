@@ -1,6 +1,50 @@
-# Arkade Explorer - Sync History
+# Arkade Explorer -- Sync History
 
-## 2026-02-19 - Initial Documentation Sync
+## 2026-03-13 -- Full Documentation Sync
+**Commit**: `8cb34832ebd5b523f541fe6e362348be8c7ff86e`
+**Previous Sync**: `16e0d184cbd74e6488977899974badb7f66ac20b`
+**Synced By**: /add-project command
+**Status**: Completed
+
+**Changes**:
+- Updated all documentation to reflect current project state
+- Added Asset Explorer page and components (AssetPage, AssetDetails, AssetBadge, AssetAmountDisplay)
+- Documented 5 React Context providers (Theme, MoneyDisplay, ServerInfo, ActivityStream, AssetIconApproval)
+- Documented 3 custom hooks (useAssetDetails, useDebounce, useRecentSearches)
+- Added integration-with-arkd.md documenting Indexer API integration
+- Updated INDEX.md with version 1.1.0, new routes (/asset/:assetId), full directory structure
+- Updated architecture.md with context provider hierarchy and data flow
+- Updated components.md with all new UI components (ParticleRain, MoneyDisplay, MoneyUnitToggle, ImageLightbox, etc.)
+- Updated tech-stack.md with @arkade-os/sdk ^0.4.0-next.7 and pnpm Docker builds
+- Updated usage.md with VITE_VERIFIED_ASSETS_URL and Docker deployment
+- Updated how_to_run.md with Docker pre-built image from GHCR
+- Updated how_to_test.md with asset page testing checklist
+- Updated troubleshooting.md with asset icon troubleshooting
+- Updated development-workflow.md with Docker build workflow
+- Created tasks/.gitkeep and pr-report/.gitkeep
+- Updated master INDEX.md with corrected repository path and technology groupings
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md
+- docs/projects/arkade-explorer/system/project_overview.md
+- docs/projects/arkade-explorer/system/architecture.md
+- docs/projects/arkade-explorer/system/tech-stack.md
+- docs/projects/arkade-explorer/system/components.md
+- docs/projects/arkade-explorer/system/integration-with-arkd.md (new)
+- docs/projects/arkade-explorer/testing/usage.md
+- docs/projects/arkade-explorer/testing/how_to_run.md
+- docs/projects/arkade-explorer/testing/how_to_test.md
+- docs/projects/arkade-explorer/testing/troubleshooting.md
+- docs/projects/arkade-explorer/sop/development-workflow.md
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+- docs/projects/arkade-explorer/tasks/.gitkeep (new)
+- docs/projects/arkade-explorer/pr-report/.gitkeep (new)
+- docs/INDEX.md (updated arkade-explorer entry)
+
+---
+
+## 2026-02-19 -- Initial Documentation Sync
 **Commit**: `16e0d184cbd74e6488977899974badb7f66ac20b`
 **Previous Sync**: `initial`
 **Synced By**: /update-project command

@@ -552,34 +552,36 @@ Official documentation repository for the Ark protocol and ecosystem. Built with
 **Type**: End-User Application/Web App
 **Language**: TypeScript/React
 **Index**: `${ARKADIAN_DIR}/docs/projects/arkade-explorer/INDEX.md`
-**Repository**: `/Users/dusansekulic/code/fe/arkade-explorer`
+**Repository**: `${ARKADE_EXPLORER_REPO}`
 **GitHub**: `${ARKADE_EXPLORER_GITHUB}`
 
 **Description**:
-Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, and VTXO addresses using the Arkade Indexer API. Features include smart search, transaction/address browsing, VTXO status tracking, and responsive design.
+Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, asset details, and VTXO addresses using the Arkade Indexer API. Features smart search (auto-detects txids, asset IDs, and addresses), VTXO tree visualization, light/dark theme, money unit toggle, real-time activity stream, and asset icon verification.
 
 **Key Capabilities**:
-- Commitment transaction explorer with batch details and raw hex viewer
-- Address VTXO explorer with balance statistics and status badges
-- Smart search (auto-detects transaction IDs vs addresses)
-- Real-time data via Arkade Indexer API
-- Responsive design (mobile + desktop)
-- Progressive Web App ready
-- Retro Space Invaders UI theme
-- Copy-to-clipboard functionality
+- Commitment transaction explorer with batch details, VTXO tree viewer, and raw hex
+- Address VTXO explorer with balance statistics, status badges, and pagination
+- Asset explorer with verified asset icon system
+- Smart search (auto-detects transaction IDs, asset IDs, and addresses)
+- Real-time activity stream on homepage
+- Light/dark theme toggle with persistent preference
+- Money display unit toggle (sats/BTC)
+- 5 React Context providers (Theme, MoneyDisplay, ServerInfo, ActivityStream, AssetIconApproval)
 - TanStack Query for data fetching and caching
+- Docker deployment via GHCR pre-built image
+- Responsive design (mobile + desktop)
 
-**Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `react`, `typescript`, `vite`, `tailwindcss`, `pwa`, `indexer`, `web-app`, `frontend`
+**Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `assets`, `react`, `typescript`, `vite`, `tailwindcss`, `indexer`, `web-app`, `frontend`, `theme`, `docker`
 
 **Synonyms**: `ark-explorer`, `block-explorer`, `tx-explorer`, `vtxo-explorer`
 
 **Triggers**:
-- **ask_question**: `view transaction`, `check vtxo`, `explore address`, `transaction details`, `block explorer`
-- **develop**: `add explorer feature`, `fix ui bug`, `update sdk version`, `new transaction view`
-- **test_or_run**: `start explorer`, `build explorer`, `dev server`, `preview build`
-- **debug**: `transaction not found`, `vtxo status wrong`, `api error`, `loading issue`
+- **ask_question**: `view transaction`, `check vtxo`, `explore address`, `explore asset`, `transaction details`, `block explorer`
+- **develop**: `add explorer feature`, `fix ui bug`, `update sdk version`, `new transaction view`, `asset page`
+- **test_or_run**: `start explorer`, `build explorer`, `dev server`, `preview build`, `docker explorer`
+- **debug**: `transaction not found`, `vtxo status wrong`, `api error`, `loading issue`, `asset icon not showing`
 
-**Dependencies**: `@arkade-os/sdk` (TypeScript SDK), Arkade Indexer API (external service)
+**Dependencies**: `@arkade-os/sdk` (^0.4.0-next.7, TypeScript SDK), Arkade Indexer API (external service), `arkade-assets` (asset protocol data)
 **Depended On By**: None (end-user application)
 
 ---
@@ -983,6 +985,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha → beta → stable)
 
-**Last Updated**: 2026-02-19
-**Version**: 1.4.0
+**Last Updated**: 2026-03-13
+**Version**: 1.5.0
 **Maintained By**: Arkadian Documentation Team

@@ -1,41 +1,38 @@
-# Arkade Explorer - Architecture
+# Arkade Explorer -- Architecture
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser (Client)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │   React     │  │   React     │  │     TanStack Query      │ │
-│  │   Router    │  │    18       │  │    (Data Fetching)      │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │                   Component Layer                            ││
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       ││
-│  │  │  Layout  │ │   UI     │ │Transaction│ │ Address  │       ││
-│  │  │Components│ │Components│ │Components │ │Components│       ││
-│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │                     Library Layer                            ││
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       ││
-│  │  │  API     │ │ Utils    │ │ Decode   │ │Validation│       ││
-│  │  │ Client   │ │          │ │          │ │          │       ││
-│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ HTTPS/REST
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Arkade Indexer API                          │
-│                  (https://indexer.arkadeos.com)                 │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │  /v1/indexer/commitmentTx/{txid}                            ││
-│  │  /v1/indexer/vtxos                                          ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
++---------------------------------------------------------------+
+|                        Browser (Client)                        |
++---------------------------------------------------------------+
+|  +-------------+  +---------+  +---------------------------+  |
+|  | React Router |  | React   |  |     TanStack Query        |  |
+|  | (v7)         |  | 18      |  |    (Data Fetching)        |  |
+|  +-------------+  +---------+  +---------------------------+  |
+|  +-----------------------------------------------------------+ |
+|  |                  Context Providers                         | |
+|  | ThemeContext | MoneyDisplay | ServerInfo | ActivityStream  | |
+|  | AssetIconApproval                                          | |
+|  +-----------------------------------------------------------+ |
+|  +-----------------------------------------------------------+ |
+|  |                   Component Layer                          | |
+|  | Layout | UI | Transaction | Address | Asset | Home         | |
+|  +-----------------------------------------------------------+ |
+|  +-----------------------------------------------------------+ |
+|  |                     Library Layer                          | |
+|  | API Client | Utils | Decode | Validation | arkAddress     | |
+|  | formatters | constants | assetIconApproval                | |
+|  +-----------------------------------------------------------+ |
++---------------------------------------------------------------+
+                              |
+                              | HTTPS/REST
+                              v
++---------------------------------------------------------------+
+|                     Arkade Indexer API                          |
+|                  (https://indexer.arkadeos.com)                 |
+|  commitmentTx, vtxos, transactions, info, assets               |
++---------------------------------------------------------------+
 ```
 
 ## Component Hierarchy
@@ -43,225 +40,99 @@
 ```
 App.tsx
 ├── QueryClientProvider (TanStack Query)
-│   └── BrowserRouter
-│       └── Routes
-│           ├── Layout
-│           │   ├── Header
-│           │   │   └── SearchHeader
-│           │   └── Footer
-│           ├── HomePage
-│           │   ├── SearchBar
-│           │   ├── FeatureCard[]
-│           │   └── StatsCard[]
-│           ├── TransactionPage
-│           │   └── → Redirect or CommitmentTxPage
-│           ├── CommitmentTxPage
-│           │   ├── TransactionDetails
-│           │   ├── BatchList
-│           │   └── TransactionHex
-│           ├── AddressPage
-│           │   ├── AddressStats
-│           │   └── VtxoList
-│           │       └── VtxoTreeViewer
-│           └── NotFoundPage
+│   └── AssetIconApprovalProvider
+│       └── ThemeProvider
+│           └── MoneyDisplayProvider
+│               └── ServerInfoProvider
+│                   └── ActivityStreamProvider
+│                       └── BrowserRouter
+│                           └── Routes
+│                               └── Layout
+│                                   ├── Header (SearchHeader)
+│                                   └── Footer
+│                               ├── HomePage
+│                               │   ├── SearchBar
+│                               │   ├── RecentActivity
+│                               │   ├── ParticleRain
+│                               │   └── FeatureCard[]
+│                               ├── TransactionPage (auto-detect/redirect)
+│                               ├── CommitmentTxPage
+│                               │   ├── TransactionDetails
+│                               │   ├── BatchList
+│                               │   ├── VtxoTreeViewer
+│                               │   └── TransactionHex
+│                               ├── AddressPage
+│                               │   ├── AddressStats
+│                               │   └── VtxoList
+│                               ├── AssetPage
+│                               │   └── AssetDetails
+│                               └── NotFoundPage
 ```
 
 ## Layer Breakdown
 
-### 1. Routing Layer (`src/App.tsx`)
+### 1. Context Layer (`src/contexts/`)
 
-Manages client-side navigation using React Router:
+Five React Context providers wrap the application and manage global state:
 
-| Route | Component | Purpose |
-|-------|-----------|---------|
-| `/` | `HomePage` | Search and feature overview |
-| `/tx/:txid` | `TransactionPage` | Auto-detect and redirect |
-| `/commitment-tx/:txid` | `CommitmentTxPage` | Commitment tx details |
-| `/address/:address` | `AddressPage` | Address VTXO explorer |
-| `/*` | `NotFoundPage` | 404 handler |
+- **ThemeContext**: Light/dark theme with localStorage persistence
+- **MoneyDisplayContext**: Toggle between sats and BTC display units
+- **ServerInfoContext**: Fetches and caches Arkade server info via TanStack Query
+- **ActivityStreamContext**: Real-time activity feed for the homepage
+- **AssetIconApprovalContext**: Manages user approval of unverified asset icons
 
-### 2. Component Layer (`src/components/`)
+### 2. Routing Layer (`src/App.tsx`)
 
-**Layout Components** (`Layout/`)
-- `Header` - Navigation bar with branding
-- `Footer` - Copyright and links
-- `Layout` - Main layout wrapper
-- `SearchHeader` - Persistent search in header
+React Router v7 manages client-side navigation with nested routes under a shared Layout component. The TransactionPage auto-detects transaction type and redirects. Smart search on the homepage routes 64-char hex to `/tx/`, 65+ char hex to `/asset/`, and everything else to `/address/`.
 
-**UI Components** (`UI/`)
-- `Card` - Container with optional glow effect
-- `Badge` - Status indicators (success, warning, danger, default)
-- `CopyButton` - Clipboard functionality with feedback
-- `ErrorMessage` - Error display component
-- `InfoRow` - Label-value pair display
-- `LoadingSpinner` - Dual-ring animated spinner
-- `SearchBar` - Smart search input
-- `Pagination` - Page navigation
-- `Tooltip` - Hover information
-- `Tabs` - Tab navigation
-- `ThemeToggle` - Light/dark theme switcher
+### 3. Component Layer (`src/components/`)
 
-**Feature Components**
-- `Transaction/TransactionDetails` - Transaction metadata display
-- `Transaction/BatchList` - Batch outputs listing
-- `Transaction/TransactionHex` - Raw hex viewer
-- `Transaction/VtxoTreeViewer` - VTXO tree visualization
-- `Address/AddressStats` - Balance and statistics
-- `Address/VtxoList` - VTXO listing with status
+Organized into domain-specific directories: Layout, UI, Transaction, Address, Asset, Home, NotFound. UI components are reusable primitives (Card, Badge, CopyButton, Pagination, Tabs, Tooltip, SearchBar, LoadingSpinner, ErrorMessage, InfoRow, MoneyDisplay, MoneyUnitToggle, AssetAmountDisplay, AssetBadge, ImageLightbox, ParticleRain, ThemeToggle).
 
-### 3. Library Layer (`src/lib/`)
+### 4. Library Layer (`src/lib/`)
 
-**API Client** (`api/indexer.ts`)
-- REST-based Arkade Indexer client
-- Pagination support
-- Error handling
+- **API Client** (`api/fetchAllPages.ts`): Generic pagination helper that fetches all pages from paginated SDK calls and merges results
+- **arkAddress.ts**: Constructs Ark addresses from script pubkeys, handles both P2TR and OP_RETURN formats
+- **assetIconApproval.ts**: Verified asset checking logic using remote asset registry
+- **utils.ts**: Core utilities -- `cn()` for class merging, `formatSats()`, `formatTimestamp()`, `truncateHash()`, `copyToClipboard()`
+- **formatters.ts**: Extended formatters (satsToBtc, compact numbers, duration, relative time, bytes)
+- **validation.ts**: Input validation (txid, hex, outpoint, positive integer, sanitize)
+- **decode.ts**: Bitcoin script and transaction decoding, base64/hex conversion
+- **constants.ts**: App-wide constants including pagination defaults
 
-**Utilities** (`utils.ts`, `formatters.ts`)
-- `formatSatoshis()` - Format with thousands separator
-- `formatTimestamp()` - Locale date/time
-- `truncateHash()` - Shorten hashes for display
-- `formatSatsToBtc()` - Convert to BTC
-- `formatCompactNumber()` - K, M, B notation
-- `formatDuration()` - Human-readable duration
-- `formatRelativeTime()` - Relative timestamps
+### 5. Custom Hooks (`src/hooks/`)
 
-**Validation** (`validation.ts`)
-- `isValidTxId()` - Transaction ID validation
-- `isValidHex()` - Hex string validation
-- `isValidOutpoint()` - VTXO outpoint validation
-- `isPositiveInteger()` - Number validation
-- `sanitizeInput()` - XSS prevention
+- **useAssetDetails**: Fetches and caches asset details by ID
+- **useDebounce**: Debounces rapidly changing values (used in search)
+- **useRecentSearches**: Manages recent search history in localStorage
 
-**Decoding** (`decode.ts`)
-- Bitcoin script decoding
-- Transaction hex parsing
-- Outpoint parsing
-- Base64/hex conversion
+### 6. Data Layer (TanStack Query)
 
-**Ark Address** (`arkAddress.ts`)
-- Construct Ark addresses from script pubkeys
-- Handle both P2TR (SegWit v1) and OP_RETURN sub-dust scripts
-- Decode Ark address strings to components
-
-### 4. Data Layer (TanStack Query)
-
-Manages server state with:
-- Automatic caching and invalidation
-- Background refetching
-- Error/loading states
-- Optimistic updates
+Manages all server state with automatic caching, background refetching, and loading/error states. Configured with `refetchOnWindowFocus: false` and `retry: 1` for the explorer use case.
 
 ## Data Flow
 
-### Transaction Lookup Flow
-
+### Search Flow
 ```
-User Input (txid)
-       │
-       ▼
-┌──────────────────┐
-│   SearchBar      │
-│  (validation)    │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│   React Router   │
-│  /tx/:txid       │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ TransactionPage  │
-│  (type detect)   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐     ┌───────────────────┐
-│ TanStack Query   │────▶│  Arkade Indexer   │
-│  useQuery()      │◀────│  REST API         │
-└────────┬─────────┘     └───────────────────┘
-         │
-         ▼
-┌──────────────────┐
-│CommitmentTxPage  │
-│ (render details) │
-└──────────────────┘
+User Input -> HomePage (type detection) -> React Router
+  64 hex chars -> /tx/:txid -> TransactionPage (auto-detect) -> CommitmentTxPage or redirect
+  65+ hex chars -> /asset/:assetId -> AssetPage -> AssetDetails
+  Other -> /address/:address -> AddressPage -> AddressStats + VtxoList
 ```
 
-### Address Lookup Flow
-
+### API Data Flow
 ```
-User Input (address)
-       │
-       ▼
-┌──────────────────┐
-│   SearchBar      │
-│  (detection)     │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐     ┌───────────────────┐
-│  AddressPage     │────▶│  Arkade Indexer   │
-│  useQuery()      │◀────│  /vtxos endpoint  │
-└────────┬─────────┘     └───────────────────┘
-         │
-         ├──────────────────┐
-         ▼                  ▼
-┌──────────────────┐ ┌──────────────────┐
-│  AddressStats    │ │    VtxoList      │
-│  (aggregated)    │ │  (individual)    │
-└──────────────────┘ └──────────────────┘
+Component -> useQuery(queryKey, queryFn) -> @arkade-os/sdk client -> Indexer REST API
+                                         <- Response cached by TanStack Query
 ```
-
-## State Management
-
-### Query State (TanStack Query)
-
-```typescript
-// Transaction data
-const { data, isLoading, error } = useQuery({
-  queryKey: ['commitmentTx', txid],
-  queryFn: () => indexer.getCommitmentTx(txid),
-});
-
-// VTXOs by address
-const { data, isLoading, error } = useQuery({
-  queryKey: ['vtxos', address],
-  queryFn: () => indexer.getVtxosByScripts([address]),
-});
-```
-
-### Local State (React useState)
-
-- Search input value
-- UI toggle states (expanded/collapsed)
-- Pagination state
-- Tab selection
-
-### Context State (React Context)
-
-- Theme configuration (if applicable)
-- Global settings
 
 ## Build Architecture
 
-```
-Source Files                      Build Output
-─────────────                     ────────────
-src/
-├── *.tsx, *.ts    ─┐
-├── index.css      ─┼──▶  Vite  ──▶  dist/
-└── assets/        ─┘              ├── index.html
-                                   ├── assets/
-                                   │   ├── *.js (chunks)
-                                   │   └── *.css
-                                   └── favicon.svg
-```
+Vite bundles TypeScript/React source into optimized production assets. The build injects the current git commit hash via `vite.config.ts` using `execSync('git rev-parse --short HEAD')`. Docker builds use a multi-stage process: Node 22 Alpine for building, nginx Alpine for serving, with SPA routing configured via `nginx.conf`.
 
-### Bundle Optimization
+## State Management
 
-- **Code Splitting**: React Router lazy loading
-- **Tree Shaking**: Unused code elimination
-- **Minification**: Terser for JS, cssnano for CSS
-- **Asset Hashing**: Cache-busting filenames
+- **Server state**: TanStack Query (all API data)
+- **Global UI state**: React Context (theme, money display, server info, activity stream, asset approval)
+- **Local UI state**: React useState (search input, pagination, expanded/collapsed toggles, tabs)
+- **Persistent state**: localStorage (theme preference, recent searches, asset approvals)
