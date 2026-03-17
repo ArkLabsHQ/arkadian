@@ -1,57 +1,35 @@
-# Arkade Explorer - How to Run
+# Arkade Explorer -- How to Run
 
 ## Development Server
 
 ### Quick Start
 
 ```bash
-# Install dependencies (first time only)
-npm install
-
-# Start development server
-npm run dev
+npm install       # First time only
+npm run dev       # Start dev server
 ```
 
-The development server starts at `http://localhost:5173` with:
-- Hot Module Replacement (HMR)
-- Fast refresh on code changes
-- Source maps for debugging
+The development server starts at `http://localhost:5173` with HMR, fast refresh, and source maps.
 
 ### Development Commands
 
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start dev server (port 5173) |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
+| `npm run build` | TypeScript check + Vite production build |
+| `npm run preview` | Preview production build (port 4173) |
 | `npm run lint` | Run ESLint |
 
 ---
 
 ## Production Build
 
-### Build Steps
-
 ```bash
-# 1. Build the project
-npm run build
-
-# 2. Output is in dist/
-ls dist/
-# index.html  assets/  favicon.svg
+npm run build    # Runs tsc && vite build
+ls dist/         # index.html, assets/, favicon
 ```
 
-### Build Output
-
-```
-dist/
-├── index.html           # Entry point
-├── favicon.svg          # Favicon
-└── assets/
-    ├── index-[hash].js  # Main bundle
-    ├── index-[hash].css # Styles
-    └── vendor-[hash].js # Dependencies (chunked)
-```
+The build process: (1) runs TypeScript compiler for type checking, (2) runs Vite bundler for optimized output, (3) injects git commit hash into the bundle.
 
 ### Preview Production Build
 
@@ -65,84 +43,67 @@ Opens at `http://localhost:4173` with production-optimized code.
 
 ## Environment Configuration
 
-### Environment Variables
-
 Create `.env` in project root:
 
 ```env
-# Arkade Indexer API URL
 VITE_INDEXER_URL=https://indexer.arkadeos.com
+VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.json
 ```
 
-### Environment File Hierarchy
+Vite loads environment files in order: `.env` -> `.env.local` -> `.env.development` / `.env.production`. Only `VITE_` prefixed variables are exposed to the client. Restart dev server after changing `.env`.
 
-Vite loads environment files in this order:
-1. `.env` - Always loaded
-2. `.env.local` - Local overrides (git-ignored)
-3. `.env.development` - Dev mode only
-4. `.env.production` - Production build only
-
-### Accessing Variables in Code
-
-```typescript
-const indexerUrl = import.meta.env.VITE_INDEXER_URL;
-```
-
-**Note**: Only variables prefixed with `VITE_` are exposed to the client.
-
----
-
-## Running with Different Indexers
-
-### Local Indexer
+### Running with Different Indexers
 
 ```bash
-# Start local indexer (from ark project)
-# Then configure explorer:
+# Local indexer (regtest)
 echo "VITE_INDEXER_URL=http://localhost:7070" > .env.local
 npm run dev
-```
 
-### Staging Indexer
-
-```bash
+# Staging indexer
 echo "VITE_INDEXER_URL=https://staging-indexer.arkadeos.com" > .env.local
 npm run dev
-```
 
-### Production Indexer (Default)
-
-```bash
-# Use default .env
+# Production (default .env)
 npm run dev
 ```
 
 ---
 
-## Docker (Optional)
+## Docker
 
-### Build Docker Image
+### Pre-built Image
 
-```dockerfile
-# Dockerfile
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
-EXPOSE 80
+```bash
+docker run -p 8080:80 ghcr.io/arklabshq/arkade-explorer:latest
 ```
 
-### Run Container
+App available at `http://localhost:8080`.
+
+### Local Docker Build
 
 ```bash
 docker build -t arkade-explorer .
 docker run -p 8080:80 arkade-explorer
+```
+
+The Dockerfile uses a multi-stage build: Node 22 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html).
+
+---
+
+## IDE Setup
+
+### VS Code Extensions
+- ESLint
+- Tailwind CSS IntelliSense
+- TypeScript (built-in)
+
+### Recommended Settings
+
+```json
+{
+  "editor.formatOnSave": true,
+  "typescript.preferences.importModuleSpecifier": "relative"
+}
 ```
 
 ---
@@ -150,69 +111,23 @@ docker run -p 8080:80 arkade-explorer
 ## Troubleshooting
 
 ### Port Already in Use
-
 ```bash
-# Find process using port 5173
-lsof -i :5173
-
-# Kill process
-kill -9 <PID>
-
-# Or use different port
-npm run dev -- --port 3000
-```
-
-### Node Version Issues
-
-```bash
-# Check Node version
-node -v  # Should be 18+
-
-# Use nvm to switch
-nvm use 18
+lsof -i :5173                    # Find process
+kill -9 <PID>                    # Kill it
+npm run dev -- --port 3000       # Or use different port
 ```
 
 ### Dependencies Not Found
-
 ```bash
-# Clear and reinstall
 rm -rf node_modules package-lock.json
 npm install
 ```
 
 ### Build Fails
-
 ```bash
-# Check TypeScript errors
-npm run lint
-
-# Check for type errors
-npx tsc --noEmit
+npx tsc --noEmit    # Check TypeScript errors
+npm run lint         # Check lint errors
 ```
-
-### Environment Variables Not Working
-
-1. Ensure variable starts with `VITE_`
-2. Restart dev server after changing `.env`
-3. Check for typos in variable names
-
----
-
-## Performance Optimization
-
-### Development
-
-- HMR is enabled by default
-- Source maps for debugging
-- No minification
-
-### Production
-
-- Code minification (Terser)
-- CSS minification (cssnano)
-- Tree shaking
-- Chunk splitting
-- Asset hashing for caching
 
 ### Build Stats
 
@@ -222,24 +137,3 @@ npx tsc --noEmit
 | JS Bundle | ~261 KB (gzip: ~82 KB) |
 | CSS Bundle | ~16 KB (gzip: ~4 KB) |
 | HMR Speed | < 1 second |
-
----
-
-## IDE Setup
-
-### VS Code Extensions
-
-- ESLint
-- Prettier
-- TypeScript Vue Plugin (Volar)
-- Tailwind CSS IntelliSense
-
-### Recommended Settings
-
-```json
-{
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "typescript.preferences.importModuleSpecifier": "relative"
-}
-```

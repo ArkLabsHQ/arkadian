@@ -1,10 +1,11 @@
-# Arkade Explorer - Component Documentation
+# Arkade Explorer -- Component Documentation
 
 ## Component Organization
 
 ```
 src/components/
 ├── Address/          # Address exploration components
+├── Asset/            # Asset detail components
 ├── Home/             # Homepage feature components
 ├── Layout/           # Layout and navigation
 ├── NotFound/         # 404 page
@@ -15,339 +16,172 @@ src/components/
 ## UI Components (`UI/`)
 
 ### Card
-Container component with optional visual effects.
-
-**Props**:
-- `children: ReactNode` - Content
-- `className?: string` - Additional classes
-- `glow?: boolean` - Enable glow effect
-
-**Usage**:
-```tsx
-<Card glow>
-  <h2>Transaction Details</h2>
-  <p>Content here...</p>
-</Card>
-```
+Container component with optional glow effect.
+- **Props**: `children`, `className?`, `glowing?: boolean`
 
 ### Badge
-Status indicator component with variants.
-
-**Props**:
-- `variant: 'success' | 'warning' | 'danger' | 'default'`
-- `children: ReactNode`
-
-**Usage**:
-```tsx
-<Badge variant="success">Active</Badge>
-<Badge variant="warning">Pending</Badge>
-<Badge variant="danger">Expired</Badge>
-```
-
-**Variants**:
-| Variant | Color | Use Case |
-|---------|-------|----------|
-| success | Green | Active VTXOs |
-| warning | Orange | Pending/expiring |
-| danger | Red | Expired/swept |
-| default | Gray | Neutral status |
+Status indicator with variants: `success` (green/Active), `warning` (orange/Pending), `danger` (red/Expired), `default` (gray).
 
 ### CopyButton
-Clipboard copy with visual feedback.
-
-**Props**:
-- `text: string` - Text to copy
-- `className?: string`
-
-**Behavior**:
-1. Click triggers copy
-2. Visual feedback (checkmark)
-3. Resets after 2 seconds
+Clipboard copy with visual feedback. Shows checkmark for 2 seconds after copy.
 
 ### LoadingSpinner
-Animated loading indicator.
-
-**Props**:
-- `size?: 'sm' | 'md' | 'lg'`
-- `className?: string`
-
-**Animation**: Dual-ring rotation effect (retro theme).
+Dual-ring animated loading indicator with retro styling.
 
 ### ErrorMessage
-Error display with icon.
-
-**Props**:
-- `message: string`
-- `className?: string`
+Error display component with icon and message.
 
 ### InfoRow
-Label-value pair display.
-
-**Props**:
-- `label: string`
-- `value: string | ReactNode`
-- `copyable?: boolean`
-
-**Usage**:
-```tsx
-<InfoRow
-  label="Transaction ID"
-  value={truncateHash(txid)}
-  copyable
-/>
-```
+Label-value pair display with optional copy functionality.
 
 ### SearchBar
-Smart search input with auto-detection.
-
-**Props**:
-- `onSearch: (query: string) => void`
-- `placeholder?: string`
-- `initialValue?: string`
-
-**Features**:
-- Detects 64-char hex (transaction ID)
-- Detects addresses/scripts
-- Debounced input
-- Clear button
+Smart search input with auto-detection of txids, asset IDs, and addresses.
 
 ### Pagination
-Page navigation component.
-
-**Props**:
-- `currentPage: number`
-- `totalPages: number`
-- `onPageChange: (page: number) => void`
+Page navigation component for paginated VTXO lists.
 
 ### Tooltip
-Hover information display.
-
-**Props**:
-- `content: string | ReactNode`
-- `children: ReactNode`
-- `position?: 'top' | 'bottom' | 'left' | 'right'`
+Hover information display with configurable position.
 
 ### Tabs
-Tab navigation component.
+Tab navigation component for switching between content views.
 
-**Props**:
-- `tabs: { id: string; label: string; content: ReactNode }[]`
-- `defaultTab?: string`
+### ThemeToggle
+Light/dark theme switcher. Reads and writes to ThemeContext.
+
+### ParticleRain
+Visual particle rain effect triggered by activity events on the homepage.
+
+### MoneyDisplay
+Displays satoshi amounts formatted according to MoneyDisplayContext preference (sats or BTC).
+
+### MoneyUnitToggle
+Toggle switch for sats/BTC display unit preference.
+
+### AssetAmountDisplay
+Displays asset amounts with proper denomination and formatting.
+
+### AssetBadge
+Visual badge for asset identification with icon support.
+
+### ImageLightbox
+Lightbox overlay for viewing asset images in full size.
 
 ## Layout Components (`Layout/`)
 
 ### Header
-Top navigation bar.
-
-**Features**:
-- Logo/branding
-- Navigation links
-- Search integration
+Top navigation bar with logo/branding, navigation links, theme toggle, and search integration.
 
 ### Footer
-Bottom section.
-
-**Features**:
-- Copyright notice
-- External links
-- Version info (optional)
+Bottom section with copyright notice, external links, and commit hash version display.
 
 ### Layout
-Main wrapper component.
-
-**Structure**:
-```tsx
-<div className="min-h-screen flex flex-col">
-  <Header />
-  <main className="flex-1">
-    {children}
-  </main>
-  <Footer />
-</div>
-```
+Main layout wrapper using React Router's Outlet for nested route content.
 
 ### SearchHeader
-Persistent search in header.
-
-**Features**:
-- Compact search bar
-- Mobile responsive
-- Navigation integration
+Persistent compact search bar in the header, available on all pages.
 
 ## Transaction Components (`Transaction/`)
 
 ### TransactionDetails
-Display transaction metadata.
-
-**Data Displayed**:
-- Transaction ID
-- Started/ended timestamps
-- Input/output amounts
-- VTXO counts
-- Status
+Displays transaction metadata: ID, timestamps, input/output amounts, VTXO counts, and status.
 
 ### BatchList
-List of batch outputs.
-
-**Props**:
-- `batches: Batch[]`
-- `expanded?: boolean`
-
-**Batch Item**:
-- Batch index
-- Amount
-- VTXO count
-- Expiration
-- Swept status
+Lists batch outputs with amount, VTXO count, expiration, and swept status.
 
 ### TransactionHex
-Raw transaction hex viewer.
+Expandable raw transaction hex viewer with copy-to-clipboard.
 
-**Props**:
-- `hex: string`
-- `defaultExpanded?: boolean`
-
-**Features**:
-- Expandable/collapsible
-- Copy to clipboard
-- Monospace font
-- Line wrapping
+### TreeViewer
+Generic tree visualization component for hierarchical data.
 
 ### VtxoTreeViewer
-VTXO tree visualization.
-
-**Props**:
-- `vtxos: Vtxo[]`
-- `rootTxid: string`
-
-**Features**:
-- Hierarchical display
-- Expand/collapse nodes
-- Status indicators
+VTXO-specific tree visualization showing the VTXO tree structure within a batch.
 
 ## Address Components (`Address/`)
 
 ### AddressStats
-Aggregated address statistics.
-
-**Data Displayed**:
-| Stat | Description |
-|------|-------------|
-| Total Balance | Sum of active VTXO amounts |
-| Total Received | All-time received |
-| Total VTXOs | Count of all VTXOs |
-| Active | Count of spendable |
-| Spent | Count of spent |
-| Swept | Count of swept |
+Aggregated statistics: total balance, total received, total VTXOs, active/spent/swept counts.
 
 ### VtxoList
-List of VTXOs for an address.
+Paginated list of VTXOs for an address. Each item shows outpoint, amount, status badge, timestamps, expiration, and transaction links.
 
-**Props**:
-- `vtxos: Vtxo[]`
-- `loading?: boolean`
+## Asset Components (`Asset/`)
 
-**VTXO Item**:
-- Outpoint (txid:vout)
-- Amount
-- Status badge
-- Created timestamp
-- Expiration
-- Links to related transactions
+### AssetDetails
+Displays asset information fetched by asset ID. Shows asset metadata, amounts, and verification status.
 
 ## Home Components (`Home/`)
 
 ### FeatureCard
-Feature highlight card.
+Feature highlight card with icon, title, and description.
 
-**Props**:
-- `icon: ReactNode`
-- `title: string`
-- `description: string`
+### RecentActivity
+Live activity feed showing recent transactions and events. Uses ActivityStreamContext.
 
 ### StatsCard
-Statistics display card.
-
-**Props**:
-- `label: string`
-- `value: string | number`
-- `icon?: ReactNode`
+Statistics display card with label, value, and optional icon.
 
 ## Page Components (`pages/`)
 
 ### HomePage
-Landing page with search.
-
-**Sections**:
-1. Hero with search bar
-2. Feature cards
-3. Statistics (if available)
+Landing page with search bar, particle rain effect, recent activity stream, and feature cards.
 
 ### TransactionPage
-Transaction type detection and routing.
-
-**Logic**:
-1. Fetch transaction data
-2. Detect type (commitment vs regular)
-3. Redirect or display
+Transaction type detection and routing. Fetches transaction data, detects if it is a commitment transaction, and either displays details or redirects.
 
 ### CommitmentTxPage
-Commitment transaction details.
-
-**Sections**:
-1. Transaction details
-2. Batch list
-3. Raw hex viewer
+Commitment transaction details with transaction info, batch list, VTXO tree viewer, and raw hex.
 
 ### AddressPage
-Address VTXO explorer.
+Address VTXO explorer with statistics dashboard and paginated VTXO list.
 
-**Sections**:
-1. Address display with copy
-2. Statistics dashboard
-3. VTXO list with filtering
+### AssetPage
+Asset details page. Uses useAssetDetails hook to fetch asset data by ID.
 
-### NotFoundPage
-404 error page.
+## Context Providers (`contexts/`)
 
-**Features**:
-- Retro-themed error message
-- Navigation to home
-- Search bar
+### ThemeContext
+Manages light/dark theme. Persists preference to localStorage. Provides `theme` and `toggleTheme`.
+
+### MoneyDisplayContext
+Manages sats/BTC display preference. Provides `unit` and `toggleUnit`.
+
+### ServerInfoContext
+Fetches server info on mount via TanStack Query with `staleTime: Infinity`. Provides `serverInfo`, `isLoading`, `error`.
+
+### ActivityStreamContext
+Manages real-time activity feed for homepage. Provides activity items and subscription.
+
+### AssetIconApprovalContext
+Manages user approval for displaying icons of unverified assets. Checks asset IDs against the verified assets registry URL. Provides approval state and approve/reject methods.
+
+## Custom Hooks (`hooks/`)
+
+### useAssetDetails
+Fetches asset details by asset ID. Returns data, loading, and error states.
+
+### useDebounce
+Debounces a rapidly changing value (e.g., search input) with a configurable delay.
+
+### useRecentSearches
+Manages recent search history in localStorage. Returns search list and add/clear methods.
 
 ## Component Patterns
 
 ### Loading States
 ```tsx
-if (isLoading) {
-  return (
-    <div className="flex justify-center py-12">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
-}
+if (isLoading) return <LoadingSpinner size="lg" />;
 ```
 
 ### Error States
 ```tsx
-if (error) {
-  return <ErrorMessage message={error.message} />;
-}
+if (error) return <ErrorMessage message={error.message} />;
 ```
 
 ### Empty States
 ```tsx
 if (!data || data.length === 0) {
-  return (
-    <Card>
-      <p className="text-center text-gray">No data found</p>
-    </Card>
-  );
+  return <Card><p className="text-center">No data found</p></Card>;
 }
-```
-
-### Conditional Rendering
-```tsx
-{data.swept && <Badge variant="danger">Swept</Badge>}
-{data.active && <Badge variant="success">Active</Badge>}
 ```
