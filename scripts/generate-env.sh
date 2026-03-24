@@ -42,7 +42,7 @@ fi
 # ── GitHub URL → env var mapping ─────────────────────────────────
 # Each entry: GITHUB_VAR|REPO_VAR|org/repo|description
 REPO_ENTRIES=(
-  "ARKD_GITHUB|ARKD_REPO|arkade-os/ark|arkd (protocol server)|required"
+  "ARKD_GITHUB|ARKD_REPO|arkade-os/arkd|arkd (protocol server)|required"
   "GO_SDK_GITHUB|GO_SDK_REPO|arkade-os/go-sdk|go-sdk (Go client SDK)|required"
   "WALLET_GITHUB|WALLET_REPO|arkade-os/wallet|wallet (PWA)|required"
   "TS_SDK_GITHUB|TS_SDK_REPO|arkade-os/ts-sdk|ts-sdk (TypeScript SDK)|optional"

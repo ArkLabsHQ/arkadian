@@ -56,7 +56,7 @@ Arkadian orchestrates work across Ark codebases, so it needs local access to the
 mkdir -p ~/code/ark && cd ~/code/ark
 
 # Required: Core repos
-git clone git@github.com:arkade-os/ark.git        # arkd - protocol server
+git clone git@github.com:arkade-os/arkd.git        # arkd - protocol server
 git clone git@github.com:arkade-os/go-sdk.git      # Go client SDK
 git clone git@github.com:arkade-os/wallet.git       # PWA wallet
 ```
@@ -462,7 +462,7 @@ cd ~/arkadian
 bash scripts/ec2-bootstrap.sh
 
 # 3. Clone the Ark repos you'll work with
-git clone git@github.com:arkade-os/ark.git ~/ark/ark          # required
+git clone git@github.com:arkade-os/arkd.git ~/ark/ark          # required
 git clone git@github.com:arkade-os/go-sdk.git ~/ark/go-sdk    # required
 git clone git@github.com:arkade-os/wallet.git ~/ark/wallet     # required
 
