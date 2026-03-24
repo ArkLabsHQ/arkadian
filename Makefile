@@ -107,13 +107,8 @@ install-data-dir: ## Create OS-specific data directory for runtime state
 	@mkdir -p "$(ARKADIAN_DATA_DIR)"
 	@echo "$(GREEN)✓ Created data directory: $(ARKADIAN_DATA_DIR)$(NC)"
 
-generate-env: ## Generate .env from user prompts
-	@if [ -f ".env" ]; then \
-		echo "$(YELLOW)⚠️  .env already exists. To regenerate, delete it first:$(NC)"; \
-		echo "  rm .env && make generate-env"; \
-	else \
-		bash scripts/generate-env.sh; \
-	fi
+generate-env: ## Generate .env (auto-clones repos or prompts for paths)
+	@bash scripts/generate-env.sh
 
 copy-settings-with-env: ## Generate settings.json with all env vars from .env
 	@echo "$(YELLOW)Installing settings.json with environment variables...$(NC)"
