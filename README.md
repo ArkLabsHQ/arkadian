@@ -38,14 +38,65 @@ Arkadian is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plug
 
 ## Prerequisites
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- [Bun](https://bun.sh) runtime (hooks are TypeScript, executed via Bun)
-- [Git](https://git-scm.com/)
-- At least the core repos cloned locally (arkd, go-sdk, wallet)
+Before installing Arkadian, you need:
+
+1. **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** — installed and authenticated (`claude` command available)
+2. **[Bun](https://bun.sh)** — runtime for TypeScript hooks (`curl -fsSL https://bun.sh/install | bash`)
+3. **[Git](https://git-scm.com/)**
+4. **At least 3 Ark repositories cloned locally** (see next section)
 
 ## Installation
 
-### 1. Clone and install
+### Step 1: Clone the Ark repositories
+
+Arkadian orchestrates work across Ark codebases, so it needs local access to the repos you want to work with. **At minimum**, you need these 3 core repos:
+
+```bash
+# Create a workspace (use any directory structure you prefer)
+mkdir -p ~/code/ark && cd ~/code/ark
+
+# Required: Core repos
+git clone git@github.com:arkade-os/ark.git        # arkd - protocol server
+git clone git@github.com:arkade-os/go-sdk.git      # Go client SDK
+git clone git@github.com:arkade-os/wallet.git       # PWA wallet
+```
+
+**Optional repos** — clone any you plan to work with:
+
+```bash
+# SDKs
+git clone git@github.com:arkade-os/ts-sdk.git       # TypeScript SDK
+git clone git@github.com:arkade-os/rust-sdk.git      # Rust SDK
+git clone git@github.com:arkade-os/dotnet-sdk.git    # .NET SDK
+
+# Services
+git clone git@github.com:ArkLabsHQ/fulmine.git       # Lightning wallet + swaps
+git clone git@github.com:ArkLabsHQ/ark-faucet.git    # Testnet faucet
+
+# Swap infrastructure
+git clone git@github.com:BoltzExchange/boltz-backend.git  # Atomic swaps
+git clone git@github.com:arkade-os/boltz-swap.git         # Swap client library
+
+# Smart contracts
+git clone git@github.com:ArkLabsHQ/compiler.git      # Arkade Script compiler
+git clone git@github.com:ArkLabsHQ/introspector.git   # Script engine
+
+# Applications
+git clone git@github.com:ArkLabsHQ/arkade-escrow.git    # 3-party escrow
+git clone git@github.com:ArkLabsHQ/arkade-explorer.git  # Block explorer
+git clone git@github.com:ArkLabsHQ/arkade-assets.git    # Asset protocol
+
+# Testing & ops
+git clone git@github.com:ArkLabsHQ/ark-simulator.git    # Load testing
+git clone git@github.com:ArkLabsHQ/ark-telemetry.git    # Monitoring stack
+git clone git@github.com:ArkLabsHQ/ark-infra.git        # IaC (Terraform/Docker)
+git clone git@github.com:ArkLabsHQ/kms-unlocker.git     # AWS KMS wallet unlock
+git clone git@github.com:arkade-os/docs.git              # Protocol docs
+```
+
+You can always add more repos later (see [Adding a new repository](#adding-a-new-repository)).
+
+### Step 2: Clone and install Arkadian
 
 ```bash
 git clone <arkadian-repo-url>
@@ -53,30 +104,41 @@ cd arkadian
 make install
 ```
 
-`make install` runs these steps automatically:
+During installation, `make install` will:
 
-| Step | What it does |
-|------|-------------|
-| `check-prereqs` | Verifies `bun` and `git` are installed |
-| `setup-dirs` | Creates `~/.claude/` if missing |
-| `install-data-dir` | Creates OS-specific data dir (`~/Library/Application Support/Arkadian` on macOS) |
-| `generate-env` | Interactive prompt for all 20 repository paths (creates `.env`) |
-| `copy-settings-with-env` | Generates `~/.claude/settings-arkadian.json` with hooks + env vars from `.env` |
-| `export-env` | Adds `ARKADIAN_DIR` and `ARKADIAN_DATA_DIR` to your shell config |
-| `make-executable` | `chmod +x` on all hook files |
-| `install-arkadian-cmd` | Copies `arkadian` script to `~/bin/` and adds to PATH |
-| `install-agents` | Installs 8 agent definitions to `~/.claude/agents/` |
-| `install-skills` | Installs 33 skills to `~/.claude/skills/` |
-| `install-commands` | Installs 13 slash commands to `~/.claude/commands/` |
-| `verify` | Checks everything is correctly installed |
+1. **Check prerequisites** — verifies `claude`, `bun`, and `git` are installed
+2. **Prompt for repo paths** — asks where you cloned each repo (press Enter to skip optional ones)
+3. **Generate settings** — creates `~/.claude/settings-arkadian.json` with hooks and env vars
+4. **Install components** — agents, skills, commands, and the `arkadian` CLI
 
-### 2. Load environment
+The interactive prompt looks like this:
+
+```
+Step 1: Core Repositories (required)
+───────────────────────────────────────
+  arkd (protocol server): ~/code/ark/ark
+  go-sdk (Go client SDK): ~/code/ark/go-sdk
+  wallet (PWA wallet): ~/code/ark/wallet
+
+Step 2: Optional Repositories
+───────────────────────────────────────
+Press Enter to skip any repo you haven't cloned.
+  fulmine (Lightning wallet + swaps): ~/code/ark/fulmine
+  ts-sdk (TypeScript SDK): ⏎  (skipped)
+  ...
+
+Step 3: GitHub URLs
+───────────────────────────────────────
+Accept all defaults? (Y/n): Y
+```
+
+### Step 3: Reload your shell
 
 ```bash
 source ~/.zshrc   # or open a new terminal
 ```
 
-### 3. Verify installation
+### Step 4: Verify
 
 ```bash
 make verify
@@ -97,9 +159,7 @@ Expected output:
 ✓ Data directory exists
 ```
 
-### 4. Configure repository paths
-
-During `make install`, the interactive `generate-env` step prompts for all repo paths. If you need to update them later:
+### Updating repo paths later
 
 ```bash
 # Edit directly
@@ -107,11 +167,8 @@ vim .env
 
 # Or regenerate from scratch
 rm .env && make generate-env
-```
 
-Then regenerate the settings file:
-
-```bash
+# Then regenerate settings
 make copy-settings-with-env
 ```
 

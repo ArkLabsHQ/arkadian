@@ -82,6 +82,8 @@ install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-wi
 
 check-prereqs: ## Check for required dependencies
 	@echo "$(YELLOW)Checking prerequisites...$(NC)"
+	@command -v claude >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: Claude Code CLI is not installed$(NC)"; echo "   Install from: https://docs.anthropic.com/en/docs/claude-code"; exit 1; }
+	@echo "$(GREEN)✓ claude found$(NC)"
 	@command -v bun >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: bun is not installed. Install from https://bun.sh$(NC)"; exit 1; }
 	@echo "$(GREEN)✓ bun found: $$(bun --version)$(NC)"
 	@command -v git >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: git is not installed$(NC)"; exit 1; }
@@ -342,6 +344,7 @@ status: ## Show installation status
 	@echo "============================"
 	@echo ""
 	@echo "$(YELLOW)Prerequisites:$(NC)"
+	@command -v claude >/dev/null 2>&1 && echo "$(GREEN)✓ claude CLI installed$(NC)" || echo "$(RED)✗ claude CLI not installed$(NC)"
 	@command -v bun >/dev/null 2>&1 && echo "$(GREEN)✓ bun: $$(bun --version)$(NC)" || echo "$(RED)✗ bun not installed$(NC)"
 	@command -v git >/dev/null 2>&1 && echo "$(GREEN)✓ git: $$(git --version | head -1)$(NC)" || echo "$(RED)✗ git not installed$(NC)"
 	@echo ""

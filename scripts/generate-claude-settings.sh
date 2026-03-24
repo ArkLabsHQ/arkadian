@@ -102,6 +102,17 @@ while IFS='=' read -r key value; do
   updated_content=$(echo "$updated_content" | sed "s|$placeholder|$value|g")
 done < "$ENV_FILE"
 
+# Remove unreplaced placeholders from additionalDirectories
+# (repos the user skipped during generate-env)
+updated_content=$(echo "$updated_content" | grep -v '_PLACEHOLDER"')
+
+# Fix trailing commas in additionalDirectories JSON array after removing lines
+# Remove trailing comma before closing bracket: ,\n    ]  →  \n    ]
+updated_content=$(echo "$updated_content" | sed -E '
+  # If this line has a trailing comma and next non-blank line is ], remove the comma
+  /,$/{ N; s/,([[:space:]]*\])/\1/; }
+')
+
 # Write to settings file
 mkdir -p "$(dirname "$SETTINGS_FILE")"
 echo "$updated_content" > "$SETTINGS_FILE"
