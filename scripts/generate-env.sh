@@ -106,7 +106,7 @@ if [ "$auto_clone" != "n" ] && [ "$auto_clone" != "N" ]; then
     IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
     repo_name="${org_repo##*/}"
     clone_dir="$REPOS_DIR/$repo_name"
-    clone_url="https://github.com/${org_repo}.git"
+    clone_url="git@github.com:${org_repo}.git"
 
     if [ -d "$clone_dir/.git" ]; then
       echo "  ✓ $repo_name (already cloned)"
@@ -120,9 +120,9 @@ if [ "$auto_clone" != "n" ] && [ "$auto_clone" != "N" ]; then
       else
         if [ "$req" = "required" ]; then
           echo "  ❌ $repo_name (FAILED — this repo is required!)"
-          echo "     Try with SSH: git clone git@github.com:${org_repo}.git $clone_dir"
+          echo "     Check your SSH key: ssh -T git@github.com"
         else
-          echo "  ✗ $repo_name (skipped — private or unavailable)"
+          echo "  ✗ $repo_name (skipped — no access or SSH key issue)"
         fi
         skipped=$((skipped + 1))
       fi
