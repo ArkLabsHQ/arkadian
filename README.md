@@ -446,6 +446,54 @@ make clean              # Remove backup files
 | kms-unlocker | Go | AWS KMS wallet unlock automation |
 | ark-docs | MDX | Official Ark protocol documentation |
 
+## Server / EC2 Deployment
+
+For headless environments (EC2, CI, remote servers), use the bootstrap script instead of `make install`:
+
+### Quick start
+
+```bash
+# 1. Clone Arkadian (git is the only thing you need upfront)
+sudo apt-get install -y git   # or: sudo dnf install -y git
+git clone <arkadian-repo-url> ~/arkadian
+cd ~/arkadian
+
+# 2. Run the bootstrap script (installs Node.js, Bun, Claude Code CLI, gh, etc.)
+bash scripts/ec2-bootstrap.sh
+
+# 3. Clone the Ark repos you'll work with
+git clone git@github.com:arkade-os/ark.git ~/ark/ark          # required
+git clone git@github.com:arkade-os/go-sdk.git ~/ark/go-sdk    # required
+git clone git@github.com:arkade-os/wallet.git ~/ark/wallet     # required
+
+# 4. Run the normal Arkadian installer (prompts for repo paths)
+export ANTHROPIC_API_KEY="sk-ant-..."
+make install
+
+# 5. Reload shell and run
+source ~/.bashrc
+arkadian -d "Add GetRoundMetrics RPC to arkd"
+```
+
+### What the bootstrap script installs
+
+| What | How |
+|------|-----|
+| `git`, `curl`, `unzip`, `make`, `jq` | apt/dnf/yum |
+| Node.js LTS | nvm |
+| Bun | bun.sh installer |
+| GitHub CLI (`gh`) | OS package |
+| Claude Code CLI (`claude`) | npm global |
+
+After the bootstrap, `make install` works exactly like on a local machine — it prompts for repo paths, generates settings, installs agents/skills/commands.
+
+### EC2 instance recommendations
+
+- **Instance type**: `t3.medium` or larger (Claude Code + Bun need ~2GB RAM)
+- **Storage**: 20GB+ (repos + session artifacts)
+- **OS**: Ubuntu 22.04 LTS or Amazon Linux 2023
+- **Security group**: Outbound HTTPS (port 443) for Anthropic API and GitHub
+
 ## Troubleshooting
 
 ### `arkadian: command not found`
