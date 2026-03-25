@@ -401,15 +401,18 @@ function validateSubagentCall(
     if (toolName === 'Bash') {
         const command = toolInput.command || '';
 
-        // ABSOLUTE BLOCK: git commit, git push, gh pr create/merge — regardless of path
-        // User always reviews and decides whether to commit/push.
-        const absolutelyBlockedPatterns = [
-            { pattern: /\bgit\s+commit\b/, label: 'git commit' },
+        // ABSOLUTE BLOCK: git push, git tag, gh mutations — regardless of agent or path
+        const absolutelyBlockedPatterns: Array<{ pattern: RegExp; label: string }> = [
             { pattern: /\bgit\s+push\b/, label: 'git push' },
             { pattern: /\bgit\s+tag\b/, label: 'git tag' },
             { pattern: /\bgh\s+pr\s+(create|merge|close|edit|comment|review)\b/, label: 'gh pr mutation' },
             { pattern: /\bgh\s+issue\s+(create|close|edit|comment)\b/, label: 'gh issue mutation' },
         ];
+
+        // git commit is blocked for all agents EXCEPT ark-developer
+        if (activeAgent.agent_type !== 'ark-developer') {
+            absolutelyBlockedPatterns.push({ pattern: /\bgit\s+commit\b/, label: 'git commit' });
+        }
 
         const expandedForCheck = expandEnvVars(command);
         for (const { pattern, label } of absolutelyBlockedPatterns) {
