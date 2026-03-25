@@ -74,8 +74,8 @@ cat > "$ENV_FILE" << EOF
 # Arkadian Environment Variables
 # Generated on $(date)
 
-ARKADIAN_DIR=$ARKADIAN_DIR
-ARKADIAN_DATA_DIR=$ARKADIAN_DATA_DIR
+ARKADIAN_DIR="$ARKADIAN_DIR"
+ARKADIAN_DATA_DIR="$ARKADIAN_DATA_DIR"
 EOF
 
 echo "✓ ARKADIAN_DIR set to: $ARKADIAN_DIR"
@@ -110,12 +110,12 @@ if [ "$auto_clone" != "n" ] && [ "$auto_clone" != "N" ]; then
 
     if [ -d "$clone_dir/.git" ]; then
       echo "  ✓ $repo_name (already cloned)"
-      echo "$repo_var=$clone_dir" >> "$ENV_FILE"
+      echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
       cloned=$((cloned + 1))
     else
       if git clone --quiet "$clone_url" "$clone_dir" 2>/dev/null; then
         echo "  ✓ $repo_name"
-        echo "$repo_var=$clone_dir" >> "$ENV_FILE"
+        echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
         cloned=$((cloned + 1))
       else
         if [ "$req" = "required" ]; then
@@ -159,7 +159,7 @@ else
       path="${path/#\~/$HOME}"
 
       if [ -d "$path" ]; then
-        echo "$var_name=$path" >> "$ENV_FILE"
+        echo "$var_name=\"$path\"" >> "$ENV_FILE"
         echo "    ✓ $path"
         return
       else
@@ -197,7 +197,7 @@ echo "# GitHub repository URLs (for progress tracking)" >> "$ENV_FILE"
 
 for entry in "${REPO_ENTRIES[@]}"; do
   IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
-  echo "$github_var=$org_repo" >> "$ENV_FILE"
+  echo "$github_var=\"$org_repo\"" >> "$ENV_FILE"
 done
 
 echo ""
