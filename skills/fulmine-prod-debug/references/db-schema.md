@@ -43,7 +43,56 @@ Columns: txid+vout (PK), script, amount (sats), spent_by, spent (bool), tapscrip
 ## state.json
 Client config: encrypted_private_key, pubkey, signer_pubkey, server_url, explorer_url, network, forfeit_address, forfeit_pubkey, session_duration, fees, exit delays, wallet_type, dust.
 
+## boltz (PostgreSQL — Boltz Backend)
+
+Connection: `docker exec postgres-prod psql -U postgres -d boltz` (via SSH to `178.156.153.118`)
+
+**Schema discovery** (run these first if tables are unknown or have changed):
+```sql
+-- List all tables
+\dt
+-- Describe a table
+\d+ swaps
+\d+ "reverseSwaps"
+```
+
+Key tables (column names use camelCase — always quote them):
+- `swaps` — submarine swaps (ARK→Lightning). Key columns: `id`, `status`, `orderSide`, `onchainAmount`, `invoice`, `lockupAddress`, `failureReason`, `createdAt`
+- `"reverseSwaps"` — reverse swaps (Lightning→ARK). Key columns: `id`, `status`, `orderSide`, `onchainAmount`, `invoice`, `transactionId`, `failureReason`, `createdAt`
+- `"channelCreations"` — channel creation records
+
+**Note:** The exact schema may evolve. Always run `\dt` and `\d+ <table>` to confirm current structure before writing complex queries.
+
 ## Useful Queries
+
+### Boltz PostgreSQL Queries
+
+#### Recent swaps
+```sql
+SELECT id, status, "orderSide", "onchainAmount", "createdAt"
+FROM swaps ORDER BY "createdAt" DESC LIMIT 20;
+```
+
+#### Failed swaps
+```sql
+SELECT id, status, "failureReason", "onchainAmount", "createdAt"
+FROM swaps WHERE status LIKE '%fail%' ORDER BY "createdAt" DESC LIMIT 20;
+```
+
+#### Recent reverse swaps
+```sql
+SELECT id, status, "orderSide", "onchainAmount", "createdAt"
+FROM "reverseSwaps" ORDER BY "createdAt" DESC LIMIT 20;
+```
+
+#### Cross-reference with fulmine swap ID
+```sql
+-- Find a swap in boltz by its ID (fulmine swap.id matches boltz swaps.id)
+SELECT * FROM swaps WHERE id = '<swap_id>';
+SELECT * FROM "reverseSwaps" WHERE id = '<swap_id>';
+```
+
+### Fulmine SQLite Queries
 
 ### Recent failed swaps
 ```sql
