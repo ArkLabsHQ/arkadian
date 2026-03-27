@@ -1,0 +1,201 @@
+# Arkadian Auto-Improve: Per-Agent Evaluation Criteria
+#
+# This file defines what "good" looks like for each sub-agent in the
+# development_unified pipeline. The auto-improve skill checks these
+# criteria against session artifacts first, then digs into transcripts
+# and logs only for failures.
+#
+# Edit this file to tune what matters. Weights determine importance.
+# check field describes what to verify — some are artifact-based
+# (deterministic), some are transcript-based (require reading JSONL).
+
+version: "1.0.0"
+
+# Pass threshold: weighted score must be >= this percentage
+pass_threshold: 0.85
+
+agents:
+  ark-guru:
+    phase: explore
+    description: "Exploration and context gathering"
+    artifacts:
+      result: "artifacts/explore/_result.json"
+      assessment: "artifacts/explore/assessment.yaml"
+      response: "artifacts/explore/response.md"
+    criteria:
+      context_quality:
+        description: "Did guru identify the right files and understand the codebase area?"
+        type: artifact
+        check: "assessment.yaml exists AND files_identified has 3+ entries AND files actually exist in repo (Glob verify)"
+        weight: 2
+      analysis_depth:
+        description: "Is the analysis thorough? Does it cover root cause, affected areas, risks?"
+        type: artifact
+        check: "assessment.yaml has complexity, fix_approach/implementation_approach, and affected_scope sections"
+        weight: 1
+      requirements_coverage:
+        description: "Did guru cover all requirements from the GitHub issue?"
+        type: artifact
+        check: "requirements_from_source section present with all REQs having addressed_in_assessment: true"
+        weight: 2
+      no_hallucinated_files:
+        description: "Every file cited in files_identified actually exists in the repo"
+        type: artifact
+        check: "Glob-verify each path in affected_scope.files_identified against repo_root"
+        weight: 2
+      performance:
+        description: "Did guru complete in reasonable time without getting stuck?"
+        type: log
+        check: "phase duration < max_duration_minutes, no excessive retries"
+        max_duration_minutes: 15
+        weight: 1
+
+  ark-project-manager:
+    phase: plan
+    description: "Specification, planning, and task breakdown"
+    artifacts:
+      result: "specs/{project}/{feature}/_result.json"
+      spec: "specs/{project}/{feature}/spec.md"
+      plan: "specs/{project}/{feature}/plan.md"
+      tasks: "specs/{project}/{feature}/tasks.md"
+    criteria:
+      artifacts_produced:
+        description: "Did PM produce spec.md, plan.md, and tasks.md?"
+        type: artifact
+        check: "all 3 files exist with min 200 bytes each"
+        weight: 2
+      tasks_actionable:
+        description: "Are tasks concrete with file paths and clear descriptions?"
+        type: artifact
+        check: "tasks.md has 2+ tasks, each references at least one file path"
+        weight: 1
+      requirements_mapped:
+        description: "Do tasks cover all requirements from the issue?"
+        type: artifact
+        check: "each REQ from issue_context appears in at least one task description"
+        weight: 2
+      performance:
+        description: "Completed planning without excessive time"
+        type: log
+        check: "phase duration < max_duration_minutes"
+        max_duration_minutes: 20
+        weight: 1
+
+  ark-developer:
+    phase: implement
+    description: "Implementation, testing, and code quality"
+    artifacts:
+      result: "artifacts/implement/_result.json"
+      report: "artifacts/implement/detailed_report.md"
+      test_evidence: "artifacts/implement/test-evidence.md"
+      changes: "artifacts/implement/changes.yaml"
+    criteria:
+      builds:
+        description: "Does the code compile?"
+        type: artifact
+        check: "_result.json: agent_specific.build_passed == true"
+        weight: 2
+      implemented_correctly:
+        description: "Did developer implement what was asked? Are there actual code changes?"
+        type: artifact
+        check: "_result.json: status != 'failure' AND changes.yaml lists modified files"
+        weight: 2
+      e2e_test_written:
+        description: "Did developer write a NEW e2e/integration test?"
+        type: artifact
+        check: "_result.json: agent_specific.integration_test_written == true AND agent_specific.new_test_created == true"
+        weight: 3
+      e2e_test_passes:
+        description: "Is there proof the e2e test passed? (look for '--- PASS' in test-evidence.md)"
+        type: artifact
+        check: "test-evidence.md contains '--- PASS' for the new test function name"
+        weight: 3
+      manual_test_done:
+        description: "Did developer manually test via CLI/API/curl with real output captured?"
+        type: artifact
+        check: "_result.json: agent_specific.manual_test_passed == true AND test-evidence.md contains curl/grpcurl/API output (not just go build/vet)"
+        weight: 3
+      infra_setup:
+        description: "Did developer set up infrastructure (nigiri, arkd) without struggling?"
+        type: transcript
+        check: "no repeated infra failures, no 'cannot connect' retry loops, no 'docker not running' errors"
+        weight: 1
+      performance:
+        description: "Implementation completed without excessive time or context exhaustion"
+        type: log
+        check: "phase duration < max_duration_minutes, no context window overflow errors"
+        max_duration_minutes: 60
+        weight: 1
+
+  ark-developer-ci:
+    phase: ci
+    description: "CI pipeline execution (lint, build, unit tests, integration tests)"
+    artifacts:
+      result: "artifacts/ci/_result.json"
+      evidence: "artifacts/ci/ci-evidence.md"
+    criteria:
+      lint_passes:
+        description: "Lint clean"
+        type: artifact
+        check: "_result.json: agent_specific.lint_passed == true"
+        weight: 1
+      build_passes:
+        description: "Build succeeds"
+        type: artifact
+        check: "_result.json: agent_specific.build_passed == true"
+        weight: 1
+      unit_tests_pass:
+        description: "Unit tests pass"
+        type: artifact
+        check: "_result.json: agent_specific.unit_tests_passed == true"
+        weight: 1
+      integration_tests_run:
+        description: "Integration tests were NOT skipped — they are mandatory"
+        type: artifact
+        check: "_result.json: agent_specific.integration_tests_skipped != true"
+        weight: 2
+      integration_tests_pass:
+        description: "Integration tests pass"
+        type: artifact
+        check: "_result.json: agent_specific.integration_tests_passed == true"
+        weight: 2
+
+  ark-pr-reviewer:
+    phase: review
+    description: "Code review quality"
+    artifacts:
+      result: "artifacts/review/_result.json"
+      report: "artifacts/review/review_report.md"
+    criteria:
+      risk_assessed:
+        description: "Review includes risk assessment"
+        type: artifact
+        check: "_result.json: agent_specific.risk_level is present and non-empty"
+        weight: 1
+      attention_areas:
+        description: "Review surfaces specific areas for human reviewer"
+        type: artifact
+        check: "_result.json: agent_specific.attention_areas_count > 0"
+        weight: 1
+
+# Cross-cutting criteria applied to ALL agents via transcript analysis.
+# These are checked for every agent that has failures, to understand if
+# the agent was thinking critically or blindly following upstream inputs.
+all_agents:
+  description: "Critical thinking — did agents think independently?"
+  criteria:
+    critical_thinking:
+      description: "Did the agent challenge or question inputs from prior phases/orchestrator instead of blindly following?"
+      type: transcript
+      check: "agent flagged issues, asked clarifying questions, corrected wrong assumptions from upstream, or noted contradictions in prior artifacts"
+      weight: 2
+    not_blindly_following:
+      description: "Did the agent verify upstream claims against actual code/docs?"
+      type: transcript
+      check: "agent read actual code files to verify claims from assessment.yaml or spec.md, not just trusted and copy-pasted from them"
+      weight: 2
+    flagged_issues:
+      description: "When something was wrong or unclear, did the agent flag it rather than silently proceeding?"
+      type: transcript
+      check: "agent surfaced concerns, logged warnings, or noted limitations in _result.json issues_encountered rather than producing garbage silently"
+      weight: 1
