@@ -82,114 +82,209 @@ echo "✓ ARKADIAN_DIR set to: $ARKADIAN_DIR"
 echo "✓ ARKADIAN_DATA_DIR set to: $ARKADIAN_DATA_DIR"
 echo ""
 
-# ── Ask: clone repos automatically? ──────────────────────────────
-echo "Arkadian needs access to Ark repositories."
-echo "You can either:"
-echo "  (a) Auto-clone all repos to $REPOS_DIR"
-echo "  (b) Enter paths to already-cloned repos manually"
-echo ""
-read -p "Auto-clone all repos? (Y/n): " auto_clone
-
-if [ "$auto_clone" != "n" ] && [ "$auto_clone" != "N" ]; then
-  # ── Auto-clone mode ─────────────────────────────────────────────
+# ── Auto-detect repos from home directory ─────────────────────────
+detect_repos() {
+  echo "Scanning for Ark repositories under \$HOME..."
+  echo "(this may take a moment)"
   echo ""
-  echo "Cloning repos to $REPOS_DIR ..."
-  mkdir -p "$REPOS_DIR"
 
   echo "" >> "$ENV_FILE"
-  echo "# Project repositories" >> "$ENV_FILE"
+  echo "# Project repositories (auto-detected)" >> "$ENV_FILE"
 
-  cloned=0
-  skipped=0
+  found=0
+  missing=0
+  missing_repos=""
 
   for entry in "${REPO_ENTRIES[@]}"; do
     IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
     repo_name="${org_repo##*/}"
-    clone_dir="$REPOS_DIR/$repo_name"
-    clone_url="git@github.com:${org_repo}.git"
 
-    if [ -d "$clone_dir/.git" ]; then
-      echo "  ✓ $repo_name (already cloned)"
-      echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
-      cloned=$((cloned + 1))
-    else
-      if git clone --quiet "$clone_url" "$clone_dir" 2>/dev/null; then
-        echo "  ✓ $repo_name"
-        echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
-        cloned=$((cloned + 1))
-      else
-        if [ "$req" = "required" ]; then
-          echo "  ❌ $repo_name (FAILED — this repo is required!)"
-          echo "     Check your SSH key: ssh -T git@github.com"
-        else
-          echo "  ✗ $repo_name (skipped — no access or SSH key issue)"
+    # Search for the repo — look for directories with matching name that have .git
+    # Exclude common non-project dirs and limit depth to keep it fast
+    match=$(find "$HOME" \
+      -maxdepth 6 \
+      -type d \
+      -name "$repo_name" \
+      ! -path "*/node_modules/*" \
+      ! -path "*/.git/*" \
+      ! -path "*/vendor/*" \
+      ! -path "*/.cache/*" \
+      ! -path "*/.Trash/*" \
+      ! -path "*/Library/Caches/*" \
+      ! -path "*/.worktrees/*" \
+      2>/dev/null | while read -r dir; do
+        if [ -d "$dir/.git" ]; then
+          echo "$dir"
+          break
         fi
-        skipped=$((skipped + 1))
+      done)
+
+    if [ -n "$match" ]; then
+      echo "  ✓ $repo_name → $match"
+      echo "$repo_var=\"$match\"" >> "$ENV_FILE"
+      found=$((found + 1))
+    else
+      if [ "$req" = "required" ]; then
+        echo "  ✗ $repo_name (NOT FOUND — required!)"
+      else
+        echo "  ✗ $repo_name (not found)"
       fi
+      missing=$((missing + 1))
+      missing_repos="$missing_repos $repo_name($req)"
     fi
   done
 
   echo ""
-  echo "  Cloned: $cloned  Skipped: $skipped"
+  echo "  Found: $found  Missing: $missing"
 
-else
-  # ── Manual mode ─────────────────────────────────────────────────
-  echo ""
-  echo "" >> "$ENV_FILE"
-  echo "# Project repositories" >> "$ENV_FILE"
-
-  prompt_path() {
-    local var_name=$1
-    local description=$2
-    local required=$3
-
-    while true; do
-      read -p "  $description: " path
-
-      if [ -z "$path" ] && [ "$required" = "optional" ]; then
-        echo "    Skipped"
-        return
-      fi
-
-      if [ -z "$path" ] && [ "$required" = "required" ]; then
-        echo "    ❌ This repo is required. Please enter a path."
-        continue
-      fi
-
-      path="${path/#\~/$HOME}"
-
-      if [ -d "$path" ]; then
-        echo "$var_name=\"$path\"" >> "$ENV_FILE"
-        echo "    ✓ $path"
-        return
-      else
-        echo "    ❌ Directory not found: $path"
-        if [ "$required" = "optional" ]; then
-          read -p "    Skip? (y/n): " skip
-          if [ "$skip" = "y" ] || [ "$skip" = "Y" ]; then
-            echo "    Skipped"
-            return
+  if [ $missing -gt 0 ]; then
+    echo ""
+    echo "Missing repos:$missing_repos"
+    echo ""
+    read -p "Clone missing repos to $REPOS_DIR? (Y/n): " clone_missing
+    if [ "$clone_missing" != "n" ] && [ "$clone_missing" != "N" ]; then
+      mkdir -p "$REPOS_DIR"
+      for entry in "${REPO_ENTRIES[@]}"; do
+        IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
+        repo_name="${org_repo##*/}"
+        # Skip if already found
+        if grep -q "^${repo_var}=" "$ENV_FILE" 2>/dev/null; then
+          continue
+        fi
+        clone_dir="$REPOS_DIR/$repo_name"
+        clone_url="git@github.com:${org_repo}.git"
+        if git clone --quiet "$clone_url" "$clone_dir" 2>/dev/null; then
+          echo "  ✓ Cloned $repo_name"
+          echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
+        else
+          if [ "$req" = "required" ]; then
+            echo "  ❌ $repo_name (clone FAILED — required!)"
+          else
+            echo "  ✗ $repo_name (skipped — no access)"
           fi
+        fi
+      done
+    fi
+  fi
+}
+
+# ── Ask: how to configure repos ──────────────────────────────────
+echo "Arkadian needs access to Ark repositories."
+echo "Options:"
+echo "  (d) Auto-detect — search \$HOME for already-cloned repos (recommended)"
+echo "  (c) Auto-clone  — clone all repos to $REPOS_DIR"
+echo "  (m) Manual      — enter paths one by one"
+echo ""
+read -p "Choose [D/c/m]: " repo_mode
+
+case "$repo_mode" in
+  c|C)
+    # ── Auto-clone mode ─────────────────────────────────────────────
+    echo ""
+    echo "Cloning repos to $REPOS_DIR ..."
+    mkdir -p "$REPOS_DIR"
+
+    echo "" >> "$ENV_FILE"
+    echo "# Project repositories" >> "$ENV_FILE"
+
+    cloned=0
+    skipped=0
+
+    for entry in "${REPO_ENTRIES[@]}"; do
+      IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
+      repo_name="${org_repo##*/}"
+      clone_dir="$REPOS_DIR/$repo_name"
+      clone_url="git@github.com:${org_repo}.git"
+
+      if [ -d "$clone_dir/.git" ]; then
+        echo "  ✓ $repo_name (already cloned)"
+        echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
+        cloned=$((cloned + 1))
+      else
+        if git clone --quiet "$clone_url" "$clone_dir" 2>/dev/null; then
+          echo "  ✓ $repo_name"
+          echo "$repo_var=\"$clone_dir\"" >> "$ENV_FILE"
+          cloned=$((cloned + 1))
+        else
+          if [ "$req" = "required" ]; then
+            echo "  ❌ $repo_name (FAILED — this repo is required!)"
+            echo "     Check your SSH key: ssh -T git@github.com"
+          else
+            echo "  ✗ $repo_name (skipped — no access or SSH key issue)"
+          fi
+          skipped=$((skipped + 1))
         fi
       fi
     done
-  }
 
-  echo "Core Repositories (required):"
-  echo "───────────────────────────────────────"
-  for entry in "${REPO_ENTRIES[@]}"; do
-    IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
-    [ "$req" = "required" ] && prompt_path "$repo_var" "$description" "$req"
-  done
+    echo ""
+    echo "  Cloned: $cloned  Skipped: $skipped"
+    ;;
 
-  echo ""
-  echo "Optional Repositories (press Enter to skip):"
-  echo "───────────────────────────────────────"
-  for entry in "${REPO_ENTRIES[@]}"; do
-    IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
-    [ "$req" = "optional" ] && prompt_path "$repo_var" "$description" "$req"
-  done
-fi
+  m|M)
+    # ── Manual mode ─────────────────────────────────────────────────
+    echo ""
+    echo "" >> "$ENV_FILE"
+    echo "# Project repositories" >> "$ENV_FILE"
+
+    prompt_path() {
+      local var_name=$1
+      local description=$2
+      local required=$3
+
+      while true; do
+        read -p "  $description: " path
+
+        if [ -z "$path" ] && [ "$required" = "optional" ]; then
+          echo "    Skipped"
+          return
+        fi
+
+        if [ -z "$path" ] && [ "$required" = "required" ]; then
+          echo "    ❌ This repo is required. Please enter a path."
+          continue
+        fi
+
+        path="${path/#\~/$HOME}"
+
+        if [ -d "$path" ]; then
+          echo "$var_name=\"$path\"" >> "$ENV_FILE"
+          echo "    ✓ $path"
+          return
+        else
+          echo "    ❌ Directory not found: $path"
+          if [ "$required" = "optional" ]; then
+            read -p "    Skip? (y/n): " skip
+            if [ "$skip" = "y" ] || [ "$skip" = "Y" ]; then
+              echo "    Skipped"
+              return
+            fi
+          fi
+        fi
+      done
+    }
+
+    echo "Core Repositories (required):"
+    echo "───────────────────────────────────────"
+    for entry in "${REPO_ENTRIES[@]}"; do
+      IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
+      [ "$req" = "required" ] && prompt_path "$repo_var" "$description" "$req"
+    done
+
+    echo ""
+    echo "Optional Repositories (press Enter to skip):"
+    echo "───────────────────────────────────────"
+    for entry in "${REPO_ENTRIES[@]}"; do
+      IFS='|' read -r github_var repo_var org_repo description req <<< "$entry"
+      [ "$req" = "optional" ] && prompt_path "$repo_var" "$description" "$req"
+    done
+    ;;
+
+  *)
+    # ── Auto-detect mode (default) ──────────────────────────────────
+    detect_repos
+    ;;
+esac
 
 # ── GitHub URLs (always write defaults) ──────────────────────────
 echo "" >> "$ENV_FILE"

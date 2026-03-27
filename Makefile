@@ -79,13 +79,50 @@ install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-wi
 	@echo "  arkadian 'Add GetRoundMetrics to arkd'     # Orchestrator"
 	@echo ""
 	@echo "Test with: make test-hook"
+	@echo ""
+	@echo "$(RED)╔══════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(RED)║                        ⚠️  IMPORTANT ⚠️                          ║$(NC)"
+	@echo "$(RED)╠══════════════════════════════════════════════════════════════════╣$(NC)"
+	@echo "$(RED)║                                                                  ║$(NC)"
+	@echo "$(RED)║$(NC)  Run $(GREEN)arkadian$(NC) from the PROJECT you are working on:$(RED)               ║$(NC)"
+	@echo "$(RED)║$(NC)                                                                  $(RED)║$(NC)"
+	@echo "$(RED)║$(NC)    $(GREEN)cd ~/code/go/ark && arkadian$(NC)      (works - arkd project)$(RED)      ║$(NC)"
+	@echo "$(RED)║$(NC)    $(GREEN)cd ~/code/go/fulmine && arkadian$(NC)  (works - fulmine project)$(RED)   ║$(NC)"
+	@echo "$(RED)║$(NC)                                                                  $(RED)║$(NC)"
+	@echo "$(RED)║$(NC)  If you run $(YELLOW)claude$(NC) inside the arkadian directory itself,$(RED)           ║$(NC)"
+	@echo "$(RED)║$(NC)  it enters $(YELLOW)DEV MODE$(NC) — for working on arkadian's own code.$(RED)         ║$(NC)"
+	@echo "$(RED)║$(NC)  It will NOT orchestrate work on other Ark projects.$(RED)             ║$(NC)"
+	@echo "$(RED)║                                                                  ║$(NC)"
+	@echo "$(RED)╚══════════════════════════════════════════════════════════════════╝$(NC)"
 
-check-prereqs: ## Check for required dependencies
+check-prereqs: ## Check for required dependencies (auto-installs bun if missing)
 	@echo "$(YELLOW)Checking prerequisites...$(NC)"
 	@command -v claude >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: Claude Code CLI is not installed$(NC)"; echo "   Install from: https://docs.anthropic.com/en/docs/claude-code"; exit 1; }
 	@echo "$(GREEN)✓ claude found$(NC)"
-	@command -v bun >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: bun is not installed. Install from https://bun.sh$(NC)"; exit 1; }
-	@echo "$(GREEN)✓ bun found: $$(bun --version)$(NC)"
+	@if command -v bun >/dev/null 2>&1; then \
+		echo "$(GREEN)✓ bun found: $$(bun --version)$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  bun not found — installing automatically...$(NC)"; \
+		if [ "$$(uname)" = "Darwin" ] || [ "$$(uname)" = "Linux" ]; then \
+			curl -fsSL https://bun.sh/install | bash 2>&1 | tail -3; \
+			export BUN_INSTALL="$$HOME/.bun"; \
+			export PATH="$$BUN_INSTALL/bin:$$PATH"; \
+			if command -v bun >/dev/null 2>&1 || [ -x "$$HOME/.bun/bin/bun" ]; then \
+				echo "$(GREEN)✓ bun installed: $$($$HOME/.bun/bin/bun --version 2>/dev/null || bun --version)$(NC)"; \
+			else \
+				echo "$(RED)❌ bun installation failed. Install manually from https://bun.sh$(NC)"; exit 1; \
+			fi; \
+		elif echo "$$(uname -s)" | grep -qi "mingw\|msys\|cygwin"; then \
+			powershell -c "irm bun.sh/install.ps1 | iex" 2>&1 | tail -3; \
+			if command -v bun >/dev/null 2>&1; then \
+				echo "$(GREEN)✓ bun installed: $$(bun --version)$(NC)"; \
+			else \
+				echo "$(RED)❌ bun installation failed. Install manually from https://bun.sh$(NC)"; exit 1; \
+			fi; \
+		else \
+			echo "$(RED)❌ Unsupported OS for auto-install. Install bun manually from https://bun.sh$(NC)"; exit 1; \
+		fi; \
+	fi
 	@command -v git >/dev/null 2>&1 || { echo "$(RED)❌ ERROR: git is not installed$(NC)"; exit 1; }
 	@echo "$(GREEN)✓ git found: $$(git --version | head -1)$(NC)"
 

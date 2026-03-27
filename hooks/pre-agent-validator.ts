@@ -653,6 +653,24 @@ function validateExecutionSpec(sessionId: string, prompt: string): ValidationRes
         warnings.push('objective seems too short. Should be 1-2 action-focused sentences.');
     }
 
+    // Validate issue_context structure if present
+    if (spec.issue_context) {
+        if (!spec.issue_context.source_url) {
+            warnings.push('issue_context present but source_url is missing');
+        }
+        if (!spec.issue_context.requirements || !Array.isArray(spec.issue_context.requirements) || spec.issue_context.requirements.length === 0) {
+            errors.push('issue_context present but requirements array is empty or missing. The orchestrator must extract at least one requirement from the source issue/PR.');
+        } else {
+            // Validate each requirement has id and text
+            for (const req of spec.issue_context.requirements) {
+                if (!req.id || !req.text) {
+                    errors.push(`issue_context.requirements entry missing id or text: ${JSON.stringify(req)}`);
+                    break; // One error is enough
+                }
+            }
+        }
+    }
+
     // CRITICAL: Check artifacts_in when depends_on is specified
     // Steps that depend on previous steps MUST include artifacts_in
     const dependsOn = spec.depends_on;

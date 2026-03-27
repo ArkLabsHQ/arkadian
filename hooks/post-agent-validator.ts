@@ -609,6 +609,62 @@ async function main() {
             }
         }
 
+        // Guru assessment.yaml content check: if issue_context was present in the spec,
+        // assessment.yaml MUST contain requirements_from_source section
+        if (activeAgent.agent_type === 'ark-guru' && activeAgent.context_intent === 'dev') {
+            const assessmentPathForContent = join(SESSIONS_DIR, hookInput.session_id, 'artifacts', 'explore', 'assessment.yaml');
+            if (existsSync(assessmentPathForContent)) {
+                try {
+                    const assessmentContent = readFileSync(assessmentPathForContent, 'utf-8');
+
+                    // Check if the execution spec had issue_context
+                    const specId = activeAgent.spec_id || 'S1';
+                    const specPath = join(SESSIONS_DIR, hookInput.session_id, 'specs', `${specId}.yaml`);
+                    let specHadIssueContext = false;
+                    if (existsSync(specPath)) {
+                        const specContent = readFileSync(specPath, 'utf-8');
+                        specHadIssueContext = specContent.includes('issue_context:');
+                    }
+
+                    if (specHadIssueContext) {
+                        const hasRequirementsSection = assessmentContent.includes('requirements_from_source:');
+                        if (!hasRequirementsSection) {
+                            extResult.hard_gate_failures.push({
+                                check: {
+                                    id: 'HG-PIPE-GURU-02',
+                                    field: 'assessment.yaml:requirements_from_source',
+                                    severity: 'hard',
+                                    description: 'When issue_context is present in spec, assessment.yaml must contain requirements_from_source section',
+                                    remediation: 'Re-invoke ark-guru. The execution spec contained issue_context with requirements. The guru must enumerate all requirements in assessment.yaml under requirements_from_source with coverage status for each.'
+                                },
+                                actual: 'requirements_from_source section missing from assessment.yaml',
+                                message: 'assessment.yaml is missing requirements_from_source section despite issue_context being present in the execution spec.'
+                            });
+                            if (extResult.outcome === 'passed') extResult.outcome = 'failed';
+                        } else {
+                            // Check coverage_complete field exists
+                            const hasCoverageComplete = assessmentContent.includes('coverage_complete:');
+                            if (!hasCoverageComplete) {
+                                extResult.warnings.push({
+                                    check: {
+                                        id: 'W-GURU-REQ-01',
+                                        field: 'assessment.yaml:coverage_complete',
+                                        severity: 'warn',
+                                        description: 'requirements_from_source should include coverage_complete field',
+                                        remediation: 'Add coverage_complete: true/false to requirements_from_source section'
+                                    },
+                                    actual: 'coverage_complete field not found',
+                                    message: 'requirements_from_source exists but coverage_complete field is missing'
+                                });
+                            }
+                        }
+                    }
+                } catch (e: any) {
+                    log(hookInput.session_id, 'assessment-content-check-error', e.message);
+                }
+            }
+        }
+
         // CI phase MUST produce ci-evidence.md
         if (activeAgent.agent_type === 'ark-developer' && activeAgent.context_intent === 'ci') {
             const ciEvidencePath = join(SESSIONS_DIR, hookInput.session_id, 'artifacts', 'ci', 'ci-evidence.md');

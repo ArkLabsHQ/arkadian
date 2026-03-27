@@ -862,6 +862,58 @@ Rebuild your intent classification with confidence score (0.0 to 1.0).
 
 If confidence < 0.6: Set `primary: "unknown"`, propose ONE clarifying question, list top 2-3 candidate projects, and STOP.
 
+## Step 2.5: Issue Requirements Extraction (When Applicable)
+
+When the user request contains a GitHub issue URL (e.g., `https://github.com/org/repo/issues/123` or references `#123` with a known repo):
+
+1. **Fetch the full issue body** using:
+   ```bash
+   gh issue view <number> --repo <org/repo> --json title,body,labels,state
+   ```
+
+2. **Extract ALL individual requirements** from the issue body:
+   - Numbered/bulleted items in "Suggested Approach", "Requirements", or similar sections
+   - Explicit acceptance criteria
+   - Code examples showing desired behavior (each distinct code example is a requirement)
+   - Behavioral expectations stated in prose ("ensure X", "sort by Y", "when Z then W")
+   - Each distinct ask gets a sequential ID: REQ-1, REQ-2, REQ-3, ...
+
+3. **Build `issue_context`** for all subsequent execution specs:
+   ```yaml
+   issue_context:
+     source_url: "https://github.com/org/repo/issues/123"
+     source_type: "issue"
+     title: "<issue title>"
+     requirements:
+       - id: "REQ-1"
+         text: "<requirement 1 verbatim or closely paraphrased>"
+       - id: "REQ-2"
+         text: "<requirement 2>"
+     full_body: |
+       <complete issue body, verbatim>
+   ```
+
+4. **Set `user_request` to include ALL requirements**, not a summary:
+   ```
+   user_request: "GitHub issue #123: <title>. Requirements: (1) <req1> (2) <req2> (3) <req3> (4) <req4>"
+   ```
+
+5. **Present extracted requirements at Gate 1** (Plan Approval) for user verification:
+   ```markdown
+   ### Requirements from Source
+   | ID | Requirement | Addressed in Phase |
+   |----|------------|-------------------|
+   | REQ-1 | <text> | S1 (explore), S3 (implement) |
+   | REQ-2 | <text> | S1 (explore), S3 (implement) |
+   ```
+
+**CRITICAL**: Do NOT compress or summarize requirements. Every distinct ask from the issue MUST appear in both `issue_context.requirements` AND `user_request`. Missing a requirement here means the entire pipeline will miss it — this was the root cause of a real session failure where requirement #3 (sort by CreatedAt) was lost by all 5 agents.
+
+**Self-audit after extraction:**
+- Count requirements extracted vs numbered items in the issue
+- If the issue has N numbered items and you extracted fewer than N, re-read the issue body
+- If the issue provides code examples, each code example that demonstrates desired behavior is a requirement
+
 ## Step 3: Dynamic Project Selection (Scoring Algorithm)
 
 For each project in the registry, compute a score:
@@ -1274,6 +1326,7 @@ For every expanded step, inject:
 5. **Reference docs** (for Ark concept clarification)
 6. **Prior artifacts** (CRITICAL - see below)
 7. **Sub-agent environment note** (REQUIRED in `runtime.sub_agent_note`)
+8. **Issue context** (REQUIRED when extracted in Step 2.5) - include `issue_context` in EVERY execution spec for EVERY agent in this workflow. This is NOT optional — it is the source of truth for requirements. The `user_request` field MUST also enumerate all requirements, not summarize them.
 
 ### Sub-Agent Environment Note (MANDATORY)
 

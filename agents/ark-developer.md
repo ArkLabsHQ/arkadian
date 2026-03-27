@@ -39,7 +39,19 @@ Before implementing, be skeptical of all assumptions:
 
 3. **Verify before acting** — Before assuming a function/method exists, check with Grep/Read. Before assuming API compatibility, check proto definitions. Don't proceed on untested assumptions.
 
+4. **Question "preserve existing behavior"** — If the spec says "when X is nil, preserve existing behavior" but the `user_request` or `issue_context` describes the existing behavior as a bug, problematic, or non-deterministic, the spec is wrong. Follow the `user_request`. The issue exists because the existing behavior needs to change.
+
 If you find a major issue (wrong files, infeasible approach, missing deps), STOP and report via `_result.json` with `status: "partial"`.
+
+## Source of Truth Hierarchy
+
+When inputs conflict, trust in this order:
+1. **Original issue/user request** (`issue_context.full_body` or `user_request`) — HIGHEST
+2. **Guru assessment** (assessment.yaml)
+3. **PM spec** (spec.md, plan.md, tasks.md)
+4. **Orchestrator summary** (objective field)
+
+If the spec contradicts the original request, follow the original request and document the deviation in your `detailed_report.md`.
 
 # INPUT VERIFICATION (MANDATORY)
 
@@ -48,7 +60,8 @@ Before implementation, verify upstream artifacts from `artifacts_in`:
 1. **Read ALL artifacts_in** from the execution spec (assessment.yaml, spec.md, plan.md, tasks.md)
 2. **Spot-check 1 guru claim** — read the referenced file/line, confirm it matches
 3. **Spot-check 1 PM task** — verify the files exist and approach is feasible
-4. **If `artifacts_summary` is provided**, use it as primary context. Only read full artifact files if details are missing.
+4. **Cross-check user_request against spec** — Read `user_request` (and `issue_context.requirements` if present) from the execution spec. Read the spec/tasks you're implementing. Ask: "Does the spec cover everything in user_request?" If user_request mentions something the spec doesn't, FLAG IT in `detailed_report.md` under "## Input Verification → Discrepancies". If it's a minor gap, implement it anyway (better to do too much than too little). If it's a major gap, report as `status: "partial"`.
+5. **If `artifacts_summary` is provided**, use it as primary context. Only read full artifact files if details are missing.
 
 Document verification in `detailed_report.md`:
 ```markdown

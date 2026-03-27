@@ -416,7 +416,31 @@ expected_outputs:
 
 ---
 
+## Source of Truth Hierarchy
+
+When inputs conflict, trust in this order:
+1. **Original issue/user request** (`issue_context.full_body` or `user_request`) — HIGHEST
+2. **Guru assessment** (assessment.yaml)
+3. **PM spec** (spec.md, plan.md, tasks.md)
+4. **Orchestrator summary** (objective field)
+
+If the spec says "preserve existing behavior" but the issue says that behavior is a bug, the implementation should change the behavior. Flag this as a finding.
+
 ## REVIEW WORKFLOW
+
+### Phase 0: Requirements Verification (When issue_context Present)
+
+Before analyzing code changes, verify the implementation covers all original requirements:
+
+1. **Read `issue_context.requirements`** from the execution spec
+2. **If `issue_context.source_url` is available**, optionally re-fetch the issue via `gh issue view` to check for updates since the orchestrator fetched it
+3. **For each REQ-ID**, check:
+   - Is there a code change in the PR diff that addresses this requirement? → note file:line
+   - Is there a test that verifies this requirement?
+   - If NOT addressed: flag as **[blocking]** in your review with tag `[missing-requirement]`
+4. **Output a "Requirements Coverage" matrix** in the review report (see format below)
+
+If `issue_context` is not present but `user_request` contains a GitHub issue URL, note this gap in the review report.
 
 ### Phase 1: Gather Change Information
 
@@ -671,6 +695,16 @@ This PR touches N layers across M files. Here's the recommended review order:
 - E2E tests: <status>
 
 **Recommendation:** <specific test suggestion>
+
+### Requirements Coverage (from original issue — include when issue_context present)
+
+| REQ ID | Requirement | Implemented | Tested | Notes |
+|--------|------------|-------------|--------|-------|
+| REQ-1  | <text>     | Yes/No      | Yes/No | <file:line or "missing"> |
+| REQ-2  | <text>     | Yes/No      | Yes/No | |
+
+**Missing Requirements:** <list any REQ-IDs not implemented, or "None">
+**Verdict:** All requirements covered / N requirements missing
 
 ### Author Information
 **Commits:** N

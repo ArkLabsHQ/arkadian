@@ -104,6 +104,7 @@ const GURU_CONTRACT: AgentContract = {
     ],
     hardGates: [
         { id: 'HG-GURU-01', field: 'status', severity: 'hard', description: 'Must produce an answer (status != failure)', remediation: 'Re-invoke with clearer question or broader docs scope' },
+        { id: 'HG-GURU-02', field: 'agent_specific.exploration.requirements_coverage_complete', severity: 'hard', description: 'When issue_context present, guru must verify all source requirements are covered in assessment', remediation: 'Re-invoke ark-guru. Assessment must include requirements_from_source with coverage_complete: true. Each requirement from issue_context must have addressed_in_assessment: true.' },
     ],
     warnings: [
         { id: 'W-GURU-01', field: 'agent_specific.files_referenced', severity: 'warn', description: 'Protocol answers should cite code files', remediation: 'Consider re-running with code access' },
@@ -328,6 +329,14 @@ function checkHardGate(check: ValidationCheck, result: ResultJson): ValidationFa
             // status must not be 'failure'
             if (value === 'failure') {
                 return { check, actual: value, message: `status = failure (agent could not produce answer)` };
+            }
+            break;
+
+        case 'HG-GURU-02':
+            // requirements_coverage_complete: only FAIL when explicitly false
+            // Missing field (no issue_context → no requirements tracking) passes — backward compatible
+            if (value === false) {
+                return { check, actual: value, message: `requirements_coverage_complete = false (guru did not cover all requirements from source issue). Re-invoke with instructions to enumerate ALL requirements from issue_context.` };
             }
             break;
 

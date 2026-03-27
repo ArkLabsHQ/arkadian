@@ -25,7 +25,20 @@ orchestrator_version: "1.0"
 step_id: "<S1, S2, S3, etc.>"
 agent: "<agent_name>"
 objective: "<1-2 sentences, action-focused>"
-user_request: "<original or narrowed user message>"
+user_request: "<original or narrowed user message — MUST include ALL requirements, not a summary>"
+# Issue/PR context (REQUIRED when user request references a GitHub issue or PR)
+# Agents MUST cross-reference these requirements against their work
+# issue_context:
+#   source_url: "<GitHub issue/PR URL>"
+#   source_type: "issue" | "pr"
+#   title: "<issue/PR title>"
+#   requirements:
+#     - id: "REQ-1"
+#       text: "<requirement text from issue>"
+#     - id: "REQ-2"
+#       text: "<requirement text>"
+#   full_body: |
+#     <complete issue/PR body, verbatim>
 context_intent: "<intent_type>"
 parent_session_id: "<orchestrator_session_id>"  # REQUIRED for sub-agent tracking
 
@@ -137,7 +150,7 @@ artifacts_out: []
 | `step_id` | string | Step identifier (S1, S2, S3, etc.) |
 | `agent` | string | Target agent name |
 | `objective` | string | 1-2 action-focused sentences |
-| `user_request` | string | Original or narrowed user message |
+| `user_request` | string | Original or narrowed user message — MUST include ALL requirements, not a summary |
 | `context_intent` | string | Intent classification |
 | `parent_session_id` | string | Orchestrator session ID (for sub-agent tracking) |
 | `session_context` | object | Session directory paths |
@@ -243,6 +256,7 @@ These fields provide additional context but are not strictly required:
 | `testing` | Testing skill, mode, and requirements (ark-developer only). `skill`: which dev-loop to follow; `mode`: infrastructure mode; `requirements`: explicit list of testing mandates (integration test, manual test, regressions, skill adherence). |
 | `retry_context` | Retry information when re-invoking after validation failure (attempt_number, max_attempts, previous_failures) |
 | `artifacts_summary` | Compacted summary of upstream artifacts for implement phases. Reduces agent context consumption by embedding key data inline instead of requiring full file reads. |
+| `issue_context` | Full GitHub issue/PR context with individually extracted requirements. REQUIRED when user request references a GitHub issue or PR. Contains `source_url`, `source_type`, `title`, `requirements[]` (each with `id` and `text`), and `full_body`. Agents MUST enumerate these requirements in their output artifacts — the guru must address each in assessment.yaml, the reviewer must verify each in review_report.md. |
 
 ## Artifact Passing (CRITICAL for Multi-Step Workflows)
 

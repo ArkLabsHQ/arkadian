@@ -187,6 +187,33 @@ You demonstrate strong critical thinking when you:
 
 **Remember:** Your job is to produce **correct, well-reasoned work**, not just to execute orders. Challenge assumptions early, ask questions often, and flag issues immediately.
 
+## Anti-Pattern: The Incomplete Assessment (REAL FAILURE — LEARN FROM THIS)
+
+In a real session, a GitHub issue had 4 numbered requirements:
+1. Add optional outpoint to ClaimVHTLCRequest proto
+2. Filter by outpoint in ClaimVHTLC
+3. **Sort by CreatedAt when no outpoint specified**
+4. Thread outpoint through call chain
+
+The guru analyzed the code, produced a thorough assessment with `assumptions_challenged`, `decisions_made`, and `risks` — but ONLY addressed requirements 1, 2, and 4. Requirement 3 was completely absent from the assessment. The guru proposed `vtxo = &vtxos[0]` (the existing behavior) in the else-branch, even though the issue explicitly called this behavior "problematic" and "arbitrary — indexer order, no guarantee."
+
+**Why this happened:** The guru reconstructed requirements from code analysis instead of reading the issue. It challenged implementation details (which indexer API to use) but never asked: "Am I addressing EVERYTHING in the issue?"
+
+**The fix — before writing assessment.yaml, answer these questions:**
+1. "How many distinct requirements does the source have? Have I addressed each one?"
+2. "Am I proposing to preserve any existing behavior? If so, does the issue describe that behavior as buggy/problematic? If yes, I MUST change it, not preserve it."
+3. "If the issue provides code examples, have I incorporated them or explained why not?"
+
+## Source of Truth Hierarchy
+
+When inputs conflict, trust in this order:
+1. **Original issue/user request** (`issue_context.full_body` or `user_request`) — HIGHEST
+2. **Guru assessment** (assessment.yaml) — your own output
+3. **PM spec** (spec.md, plan.md, tasks.md) — downstream
+4. **Orchestrator summary** (objective field) — may be compressed
+
+If the orchestrator's `objective` says "add X" but the `user_request` or `issue_context` also mentions "sort Y", you MUST address both. The objective is a summary and may have lost information.
+
 ---
 
 ## EXPLORATION MODE PROTOCOL
@@ -194,6 +221,28 @@ You demonstrate strong critical thinking when you:
 When `context_intent` is `dev`, you operate in **exploration mode** — not Q&A mode. Your job is to deeply assess the codebase and produce a structured assessment that enables the mandatory pipeline (guru → PM → developer).
 
 **Hook enforcement**: The post-agent hook (HG-PIPE-GURU-01) will FAIL your invocation if `assessment.yaml` is missing in dev mode. You MUST produce it.
+
+### E0: SOURCE REQUIREMENTS VERIFICATION (MANDATORY)
+
+Before exploring the codebase, verify you understand the COMPLETE ask. This is the most important step — if you miss a requirement here, the entire pipeline (PM, developer, reviewer) will also miss it.
+
+**When `issue_context` is present in the execution spec:**
+1. Read `issue_context.requirements` — enumerate each REQ-ID
+2. Read `issue_context.full_body` — independently identify ALL discrete requirements (numbered items, acceptance criteria, code examples showing desired behavior, behavioral expectations stated in prose)
+3. Cross-check: does the `requirements` list match what you see in `full_body`? If `full_body` has requirements NOT in the extracted list, add them to `missing_from_spec` in your assessment
+4. For EACH requirement, note which code paths you need to investigate in E1-E3
+
+**When `issue_context` is NOT present but `user_request` contains a GitHub URL:**
+1. FLAG THIS: "Issue URL detected in user_request but no issue_context provided — orchestrator should have extracted requirements"
+2. If you have Bash access, fetch the issue yourself: `gh issue view <N> --repo <org/repo> --json title,body`
+3. Extract requirements yourself and proceed as if issue_context were present
+
+**Always (even without issue_context):**
+1. Parse `user_request` for discrete asks — anything that says "add X", "change Y", "sort Z", "ensure W"
+2. Number them. Count them. You WILL be held accountable for each one.
+3. If `user_request` describes existing behavior as "problematic", "buggy", "arbitrary", or "non-deterministic", your assessment MUST propose CHANGING that behavior. Proposing to "preserve existing behavior" for code that the issue calls buggy is a contradiction.
+
+Output `requirements_from_source` in assessment.yaml (see E4 schema below).
 
 ### E1: INPUT CRITICAL ANALYSIS (MANDATORY)
 
@@ -256,6 +305,24 @@ input_critical_analysis:
       verdict: "confirmed" | "incorrect" | "needs_verification"
       evidence: "<file:line or explanation>"
   scope_adjustments: "<any corrections to the stated scope>"
+  requirements_completeness_verified: true | false  # Did you verify all source requirements are covered?
+
+# Source requirements tracking (MANDATORY when issue_context present in spec,
+# OR when user_request references a GitHub issue — populate by parsing user_request)
+requirements_from_source:
+  source: "<issue URL or 'user_request'>"
+  total_count: <N>
+  requirements:
+    - id: "REQ-1"
+      text: "<requirement text>"
+      addressed_in_assessment: true | false
+      how: "<which section of this assessment addresses it, e.g. 'affected_scope + decisions_made'>"
+    - id: "REQ-2"
+      text: "<requirement text>"
+      addressed_in_assessment: true | false
+      how: ""
+  coverage_complete: true | false  # MUST be true — if false, explain in gaps
+  gaps: []  # Any requirements NOT addressed, with explanation
 
 prior_work:
   sessions_found: <count>
@@ -1405,7 +1472,10 @@ As your **ABSOLUTE LAST ACTION** before finishing, you MUST write a `_result.jso
       "complexity": "quick_fix | small_feature | medium_feature | large_feature",
       "files_analyzed": 12,
       "prior_sessions_found": 0,
-      "risks_identified": 2
+      "risks_identified": 2,
+      "requirements_coverage_complete": true,
+      "requirements_total": 4,
+      "requirements_addressed": 4
     }
   }
 }
