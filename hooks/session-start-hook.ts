@@ -73,6 +73,7 @@ interface SessionState {
     };
     phases: Record<string, PhaseState>;
     active_agent: ActiveAgent | null;
+    active_agents: Record<string, ActiveAgent>;
     approvals: Record<string, ApprovalRecord>;
 }
 
@@ -233,6 +234,7 @@ function createInitialState(sessionId: string, transcriptPath: string): SessionS
         },
         phases: {},
         active_agent: null,
+        active_agents: {},
         approvals: {},
     };
 }
@@ -275,9 +277,10 @@ function registerOrchestratorSession(sessionId: string, transcriptPath: string, 
             existingState.transcript_path = transcriptPath;
 
             if (isResume) {
-                // EXPLICIT RESUME: Old agent is dead → reset active_agent
+                // EXPLICIT RESUME: Old agent is dead → reset active_agent(s)
                 // pre-agent-validator will set it when Task tool is invoked
                 existingState.active_agent = null;
+                existingState.active_agents = {};
                 log(sessionId, 'resumed-state', {
                     active_agent: null,
                     workflow_status: existingState.workflow?.status,

@@ -368,7 +368,7 @@ sessions/<project>/
 `ark-developer` never writes to your main branch. All code changes go to:
 
 ```
-<repo>/.worktrees/arkadian/<date>-<task-slug>/
+<repo>/.worktrees/<task-slug>/
 ```
 
 The `subagent-guardrail.ts` hook blocks writes to the main repo path when worktree mode is enabled.

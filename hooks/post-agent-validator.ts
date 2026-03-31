@@ -112,6 +112,7 @@ interface SessionState {
     };
     phases: Record<string, PhaseState>;
     active_agent: ActiveAgent | null;
+    active_agents: Record<string, ActiveAgent>;
     approvals: Record<string, any>;
 }
 
@@ -739,8 +740,18 @@ async function main() {
                 break;
         }
 
-        // Clear active_agent (sub-agent is done)
-        state.active_agent = null;
+        // Clear active agent from both active_agents map and active_agent
+        if (!state.active_agents) state.active_agents = {};
+        delete state.active_agents[specId];
+
+        // Derive active_agent from remaining entries (for backward compat)
+        const remainingAgents = Object.values(state.active_agents);
+        state.active_agent = remainingAgents.length > 0 ? remainingAgents[remainingAgents.length - 1] : null;
+
+        log(hookInput.session_id, 'cleared-agent', {
+            cleared_spec: specId,
+            remaining_agents: Object.keys(state.active_agents),
+        });
 
         // Save updated state
         updateSessionState(hookInput.session_id, state);

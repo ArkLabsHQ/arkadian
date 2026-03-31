@@ -492,7 +492,7 @@ Beyond tool allowlists, agents have path-based restrictions:
 
 All code changes from `ark-developer` go to `.worktrees/<branch>` inside the repo — **never the main branch**. The `subagent-guardrail.ts` hook blocks writes to main repo paths when worktree mode is enabled.
 
-Branch naming convention: `arkadian/{date}-{task-slug}`
+Branch naming convention: `{task-slug}`
 
 ---
 

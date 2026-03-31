@@ -69,7 +69,47 @@ interface SessionState {
     };
     phases: Record<string, any>;
     active_agent: ActiveAgent | null;
+    active_agents: Record<string, ActiveAgent>;
     approvals: Record<string, any>;
+}
+
+/**
+ * Compute the union of all active agents' restrictions.
+ * Used when multiple agents run in parallel — any agent allowing a tool/path means it's allowed.
+ */
+function mergeActiveAgents(agents: ActiveAgent[]): ActiveAgent {
+    if (agents.length === 1) return agents[0];
+
+    const merged: ActiveAgent = {
+        agent_type: agents.map(a => a.agent_type).join('+'),
+        spec_id: agents.map(a => a.spec_id).join('+'),
+        invoked_at: agents[0].invoked_at,
+        expected_artifacts: [],
+        allowed_tools: [],
+        allowed_paths: [],
+        blocked_paths: [],
+    };
+
+    const toolSet = new Set<string>();
+    const pathSet = new Set<string>();
+    const blockedSet = new Set<string>();
+
+    for (const agent of agents) {
+        for (const tool of agent.allowed_tools) toolSet.add(tool);
+        for (const path of agent.allowed_paths) pathSet.add(path);
+        for (const path of agent.blocked_paths) blockedSet.add(path);
+        merged.expected_artifacts.push(...agent.expected_artifacts);
+    }
+
+    merged.allowed_tools = Array.from(toolSet);
+    merged.allowed_paths = Array.from(pathSet);
+    // For blocked_paths, only block if ALL agents block it (intersection)
+    // A path allowed by any agent should not be blocked
+    merged.blocked_paths = Array.from(blockedSet).filter(bp =>
+        !agents.some(a => a.allowed_paths.includes(bp) && !a.blocked_paths.includes(bp))
+    );
+
+    return merged;
 }
 
 /**
@@ -551,18 +591,42 @@ async function main() {
             process.exit(0);
         }
 
-        // Check if there's an active agent
-        if (!state.active_agent) {
+        // Check if there's an active agent — prefer active_agents map, fall back to active_agent
+        const activeAgentsMap = state.active_agents || {};
+        const agentEntries = Object.values(activeAgentsMap);
+        let activeAgent: ActiveAgent | null = null;
+
+        if (agentEntries.length > 0) {
+            // Merge all active agents into a union for validation
+            activeAgent = mergeActiveAgents(agentEntries);
+        } else if (state.active_agent) {
+            // Backward compat: old state format without active_agents
+            activeAgent = state.active_agent;
+        }
+
+        if (!activeAgent) {
             log(hookInput.session_id, 'no-active-agent', 'No active agent - not a sub-agent call');
             process.exit(0);
         }
 
-        const activeAgent = state.active_agent;
-
-        // Staleness check: if active_agent was set more than 60 minutes ago,
-        // it's likely stale from a crashed/interrupted agent. Allow the call
-        // rather than enforcing stale restrictions from a different phase.
-        if (activeAgent.invoked_at) {
+        // Staleness check: if ALL active agents were set more than 60 minutes ago,
+        // they're likely stale from crashed/interrupted agents. Allow the call.
+        if (agentEntries.length > 0) {
+            const now = Date.now();
+            const allStale = agentEntries.every(a => {
+                if (!a.invoked_at) return false;
+                const age = (now - new Date(a.invoked_at).getTime()) / (1000 * 60);
+                return age > 60;
+            });
+            if (allStale) {
+                log(hookInput.session_id, 'stale-active-agents', {
+                    agents: agentEntries.map(a => ({ spec: a.spec_id, invoked_at: a.invoked_at })),
+                    action: 'Allowing call — all active_agents are stale (>60 min old)'
+                });
+                process.exit(0);
+            }
+        } else if (activeAgent.invoked_at) {
+            // Backward compat: single active_agent
             const invokedAt = new Date(activeAgent.invoked_at).getTime();
             const now = Date.now();
             const ageMinutes = (now - invokedAt) / (1000 * 60);

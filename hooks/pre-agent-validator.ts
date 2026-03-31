@@ -104,6 +104,7 @@ interface ActiveAgent {
     agent_type: string;
     spec_id: string;
     invoked_at: string;
+    tool_use_id?: string;  // Correlates with PostToolUse for failure cleanup
     expected_artifacts: Array<string | { path: string; description?: string }>;
     allowed_tools: string[];
     allowed_paths: string[];
@@ -126,7 +127,8 @@ interface SessionState {
         plan_approved_at: string | null;
     };
     phases: Record<string, any>;
-    active_agent: ActiveAgent | null;
+    active_agent: ActiveAgent | null;       // Backward compat — derived from active_agents
+    active_agents: Record<string, ActiveAgent>;  // Keyed by spec_id, supports parallel agents
     approvals: Record<string, any>;
 }
 
@@ -234,9 +236,10 @@ function resolveEnvVar(value: string): string {
 }
 
 /**
- * Set active_agent in session state before agent invocation
+ * Set active agent in session state before agent invocation.
+ * Writes to both active_agents map (parallel support) and active_agent (backward compat).
  */
-function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType: string): boolean {
+function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType: string, toolUseId?: string): boolean {
     // Build allowed paths from spec
     const allowedPaths: string[] = [];
     const blockedPaths: string[] = [];
@@ -267,19 +270,14 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
                     // - WRITE blocked to main repo (must use worktree)
                     // - blocked_paths is checked by subagent-guardrail for WRITE operations only
                     //
-                    // Calculate expected worktree path (inside repo)
-                    const taskSlug = (spec.objective || 'task')
-                        .toLowerCase()
-                        .replace(/[^a-z0-9 ]/g, '')
-                        .replace(/ /g, '-')
-                        .slice(0, 30);
-                    const date = new Date().toISOString().slice(0, 10);
-                    const branchName = `arkadian/${date}-${taskSlug}`;
-                    const worktreePath = join(repoPath, '.worktrees', branchName);
+                    // Allow the entire .worktrees/ directory — agent picks the branch name
+                    // and may append collision suffix. subagent-guardrail validates via
+                    // isWorktreePath() which only checks for /.worktrees/ in the path.
+                    const worktreesDir = join(repoPath, '.worktrees');
 
-                    // Allow READ from main repo + worktree
+                    // Allow READ from main repo + any worktree
                     allowedPaths.push(repoPath);
-                    allowedPaths.push(worktreePath);
+                    allowedPaths.push(worktreesDir);
 
                     // Block WRITE to main repo (enforced by subagent-guardrail)
                     blockedPaths.push(repoPath);
@@ -287,7 +285,7 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
                     log(sessionId, 'worktree-enforcement', {
                         project: project.id,
                         mainRepo: repoPath,
-                        worktreePath: worktreePath,
+                        worktreesDir: worktreesDir,
                         action: 'READ allowed from main repo, WRITE blocked (must use worktree)'
                     });
                 } else {
@@ -304,18 +302,11 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
         if (repoPath) {
             if (worktreeEnabled && isCodeAgent) {
                 // Same worktree logic for top-level repo_source
-                const taskSlug = (spec.objective || 'task')
-                    .toLowerCase()
-                    .replace(/[^a-z0-9 ]/g, '')
-                    .replace(/ /g, '-')
-                    .slice(0, 30);
-                const date = new Date().toISOString().slice(0, 10);
-                const branchName = `arkadian/${date}-${taskSlug}`;
-                const worktreePath = join(repoPath, '.worktrees', branchName);
+                const worktreesDir = join(repoPath, '.worktrees');
 
-                // Allow READ from main repo + worktree
+                // Allow READ from main repo + any worktree
                 allowedPaths.push(repoPath);
-                allowedPaths.push(worktreePath);
+                allowedPaths.push(worktreesDir);
                 // Block WRITE to main repo
                 blockedPaths.push(repoPath);
             } else {
@@ -342,10 +333,12 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
         expectedArtifacts.push(...spec.artifacts_out);
     }
 
+    const specId = spec.step_id || 'unknown';
     const activeAgent: ActiveAgent = {
         agent_type: agentType,
-        spec_id: spec.step_id || 'unknown',
+        spec_id: specId,
         invoked_at: new Date().toISOString(),
+        tool_use_id: toolUseId,
         expected_artifacts: expectedArtifacts,
         allowed_tools: AGENT_ALLOWED_TOOLS[agentType] || [],
         allowed_paths: allowedPaths,
@@ -353,7 +346,15 @@ function setActiveAgent(sessionId: string, spec: Record<string, any>, agentType:
         context_intent: spec.context_intent || undefined,
     };
 
-    return updateSessionState(sessionId, { active_agent: activeAgent });
+    // Read current state to merge into active_agents map
+    const state = getSessionState(sessionId);
+    const activeAgents = state?.active_agents || {};
+    activeAgents[specId] = activeAgent;
+
+    return updateSessionState(sessionId, {
+        active_agent: activeAgent,      // Backward compat: last-set agent
+        active_agents: activeAgents,    // Parallel support: all active agents
+    } as Partial<SessionState>);
 }
 
 /**
@@ -945,6 +946,32 @@ async function main() {
             process.exit(0);
         }
 
+        // ═══════════════════════════════════════════
+        // PRE-FLIGHT: Verify agent file is installed
+        // ═══════════════════════════════════════════
+        // This MUST run before any state modification to prevent the deadlock
+        // where state is set but Agent tool fails (agent file not found).
+        const agentFile = join(process.env.HOME || '', '.claude', 'agents', `${subagentType}.md`);
+        if (!existsSync(agentFile)) {
+            const errorMessage = `
+❌ AGENT FILE NOT INSTALLED
+
+Agent type "${subagentType}" requires a definition file at:
+  ${agentFile}
+
+This file does not exist. The Agent tool will reject this call with:
+  "Agent type '${subagentType}' not found"
+
+To fix, run from the arkadian directory:
+  make install-agents
+
+This copies agent definitions from ${ARKADIAN_DIR}/agents/ to ~/.claude/agents/
+`;
+            console.error(errorMessage);
+            log(hookInput.session_id, 'agent-file-missing', { agentType: subagentType, expectedPath: agentFile });
+            process.exit(2);
+        }
+
         // Check if session state exists (should be created by session-start-hook)
         const state = getSessionState(hookInput.session_id);
         if (!state) {
@@ -954,21 +981,51 @@ async function main() {
         }
 
         // ═══════════════════════════════════════════
-        // Defensive clear: reset active_agent before validation
+        // Defensive clear: only clear SAME spec_id or genuinely stale agents
         // ═══════════════════════════════════════════
-        // If a previous agent invocation left active_agent set (e.g., the post-agent
-        // hook crashed, or this validator exited with code 2 before reaching setActiveAgent),
-        // the subagent-guardrail would enforce stale restrictions on the next agent.
-        // Clearing it here ensures a clean slate. setActiveAgent() will set it correctly
-        // if/when we reach the "Valid specification" section at the end.
-        if (state.active_agent) {
-            log(hookInput.session_id, 'clearing-stale-active-agent', {
-                previous_agent: state.active_agent.agent_type,
-                previous_spec: state.active_agent.spec_id,
-                new_agent: subagentType,
-                reason: 'Defensive clear before validation — will be re-set after validation passes'
-            });
-            updateSessionState(hookInput.session_id, { active_agent: null } as Partial<SessionState>);
+        // For parallel agent support, we must NOT clear other running agents.
+        // Only clear if: (a) same spec_id is being re-invoked, or (b) agent is
+        // stale (>10 min old, likely from a crash).
+        {
+            const specIdFromPrompt = prompt.match(/step_id:\s*["']?(\S+?)["']?\s*$/m)?.[1];
+            const activeAgents = state.active_agents || {};
+            let cleared = false;
+
+            // (a) Clear same spec_id (re-invocation or retry)
+            if (specIdFromPrompt && activeAgents[specIdFromPrompt]) {
+                log(hookInput.session_id, 'clearing-reinvoked-agent', {
+                    spec_id: specIdFromPrompt,
+                    previous_agent: activeAgents[specIdFromPrompt].agent_type,
+                    reason: 'Same spec_id being re-invoked',
+                });
+                delete activeAgents[specIdFromPrompt];
+                cleared = true;
+            }
+
+            // (b) Clear stale entries (>10 min old)
+            const now = Date.now();
+            for (const [sid, agent] of Object.entries(activeAgents)) {
+                if (agent.invoked_at) {
+                    const ageMin = (now - new Date(agent.invoked_at).getTime()) / (1000 * 60);
+                    if (ageMin > 10) {
+                        log(hookInput.session_id, 'clearing-stale-agent', {
+                            spec_id: sid,
+                            agent: agent.agent_type,
+                            age_minutes: Math.round(ageMin),
+                        });
+                        delete activeAgents[sid];
+                        cleared = true;
+                    }
+                }
+            }
+
+            if (cleared) {
+                const remaining = Object.values(activeAgents);
+                updateSessionState(hookInput.session_id, {
+                    active_agent: remaining.length > 0 ? remaining[remaining.length - 1] : null,
+                    active_agents: activeAgents,
+                } as Partial<SessionState>);
+            }
         }
 
         // Check if workflow.yaml exists in session folder
@@ -1112,7 +1169,8 @@ Each phase must complete and produce its artifacts before the next can start.
 
         // 1. Set active_agent in state (for sub-agent guardrail routing)
         if (result.spec) {
-            const agentSet = setActiveAgent(hookInput.session_id, result.spec, subagentType);
+            const toolUseId = (hookInput as any).tool_use_id;
+            const agentSet = setActiveAgent(hookInput.session_id, result.spec, subagentType, toolUseId);
             if (!agentSet) {
                 log(hookInput.session_id, 'warning', 'Failed to set active_agent in state');
             }

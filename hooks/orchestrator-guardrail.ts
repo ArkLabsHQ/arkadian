@@ -214,6 +214,7 @@ interface SessionState {
     };
     phases: Record<string, any>;
     active_agent: ActiveAgent | null;
+    active_agents: Record<string, ActiveAgent>;
     approvals: Record<string, any>;
 }
 
@@ -411,9 +412,23 @@ function isOrchestratorCall(sessionId: string): { isOrchestrator: boolean; activ
         return { isOrchestrator: false, activeAgent: null };
     }
 
-    // It's an orchestrator session
+    // It's an orchestrator session — check active_agents map first, fall back to active_agent
+    const activeAgentsMap = state.active_agents || {};
+    const activeAgentEntries = Object.values(activeAgentsMap);
+
+    if (activeAgentEntries.length > 0) {
+        // At least one sub-agent is active — use the most recent one for backward compat
+        const latestAgent = activeAgentEntries[activeAgentEntries.length - 1];
+        log(sessionId, 'subagent-active', {
+            agent: latestAgent.agent_type,
+            spec: latestAgent.spec_id,
+            parallel_count: activeAgentEntries.length,
+        });
+        return { isOrchestrator: false, activeAgent: latestAgent };
+    }
+
     if (state.active_agent) {
-        // Sub-agent is active - this call is from sub-agent
+        // Backward compat: active_agents map empty but active_agent set (old state format)
         log(sessionId, 'subagent-active', { agent: state.active_agent.agent_type, spec: state.active_agent.spec_id });
         return { isOrchestrator: false, activeAgent: state.active_agent };
     }

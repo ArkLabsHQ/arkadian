@@ -83,8 +83,7 @@ Before editing project files, create an isolated git worktree. Skip only if `wor
 cd ${repo_source.repo_root}
 
 TASK_SLUG=$(echo "${objective}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 ]//g' | tr ' ' '-' | cut -c1-30)
-DATE=$(date +%Y-%m-%d)
-BRANCH_NAME="${DATE}-${TASK_SLUG}"
+BRANCH_NAME="${TASK_SLUG}"
 
 WORKTREE_BASE="${repo_source.repo_root}/.worktrees"
 mkdir -p "${WORKTREE_BASE}"

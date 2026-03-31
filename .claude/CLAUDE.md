@@ -18,7 +18,7 @@ Arkadian is a **Claude Code plugin** that provides an AI orchestration system fo
 | Hook implementations | `hooks/` |
 | Agent definitions | `agents/` |
 | Skills (model-invoked) | `skills/` |
-| Slash commands | `commands/` |
+| Legacy commands (deprecated) | `commands/` |
 | Project documentation | `docs/` |
 | Workflow templates | `templates/` |
 | Session artifacts | `sessions/` |
@@ -91,7 +91,7 @@ skills: dev-implement
 
 ## Skills (skills/)
 
-Skills are model-invoked prompts. Each is a directory with `prompt.md`:
+Skills are model-invoked prompts. Each is a directory with `SKILL.md`:
 
 | Skill | Purpose |
 |-------|---------|
@@ -103,21 +103,18 @@ Skills are model-invoked prompts. Each is a directory with `prompt.md`:
 | `pm-checklist` | Generate quality checklists |
 | `pm-constitution` | Project principles |
 | `dev-implement` | Execute implementation |
+| `add-project` | Add project to registry |
+| `update-project` | Update project docs |
+| `remove-project` | Remove from registry |
+| `create-operational-sop` | Generate SOPs |
+| `analyse-arkadian-session` | Session analysis |
 | `bitcoin-l2-research` | Bitcoin/L2 research |
 | `ark-progress-tracking` | Progress tracking |
 | `browser-testing` | Playwright testing |
 
-## Commands (commands/)
+## Commands (commands/) — DEPRECATED
 
-Slash commands are markdown files with embedded prompts:
-
-| Command | Purpose |
-|---------|---------|
-| `/add-project` | Add project to registry |
-| `/update-project` | Update project docs |
-| `/remove-project` | Remove from registry |
-| `/speckit.*` | Specification workflow |
-| `/create-operational-sop` | Generate SOPs |
+Commands have been migrated to skills. The `commands/` directory is kept as reference but no longer installed. Claude Code uses skills instead of slash commands.
 
 ## Templates (templates/)
 
@@ -264,12 +261,8 @@ When working on Arkadian itself:
 3. Run `make install-agents`
 
 ### Adding a new skill
-1. Create `skills/<skill-name>/prompt.md`
+1. Create `skills/<skill-name>/SKILL.md` with frontmatter (name, description, allowed-tools)
 2. Run `make install-skills`
-
-### Adding a new command
-1. Create `commands/<command-name>.md`
-2. Run `make install-commands`
 
 ### Modifying guardrails
 1. Edit `hooks/orchestrator-guardrail.ts`
@@ -306,4 +299,5 @@ echo '{"session_id":"test","tool_name":"Bash","tool_input":{},"hook_event_name":
 - The orchestrator (when running `arkadian`) uses `ORCHESTRATOR.md` instead
 - Hooks run via `bun` - ensure bun is installed
 - Changes to hooks take effect immediately (no reinstall needed)
-- Changes to agents/skills/commands require `make install-*`
+- Changes to agents/skills require `make install-agents` or `make install-skills`
+- Commands are deprecated — Claude Code uses skills instead

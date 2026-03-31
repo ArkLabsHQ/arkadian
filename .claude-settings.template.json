@@ -99,7 +99,26 @@
         ]
       }
     ],
-    "PostToolUse": [],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/post-tool-cleanup.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${ARKADIAN_DIR}/hooks/post-tool-cleanup.ts"
+          }
+        ]
+      }
+    ],
     "Notification": [],
     "UserPromptSubmit": [
       {

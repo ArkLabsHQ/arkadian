@@ -21,3 +21,5 @@ log/.worktrees/
 .worktrees/
 
 .DS_Store
+
+benchmarks

@@ -1625,7 +1625,7 @@ worktree_config:
 This instructs ark-developer to:
 1. Create an isolated git worktree INSIDE the repo at `.worktrees/<branch>`
 2. Work in the worktree (not the main repo branch)
-3. Create branch: `arkadian/{date}-{task-slug}`
+3. Create branch: `{task-slug}`
 4. The sub-agent guardrail ENFORCES this - writes to main repo are blocked
 
 Set `enabled: false` only when you explicitly want changes made directly to the main repo.

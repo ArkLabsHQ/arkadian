@@ -1,4 +1,4 @@
-.PHONY: install uninstall check-prereqs setup-dirs install-data-dir copy-settings export-env make-executable install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills install-commands
+.PHONY: install uninstall check-prereqs setup-dirs install-data-dir copy-settings export-env make-executable install-arkadian-cmd update-shell test-hook verify clean help install-agents install-skills
 
 # Detect shell config file based on user's actual SHELL
 # Priority: 1) Check $SHELL variable, 2) Fall back to checking files
@@ -43,7 +43,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-with-env export-env make-executable install-arkadian-cmd install-agents install-skills install-commands verify ## Complete installation (one-liner setup)
+install: check-prereqs setup-dirs install-data-dir generate-env copy-settings-with-env export-env make-executable install-arkadian-cmd install-agents install-skills verify ## Complete installation (one-liner setup)
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)✅ Arkadian Assistant Installed!$(NC)"
@@ -217,10 +217,10 @@ install-skills: ## Install skills to ~/.claude/skills
 	@./scripts/install-skills.sh
 	@echo "$(GREEN)✓ Skills installed$(NC)"
 
-install-commands: ## Install commands to ~/.claude/commands
-	@echo "$(YELLOW)Installing commands...$(NC)"
-	@./scripts/install-commands.sh
-	@echo "$(GREEN)✓ Commands installed$(NC)"
+install-commands: ## DEPRECATED - Commands replaced by skills in Claude Code
+	@echo "$(RED)⚠️  Commands are deprecated — Claude Code now uses skills$(NC)"
+	@echo "$(YELLOW)All commands have been migrated to skills/$(NC)"
+	@echo "$(YELLOW)Run 'make install-skills' instead$(NC)"
 
 update-shell: ## Source shell config (run in new shell)
 	@echo "$(YELLOW)To activate environment variables, run:$(NC)"
@@ -285,11 +285,9 @@ verify: ## Verify installation
 	else \
 		echo "$(YELLOW)⚠️  Skills not fully installed ($$INSTALLED_SKILLS/$$SOURCE_SKILLS) - run: make install-skills$(NC)"; \
 	fi
-	@# Check commands
-	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -ge 8 ]; then \
-		echo "$(GREEN)✓ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l | tr -d ' ') commands installed in ~/.claude/commands$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  Commands not fully installed (run: make install-commands)$(NC)"; \
+	@# Commands deprecated — Claude Code uses skills instead
+	@if [ -d "$$HOME/.claude/commands" ] && [ $$(ls -1 $$HOME/.claude/commands/*.md 2>/dev/null | wc -l) -gt 0 ]; then \
+		echo "$(YELLOW)⚠️  Legacy commands found in ~/.claude/commands/ — Claude Code now uses skills. Run: rm -rf ~/.claude/commands$(NC)"; \
 	fi
 	@# Check shell config (handles both fish and bash/zsh syntax)
 	@if grep -q "ARKADIAN_DIR" $(SHELL_CONFIG) 2>/dev/null; then \
@@ -342,10 +340,10 @@ uninstall: ## Remove Arkadian installation
 		rm -rf $$HOME/.claude/skills; \
 		echo "$(GREEN)✓ Removed skills$(NC)"; \
 	fi
-	@# Remove commands
+	@# Remove legacy commands (deprecated — Claude Code uses skills)
 	@if [ -d "$$HOME/.claude/commands" ]; then \
 		rm -rf $$HOME/.claude/commands; \
-		echo "$(GREEN)✓ Removed commands$(NC)"; \
+		echo "$(GREEN)✓ Removed legacy commands$(NC)"; \
 	fi
 	@# Remove ARKADIAN_DIR and ARKADIAN_DATA_DIR from shell config (handle fish shell separately)
 	@is_fish=$$(echo "$(SHELL_CONFIG)" | grep -q "fish" && echo "yes" || echo "no"); \

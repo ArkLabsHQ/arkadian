@@ -360,7 +360,7 @@ worktree_config:
 This instructs the agent to:
 1. Create a new git worktree INSIDE the repo at `.worktrees/<branch>`
 2. Work in the isolated worktree (not the main repo)
-3. Create branch: `arkadian/{date}-{task-slug}`
+3. Create branch: `{task-slug}`
 4. The sub-agent guardrail ENFORCES this - writes to main repo are blocked
 
 Set `enabled: false` only if you explicitly want changes made directly to the main repo.
