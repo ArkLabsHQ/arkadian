@@ -984,8 +984,8 @@ This copies agent definitions from ${ARKADIAN_DIR}/agents/ to ~/.claude/agents/
         // Defensive clear: only clear SAME spec_id or genuinely stale agents
         // ═══════════════════════════════════════════
         // For parallel agent support, we must NOT clear other running agents.
-        // Only clear if: (a) same spec_id is being re-invoked, or (b) agent is
-        // stale (>10 min old, likely from a crash).
+        // Clear if: (a) same spec_id re-invoked, (b) stale >10 min, or
+        // (c) same agent_type re-invoked within 30s (Agent tool failed immediately).
         {
             const specIdFromPrompt = prompt.match(/step_id:\s*["']?(\S+?)["']?\s*$/m)?.[1];
             const activeAgents = state.active_agents || {};
@@ -1002,8 +1002,9 @@ This copies agent definitions from ${ARKADIAN_DIR}/agents/ to ~/.claude/agents/
                 cleared = true;
             }
 
-            // (b) Clear stale entries (>10 min old)
             const now = Date.now();
+
+            // (b) Clear stale entries (>10 min old)
             for (const [sid, agent] of Object.entries(activeAgents)) {
                 if (agent.invoked_at) {
                     const ageMin = (now - new Date(agent.invoked_at).getTime()) / (1000 * 60);
@@ -1012,6 +1013,27 @@ This copies agent definitions from ${ARKADIAN_DIR}/agents/ to ~/.claude/agents/
                             spec_id: sid,
                             agent: agent.agent_type,
                             age_minutes: Math.round(ageMin),
+                        });
+                        delete activeAgents[sid];
+                        cleared = true;
+                    }
+                }
+            }
+
+            // (c) Clear entries with same agent_type invoked < 30s ago.
+            // This catches the deadlock where Agent tool fails immediately
+            // (e.g., "agent type not found") but active_agent was already set
+            // by this hook. The orchestrator retries quickly, and without this
+            // safety net, the stale entry would lock it into sub-agent mode.
+            for (const [sid, agent] of Object.entries(activeAgents)) {
+                if (agent.agent_type === subagentType && agent.invoked_at) {
+                    const ageMs = now - new Date(agent.invoked_at).getTime();
+                    if (ageMs < 30_000) {
+                        log(hookInput.session_id, 'clearing-rapid-retry-agent', {
+                            spec_id: sid,
+                            agent: agent.agent_type,
+                            age_ms: ageMs,
+                            reason: 'Same agent type re-invoked within 30s — likely prior call failed',
                         });
                         delete activeAgents[sid];
                         cleared = true;

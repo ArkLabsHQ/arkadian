@@ -117,13 +117,39 @@ async function main() {
             process.exit(0);
         }
 
-        // Only process errors — successful agent launches are handled by SubagentStop
+        // Diagnostic: log ALL fields so we can see what PostToolUse actually provides
+        log(hookInput.session_id, 'post-tool-cleanup-input', {
+            tool: hookInput.tool_name,
+            tool_use_id: hookInput.tool_use_id,
+            keys: Object.keys(hookInput),
+            has_is_error: 'is_error' in hookInput,
+            has_tool_result: 'tool_result' in hookInput,
+            has_tool_result_is_error: 'tool_result_is_error' in hookInput,
+            has_content: 'content' in hookInput,
+            has_output: 'output' in hookInput,
+            is_error_value: hookInput.is_error,
+            tool_result_preview: typeof hookInput.tool_result === 'string' ? hookInput.tool_result.slice(0, 200) : typeof hookInput.tool_result,
+        });
+
+        // Detect errors — check all possible fields Claude Code may provide
         const isError = hookInput.is_error === true ||
                         hookInput.tool_result_is_error === true ||
-                        (typeof hookInput.tool_result === 'string' && hookInput.tool_result.includes('not found'));
+                        (typeof hookInput.tool_result === 'string' && (
+                            hookInput.tool_result.includes('not found') ||
+                            hookInput.tool_result.includes('EACCES')
+                        )) ||
+                        (typeof (hookInput as any).content === 'string' && (
+                            (hookInput as any).content.includes('not found') ||
+                            (hookInput as any).content.includes('EACCES')
+                        )) ||
+                        (typeof (hookInput as any).output === 'string' && (
+                            (hookInput as any).output.includes('not found') ||
+                            (hookInput as any).output.includes('EACCES')
+                        ));
 
         if (!isError) {
             // Not an error — SubagentStop hook will handle cleanup
+            log(hookInput.session_id, 'post-tool-cleanup-no-error', 'isError=false, exiting');
             process.exit(0);
         }
 

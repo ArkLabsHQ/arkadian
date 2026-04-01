@@ -28,6 +28,12 @@ ORCHESTRATOR_CONTENT=$(cat "$ORCHESTRATOR_FILE")
 # Enable orchestrator mode for guardrail hooks
 export ARKADIAN_ORCHESTRATOR_MODE=1
 
+# Use native file search for agent/skill discovery instead of ripgrep.
+# Claude Code defaults to ripgrep for scanning .md files in ~/.claude/agents/,
+# but npm updates can reset the rg binary's execute permission, silently breaking
+# agent discovery. Native search uses Node.js readdir — no external binary needed.
+export CLAUDE_CODE_USE_NATIVE_FILE_SEARCH=1
+
 DETACHED=false
 RESUME_SESSION=""
 # ARKADIAN_RESUME_WORKFLOW_ID removed — no longer using --session-id for resume

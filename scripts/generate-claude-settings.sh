@@ -61,6 +61,16 @@ while IFS='=' read -r key value; do
   fi
 done < "$ENV_FILE"
 
+# Always include CLAUDE_CODE_USE_NATIVE_FILE_SEARCH — Claude Code uses ripgrep
+# by default to discover agent/skill .md files, but npm updates can reset the
+# rg binary's execute permission, silently breaking agent discovery. Native
+# search uses Node.js readdir instead — works on every OS without rg.
+if [ -z "$env_json" ]; then
+  env_json="\"CLAUDE_CODE_USE_NATIVE_FILE_SEARCH\": \"1\""
+else
+  env_json="$env_json,\n    \"CLAUDE_CODE_USE_NATIVE_FILE_SEARCH\": \"1\""
+fi
+
 # Read template
 template_content=$(cat "$TEMPLATE_FILE")
 
