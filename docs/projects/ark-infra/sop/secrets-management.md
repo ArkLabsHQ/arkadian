@@ -46,7 +46,30 @@ aws secretsmanager get-secret-value \
   --query 'SecretString' --output text | jq -r '.seed'
 ```
 
-### 3. Deployment Secrets
+### 3. Arkd Wallet Signer Key
+**Location**: `secrets.<env>.tfvars` (NOT in AWS Secrets Manager)
+**Variable**: `arkd_wallet_signer_key`
+**Purpose**: secp256k1 private key used by arkd-wallet for ASP signing operations. 64-character hex string (32 bytes).
+
+> **Note**: Currently stored as plaintext in tfvars. Future: migrate to AWS Secrets Manager (see deployment-guide.md TODO).
+
+**Generate**:
+```bash
+SIGNER_KEY=$(openssl rand -hex 32)
+echo "arkd_wallet_signer_key = \"$SIGNER_KEY\"" >> secrets.<env>.tfvars
+```
+
+**Storage**:
+- Regtest/dev: hardcoded in `regtest.tfvars` (intentional, not a real secret)
+- Prod/staging: generated per environment, stored in local `secrets.<env>.tfvars` (gitignored), never committed
+
+**Rotation** (requires redeployment):
+1. Generate new key: `SIGNER_KEY=$(openssl rand -hex 32)`
+2. Update `secrets.<env>.tfvars` with new value
+3. Run `tofu apply` passing `-var=arkd_wallet_signer_key=$SIGNER_KEY`
+4. Verify wallet operational after redeployment
+
+### 4. Deployment Secrets
 **Location**: Never committed, passed via `-var` flags
 
 **Required Secrets**:

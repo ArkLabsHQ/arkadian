@@ -33,6 +33,12 @@ Creates:
 - OpenTofu workspace
 
 **1.3 Gather Secrets**
+
+Generate the arkd wallet signer key (required for new prod/staging environments; regtest uses the key already in `regtest.tfvars`):
+```bash
+export ARKD_WALLET_SIGNER_KEY=$(openssl rand -hex 32)
+```
+
 Create file `secrets.env` (DO NOT COMMIT):
 ```bash
 # AWS
@@ -55,7 +61,7 @@ export SLACK_API_URL="https://hooks.slack.com/..."
 export POSTGRES_PASSWORD="<secure-password>"
 
 # Wallet
-export ARKD_WALLET_SIGNER_KEY="xprv..."
+export ARKD_WALLET_SIGNER_KEY="<64-char hex from openssl rand -hex 32>"
 ```
 
 Source: `source secrets.env`
@@ -109,7 +115,8 @@ make tofu-plan VARS="\
 -var=kms_unlocker_secret_id=ark-pass \
 -var=kms_unlocker_max_retry=10 \
 -var=kms_unlocker_server_url=http://arkd-wallet:6060 \
--var=kms_unlocker_password_provider_type=aws" | tee plan-$ENV.txt
+-var=kms_unlocker_password_provider_type=aws \
+-var=arkd_wallet_signer_key=$ARKD_WALLET_SIGNER_KEY" | tee plan-$ENV.txt
 ```
 
 **3.2 Review Plan**

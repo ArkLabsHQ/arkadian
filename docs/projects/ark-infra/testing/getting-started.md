@@ -46,6 +46,12 @@ Never commit these:
 - `TUNNEL_TOKEN`
 - `SLACK_API_URL`
 - `POSTGRES_PASSWORD`
+- `ARKD_WALLET_SIGNER_KEY` (generate with `openssl rand -hex 32`; regtest uses the key already in `regtest.tfvars`)
+
+Generate the signer key before deploying (skip for regtest; `regtest.tfvars` includes a hardcoded dev key):
+```bash
+SIGNER_KEY=$(openssl rand -hex 32)
+```
 
 ### 4. Deploy
 ```bash
@@ -70,7 +76,8 @@ make tofu-apply VARS="\
 -var=tunnel_token=<token> \
 -var=cloudflare_dns_api_token=<token> \
 -var=kms_unlocker_image_tag=master \
--var=kms_unlocker_secret_id=ark-pass"
+-var=kms_unlocker_secret_id=ark-pass \
+-var=arkd_wallet_signer_key=$SIGNER_KEY"
 ```
 
 Takes ~15 minutes total.
