@@ -77,7 +77,7 @@ make tofu-apply VARS="\
 -var=cloudflare_dns_api_token=<token> \
 -var=kms_unlocker_image_tag=master \
 -var=kms_unlocker_secret_id=ark-pass \
--var=arkd_wallet_signer_key=$SIGNER_KEY"
+-var=arkd_wallet_signer_key=$SIGNER_KEY"  # omit for regtest (key is in regtest.tfvars)
 ```
 
 Takes ~15 minutes total.
