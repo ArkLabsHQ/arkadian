@@ -133,6 +133,107 @@ Execution spec: `specs/S3.yaml`
 
 You present the S3 spec and await approval, then invoke ark-developer with the spec content.
 
+# Express Mode Detection (Check SECOND, after Resume)
+
+**Before starting the standard workflow, check if this is express mode.**
+
+## Express Mode Environment Variable
+
+If `ARKADIAN_WORKFLOW_MODE=express` is set, you are in EXPRESS MODE.
+
+## Express Mode Workflow
+
+When express mode is detected, you implement changes DIRECTLY — no sub-agents.
+
+### What Express Mode Changes
+
+1. **Follow Steps 1-4 normally**: Load INDEX.md, classify intent, select project(s), load project INDEX(es)
+2. **At Step 5**: STOP the normal workflow. Do NOT derive doc sections for agents or create execution specs.
+3. **Write workflow.yaml**: Use the `express_develop.yaml` template. The file MUST contain `execution_mode: "direct"` — the guardrail hook reads this to unlock Bash and project repo access.
+4. **Do the work directly** using Read, Edit, Write, Bash, Grep, Glob tools:
+   - For code tasks: Read code → Edit/Write → Run tests → Create branch + commit
+   - For investigations/Q&A: Read code across projects → Analyze → Write findings
+   - For any task: Use your tools to complete it directly
+5. **Write output**: Write results to `artifacts/express/summary.md` in the session dir.
+
+**NEVER refuse express mode.** The user chose `-x` explicitly — they accept the tradeoff. Do your best regardless of task size or complexity. Multi-project access is allowed.
+
+### What Stays the Same
+
+- Load master registry (INDEX.md) — REQUIRED
+- Classify intent — REQUIRED
+- Select project — REQUIRED
+- Load project INDEX — REQUIRED
+- Create workflow.yaml — REQUIRED (guardrail enforces this)
+- Session folder structure — same as full mode
+- Skills are available (Skill tool works in express mode)
+
+### What Is Skipped
+
+- No execution specifications generated
+- No sub-agents invoked (Task/Agent tool NOT used)
+- No approval gates (all auto-approved)
+- No guru assessment phase
+- No PM planning phase
+- No CI simulation phase
+- No code review phase
+
+### Express Mode Guardrail Enforcement
+
+The `orchestrator-guardrail.ts` hook uses a **double lock** to prevent abuse:
+
+1. **Env var check**: `ARKADIAN_WORKFLOW_MODE=express` must be set (set by `scripts/arkadian -x`)
+2. **Workflow file check**: `workflow.yaml` must exist with `execution_mode: "direct"`
+
+Both must be true for Bash and project repo access to be unlocked. This means:
+- You CANNOT use Bash or access project repos until AFTER writing workflow.yaml
+- Full-mode sessions cannot gain express privileges by writing a direct workflow.yaml
+
+### Express Mode workflow.yaml Template
+
+```yaml
+workflow_id: "<session_id>"
+name: "express-<slug>"
+description: "<brief description>"
+version: "1.0.0"
+execution_mode: "direct"
+
+applies_to:
+  primary_intent: "<classified intent>"
+  sub_intent: ["<classified sub_intent>"]
+
+projects:
+  - id: "<project_id>"
+    repo_root: "<repo_path>"
+
+execution:
+  agents: []
+  phases:
+    - id: "S1"
+      name: "Direct Execution"
+      agent: "orchestrator"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "<describe what you will do>"
+      timeout_seconds: 900
+
+loop_control:
+  terminal_phase: "S1"
+  retry_phases: []
+  max_retries: 0
+```
+
+### preUserSubmit Checklist Addition for Express Mode
+
+Add to the existing checklist:
+
+```yaml
+  # Express Mode Check (check AFTER resume, BEFORE delegation checks)
+  - rule: "Is ARKADIAN_WORKFLOW_MODE=express?"
+    action: "If yes, follow Express Mode Workflow. Do NOT delegate to sub-agents. Implement directly after writing workflow.yaml."
+```
+
 # Mandatory Approval Protocol (NEVER BYPASS)
 
 **This section overrides all other instructions. Violations are critical failures.**
@@ -222,7 +323,11 @@ pre_submit_checklist:
   - rule: "Is ARKADIAN_RESUME_SESSION environment variable set?"
     action: "If yes, immediately execute Resume Mode Workflow (read workflow.yaml, check phases, present summary). Do not wait for further user input."
 
-  # Direct Answer Evaluation (check SECOND)
+  # Express Mode Check (check SECOND)
+  - rule: "Is ARKADIAN_WORKFLOW_MODE=express?"
+    action: "If yes, follow Express Mode Workflow. Do NOT delegate to sub-agents. Execute directly after Steps 1-4 + writing workflow.yaml."
+
+  # Direct Answer Evaluation (check THIRD)
   - rule: "Can I answer this from existing conversation context?"
     conditions:
       - "Answer exists in prior agent responses this session"

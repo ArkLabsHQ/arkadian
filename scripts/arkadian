@@ -35,6 +35,7 @@ export ARKADIAN_ORCHESTRATOR_MODE=1
 export CLAUDE_CODE_USE_NATIVE_FILE_SEARCH=1
 
 DETACHED=false
+EXPRESS=false
 RESUME_SESSION=""
 # ARKADIAN_RESUME_WORKFLOW_ID removed — no longer using --session-id for resume
 
@@ -54,6 +55,8 @@ show_help() {
     echo "  logs <id>         Tail session hook log"
     echo ""
     echo "Options:"
+    echo "  -x, --express     Express mode: orchestrator implements directly, no sub-agents"
+    echo "                    Best for quick fixes, unit tests, small changes (1-3 files)"
     echo "  -d, --detached    Run autonomously in background (auto-approve all gates)"
     echo "  --resume <id>     Resume a previous session from its last completed phase"
     echo "                    <id> can be UUID or friendly name (e.g., 2026-02-12-fix-bug)"
@@ -62,6 +65,12 @@ show_help() {
     echo "Examples:"
     echo "  # Start new session (interactive)"
     echo "  arkadian \"Fix the VTXO expiry bug in fulmine\""
+    echo ""
+    echo "  # Express mode (small tasks, no sub-agents, ~5-8x cheaper)"
+    echo "  arkadian -x \"add unit test for computeNextExpiry in arkd\""
+    echo ""
+    echo "  # Express + detached (fast autonomous execution)"
+    echo "  arkadian -x -d \"fix typo in service.go\""
     echo ""
     echo "  # Start new session (detached)"
     echo "  arkadian -d \"Add GetRoundMetrics RPC to arkd\""
@@ -394,6 +403,10 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
+        -x|--express)
+            EXPRESS=true
+            shift
+            ;;
         -d|--detached)
             DETACHED=true
             shift
@@ -449,6 +462,32 @@ You are running in DETACHED mode. There is no human operator to approve gates.
 - Record all auto-resolved decisions in the orchestrator log for post-hoc review.
 
 **In summary:** Execute the entire pipeline end-to-end without pausing. Produce identical artifacts to interactive mode.'
+
+# Express mode prompt override
+EXPRESS_PROMPT='## Express Mode (DIRECT EXECUTION)
+
+You are running in EXPRESS mode. You do ALL work DIRECTLY — no sub-agents, no delegation.
+The user explicitly chose -x to avoid the overhead of spawning agents. Respect that choice.
+
+**What changes:**
+- After Steps 1-4 (load registry, classify intent, select project(s), load project INDEX):
+  - Write workflow.yaml with execution_mode: "direct" (REQUIRED — guardrail unlocks Bash/repo access only after this)
+  - Then do the work yourself — directly. No Task/Agent tool.
+  - For code tasks: Read code → Edit/Write → Run tests → Commit
+  - For investigations/Q&A: Read code across projects → Analyze → Write findings to session artifacts
+  - For any other task: Use your tools (Read, Grep, Glob, Bash, Edit, Write) to complete it
+- All approval gates are PRE-APPROVED (no stopping, no "AWAITING APPROVAL" prompts)
+- Do NOT invoke any sub-agents (no Task/Agent tool calls)
+- Still create workflow.yaml and write output to session artifacts
+
+**What stays the same:**
+- Follow Steps 1-4: Load INDEX.md, classify intent, select projects, load project INDEX
+- Create workflow.yaml BEFORE doing any repo work (guardrail enforces this)
+- Use skills if needed (Skill tool is allowed)
+- Multi-project access is allowed — load multiple project INDEXes, read from multiple repos
+
+**NEVER refuse express mode.** The user chose -x explicitly. Do the work directly regardless of task size or type.
+If the task is complex, do your best — a direct answer is always better than refusing.'
 
 # ── Resume Mode Validation and Setup ─────────────────────────────────
 
@@ -692,6 +731,12 @@ CLAUDE_ARGS=(
   --settings "$ARKADIAN_SETTINGS"
   --append-system-prompt "$ORCHESTRATOR_CONTENT"
 )
+
+# Express mode: inject express context into system prompt and set env var
+if [ "$EXPRESS" = true ]; then
+    CLAUDE_ARGS+=(--append-system-prompt "$EXPRESS_PROMPT")
+    export ARKADIAN_WORKFLOW_MODE=express
+fi
 
 # Resume mode: inject resume context into system prompt
 # No --session-id: Claude generates fresh session, hook copies old files into it

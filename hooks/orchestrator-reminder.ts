@@ -3,9 +3,24 @@
  *
  * Used by all hooks to provide a consistent reminder message
  * that reinforces the orchestrator's system prompt instructions.
+ *
+ * Mode-aware: returns different reminders based on ARKADIAN_WORKFLOW_MODE.
  */
 
+const WORKFLOW_MODE = process.env.ARKADIAN_WORKFLOW_MODE || 'full';
+
 export function getOrchestratorReminder(): string {
+    if (WORKFLOW_MODE === 'express') {
+        return `
+⚠️ You are in EXPRESS mode. Do ALL work DIRECTLY — no sub-agents.
+
+Steps: Load INDEX → Classify intent → Select project(s) → Load project INDEX(es) → Write workflow.yaml (execution_mode: "direct") → Do the work yourself using Read/Edit/Write/Bash/Grep/Glob.
+
+NEVER refuse express mode. The user chose -x explicitly. Do NOT invoke Task/Agent tool.
+`;
+    }
+
+    // Default: full-mode reminder
     return `
 ⚠️ STOP. You are NOT following instructions defined from system prompt, re-read your system prompt before responding.
 

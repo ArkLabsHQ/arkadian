@@ -32,6 +32,9 @@ import { getOrchestratorReminder } from './orchestrator-reminder';
 // Only enforce guardrails in orchestrator mode
 const ORCHESTRATOR_MODE = process.env.ARKADIAN_ORCHESTRATOR_MODE === '1';
 
+// Express mode: orchestrator implements directly, no sub-agents
+const WORKFLOW_MODE = process.env.ARKADIAN_WORKFLOW_MODE || 'full';
+
 const ARKADIAN_DIR = process.env.ARKADIAN_DIR || process.env.HOME + '/code/go/arkadian';
 const SESSIONS_DIR = join(ARKADIAN_DIR, 'sessions');
 
@@ -523,8 +526,10 @@ function resolveToAbsolute(filePath: string): string {
 
 /**
  * Check if a path is allowed for orchestrator access.
+ *
+ * In direct mode (express workflow), project repo paths are also allowed.
  */
-function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
+function isPathAllowed(filePath: string, directMode: boolean = false): { allowed: boolean; reason: string } {
     if (!filePath) {
         return { allowed: false, reason: 'Empty path not allowed' };
     }
@@ -545,11 +550,20 @@ function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
     for (let i = 0; i < BLOCKED_PATHS.length; i++) {
         const repoPath = resolveToAbsolute(BLOCKED_PATHS[i]);
         if (absolutePath === repoPath || absolutePath.startsWith(repoPath + '/')) {
+            // In direct mode, allow access to project repos
+            if (directMode) {
+                return { allowed: true, reason: `Express direct mode: ${REPO_ENV_VARS[i]} access allowed` };
+            }
             return {
                 allowed: false,
                 reason: `Accessing project repository ${REPO_ENV_VARS[i]} - delegate to agent instead`
             };
         }
+    }
+
+    // In direct mode, allow any path (orchestrator is acting as developer)
+    if (directMode) {
+        return { allowed: true, reason: 'Express direct mode: general path access allowed' };
     }
 
     return {
@@ -559,6 +573,47 @@ function isPathAllowed(filePath: string): { allowed: boolean; reason: string } {
 }
 
 // getOrchestratorReminder is now imported from ./orchestrator-reminder
+
+/**
+ * Check if direct execution mode is unlocked for the orchestrator.
+ *
+ * Direct mode requires BOTH:
+ * 1. ARKADIAN_WORKFLOW_MODE=express env var (set by scripts/arkadian -x flag)
+ * 2. workflow.yaml exists in session dir with execution_mode: "direct"
+ *
+ * This double-lock prevents:
+ * - Full-mode orchestrator from writing direct workflow.yaml to bypass guards
+ * - Express mode from working before workflow.yaml is created
+ */
+function isDirectModeUnlocked(sessionId: string): boolean {
+    // Must be in express workflow mode (env var set by launcher)
+    if (WORKFLOW_MODE !== 'express') return false;
+
+    // Find session dir — check state file for active pointer, fall back to SESSIONS_DIR
+    const activeFile = join(ARKADIAN_DATA_DIR, `${sessionId}_active.txt`);
+    let sessionDir: string;
+
+    if (existsSync(activeFile)) {
+        try {
+            sessionDir = readFileSync(activeFile, 'utf-8').trim();
+        } catch {
+            sessionDir = join(SESSIONS_DIR, sessionId);
+        }
+    } else {
+        sessionDir = join(SESSIONS_DIR, sessionId);
+    }
+
+    const workflowPath = join(sessionDir, 'workflow.yaml');
+
+    if (!existsSync(workflowPath)) return false;
+
+    try {
+        const content = readFileSync(workflowPath, 'utf-8');
+        return /execution_mode:\s*["']?direct/.test(content);
+    } catch {
+        return false;
+    }
+}
 
 async function main() {
     try {
@@ -592,8 +647,18 @@ async function main() {
 
         log(sessionId, 'enforcing-orchestrator-restrictions', { tool: toolName });
 
+        // Check if direct execution mode is unlocked (express workflow)
+        const directMode = isDirectModeUnlocked(sessionId);
+        log(sessionId, 'direct-mode-check', { directMode, workflowMode: WORKFLOW_MODE });
+
         // Check if tool is explicitly blocked
         if (BLOCKED_TOOLS.includes(toolName)) {
+            // In direct mode, allow Bash and MultiEdit (orchestrator acts as developer)
+            if (directMode) {
+                log(sessionId, 'express-direct-allowed', { tool: toolName });
+                process.exit(0);
+            }
+
             // Special case: allow read-only `gh` commands through the Bash block
             if (toolName === 'Bash') {
                 const cmd = (toolInput.command || '').trim();
@@ -625,6 +690,7 @@ async function main() {
         }
 
         // Check if tool is allowed - BLOCK unknown tools (fail-closed)
+        // In direct mode, also allow tools from BLOCKED_TOOLS (handled above)
         if (!ALLOWED_TOOLS.includes(toolName)) {
             log(sessionId, 'blocked-unknown-tool', toolName);
             console.error(getOrchestratorReminder());
@@ -634,9 +700,9 @@ async function main() {
         // For path-restricted tools - check path restrictions
         if (PATH_RESTRICTED_TOOLS.includes(toolName)) {
             const filePath = toolInput.file_path || toolInput.path || '';
-            const pathCheck = isPathAllowed(filePath);
+            const pathCheck = isPathAllowed(filePath, directMode);
 
-            log(sessionId, 'path-check', { tool: toolName, path: filePath, result: pathCheck });
+            log(sessionId, 'path-check', { tool: toolName, path: filePath, result: pathCheck, directMode });
 
             if (!pathCheck.allowed) {
                 log(sessionId, 'blocked-path', { tool: toolName, path: filePath, reason: pathCheck.reason });
@@ -645,10 +711,8 @@ async function main() {
             }
 
             // Block orchestrator from WRITING to agent-only artifact directories.
-            // These dirs (artifacts/implement/, artifacts/test/) should only be written
-            // by sub-agents. If the orchestrator tries to write here, it's self-implementing
-            // instead of delegating — which violates its role.
-            if (WRITE_TOOLS.includes(toolName)) {
+            // In direct mode, the orchestrator IS the implementer, so allow these writes.
+            if (!directMode && WRITE_TOOLS.includes(toolName)) {
                 const normalizedPath = resolveToAbsolute(filePath);
                 const isAgentOnlyDir = AGENT_ONLY_ARTIFACT_DIRS.some(
                     dir => normalizedPath.includes(dir)

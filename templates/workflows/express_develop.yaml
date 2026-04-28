@@ -1,0 +1,67 @@
+name: "express_develop"
+description: |
+  Lightweight development workflow where the orchestrator executes directly.
+  No sub-agents are spawned. The orchestrator reads code, edits files, runs tests,
+  and commits changes itself. For quick fixes and small features only (1-3 files).
+
+  REQUIRES: ARKADIAN_WORKFLOW_MODE=express env var set by scripts/arkadian -x flag.
+  The orchestrator-guardrail.ts hook unlocks Bash and project repo access only when
+  both the env var AND this workflow's execution_mode: "direct" are present.
+
+version: "1.0.0"
+author: "arkadian-system"
+created: "2026-04-02"
+last_modified: "2026-04-02"
+
+# This field is read by orchestrator-guardrail.ts to unlock direct tool access
+execution_mode: "direct"
+
+applies_to:
+  primary_intent: "any"
+  sub_intent: ["any"]
+  complexity: ["any"]
+  urgency: ["low", "normal", "high", "critical"]
+  multi_project: true  # User chose express — respect the choice
+
+# No sub-agents — orchestrator does everything
+execution:
+  agents: []
+  phases:
+    - id: "S1"
+      name: "Direct Implementation"
+      agent: "orchestrator"
+      depends_on: null
+      approval_required: false
+      actions:
+        - "Load master registry (INDEX.md) and select project"
+        - "Load project INDEX.md for doc context"
+        - "Read relevant code files in the project repo"
+        - "Implement code changes (edit/write)"
+        - "Run tests (go test, make test, etc.)"
+        - "Create feature branch and commit changes"
+        - "Write summary to session artifacts"
+      timeout_seconds: 900  # 15 minutes max
+
+# No pipeline enforcement needed — no agents to validate
+pipeline:
+  artifact_chain:
+    direct:
+      receives: []
+      produces:
+        - "artifacts/express/summary.md"
+
+success_criteria:
+  - "Code changes implemented correctly"
+  - "Tests pass (or manual verification noted)"
+  - "Changes committed to feature branch"
+  - "Summary written to session artifacts"
+
+loop_control:
+  entry_point: "S1"
+  terminal_phase: "S1"
+  retry_phases: []
+  max_retries: 0
+
+performance:
+  estimated_seconds: 600   # 10 minutes
+  max_seconds: 900         # 15 minutes

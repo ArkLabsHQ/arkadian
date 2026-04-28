@@ -62,6 +62,7 @@ interface SessionState {
     started_at: string;
     pid: number;
     transcript_path: string;
+    workflow_mode: 'full' | 'express';
     workflow: {
         id: string | null;
         status: 'initializing' | 'awaiting_plan_approval' | 'executing' | 'completed';
@@ -217,12 +218,14 @@ function cleanupStaleFiles(currentSessionId: string): void {
  * Create initial state for orchestrator session.
  */
 function createInitialState(sessionId: string, transcriptPath: string): SessionState {
+    const workflowMode = (process.env.ARKADIAN_WORKFLOW_MODE === 'express') ? 'express' : 'full';
     return {
         session_id: sessionId,
         type: 'orchestrator',
         started_at: new Date().toISOString(),
         pid: process.ppid,
         transcript_path: transcriptPath,
+        workflow_mode: workflowMode,
         workflow: {
             id: null,
             status: 'initializing',
@@ -307,7 +310,7 @@ function registerOrchestratorSession(sessionId: string, transcriptPath: string, 
     // No existing state file — truly new session, create fresh
     const state = createInitialState(sessionId, transcriptPath);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
-    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid, mode: 'new' });
+    log(sessionId, 'registered', { type: 'orchestrator', pid: process.ppid, mode: 'new', workflow_mode: state.workflow_mode });
 }
 
 function createSessionFolder(hookInput: HookInput): string {
