@@ -23,3 +23,6 @@ log/.worktrees/
 .DS_Store
 
 benchmarks
+
+# Claude Code per-user local settings (never commit)
+.claude/settings.local.json
