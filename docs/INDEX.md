@@ -976,6 +976,47 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 
 ---
 
+### bluewallet
+**ID**: `bluewallet`
+**Name**: BlueWallet
+**Type**: End-User Application (Mobile)
+**Language**: TypeScript / React Native
+**Index**: `${ARKADIAN_DIR}/docs/projects/bluewallet/INDEX.md`
+**Repository**: `${BLUEWALLET_REPO}`
+**GitHub**: `BlueWallet/BlueWallet`
+
+**Description**:
+Popular open-source Bitcoin & Lightning Network wallet for iOS, Android, and macOS (via Mac Catalyst). Built with React Native and Electrum, distributed natively on the App Store / Google Play. Ships 15+ wallet types (Legacy/SegWit/Taproot/HD, Multisig, Watch-only, Lightning Custodian) and integrates the Ark protocol as a first-class wallet via `@arkade-os/sdk` (0.4.16) and `@arkade-os/boltz-swap` (0.3.17). Includes Realm-backed Ark repositories, Expo-flavoured providers, and a custom background swap reconciliation queue.
+
+**Key Capabilities**:
+- Multi-wallet mobile UX: Bitcoin (Legacy/SegWit/Taproot/HD/Aezeed/Electrum/SLIP-39/BreadWallet), Multisig HD, Watch-only, BIP47 PayCodes
+- Lightning support: Custodian (LndHub) and **Lightning Ark via `LightningArkWallet`**
+- Ark integration: `@arkade-os/sdk` `Wallet` + `Ramps` + `MnemonicIdentity` + Expo providers
+- Boltz swaps: submarine (LN→Ark) and reverse (Ark→LN) via `ArkadeSwaps`
+- Background swap reconciliation: persistent queue + WebSocket reconnection + foreground polling fallback
+- Realm-backed Ark wallet/contract/swap repositories with per-wallet random namespaces (privacy)
+- Encryption with plausible deniability (decoy wallets), biometric unlock
+- Cross-platform: iOS, Android, macOS Catalyst (single React Native codebase + native widgets/watch app)
+- 55+ Transifex localizations, BugSnag error reporting, BrowserStack-tested
+- Detox E2E tests (Android-focused), Jest unit + integration tests
+- Hardware wallet support via QR (Keystone, BC-UR registry)
+- BIP38 / WIF imports, RBF, CPFP
+
+**Tags**: `wallet`, `mobile`, `react-native`, `ios`, `android`, `macos`, `bitcoin`, `lightning`, `ark`, `vtxo`, `boltz`, `submarine-swap`, `reverse-swap`, `realm`, `electrum`, `ark-sdk-consumer`, `arkade-os-sdk`, `multi-wallet`, `self-custodial`, `taproot`, `multisig`
+
+**Synonyms**: `blue-wallet`, `bluewallet-rn`, `bw`, `BlueWallet`
+
+**Triggers**:
+- **ask_question**: `bluewallet`, `blue wallet`, `mobile ark wallet`, `react native ark`, `bluewallet ark integration`, `LightningArkWallet`, `lightning ark wallet`, `ark on mobile`, `ark ios`, `ark android`
+- **develop**: `bump arkade-os/sdk`, `bump arkade-os/boltz-swap`, `add bluewallet feature`, `fix bluewallet bug`, `bluewallet detox`, `bluewallet jest`, `arkade-adapters`, `swap-queue`, `realm migration`
+- **test_or_run**: `bluewallet test`, `npm test bluewallet`, `bluewallet detox`, `run bluewallet ios`, `run bluewallet android`, `bluewallet metro`
+- **debug**: `bluewallet build error`, `bluewallet crash`, `bluewallet ark balance`, `bluewallet swap stuck`, `bluewallet realm error`, `bluewallet keychain`, `metro cache`, `pod install`
+
+**Dependencies**: `ts-sdk` (`@arkade-os/sdk` 0.4.16), `boltz-swap` (`@arkade-os/boltz-swap` 0.3.17), `arkd` (default `arkade.computer`), `boltz-backend` (default `api.ark.boltz.exchange`)
+**Depended On By**: None (end-user application)
+
+---
+
 ## Project Relationships & Dependencies
 
 ### Dependency Graph
@@ -1007,6 +1048,7 @@ wallet / @arkade-os/sdk
    boltz-swap (Lightning integration for Arkade wallets)
    arkade-escrow (uses @arkade-os/sdk for VEC escrow)
    arkade-wdk (WDK adapter — wraps @arkade-os/sdk for Tether WDK consumers)
+   bluewallet (RN mobile wallet — wraps @arkade-os/sdk + @arkade-os/boltz-swap as LightningArkWallet)
 
 arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
    monitors all ArkLabsHQ + arkade-os repos via GitHub App
@@ -1076,6 +1118,12 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | arkade-wdk | ts-sdk | Adapter-Wrapper (`@arkade-os/sdk`) |
 | arkade-wdk | boltz-swap | Library-Consumer (optional Lightning via Boltz) |
 | arkade-wdk | @tetherto/wdk-wallet | Implements WDK base contracts |
+| bluewallet | ts-sdk | Library-Consumer (`@arkade-os/sdk` 0.4.16, Expo adapters) |
+| bluewallet | boltz-swap | Library-Consumer (`@arkade-os/boltz-swap` 0.3.17 — submarine + reverse swaps) |
+| bluewallet | arkd | Client-Server (default `arkade.computer`, custom override per-wallet) |
+| bluewallet | boltz-backend | Client-Server (default `api.ark.boltz.exchange`) |
+| bluewallet | wallet | Sibling Frontend (RN mobile equivalent of Arkade PWA) |
+| bluewallet | arkade-wdk | Sibling Adapter (different RN-on-Ark integration approach) |
 | rust-sdk | arkd | Client-Server (via gRPC/REST, 0.9.2) |
 | rust-sdk | go-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | ts-sdk | Sibling SDK (same protocol, different language) |
@@ -1095,7 +1143,9 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector, enclave (CLI + runtime + supervisor)
 **Rust Projects**: rust-sdk, compiler, enclave (`client-rs/` Cargo workspace member)
 **C#/.NET Projects**: dotnet-sdk
-**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, bluewallet (React Native), boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**Mobile / React Native**: bluewallet (iOS, Android, macOS Catalyst), arkade-wdk (RN-compatible adapter)
+**Bitcoin Wallet Apps**: wallet (PWA), bluewallet (React Native mobile)
 **Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
 **Confidential Computing / Security**: enclave (AWS Nitro Enclaves), kms-unlocker (KMS + Secrets Manager)
 **Documentation**: ark-docs
@@ -1113,9 +1163,10 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 **Q&A / Conceptual Questions**:
 - Ark protocol concepts → `ark-docs`, `arkd`
 - VTXOs, rounds, settlement → `arkd`, `ark-docs`
-- Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `rust-sdk`, `ark-docs`
-- WDK / Tether wallet integration, React Native Ark wallet → `arkade-wdk`, `ts-sdk`
-- Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
+- Wallet usage → `wallet`, `bluewallet`, `ts-sdk`, `go-sdk`, `rust-sdk`, `ark-docs`
+- WDK / Tether wallet integration, React Native Ark wallet → `arkade-wdk`, `bluewallet`, `ts-sdk`
+- Mobile wallet (iOS/Android/macOS) with Ark → `bluewallet`
+- Lightning swaps → `wallet`, `bluewallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
 - Escrow system → `arkade-escrow`
@@ -1125,6 +1176,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 - Add arkd feature → `arkd`
 - Build wallet → `go-sdk`, `rust-sdk`, `dotnet-sdk`, `wallet` (depending on language)
 - Build a WDK / Tether-based RN wallet on Ark → `arkade-wdk`, `ts-sdk`
+- Modify the BlueWallet mobile app / its Ark integration → `bluewallet`, `ts-sdk`, `boltz-swap`
 - Escrow development → `arkade-escrow`
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
@@ -1170,6 +1222,7 @@ When working on a project, consider loading dependent projects:
 
 - Working on `ark-simulator` → Also load `arkd`, `go-sdk`
 - Working on `wallet` → Also load `ts-sdk`, `arkd` (for SDK and server API reference)
+- Working on `bluewallet` → Also load `ts-sdk`, `boltz-swap`, `arkd` (SDK + Boltz lib + server reference)
 - Working on `ts-sdk` → Also load `arkd` (for server API reference)
 - Working on `ark-infra` → Also load `arkd`, `ark-telemetry` (deployment targets)
 
@@ -1206,6 +1259,7 @@ For conceptual questions, prioritize documentation loading order:
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
 | ts-sdk | Active Dev | ✓ Beta | v0.4.21, npm published, multi-platform |
 | arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 16 active agents |
+| bluewallet | Active | ✓ Production | v8.0.0, App Store/Google Play; integrates @arkade-os/sdk 0.4.16 + @arkade-os/boltz-swap 0.3.17 |
 
 ---
 
@@ -1219,5 +1273,5 @@ This index should be updated when:
 - Project status changes (alpha → beta → stable)
 
 **Last Updated**: 2026-04-30
-**Version**: 1.5.4
+**Version**: 1.5.5
 **Maintained By**: Arkadian Documentation Team
