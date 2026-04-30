@@ -690,8 +690,12 @@ async function main() {
         }
 
         // Check if tool is allowed - BLOCK unknown tools (fail-closed)
-        // In direct mode, also allow tools from BLOCKED_TOOLS (handled above)
+        // In direct mode, allow all tools (orchestrator acts as developer)
         if (!ALLOWED_TOOLS.includes(toolName)) {
+            if (directMode) {
+                log(sessionId, 'express-direct-allowed-unknown', { tool: toolName });
+                process.exit(0);
+            }
             log(sessionId, 'blocked-unknown-tool', toolName);
             console.error(getOrchestratorReminder());
             process.exit(2);

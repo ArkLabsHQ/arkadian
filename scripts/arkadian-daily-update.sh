@@ -34,6 +34,11 @@ SUMMARY_FILE="$SUMMARY_DIR/$DATE.md"
 GIT_TIMEOUT="${GIT_TIMEOUT:-180}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo /usr/local/bin/claude)}"
 CLAUDE_TOOLS="${CLAUDE_TOOLS:-Bash,Read,Write,Edit,Glob,Grep}"
+# Priority repos — get a curated "Highlights" section at the top of the
+# changelog when they receive new commits. Comma-separate via env var to
+# override (e.g. PRIORITY_REPOS="arkd,go-sdk,fulmine,introspector,wallet").
+PRIORITY_REPOS_DEFAULT="arkd,go-sdk,fulmine,introspector"
+IFS=',' read -ra PRIORITY_REPOS <<< "${PRIORITY_REPOS:-$PRIORITY_REPOS_DEFAULT}"
 # ---------------------------------------------------------------------------
 
 mkdir -p "$LOG_DIR" "$SUMMARY_DIR"
@@ -72,6 +77,16 @@ mapfile -t REPO_VARS < <(compgen -A variable | grep -E '_REPO$' | sort)
 
 total=0; pulled=0; uptodate=0; skipped=0; failed=0; updated_docs=0
 PER_REPO_SECTIONS=()   # accumulated markdown for the daily summary
+PRIORITY_DATA=()       # tuples "<pid>|<path>|<OLD>|<NEW>|<branch>" for priority repos that pulled
+
+is_priority() {
+  local pid="$1"
+  local p
+  for p in "${PRIORITY_REPOS[@]}"; do
+    [ "$p" = "$pid" ] && return 0
+  done
+  return 1
+}
 
 for var in "${REPO_VARS[@]}"; do
   path="${!var}"
@@ -150,6 +165,11 @@ for var in "${REPO_VARS[@]}"; do
 
   commits="$(git -C "$path" log "$OLD..$NEW" --pretty=format:'- %h %s (%an)')"
 
+  # Capture priority repo data for the Highlights section.
+  if is_priority "$pid"; then
+    PRIORITY_DATA+=("$pid|$path|$OLD|$NEW|$branch")
+  fi
+
   # 4. If this project has an Arkadian docs structure, run update-project.
   if [ -d "$ARKADIAN_DIR/docs/projects/$pid" ]; then
     log "DOCS  $pid — invoking update-project skill"
@@ -168,6 +188,67 @@ for var in "${REPO_VARS[@]}"; do
   fi
 done
 
+# ---- Generate Highlights section for priority repos ----------------------
+HIGHLIGHTS=""
+if [ "${#PRIORITY_DATA[@]}" -gt 0 ]; then
+  log "Generating Highlights for ${#PRIORITY_DATA[@]} priority repo(s)..."
+
+  # Build the prompt: tell Claude exactly which repos and ranges to look at.
+  hl_input=""
+  for entry in "${PRIORITY_DATA[@]}"; do
+    IFS='|' read -r p_pid p_path p_old p_new p_branch <<< "$entry"
+    hl_input+="- ${p_pid} (branch ${p_branch}): ${p_path} from ${p_old} to ${p_new}"$'\n'
+  done
+
+  hl_prompt="You are running non-interactively. Produce a tightly-focused 'Highlights' section for dusan, who maintains fulmine + go-sdk + introspector and depends on arkd's client surface.
+
+PRIORITY REPOS THAT JUST PULLED:
+${hl_input}
+
+For each priority repo above, run via the Bash tool:
+  git -C <path> log <OLD>..<NEW> --no-merges --pretty=format:'%h %s (%an)'
+  git -C <path> log <OLD>..<NEW> --no-merges --stat | head -120
+  git -C <path> diff <OLD>..<NEW> --name-only
+
+Categorise commits and surface only what's noteworthy:
+- API / public-surface changes (signatures, gRPC/REST endpoints, exported symbols)
+- Breaking changes (removed/renamed exports, schema migrations)
+- VTXO / round / forfeit / connector-tree / signing logic
+- Dependency bumps that affect downstream (e.g. arkd → go-sdk)
+- Security-sensitive changes
+- New features worth knowing about
+
+Skip routine work (test fixes, lint, doc typos, formatting) unless that's all there is.
+
+OUTPUT — markdown only, no preamble, no closing remarks. Use exactly this shape:
+
+## Highlights for your stack
+
+### <repo-name> (<N> commits)
+- **<category>**: short description (\`<short-sha>\` by <author>)
+- ...
+
+### Cross-cutting
+- arkd → go-sdk: <if any arkd commits touched pkg/client/, api/, proto/, internal/interface/grpc/, note the impact in one line>
+- <other notable cross-repo signals if any>
+
+If a priority repo has only routine changes, write under it: 'Routine maintenance only.' If NOTHING across all priority repos is noteworthy, output exactly:
+
+## Highlights for your stack
+
+Routine maintenance only across your priority repos.
+
+Be concise. Bullets only, no paragraphs."
+
+  if hl_out=$(timeout 300 "$CLAUDE_BIN" -p "$hl_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1); then
+    HIGHLIGHTS="$hl_out"
+    log "Highlights generated (${#HIGHLIGHTS} chars)"
+  else
+    log "WARN: Highlights generation failed — skipping section"
+    printf '%s\n' "$hl_out" | sed 's/^/      /' | tee -a "$LOG_FILE" >/dev/null
+  fi
+fi
+
 # ---- Write aggregate daily changelog --------------------------------------
 {
   printf '# Arkadian daily update — %s\n\n' "$DATE"
@@ -178,6 +259,9 @@ done
   printf -- '- Skipped: %d\n' "$skipped"
   printf -- '- Failed: %d\n' "$failed"
   printf -- '- Doc updates run: %d\n\n' "$updated_docs"
+  if [ -n "$HIGHLIGHTS" ]; then
+    printf '%s\n\n' "$HIGHLIGHTS"
+  fi
   printf '## Per-repo detail\n\n'
   for s in "${PER_REPO_SECTIONS[@]}"; do printf '%s\n' "$s"; done
 } > "$SUMMARY_FILE"
