@@ -267,6 +267,53 @@ fi
 } > "$SUMMARY_FILE"
 
 log "Daily changelog written: $SUMMARY_FILE"
-log "==== Done. checked=$total pulled=$pulled uptodate=$uptodate skipped=$skipped failed=$failed docs=$updated_docs ===="
+
+# ---- Auto-commit + push docs changes -------------------------------------
+# Set AUTO_PUSH=0 to disable. Set ARKADIAN_BOT_NAME / ARKADIAN_BOT_EMAIL
+# to override the git identity used for the daily commit.
+AUTO_PUSH="${AUTO_PUSH:-1}"
+pushed_status="skipped"
+if [ "$AUTO_PUSH" = "1" ]; then
+  cd "$ARKADIAN_DIR"
+
+  # Set a bot identity if none is configured (cron user might be `root`).
+  if [ -z "$(git config user.name 2>/dev/null)" ]; then
+    git config user.name "${ARKADIAN_BOT_NAME:-arkadian-bot}"
+    git config user.email "${ARKADIAN_BOT_EMAIL:-arkadian-bot@local}"
+    log "Set local git identity: $(git config user.name) <$(git config user.email)>"
+  fi
+
+  # Rebase against remote so we don't conflict with manual pushes.
+  if ! pull_out=$(timeout "$GIT_TIMEOUT" git pull --rebase --autostash origin main 2>&1); then
+    log "WARN: arkadian rebase-pull failed (skipping push):"
+    printf '%s\n' "$pull_out" | sed 's/^/      /' | tee -a "$LOG_FILE" >/dev/null
+    pushed_status="rebase-failed"
+  else
+    git add docs/
+    if git diff --cached --quiet; then
+      log "No doc changes to commit."
+      pushed_status="nothing-to-commit"
+    else
+      msg="docs: daily sync $DATE — $updated_docs project(s) refreshed, $pulled repo(s) pulled"
+      if commit_out=$(git commit -m "$msg" 2>&1); then
+        log "Committed docs changes."
+        if push_out=$(timeout "$GIT_TIMEOUT" git push origin main 2>&1); then
+          log "Pushed to origin/main."
+          pushed_status="pushed"
+        else
+          log "WARN: push failed (commit kept locally — fix manually):"
+          printf '%s\n' "$push_out" | sed 's/^/      /' | tee -a "$LOG_FILE" >/dev/null
+          pushed_status="push-failed"
+        fi
+      else
+        log "WARN: commit failed:"
+        printf '%s\n' "$commit_out" | sed 's/^/      /' | tee -a "$LOG_FILE" >/dev/null
+        pushed_status="commit-failed"
+      fi
+    fi
+  fi
+fi
+
+log "==== Done. checked=$total pulled=$pulled uptodate=$uptodate skipped=$skipped failed=$failed docs=$updated_docs auto_push=$pushed_status ===="
 
 echo "$SUMMARY_FILE"
