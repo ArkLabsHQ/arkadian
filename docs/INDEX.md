@@ -281,6 +281,45 @@ Configuration, knowledge base, and audit trail for **Arkana**, Ark Labs' always-
 
 ---
 
+### arkade-regtest
+**ID**: `arkade-regtest`
+**Name**: Arkade Regtest
+**Type**: Testing Infrastructure / Local Stack Orchestration
+**Language**: Bash + Docker Compose
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-regtest/INDEX.md`
+**Repository**: `${ARKADE_REGTEST_REPO}`
+**GitHub**: `arkade-os/arkade-regtest`
+
+**Description**:
+Self-contained regtest environment for Ark protocol development. Orchestrates Nigiri (Bitcoin + Liquid regtest), arkd, arkd-wallet, Fulmine, Boltz Backend, an LND Lightning node, an LNURL server, an Nginx CORS proxy, and the Ark Wallet PWA into a single reproducible Docker Compose stack. Designed to be embedded as a git submodule in projects that need a local Ark test network. Ships shell scripts and Compose files only — no compiled code.
+
+**Key Capabilities**:
+- One-command bring-up of the full Ark stack (`./start-env.sh`)
+- Nigiri built from source on a pinned branch (deterministic Bitcoin regtest)
+- Pluggable arkd via `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` for testing release candidates
+- Layered environment loading (`--env <path>` → `../.env.regtest` → `.env` → `.env.defaults`)
+- Submodule-first design: auto-discovers parent-repo `.env.regtest`
+- Configurable image versions for Fulmine, Boltz, LND, LNURL, Wallet, Nginx
+- Fully configurable arkd parameters (round interval, session duration, exit delays, fees, etc.) when in override mode
+- Lightning helper scripts for invoice creation/payment via Boltz LND
+- Stop / clean lifecycle scripts (preserve volumes vs full teardown)
+- Ready-made GitHub Actions integration pattern with `_build/` cache
+
+**Tags**: `regtest`, `docker-compose`, `nigiri`, `bitcoin`, `ark`, `arkd`, `fulmine`, `boltz`, `lightning`, `lnd`, `submodule`, `e2e`, `integration-test`, `local-stack`, `ci`
+
+**Synonyms**: `regtest-stack`, `ark-regtest`, `regtest-env`, `local-stack`, `arkade-regtest-stack`
+
+**Triggers**:
+- **ask_question**: `regtest`, `local stack`, `nigiri`, `start ark locally`, `how to run ark stack`, `submodule regtest`, `ark dev environment`
+- **develop**: `bump regtest image`, `add service to regtest`, `modify .env.defaults`, `arkd override mode`, `compose stack`
+- **test_or_run**: `start regtest`, `start-env.sh`, `stop-env.sh`, `clean-env.sh`, `run e2e`, `bring up ark stack`, `local boltz`, `ci regtest`
+- **debug**: `regtest stuck`, `port in use`, `nigiri build fails`, `arkd override not working`, `boltz lnd not synced`, `clean regtest`
+
+**Dependencies**: `arkd` (server image), `arkd-wallet` (signer image), `fulmine` (image), `boltz-backend` (image), `wallet` (PWA image), Nigiri (upstream)
+**Depended On By**: `arkd`, `fulmine`, `go-sdk`, `ts-sdk`, `rust-sdk`, `dotnet-sdk`, `wallet`, `boltz-swap`, `boltz-backend`, CI pipelines (consumed as a submodule)
+
+---
+
 ### arkade-assets
 **ID**: `arkade-assets`
 **Name**: Arkade Assets
@@ -888,6 +927,12 @@ wallet / @arkade-os/sdk
 arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
    monitors all ArkLabsHQ + arkade-os repos via GitHub App
    produces digests, PR reviews, issue triage; not consumed by protocol projects
+
+arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
+   consumed as a git submodule by:
+      arkd, fulmine, go-sdk, ts-sdk, rust-sdk, dotnet-sdk
+      wallet, boltz-swap, boltz-backend (integration tests)
+   bundles upstream services: nigiri, arkd, arkd-wallet, fulmine, boltz, lnd, lnurl, wallet PWA, nginx
 ```
 
 ### Correlation Matrix
@@ -926,6 +971,14 @@ arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
 | dotnet-sdk | fulmine | E2E-Test-Dependency |
 | dotnet-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
 | dotnet-sdk | arkade-regtest | Shared E2E regtest environment (git submodule) |
+| arkade-regtest | arkd | Bundles arkd image (nigiri-built or override) |
+| arkade-regtest | fulmine | Bundles fulmine image |
+| arkade-regtest | boltz-backend | Bundles Boltz backend image |
+| arkade-regtest | wallet | Bundles wallet PWA image |
+| arkade-regtest | go-sdk | Provides regtest target for SDK integration tests |
+| arkade-regtest | ts-sdk | Provides regtest target for SDK integration tests |
+| arkade-regtest | rust-sdk | Provides regtest target for SDK integration tests |
+| arkade-regtest | boltz-swap | Provides regtest target for Lightning swap UI tests |
 | ts-sdk | arkd | Client-Server (REST/SSE) |
 | ts-sdk | wallet | Library-Consumer |
 | ts-sdk | arkade-escrow | Library-Consumer |
@@ -948,7 +1001,7 @@ arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
 **Rust Projects**: rust-sdk, compiler
 **C#/.NET Projects**: dotnet-sdk
 **TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
-**Infrastructure/Config**: ark-infra, ark-telemetry
+**Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration)
 **Documentation**: ark-docs
 **External Services**: boltz-backend
 **Frontend Applications**: wallet (PWA), arkade-explorer (Web App)
@@ -981,10 +1034,11 @@ arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
 - Arkade Script/opcode development → `compiler`, `introspector`
 
 **Testing & QA**:
-- Integration testing → `arkd`, `ark-simulator`
+- Integration testing → `arkd`, `ark-simulator`, `arkade-regtest`
 - Load testing → `ark-simulator`
-- E2E testing → `arkd`, `go-sdk`
-- Local dev stack → `ark-infra`
+- E2E testing → `arkd`, `go-sdk`, `arkade-regtest`
+- Local dev stack → `arkade-regtest` (regtest), `ark-infra` (cloud)
+- Bring up Ark + Boltz + LND locally → `arkade-regtest`
 
 **Monitoring & Debugging**:
 - Metrics, dashboards → `ark-telemetry`
@@ -994,7 +1048,7 @@ arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
 
 **Operations & Deployment**:
 - Deploy to AWS → `ark-infra`
-- Local dev environment → `ark-infra`
+- Local dev environment → `arkade-regtest` (preferred for protocol dev), `ark-infra` (cloud)
 - Wallet unlock automation → `kms-unlocker`
 - Testnet faucet → `ark-faucet`
 
