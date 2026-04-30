@@ -24,8 +24,9 @@ NArk.Scratchpad           ← Development scratch area
 
 ### NArk.Abstractions (leaf -- no project dependencies)
 - `NBitcoin`, `NBitcoin.Secp256k1`
-- Defines: `ArkVtxo`, `ArkIntent`, `ArkCoin`, `ArkContract`, `ArkAddress`, `ArkTxOut`
-- Interfaces: `IVtxoStorage`, `IContractStorage`, `IIntentStorage`, `IWalletStorage`, `IWalletProvider`, `ISafetyService`, `IChainTimeProvider`, `IFeeEstimator`, `IActiveScriptsProvider`, `IIntentScheduler`
+- Defines: `ArkVtxo`, `ArkIntent`, `ArkCoin`, `ArkContract`, `ArkAddress`, `ArkTxOut`, `ArkPayment`, `ArkPaymentRequest`
+- Interfaces: `IVtxoStorage`, `IContractStorage`, `IIntentStorage`, `IWalletStorage`, `IWalletProvider`, `ISafetyService`, `IChainTimeProvider`, `IFeeEstimator`, `IActiveScriptsProvider`, `IIntentScheduler`, `IPaymentStorage`, `IPaymentRequestStorage`
+- Vendored `Scripting/` namespace: `OutputDescriptor`, `OutputDescriptorParser`, `PubKeyProvider`, `SigningRepository`, parser combinators, `NBitcoinCompat` shim (replaces removed NBitcoin 10 helpers; HAS_SPAN gated)
 
 ### NArk.Core (depends on Abstractions)
 - gRPC transport (`GrpcClientTransport` → `IClientTransport`)
@@ -38,17 +39,20 @@ NArk.Scratchpad           ← Development scratch area
 - Hosting: `ArkApplicationBuilder`, `ServiceCollectionExtensions`
 
 ### NArk.Swaps (depends on Core)
-- `BoltzSwapsService` -- orchestrates ARK<->BTC chain swaps
-- `BoltzClient` (HTTP) -- REST API client for Boltz exchange
+- `SwapsManagementService` -- orchestrates submarine (Ark→Lightning), reverse (Lightning→Ark), and chain (ARK<->BTC) swaps
+- `BoltzClient` / `CachedBoltzClient` -- REST API client for Boltz exchange
 - `BoltzWebsocketClient` -- WebSocket for real-time swap status
 - `ChainSwapMusigSession` -- MuSig2 session for cooperative chain swap claiming
 - `BtcHtlcScripts` / `BtcTransactionBuilder` -- BTC-side HTLC and transaction construction
 - `BoltzLimitsValidator` -- validates swap amounts against Boltz limits
+- `PaymentTrackingService` -- background service that auto-updates `IPaymentStorage` / `IPaymentRequestStorage` rows from VTXO, intent, and swap state changes
 
 ### NArk.Storage.EfCore (depends on Core + Swaps)
 - EF Core implementations of all storage interfaces
-- Entities: `VtxoEntity`, `ArkWalletContractEntity`, `ArkIntentEntity`, `ArkSwapEntity`, `ArkWalletEntity`
-- `ModelBuilderExtensions` for schema configuration
+- Entities: `VtxoEntity`, `ArkWalletContractEntity`, `ArkIntentEntity`, `ArkSwapEntity`, `ArkWalletEntity`, `ArkPaymentEntity`, `ArkPaymentRequestEntity`
+- `ModelBuilderExtensions.ConfigureArkEntities()` for core schema; opt-in `ConfigureArkPaymentEntities()` for payment tables
+- `EfCorePaymentStorage` / `EfCorePaymentRequestStorage` for the payment tracking surface
+- A `DateTimeOffsetToBinaryConverter` is wired via `ConfigureConventions` so SQLite can sort/filter `DateTimeOffset` columns
 - Pluggable via `IArkDbContextFactory`
 
 ## Service Registration (DI)
@@ -76,6 +80,14 @@ Core services are auto-registered via `AddArkCoreServices()`:
 - VTXO polling event handlers
 - `ArkHostedLifecycle` (background service)
 
+### Opt-in Feature Wiring
+
+Some features are deliberately not part of `AddArkCoreServices()` so consumers that don't need them carry no extra schema or services:
+
+- `AddArkDelegation()` -- registers `DelegationService` and `IDelegationTransformer`. Plugins without a Fulmine-style delegator skip this and avoid unresolved-`IDelegatorProvider` failures at startup.
+- `AddArkPaymentTracking()` -- registers `PaymentTrackingService`. Pair with `ConfigureArkPaymentEntities()` on the EF Core `DbContext` to add the `ArkPayment` / `ArkPaymentRequest` tables.
+- `AddArkSwaps()` -- registers `SwapsManagementService` + Boltz clients. `StartAsync` defers `GetServerInfoAsync` to a background retry so host startup does not fail when arkd or Boltz is briefly unreachable.
+
 ## gRPC Transport
 
 Proto definitions in `NArk.Core/Transport/GrpcClient/Protos/ark/v1/`:
@@ -85,18 +97,22 @@ Proto definitions in `NArk.Core/Transport/GrpcClient/Protos/ark/v1/`:
 
 The `GrpcClientTransport` is wrapped by `CachingClientTransport` to cache server info responses.
 
-## E2E Test Infrastructure (Aspire AppHost)
+## E2E Test Infrastructure
 
-`NArk.AppHost` uses .NET Aspire to orchestrate a full local environment:
-- **Bitcoin Core** (regtest) -- blockchain
-- **Electrs** + **Esplora** -- block explorer
-- **Chopsticks** -- faucet and mining
-- **PostgreSQL** -- databases for arkd, NBXplorer, Boltz
-- **NBXplorer** -- chain tracking
-- **arkd** + **ark-wallet** -- Ark Service Provider
-- **Boltz** + **Boltz-LND** + **LND** + **Boltz-Fulmine** -- swap infrastructure
+E2E tests use the shared **`arkade-regtest`** environment, vendored at `regtest/` as a git submodule. The previous bespoke `NArk.Tests.End2End/Infrastructure/` (compose file + start scripts) has been removed in favour of the submodule.
 
-Automatic setup: wallet creation, funding via faucet, LND channel opening, fulmine funding.
+```bash
+git submodule update --init --recursive
+cd regtest && ./start-env.sh
+```
+
+The submodule provides Bitcoin Core (regtest), Electrs/Esplora, Chopsticks faucet, PostgreSQL, NBXplorer, arkd + ark-wallet, Boltz + Boltz-LND + LND + Boltz-Fulmine, and an LNURL server. CI (`.github/workflows/build.yml`) initializes the submodule before running the E2E test job.
+
+`NArk.AppHost` (Aspire) is still used as the developer-facing orchestrator on top of the same containers; it handles wallet creation, faucet funding, LND channel opening, and fulmine funding automatically.
+
+## Sample Wallet & Docs Site
+
+`samples/NArk.Wallet/NArk.Wallet.Client/` is a Blazor WASM reference wallet exercising the SDK in a browser-only environment (Bit.Besql for SQLite, manual `BoltzClient` / `IIntentScheduler` DI, real QR codes, LNURL helper, dedicated Contracts/Vtxos/Swaps/Intents pages, mnemonic backup, smart Send). It is published to GitHub Pages at `/dotnet-sdk/wallet/` alongside the DocFX docs site (`docfx.json` + `.github/workflows/docs.yml`, ~538 pages: API reference + 11 conceptual articles).
 
 ## Network Configurations
 

@@ -40,6 +40,7 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
 - **Swap restoration**: Restore pending swaps from Boltz endpoint
+- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session (`useLnurlSession` hook)
 
 ### Announcements & Support
 - **In-app announcements**: Server-pushed notification banners
@@ -60,13 +61,22 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Fees provider**: Dedicated fee estimation and display
 - **Collaborative exit with fees**: On-chain fee handling for exits
 
+### UI/UX Refresh
+- **Custom component library**: Ionic React removed — Button, Input, Modal, SheetModal, Toast, Refresher all built in-tree
+- **Pill navbar overlay**: Visible only on root pages (Wallet, Apps, Settings) with Framer Motion spring animation
+- **Receive v2**: Redesigned receive flow with styled QR, tap-to-copy QR, share button, safe-area padding
+- **Send redesign**: Pill Paste/Scan QR buttons, Max-tap confirmation, animated Scanner/Keyboard overlays, prefers-reduced-motion support
+- **Fiat symbol prefix**: Amounts render with Unicode symbols (`$100.00`, `€50.00`, `¥1,000`); CHF/CNY keep trailing-code form
+- **Asset-aware tx history**: Top-aligned rows when assets present; max 2 coins shown on right side
+
 ## Technology Stack
 
 - **React 18** with TypeScript for type-safe UI development
-- **Ionic React** for cross-platform mobile-first components
+- **Custom component library** (Ionic React removed) — buttons, inputs, modals, sheets built in-tree
+- **react-spring-bottom-sheet** for bottom sheet modals
 - **Vite** for fast builds and development server
-- **@arkade-os/sdk** (0.3.12) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.2.19) for Lightning swap integration
+- **@arkade-os/sdk** (0.4.21) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.3.22) for Lightning swap integration
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
 - **nostr-tools** for Nostr relay backup integration
@@ -160,7 +170,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.3.12, @arkade-os/boltz-swap 0.2.19
+**Dependencies**: @arkade-os/sdk 0.4.21, @arkade-os/boltz-swap 0.3.22
 
 ## Getting Started
 

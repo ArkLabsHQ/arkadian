@@ -64,30 +64,30 @@ const WalletComponent = () => {
 
 ## UI Framework
 
-### Ionic React 8.5.6
-**Purpose**: Cross-platform mobile-first UI component library
+### Custom Component Library
+**Purpose**: In-tree React components, replacing the previous Ionic React dependency
 
-**Key Components Used**:
-- `IonApp`, `IonPage`: App shell and page containers
-- `IonHeader`, `IonToolbar`, `IonTitle`: Navigation headers
-- `IonContent`: Scrollable content areas
-- `IonButton`, `IonInput`, `IonItem`: Form controls
-- `IonCard`: Content cards
-- `IonList`: List containers
-- `IonModal`, `IonAlert`: Overlays and dialogs
-- `IonRouter`: React Router integration
+**Status**: Ionic React (`@ionic/react`) was removed in PR #534. The wallet now ships with hand-rolled components living under `src/components/`.
 
-**Theming**: CSS custom properties for light/dark mode
+**Key Components**:
+- `Button`, `ButtonsOnBottom`: Buttons and footer button containers
+- `Input`, `InputAmount`, `InputContainer`, `InputPassword`, `InputWithScanner`: Form fields
+- `Modal`, `SheetModal`: Modal dialogs (SheetModal uses `react-spring-bottom-sheet`)
+- `Toast`: Toast notifications (replaces previous `lib/toast.ts`)
+- `Refresher`: Pull-to-refresh component (replaces `ion-refresher`)
+- `Header`, `Content`, `Padded`, `Grid`: Layout primitives
+- `Keyboard`: Custom numeric keyboard with prefers-reduced-motion support
+- `QrCode`: Styled QR with tap-to-copy
+- `PillNavbarOverlay`: Bottom pill nav, visible only on root pages, Framer Motion animated
 
-**Benefits**:
-- Mobile-optimized touch interactions
-- Platform-specific styling (iOS vs Android)
-- Accessibility built-in
-- PWA-ready components
+**Theming**: CSS custom properties (`src/index.css`, `src/ionic.css` legacy resets)
+
+### react-spring-bottom-sheet 3.4.1
+**Purpose**: Bottom sheet modal primitive used by `SheetModal`
 
 ## Arkade Integration
 
-### @arkade-os/sdk 0.3.1-alpha.4
+### @arkade-os/sdk 0.4.21
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -112,7 +112,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.2.1-alpha.4
+### @arkade-os/boltz-swap 0.3.22
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:
@@ -643,6 +643,10 @@ if ('serviceWorker' in navigator) {
 | `format` | `prettier --write src` | Format code |
 | `format:check` | `prettier --check src` | Check formatting |
 | `git-info` | `node scripts/git-commit-info.js` | Generate build metadata |
+| `regtest:start` | `./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d` | Start arkade-regtest stack + nak relay |
+| `regtest:stop` | `./regtest/stop-env.sh && docker compose -f docker-compose.nak.yml down` | Stop regtest environment |
+| `regtest:clean` | `./regtest/clean-env.sh && docker compose -f docker-compose.nak.yml down -v` | Tear down and wipe volumes |
+| `regtest:setup` | `node src/test/setup.mjs` | Seed wallet/test fixtures |
 
 ## Security Dependencies
 

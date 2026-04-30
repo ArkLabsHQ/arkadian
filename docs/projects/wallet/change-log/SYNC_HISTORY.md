@@ -1,5 +1,65 @@
 # Documentation Sync History - Wallet
 
+## 2026-04-29 - Documentation Sync
+**Commit**: `c0c70aafdcd1cfa04d5d515773862fe9bef26378`
+**Previous Sync**: `7e24d4d244264675545eba31d70bcf345b224351`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 46 non-merge commits
+
+**Features Added**:
+- LNURL receive support — amountless Lightning receives via `useLnurlSession` hook + lnurl-server SSE bridge (PR #482)
+- Receive v2 — redesigned receive flow with styled QR, tap-to-copy QR, share button, safe-area padding (PRs #512, #533, #528, #552)
+- Send form redesign — pill Paste/Scan QR buttons, Max-tap confirmation modal, animated Scanner/Keyboard overlays, prefers-reduced-motion support (PR #485)
+- Pill navbar overlay restricted to root pages (Wallet/Apps/Settings) with Framer Motion spring animation (PR #474)
+- Fiat amount currency-symbol prefix — `$100.00`, `€50.00`, `¥1,000`; CHF/CNY keep trailing-code form (PR #535)
+- Bootstrap status easter egg (PR #500)
+- Multi-arch Docker build for amd64 + arm64 in `docker-publish.yml` (PR #516)
+- arkade-regtest submodule replaces custom test infrastructure (PR #492); new `regtest:start/stop/clean` scripts and `nak.Dockerfile`/`docker-compose.nak.yml` for the Nostr relay
+- Git commit added to Chatwoot custom attributes (PR #563)
+- New e2e tests: `lnurl.test.ts`, expanded asset/delegate/receive/send/swap tests (PRs #564, #548)
+- New Toast component (`components/Toast.tsx`) replacing previous `lib/toast.ts`
+- ErrorBoundary component refactor
+
+**Features Modified**:
+- Receive QR code reliability fix — hardcoded dark-on-white colors for scanner reliability (PR #527)
+- Receive amount fiat value fix (PR #508)
+- VTXO double-funding check now queries indexer directly (PR #524)
+- VTXO lookback window aligned with SW timeout for swaps (PR #523)
+- 60s timeout for SETTLE/SEND messages (PR #522)
+- Asset burn max fix; error update on asset change; reload page uses app components (PRs #507, #506, #503)
+- Tx history rows top-aligned when assets are present; max 2 coins on right side (PRs #537, #550)
+- Logs CSV export now reverse-ordered (PR #546)
+- Prevent swap-after-receival flow (PR #547)
+- Delegate card now shows address, pubkey, and fee (PR #515)
+- Sentry errors affecting clients fixed (PR #496)
+
+**Features Removed**:
+- `@ionic/react` and `@ionic/normalize` dependencies removed; replaced by in-tree custom components (PR #534)
+- `ion-button`, `ion-refresher` removed
+- `src/lib/toast.ts` removed (logic moved into `components/Toast.tsx`)
+- `src/components/Clipboard.tsx` reduced
+
+**Dependency Updates**:
+- @arkade-os/sdk: 0.4.14 → 0.4.21
+- @arkade-os/boltz-swap: 0.3.13 → 0.3.22
+- Added: react-spring-bottom-sheet ^3.4.1
+- Removed: @ionic/react
+
+**Files Updated**:
+- docs/INDEX.md (description, capabilities, tags, triggers)
+- docs/projects/wallet/INDEX.md (version 1.2.0, last_sync_commit, tech stack, testing)
+- docs/projects/wallet/system/project_overview.md (UI/UX refresh, LNURL, dependencies)
+- docs/projects/wallet/system/tech-stack.md (SDK/boltz versions, Ionic removal, react-spring-bottom-sheet, regtest scripts)
+- docs/projects/wallet/system/components.md (custom component library, hooks/, removed Ionic section)
+- docs/projects/wallet/sop/development-workflow.md (arkade-regtest workflow)
+- docs/projects/wallet/testing/how_to_run.md (arkade-regtest workflow)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-02-19 - Full Documentation Sync
 **Commit**: `556735acb0fbdff1a4b382089850cb8a096e3005`
 **Previous Sync**: `a1c45ff0ac7230ca1f39cc365edd82fc9e44c7c7`

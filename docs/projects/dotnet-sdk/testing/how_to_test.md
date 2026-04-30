@@ -60,10 +60,15 @@ dotnet test --filter "FullyQualifiedName~BatchSessionTests"
 
 ### E2E Test Infrastructure
 
-- `SharedArkInfrastructure.cs` -- Aspire distributed application fixture
+- `SharedArkInfrastructure.cs` / `SharedDelegationInfrastructure.cs` -- bring up the regtest stack via the `regtest/` git submodule (replaces the deprecated `NArk.Tests.End2End/Infrastructure/` compose files)
 - `Common/FundedWalletHelper.cs` -- Helper for creating and funding test wallets
 - `Wallets/SimpleSeedWallet.cs` -- Simple deterministic wallet for tests
 - `TestPersistance/InMemory*.cs` -- In-memory storage implementations for testing
+
+> Initialize the submodule before running E2E:
+> ```bash
+> git submodule update --init --recursive
+> ```
 
 ## CI Pipeline
 

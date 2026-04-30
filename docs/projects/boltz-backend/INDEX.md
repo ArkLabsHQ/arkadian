@@ -45,11 +45,8 @@ Step-by-step guides for operations.
 ### `${ARKADIAN_DIR}/docs/projects/boltz-backend/tasks/` — Product Requirements & Plans
 Feature specifications and implementation tracking.
 
-### `${ARKADIAN_DIR}/docs/projects/arkd/change-log/` — Recent Changes
-Curated summaries of significant changes.
-
-### `${ARKADIAN_DIR}/docs/projects/arkd/pr-report/` — Pull Request Summaries
-Analysis and summaries of pull requests.
+### `${ARKADIAN_DIR}/docs/projects/boltz-backend/change-log/` — Recent Changes
+Curated summaries of significant changes (`SYNC_HISTORY.md`, `last-sync.txt`).
 
 ---
 
@@ -148,8 +145,17 @@ npm run dev
 
 ### Lightning Integration
 - **LND**: gRPC integration
-- **CLN**: gRPC integration (boltzr sidecar)
-- **BOLT12**: Support for offers and blinded paths
+- **CLN**: gRPC integration (boltzr sidecar) — pinned to **v26.04.1**
+- **BOLT12**: Support for offers and blinded paths (hardened)
+
+### Bitcoin / Liquid Nodes
+- **Bitcoin Core**: **v31.0**
+- **Elements (Liquid)**: **v23.3.3**
+
+### Fulmine Integration
+- **Macaroon authentication** for Fulmine RPCs (also exposed by `boltzr-cli`)
+- Uses Fulmine **`ListVHTLCs`** for VHTLC discovery
+- Optimized startup call sequence to Fulmine
 
 ### Observability
 - **Prometheus**: Metrics collection

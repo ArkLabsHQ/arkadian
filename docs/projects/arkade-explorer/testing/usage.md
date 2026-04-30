@@ -42,8 +42,10 @@ The homepage search bar auto-detects input type:
 | Input | Detection | Destination |
 |-------|-----------|-------------|
 | 64-char hex string | Transaction ID | `/tx/:txid` |
-| 65+ char hex string | Asset ID | `/asset/:assetId` |
-| Anything else | Address/script | `/address/:address` |
+| `txid:vout` outpoint | Outpoint | `/tx/:txid` (vout stripped) |
+| `tark1` / `ark1` prefix | Ark address | `/address/:address` |
+| 68-char hex string | Asset ID | `/asset/:assetId` |
+| Anything else | Fallback | `/tx/:q` |
 
 Search is also available from the persistent header bar on every page. Recent searches are saved locally.
 

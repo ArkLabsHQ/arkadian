@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.1.0
-last_sync_commit: 556735acb0fbdff1a4b382089850cb8a096e3005
+version: 1.2.0
+last_sync_commit: c0c70aafdcd1cfa04d5d515773862fe9bef26378
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -89,6 +89,7 @@ Analysis and summaries of pull requests.
 - **On-chain to Lightning**: Convert Bitcoin to Lightning capacity
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
+- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session
 
 ---
 
@@ -128,9 +129,12 @@ pnpm run test:ui
 # Coverage report
 pnpm run test:coverage
 
-# Run E2E tests (requires Docker services running)
-docker compose -f test.docker-compose.yml up -d
+# Run E2E tests (uses arkade-regtest submodule + nak relay)
+git submodule update --init --recursive
+pnpm run regtest:start
+pnpm run regtest:setup
 pnpm exec playwright test
+pnpm run regtest:stop
 ```
 
 ### Code Quality
@@ -175,11 +179,12 @@ pnpm run format:check
 - **React 18**: UI library
 - **TypeScript**: Type-safe development
 - **Vite**: Build tool and dev server
-- **Ionic React**: Cross-platform UI components
+- **Custom component library**: Hand-rolled components (Ionic React removed)
+- **react-spring-bottom-sheet**: Bottom sheet primitive for SheetModal
 
 ### Arkade Integration
-- **@arkade-os/sdk**: Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap**: Lightning swap integration
+- **@arkade-os/sdk** (0.4.21): Ark protocol SDK (wallet operations, VTXOs)
+- **@arkade-os/boltz-swap** (0.3.22): Lightning swap integration
 
 ### Bitcoin/Cryptography
 - **@noble/secp256k1**: Elliptic curve cryptography
@@ -193,7 +198,7 @@ pnpm run format:check
 - **React Context**: Global state management
 
 ### UI/UX
-- **Ionic Components**: Mobile-first UI
+- **Custom components** + Framer Motion animations
 - **QR Code**: Scanning and generation
 - **Service Worker**: PWA offline support
 

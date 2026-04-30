@@ -83,7 +83,7 @@ Five React Context providers wrap the application and manage global state:
 
 ### 2. Routing Layer (`src/App.tsx`)
 
-React Router v7 manages client-side navigation with nested routes under a shared Layout component. The TransactionPage auto-detects transaction type and redirects. Smart search on the homepage routes 64-char hex to `/tx/`, 65+ char hex to `/asset/`, and everything else to `/address/`.
+React Router v7 manages client-side navigation with nested routes under a shared Layout component. The TransactionPage auto-detects transaction type and redirects. Smart search routes 64-char hex to `/tx/`, exactly-68-char hex to `/asset/` (via `isValidAssetId()`), `txid:vout` outpoints to `/tx/:txid` (vout stripped), `tark1`/`ark1` prefixes to `/address/`, and falls back to `/tx/:q` otherwise.
 
 ### 3. Component Layer (`src/components/`)
 
@@ -114,10 +114,12 @@ Manages all server state with automatic caching, background refetching, and load
 
 ### Search Flow
 ```
-User Input -> HomePage (type detection) -> React Router
-  64 hex chars -> /tx/:txid -> TransactionPage (auto-detect) -> CommitmentTxPage or redirect
-  65+ hex chars -> /asset/:assetId -> AssetPage -> AssetDetails
-  Other -> /address/:address -> AddressPage -> AddressStats + VtxoList
+User Input -> Search bar (type detection) -> React Router
+  64 hex chars                  -> /tx/:txid               -> TransactionPage (auto-detect) -> CommitmentTxPage or redirect
+  txid:vout (outpoint)          -> /tx/:txid               -> TransactionPage (vout stripped)
+  tark1 / ark1 prefix           -> /address/:address       -> AddressPage -> AddressStats + VtxoList
+  68 hex chars (isValidAssetId) -> /asset/:assetId         -> AssetPage -> AssetDetails
+  fallback                      -> /tx/:q
 ```
 
 ### API Data Flow
@@ -128,7 +130,7 @@ Component -> useQuery(queryKey, queryFn) -> @arkade-os/sdk client -> Indexer RES
 
 ## Build Architecture
 
-Vite bundles TypeScript/React source into optimized production assets. The build injects the current git commit hash via `vite.config.ts` using `execSync('git rev-parse --short HEAD')`. Docker builds use a multi-stage process: Node 22 Alpine for building, nginx Alpine for serving, with SPA routing configured via `nginx.conf`.
+Vite bundles TypeScript/React source into optimized production assets. The build injects the current git commit hash via `vite.config.ts` using `execSync('git rev-parse --short HEAD')`. Docker builds use a multi-stage process: Node 22 Alpine for building, nginx Alpine for serving, with SPA routing configured via `nginx.conf`. CI publishes multi-arch images (`linux/amd64` and `linux/arm64`) to GHCR via `docker/setup-qemu-action` + `docker/setup-buildx-action`.
 
 ## State Management
 

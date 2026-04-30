@@ -65,6 +65,7 @@ ark-infra/
 - **Separate tfvars**: Environment-specific configuration in `environments/*.tfvars`
 - **Dedicated AWS resources**: No shared resources between environments
 - **S3 backend per environment**: `ark-{env}-terraform-state` buckets
+- **High Availability**: VPC spans 3 AZs (eu-central-1a/1b/1c); non-ephemeral envs use Multi-AZ RDS, Multi-AZ Redis with automatic failover, and NAT gateway per AZ (toggle via `vpc_nat_per_az`)
 
 ## Core Services
 
@@ -90,6 +91,9 @@ ark-infra/
    - `arkd-{env}`: Main Ark daemon
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
+   - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
+     (`ghcr.io/arkade-os/arkd:v0.9.4`, `ghcr.io/arkade-os/arkd-wallet:v0.9.4`). ECR remains used
+     for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
 
@@ -156,10 +160,11 @@ ark-infra/
 ### Automated Operations
 - **Wallet unlock**: Automatic via kms-unlocker (no manual intervention)
 - **Blockchain indexing**: NBXplorer runs automatically
-- **SSL certificates**: Traefik auto-renews via Let's Encrypt
+- **SSL certificates**: Traefik (v3.6.14) auto-renews via Let's Encrypt; access logs and JSON formatting enabled
 - **Service discovery**: Docker Compose automatic DNS
 - **Health checks**: Built-in container health monitoring
 - **Image pinning**: Script to collect and pin running container image digests
+- **Centralized logs**: All containers ship stdout/stderr to AWS CloudWatch (`/ark/${ARK_ENVIRONMENT}` log group, 14-day retention) via Docker `awslogs` driver — `docker logs` is no longer the source of truth, use the CloudWatch UI
 
 ### Security Architecture
 - **Private networking**: All resources in private subnets

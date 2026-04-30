@@ -4,13 +4,26 @@
 
 ### Network CIDR
 - **VPC CIDR**: 10.10.0.0/16 (65,536 IPs)
-- **Public Subnets**: 10.10.1.0/24, 10.10.2.0/24 (512 IPs)
-- **Private Subnets**: 10.10.101.0/24, 10.10.102.0/24 (512 IPs)
+- **Public Subnets**: 10.10.1.0/24, 10.10.2.0/24, 10.10.3.0/24 (3 × /24)
+- **Private Subnets**: 10.10.101.0/24, 10.10.102.0/24, 10.10.103.0/24 (3 × /24)
 
 ### Availability Zones
-- **Primary**: eu-central-1a
-- **Secondary**: eu-central-1b
-- Resources distributed across AZs for high availability
+- **AZ-a**: eu-central-1a (public_a, private_a)
+- **AZ-b**: eu-central-1b (public_b, private_b)
+- **AZ-c**: eu-central-1c (public_c, private_c) — added for true 3-AZ HA
+- Resources distributed across all 3 AZs for high availability
+
+### NAT Gateway Topology
+Controlled by the `vpc_nat_per_az` variable (default `true` for HA):
+
+| Setting | Behavior | Cost Impact |
+|---------|----------|-------------|
+| `true` (HA) | One NAT gateway + EIP per AZ; private route table per AZ; each private subnet routes through its own AZ's NAT | ~$96/mo (3 × ~$32) + per-AZ data charges |
+| `false` (cost) | Single NAT gateway in AZ-a; all private subnets share that NAT via one route table | ~$32/mo, suitable for dev/staging |
+
+EIPs are tagged `ark-nat-az-{a,b,c}-{env}`. State migration from the previous singular
+`aws_eip.nat` / `aws_nat_gateway.gw` / `aws_route_table.private` resources to the per-AZ
+for_each map (key `"a"`) is handled with OpenTofu `moved {}` blocks — applies are idempotent.
 
 ## Compute Resources
 
@@ -18,18 +31,22 @@
 
 **Default Sizing** (regtest):
 - Instance type: t3.large (2 vCPU, 8GB RAM)
-- Root EBS: 60GB gp3
+- Root EBS: 60GB gp3 (configurable via `root_volume_size`)
 - Additional EBS: None
 
 **Production Sizing**:
-- Instance type: t3.xlarge+ (4+ vCPU, 16GB+ RAM)
-- Root EBS: 60GB gp3
+- Instance type: t3.xlarge (4 vCPU, 16GB RAM)
+- Root EBS: 120GB gp3 (`root_volume_size = 120` in `prod.tfvars`)
 - Additional EBS: 600-1000GB gp3/io2 (Bitcoin data)
+
+**Lifecycle**: `aws_instance.app` is currently configured with `lifecycle { ignore_changes = all }`
+to treat the running EC2 as a "pet" — OpenTofu will not detect or apply changes to the instance
+until the directive is removed. Update images and configuration via Docker Compose / SSM.
 
 **IAM Role Permissions**:
 - `AmazonSSMManagedInstanceCore` - SSM Session Manager
 - `CloudWatchAgentServerPolicy` - Metrics and logs
-- Custom inline policy for ECR, Secrets Manager, KMS
+- Custom inline policy for ECR, Secrets Manager, KMS, CloudWatch Logs (for `awslogs` driver)
 
 **CloudWatch Agent**:
 - Collects memory, disk, network metrics
@@ -65,13 +82,20 @@
 - Max connections: 400 (prod)
 
 **Common RDS Configuration**:
-- Subnet group: `ark-db-subnet-group-{env}` (spans both AZs)
+- Subnet group: `ark-db-subnet-{env}` — spans private subnets in all 3 AZs (private_a/b/c)
 - Security group: `rds_sg` (port 5432 from app_sg only)
-- Backup retention: 7 days (prod), 1 day (regtest/staging)
+- **Multi-AZ**: `multi_az = true` for non-ephemeral envs (provisions a standby replica
+  in another AZ that auto-promotes during failover); `false` for `ephemeral_env = true`
+- **Backup retention**: `db_instance_backup_retention_period` — default 7 days, prod 30 days
 - Backup window: 03:00-04:00 UTC
-- Maintenance window: Sun:04:00-Sun:05:00 UTC
+- Maintenance window: Sun:04:00-Sun:05:00 UTC (Multi-AZ removes most maintenance downtime)
 - Encryption: AWS-managed KMS key
-- Performance Insights: Enabled (7-day retention)
+- **Performance Insights**: Enabled on every instance.
+  `db_instance_performance_insights_retention_period` — default 7 days, prod 31 days.
+  Validated to 7, 731, or 31×N (1≤N≤23).
+- Parameter `track_io_timing = 1` is applied with `apply_method = pending-reboot`
+  (immediate apply is not supported by AWS for this parameter and would cause
+  perpetual plan drift).
 
 ### Parameter Groups
 
@@ -92,20 +116,19 @@ nbxplorer:
 
 ## Cache Configuration
 
-### ElastiCache Redis
+### ElastiCache Redis (Replication Group)
 
 **Configuration**:
-- Cluster ID: `ark-redis-{env}`
+- Replication group ID: `ark-redis-{env}`
 - Engine: Redis 7.0
-- Node type: cache.t3.micro (prod: cache.t3.small+)
-- Nodes: 1 (single node)
-- Subnet group: `ark-redis-subnet-{env}` (spans both AZs)
+- Node type: cache.t3.micro (prod: cache.t3.small)
+- `num_cache_clusters`: `2` for non-ephemeral envs (primary + replica), `1` for ephemeral
+- `multi_az_enabled` and `automatic_failover_enabled`: `true` for non-ephemeral envs
+- Subnet group: `ark-redis-subnet-{env}` (spans private subnets in all 3 AZs)
 - Security group: `redis_sg` (port 6379 from app_sg only)
 
-**Production Recommendations**:
-- Node type: cache.r6g.large with Multi-AZ
-- Automatic failover enabled
-- Cluster mode for horizontal scaling
+**Cost note**: Multi-AZ adds ~$12/mo for the replica on `cache.t3.micro`. Failover takes
+effect at the next scheduled maintenance window.
 
 ## Container Registry
 
@@ -228,6 +251,16 @@ nbxplorer:
 ## CloudWatch Configuration
 
 ### Log Groups
+
+**Container Application Logs** (managed by `cloudwatch.tf`):
+- Log group: `/ark/${env}` (e.g. `/ark/prod`, `/ark/regtest`)
+- Retention: 14 days
+- Streams (one per container, set in compose `logging.options.awslogs-stream`):
+  `traefik`, `arkd`, `arkd-wallet`, `kms-unlocker`, `nbxplorer`, `bitcoind`, `cloudflared`
+- Driver: Docker `awslogs` (mode=non-blocking, 16M buffer + cache, multiline pattern for
+  Go panics / dated lines / nbxplorer ANSI escapes)
+- Required env: `ARK_ENVIRONMENT` and `AWS_REGION` in `.env.ark`
+- ⚠️ `docker logs <container>` no longer prints output on the host — query CloudWatch instead
 
 **SSM Session Logs**:
 - Log group: `/aws/ssm/sessions/{env}`

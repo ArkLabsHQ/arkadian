@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.1.0
-last_sync_commit: 9b1ba0bbbdb201c3b2bf2708c94860ed3ad3110c
-last_sync_date: 2025-12-02T16:00:00Z
+version: 1.2.0
+last_sync_commit: c12813d1c9039a82fe8367f1971a010a1b0e869c
+last_sync_date: 2026-04-29T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -104,8 +104,15 @@ Analysis and summaries of pull requests.
 **Services that run without manual intervention:**
 - **kms-unlocker**: Fetches password from Secrets Manager, unlocks wallet, backs up seed
 - **nbxplorer**: Indexes Bitcoin blockchain automatically
-- **traefik**: Handles SSL certificates with Let's Encrypt
-- **cloudflared**: Maintains secure tunnel to Cloudflare
+- **traefik** (v3.6.14): Handles SSL certificates with Let's Encrypt; JSON logs at INFO with access logs enabled
+- **cloudflared**: Maintains secure tunnel to Cloudflare; metrics on `:20241`
+
+### Centralized Logging (CloudWatch)
+All container stdout/stderr is shipped directly to CloudWatch via the Docker `awslogs` driver:
+- Log group: `/ark/${ARK_ENVIRONMENT}` (14-day retention, created by OpenTofu)
+- Per-service streams: `traefik`, `arkd`, `arkd-wallet`, `kms-unlocker`, `nbxplorer`, `bitcoind`, `cloudflared`
+- ⚠️ `docker logs` no longer works on the host — use the CloudWatch UI / `aws logs tail`
+- Manual deploys must export `ARK_ENVIRONMENT` in `.env.ark`
 
 ---
 
@@ -227,10 +234,11 @@ make clean-local-state ENV=prod
 ## AWS Infrastructure
 
 ### Networking
-- **VPC**: 10.10.0.0/16
-- **Public Subnets**: 10.10.1.0/24 (NAT Gateway, VPC endpoints)
-- **Private Subnets**: 10.10.101.0/24 (EC2, RDS, Redis)
-- **VPC Endpoints**: SSM, ECR, CloudWatch, S3 (no NAT charges)
+- **VPC**: 10.10.0.0/16 spanning 3 AZs (eu-central-1a/1b/1c)
+- **Public Subnets**: 10.10.1.0/24, 10.10.2.0/24, 10.10.3.0/24 (NAT Gateways, VPC endpoints)
+- **Private Subnets**: 10.10.101.0/24, 10.10.102.0/24, 10.10.103.0/24 (EC2, RDS, Redis)
+- **NAT Topology**: `vpc_nat_per_az` feature flag — `true` = NAT per AZ (HA, default), `false` = single NAT in AZ-a (saves ~$64/mo for dev)
+- **VPC Endpoints**: SSM, ECR, CloudWatch, S3 (no NAT charges) — span all 3 AZs
 
 ### Security Groups
 - **app_sg**: EC2 instance
@@ -249,13 +257,15 @@ make clean-local-state ENV=prod
 | Aspect | Regtest | Staging | Production |
 |--------|---------|---------|------------|
 | **Bitcoin Node** | External (Nigiri) | bitcoind | bitcoind |
-| **EBS Volume** | No | Optional | Yes (required) |
-| **Instance Type** | t3.small | t3.medium | t3.large+ |
-| **RDS** | t3.micro | t3.small | db.t3.medium+ |
-| **Redis** | t3.micro | t3.small | t3.medium+ |
+| **EBS Root Volume** | 60 GB (default) | 60 GB (default) | 120 GB (`root_volume_size=120`) |
+| **Additional EBS** | None | Optional | Required |
+| **Instance Type** | t3.small | t3.medium | t3.xlarge |
+| **RDS** | t3.micro | t3.micro | db.t3.small / db.t3.medium |
+| **RDS Multi-AZ** | No (ephemeral_env) | Yes | Yes |
+| **RDS Backups** | None | 7 days | 30 days |
+| **RDS Performance Insights** | 7 days | 7 days | 31 days |
+| **Redis** | t3.micro (single node) | t3.micro (Multi-AZ pair) | t3.small (Multi-AZ pair) |
 | **Fast Sync** | N/A | AssumeUTXO | AssumeUTXO |
-| **Backups** | No | Optional | Automated |
-| **Multi-AZ** | No | No | Optional |
 | **Monitoring** | Basic | Full | Full + Alerts |
 
 ---

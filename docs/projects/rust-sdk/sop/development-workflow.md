@@ -31,6 +31,13 @@ just e2e-full
 # Specific E2E test
 cargo test -p e2e-tests --test e2e_two_party -- --ignored --nocapture
 
+# Asset / delegate suites
+cargo test -p e2e-tests --test e2e_assets -- --ignored --nocapture
+cargo test -p e2e-tests --test e2e_delegate -- --ignored --nocapture
+
+# Fulmine delegator smoke (requires local fulmine stack at http://localhost:7004)
+cargo test -p e2e-tests --test fulmine_delegator_smoke -- --ignored --nocapture
+
 # WASM tests
 just wasm-test
 ```

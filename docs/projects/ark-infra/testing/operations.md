@@ -14,16 +14,25 @@ docker compose -f docker-compose.ark.prod.yaml ps
 ```
 
 ### View Logs
+
+⚠️ **`docker logs` no longer works on the host.** All container stdout/stderr is shipped
+directly to CloudWatch via the Docker `awslogs` driver. Use the CloudWatch UI or CLI:
+
 ```bash
-# Follow logs
-docker compose -f docker-compose.ark.prod.yaml logs -f arkd
+# Follow arkd logs from your laptop (no SSM session needed)
+aws logs tail "/ark/prod" --log-stream-name-prefix arkd --follow
 
-# Last 100 lines
-docker compose -f docker-compose.ark.prod.yaml logs --tail=100 arkd
+# Last 1h of all streams in this env
+aws logs tail "/ark/prod" --since 1h
 
-# All services
-docker compose -f docker-compose.ark.prod.yaml logs --tail=50
+# Single service, last 100 lines
+aws logs tail "/ark/prod" --log-stream-name-prefix kms-unlocker --since 30m
+
+# Available streams: traefik, arkd, arkd-wallet, kms-unlocker, nbxplorer, bitcoind, cloudflared
 ```
+
+For manual deploys outside OpenTofu, ensure `ARK_ENVIRONMENT` and `AWS_REGION` are set
+in `.env.ark` so the `awslogs` driver targets the correct log group (`/ark/${ARK_ENVIRONMENT}`).
 
 ### Restart Services
 ```bash
@@ -117,15 +126,15 @@ aws ssm start-session --target $INSTANCE_ID \
 ⚠️ **Breaking change**: Deployment now uses full image URLs instead of ECR tags. The SSM document was renamed from `Ark-PullAndRestartService` to `Ark-DeployService`.
 
 ```bash
-# Deploy arkd with full image URL
+# Deploy arkd with full image URL (current production version: v0.9.4)
 aws ssm send-command --document-name Ark-DeployService-${ENV} \
   --instance-ids $INSTANCE_ID \
-  --parameters '{"ServiceName":["arkd"],"ImageURL":["ghcr.io/arkade-os/arkd:v0.8.10"]}'
+  --parameters '{"ServiceName":["arkd"],"ImageURL":["ghcr.io/arkade-os/arkd:v0.9.4"]}'
 
-# Deploy arkd-wallet
+# Deploy arkd-wallet (current production version: v0.9.4)
 aws ssm send-command --document-name Ark-DeployService-${ENV} \
   --instance-ids $INSTANCE_ID \
-  --parameters '{"ServiceName":["arkd-wallet"],"ImageURL":["ghcr.io/arkade-os/arkd-wallet:v0.8.10"]}'
+  --parameters '{"ServiceName":["arkd-wallet"],"ImageURL":["ghcr.io/arkade-os/arkd-wallet:v0.9.4"]}'
 
 # Deploy kms-unlocker
 aws ssm send-command --document-name Ark-DeployService-${ENV} \

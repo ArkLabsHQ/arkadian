@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
 version: 1.1.0
-last_sync_commit: 8cb34832ebd5b523f541fe6e362348be8c7ff86e
+last_sync_commit: 12f198ca63a0c0ccd1ebeab066947279a0569f10
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -81,7 +81,7 @@ Documentation sync history and tracking:
 1. **Transaction Explorer** -- View commitment transactions with batch details, VTXO tree viewer, metadata, timestamps
 2. **Address Explorer** -- View all VTXOs for an address/script with status badges and pagination
 3. **Asset Explorer** -- View asset details by asset ID
-4. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (65+ hex chars), and addresses
+4. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (exactly 68 hex chars), outpoints (txid:vout, navigates to /tx/txid), and addresses
 5. **Real-time Activity** -- Live activity stream on homepage via ActivityStreamContext
 6. **Theme Toggle** -- Light/dark theme with persistent preference via ThemeContext
 7. **Money Display** -- Toggle between sats and BTC display via MoneyDisplayContext

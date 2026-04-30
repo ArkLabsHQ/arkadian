@@ -81,6 +81,17 @@ dotnet build            # No build errors
 dotnet test             # All tests pass
 ```
 
+### Documentation Rules (`CLAUDE.md` / `.github/agents.md`)
+
+PRs that touch public API surface must keep the following in sync (also enforced for direct-to-`master` commits):
+
+- XML doc comments on the changed public APIs.
+- `README.md` usage examples for any new feature.
+- `docs/articles/` (DocFX conceptual articles) — published to GitHub Pages from `master`.
+- The Blazor WASM sample wallet at `samples/NArk.Wallet/NArk.Wallet.Client/`, when the change affects something the sample exercises (receive/send/swap/contracts/etc.).
+
+User-facing prose uses **Arkade** (not "Ark"). Code identifiers (`NArk`, `ArkCoin`, `AddArk`, …) remain unchanged.
+
 ### PR Flow
 1. Create feature branch from `master`
 2. Make changes, ensure build + tests pass

@@ -191,10 +191,16 @@ GET /swapstatus?id=swap_abc123
 - `swap.created`: Initial state
 - `transaction.mempool`: Boltz lockup in mempool
 - `transaction.confirmed`: Boltz lockup confirmed
+- `transaction.claim.pending`: User cooperative-claim signing in progress (Taproot key path)
 - `invoice.settled`: User claimed, invoice settled (final)
 - `invoice.expired`: Invoice expired
 - `transaction.failed`: Boltz failed to lock funds
+- `transaction.refund.pending`: Cooperative-refund signing in progress
 - `transaction.refunded`: Boltz refunded (user didn't claim)
+
+> Cooperative claim/refund states (`transaction.claim.pending`, `transaction.refund.pending`) signal that
+> a Taproot key-path cooperative signing flow is underway between client and server. See the official
+> `docs/claiming-swaps.md` page in `boltz-backend` for the cooperative claim/refund protocol.
 
 ### POST /setinvoice
 

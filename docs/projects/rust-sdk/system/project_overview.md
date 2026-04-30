@@ -12,33 +12,47 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 - Fee estimation utilities
 - Boltz swap integration (Lightning Network)
 
+## Recent Additions
+
+- **`ark-delegator` crate** — REST client for Ark delegator services (e.g. fulmine).
+- **VTXO watcher** in `ark-client` — auto-delegates and auto-renews VTXOs in the background.
+- **Arkade Asset V1** — full issue / transfer / burn / reissue support (asset packets in OP_RETURN, asset preservation during settlement).
+- **Chain swaps** — ARK ↔ on-chain BTC via Boltz (new `chain_swaps` SQL migration, claim/refund flows).
+- **Delegate-aware client** — `OfflineClient` accepts `delegator_pk` + `historical_delegator_pks`; address generation produces 3-leaf delegated VTXOs.
+- **arkd protocol bump to 0.9.2** — gRPC/REST schemas regenerated; REST SSE stream now strips `data: ` prefix and handles `heartbeat`/`stream_started` events.
+
 ## Workspace Crates
 
 ### ark-core (v0.8.0)
 Core types and protocol primitives:
 - `ArkAddress`: Ark address encoding/decoding (bech32)
-- `Vtxo`, `VtxoList`: Virtual transaction output management
+- `Vtxo`, `VtxoList`: Virtual transaction output management — including delegator (3-of-3) VTXOs
 - `BoardingOutput`: On-chain boarding address generation
 - `ArkNote`: Transferable payment proofs
-- `CoinSelect`: VTXO coin selection algorithms
-- `Intent`: Payment intent construction
+- `CoinSelect`: VTXO coin selection algorithms (incl. asset-aware selection)
+- `Intent`: Payment intent construction (incl. delegate intents)
 - MuSig2 integration for round signing
 - vHTLC: Virtual Hash Time-Locked Contracts
 - Unilateral exit logic
 - Transaction graph construction
+- **Asset support** (Arkade Asset V1): `AssetId`, `Packet`/`AssetGroup` OP_RETURN encoding, asset issuance / reissuance / burn transaction builders, settlement asset preservation
 
 ### ark-client (v0.8.0)
 High-level client API:
-- `OfflineClient` → `Client` connection lifecycle
-- `send_vtxo()`: Send off-chain payments
+- `OfflineClient` → `Client` connection lifecycle (delegator pubkey + historical pubkeys configured at OfflineClient layer)
+- `send_vtxo()`: Send off-chain payments (now backed by a generic offchain transaction builder shared with asset sends)
 - `offchain_balance()`: Query balances
 - `spendable_vtxos()`: List spendable VTXOs
 - `get_boarding_address()`: Generate boarding addresses
-- `get_offchain_address()`: Get Ark receiving address
+- `get_offchain_address()`: Returns delegated (3-leaf) addresses when a delegator is configured
 - `transaction_history()`: Query transaction history
-- Round participation and settlement
+- Round participation and settlement (with asset preservation)
+- `generate_delegate()`: prepare delegate forfeit PSBTs for a third-party delegator
+- `start_vtxo_watcher()`: launch background `VtxoWatcher` that auto-delegates new VTXOs and self-renews near-expiry VTXOs (safety net)
+- **Asset operations**: `issue_asset()`, asset transfer/burn/reissue via shared offchain send path
+- **Chain swaps** (ARK ↔ on-chain BTC via Boltz): `create_chain_swap()`, `wait_for_chain_swap_server_lockup()`, `claim_chain_swap()` / `claim_chain_swap_btc()`, `refund_chain_swap()` / `refund_chain_swap_btc()`
 - Boltz submarine and reverse submarine swaps
-- Swap storage (in-memory or SQLite)
+- Swap storage (in-memory or SQLite, with new `chain_swaps` table)
 
 ### ark-grpc (v0.8.0)
 gRPC transport layer (default):
@@ -60,6 +74,12 @@ Bitcoin Development Kit integration:
 
 ### ark-fees (v0.8.0)
 Fee estimation for Ark transactions.
+
+### ark-delegator (v0.8.0) — *new*
+REST client for Ark delegator services. A delegator is a third-party service (e.g. fulmine) that automatically renews VTXOs before they expire, allowing wallets to stay offline without losing funds.
+- `DelegatorClient::info()` — fetch delegator pubkey, fee, on-chain address (`GET /v1/delegator/info`)
+- `DelegatorClient::delegate()` — submit signed intent + forfeit PSBTs (`POST /v1/delegate`)
+- Per-request HTTP timeouts and rustls TLS backend
 
 ## Technology Stack
 

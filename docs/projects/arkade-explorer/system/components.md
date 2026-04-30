@@ -35,7 +35,7 @@ Error display component with icon and message.
 Label-value pair display with optional copy functionality.
 
 ### SearchBar
-Smart search input with auto-detection of txids, asset IDs, and addresses.
+Smart search input with auto-detection of txids (64 hex), outpoints (`txid:vout` — strips vout and routes to `/tx/:txid`), Ark addresses (`tark1`/`ark1`), and asset IDs (exactly 68 hex via `isValidAssetId()`). Falls back to `/tx/:q` for everything else. Placeholder reads "Search txid, address, asset, or outpoint...".
 
 ### Pagination
 Page navigation component for paginated VTXO lists.
@@ -59,10 +59,10 @@ Displays satoshi amounts formatted according to MoneyDisplayContext preference (
 Toggle switch for sats/BTC display unit preference.
 
 ### AssetAmountDisplay
-Displays asset amounts with proper denomination and formatting.
+Displays asset amounts with proper denomination and formatting (ticker + icon). Used in transaction outputs, inputs, and the Packet section in place of raw "X units · assetId" rendering, and inline in VTXO table/dense rows.
 
 ### AssetBadge
-Visual badge for asset identification with icon support.
+Visual badge for asset identification with icon support. Used as a per-output "Asset" badge on outputs that carry asset data and as extension-type badges ("Asset", "Extension #N") in the Packet card header for known asset IDs.
 
 ### ImageLightbox
 Lightbox overlay for viewing asset images in full size.

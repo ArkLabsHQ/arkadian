@@ -10,16 +10,21 @@ Arkade Script extends Bitcoin Script with **transaction introspection opcodes** 
 
 - **Arkade Script Engine**: Custom script VM with 50+ opcodes extending Bitcoin Script
   - Transaction introspection (inspect inputs, outputs, values, scripts)
+  - Packet introspection (`OP_INSPECTPACKET`, `OP_INSPECTINPUTPACKET`) — read raw ARK extension packets from the current tx or a previous Ark tx
   - Data manipulation (CAT, SUBSTR, LEFT, RIGHT)
   - Bitwise logic (AND, OR, XOR, INVERT)
-  - 64-bit arithmetic with overflow checking
+  - Unified BigNum arithmetic (sign-magnitude little-endian) with `OP_NUM2BIN` / `OP_BIN2NUM` bridges to fixed-width byte strings — replaces legacy LE64 arithmetic
   - Elliptic curve operations (ECMULSCALARVERIFY, TWEAKVERIFY)
   - SHA256 streaming (initialize, update, finalize)
+  - Asset introspection opcodes (Arkade Asset V1 packets)
   - Stack-based signature verification (CHECKSIGFROMSTACK)
-- **Off-chain Transaction Signing**: Validates and signs Ark transactions and checkpoint transactions
+- **Off-chain Transaction Signing**: Validates and signs Ark transactions and their checkpoint transactions; if this introspector is the last non-`arkd` signer for all matched inputs, it forwards the set to `arkd`, merges its signatures, finalizes and returns the finalized PSBTs
+- **Onchain Transaction Signing** (`SubmitOnchainTx`): Validates and signs plain Bitcoin PSBTs whose tapscript closure contains the introspector's tweaked key (e.g. unrolled VTXOs); rejects inputs whose closure also includes the `arkd` signer pubkey to prevent bypassing offchain checks
 - **Intent Proof Signing**: Validates and signs intent proofs before round registration
 - **Batch Finalization Signing**: Signs forfeit and commitment transactions after verifying the signer's prior participation
-- **gRPC + REST API**: Dual interface via meshapi gateway on port 7073
+- **Introspector Packet (TLV)**: Per-input script + witness payload embedded inside an ARK extension OP_RETURN output (packet type `0x01`); identifies which inputs the introspector must validate and what bytecode/witness to feed the engine
+- **gRPC + REST API**: Dual interface via meshapi gateway on port 7073 — five RPCs: `GetInfo`, `SubmitTx`, `SubmitIntent`, `SubmitFinalization`, `SubmitOnchainTx`
+- **Fuzz-tested**: Tokenizer, opcodes, and engine fuzz harnesses (`go test ... -fuzz=Fuzz...` in `pkg/arkade/`)
 - **Go Client Library**: `pkg/client` provides a ready-to-use gRPC transport client
 - **TLS Support**: Auto-generated TLS certificates with configurable extra IPs/domains
 
@@ -27,15 +32,16 @@ Arkade Script extends Bitcoin Script with **transaction introspection opcodes** 
 
 | Component | Technology |
 |-----------|-----------|
-| Language | Go 1.25+ |
+| Language | Go 1.26+ |
 | Transport | gRPC with REST gateway (meshapi) |
 | Protobuf | Buf CLI for generation and linting |
-| Crypto | btcec/v2 (secp256k1), Schnorr signatures, Taproot |
+| Crypto | btcec/v2 (secp256k1), Schnorr signatures, Taproot; tapscript signature verification delegated to `ark-lib` |
 | PSBT | btcutil/psbt for transaction handling |
 | Config | Viper (environment variables) |
 | Logging | Logrus |
 | Tracing | OpenTelemetry |
 | Containerization | Docker (Alpine-based) |
+| Upstream `arkd` | 0.9.3 (regtest dev compose) |
 
 ## Use Cases
 
@@ -57,6 +63,7 @@ The signer key is tweaked per-script using the Arkade Script hash, ensuring each
 ## Relationship to Ark Ecosystem
 
 - **Used by arkd**: arkd submits transactions for Arkade Script validation and signing
-- **Depends on ark-lib**: Uses intent, tree, script, and txutils packages from arkd
-- **Depends on go-sdk**: References go-sdk types for protocol compatibility
+- **Calls back to arkd**: Connects to `arkd` via gRPC at startup (`INTROSPECTOR_ARKD_URL` is required); fetches its signer pubkey and submits last-signer finalization sets in `SubmitTx`
+- **Depends on ark-lib**: Uses intent, tree, script, txutils, and tapscript signature verification packages from arkd
+- **Depends on go-sdk**: gRPC client (`go-sdk/client/grpc`) is the transport for the embedded `arkd` client
 - **Standalone service**: Runs as an independent microservice alongside arkd

@@ -57,13 +57,15 @@ Submits an Ark transaction and its associated checkpoint transactions for Arkade
 ```
 
 **Behavior**:
-1. Indexes checkpoint transactions by txid
-2. For each input in the Ark transaction:
-   - Reads Arkade Script from custom PSBT field
-   - Executes the script against the transaction
-   - Signs input with tweaked key on success
+1. Locates the **Introspector Packet** (ARK extension, packet type `0x01`) in an OP_RETURN output of the Ark transaction
+2. Indexes checkpoint transactions by txid
+3. For each entry in the Introspector Packet:
+   - Verifies the targeted input's tapscript carries the introspector's tweaked key
+   - Executes the entry's Arkade Script (with its witness) against the transaction
+   - Signs the input with the tweaked key on success
    - Finds and signs the matching checkpoint transaction
-3. Returns all signed PSBTs
+4. **Last non-arkd signer path**: if this introspector is the last required non-`arkd` signer for **all** matched inputs, every checkpoint PSBT must already include any other required non-`arkd` signatures (otherwise the call fails). The service then forwards the signed set to the configured `arkd` (`INTROSPECTOR_ARKD_URL`), merges `arkd`'s checkpoint signatures, finalizes the Ark transaction, and returns the finalized PSBT plus updated checkpoint PSBTs.
+5. Otherwise, returns only the signatures this introspector added (`signed_ark_tx` is partially signed).
 
 ### SubmitIntent
 
@@ -145,6 +147,63 @@ Submits a batch finalization for signing. Signs forfeit and commitment transacti
 3. If unmatched inputs remain (boarding): signs the commitment transaction
 4. Returns signed forfeits and optionally signed commitment
 
+### SubmitOnchainTx
+
+Validates and signs the inputs of a plain Bitcoin transaction whose tapscripts contain the introspector's tweaked key (e.g. a VTXO unrolled onchain). Inputs whose tapscript closure also carries the `arkd` signer pubkey are rejected — those must go through `SubmitTx` so checkpoint and forfeit checks are enforced.
+
+| Field | Value |
+|-------|-------|
+| gRPC | `IntrospectorService/SubmitOnchainTx` |
+| REST | `POST /v1/onchain-tx` |
+
+**Request**:
+```json
+{
+  "tx": "<base64_encoded_psbt>"
+}
+```
+
+**Response**:
+```json
+{
+  "signed_tx": "<base64_encoded_signed_psbt>"
+}
+```
+
+Each input may carry an optional `PrevoutTxField` PSBT unknown field (key `"prevouttx"`) holding the raw previous transaction. It is only required by Arkade opcodes that introspect the previous transaction.
+
+**Behavior**:
+1. Builds a prevout fetcher from the PSBT (using optional `prevouttx` fields)
+2. Locates the Introspector Packet in the transaction
+3. For each entry: verifies the input is owned by the introspector's tweaked key, rejects closures containing `arkd`'s signer pubkey, executes the script, and signs the input
+4. Fails if no valid input/entry pairs are found
+
+## Introspector Packet (Wire Format)
+
+`SubmitTx`, `SubmitIntent`, and `SubmitOnchainTx` consume an **Introspector Packet** embedded in an OP_RETURN output.
+
+- The OP_RETURN payload is an **ARK extension**: magic `ARK` (`0x41 0x52 0x4b`) followed by a sequence of `(type, length, value)` packets.
+- The Introspector Packet has type byte `0x01` and shares the envelope with other ARK packets (e.g. asset packet, type `0x00`).
+
+Packet content layout (`varint` = Bitcoin compact size):
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `entry_count` | varint | Number of entries. `1 <= entry_count <= 1000`. |
+| `entry[..]` | per-entry block | Repeated `entry_count` times. |
+
+Entry block:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `vin` | u16 LE | Input index. Must be unique across the packet. |
+| `script_len` | varint | `1 <= script_len <= 10_000`. |
+| `script` | bytes | Arkade Script bytecode. |
+| `witness_len` | varint | `<= 1_000_000`. |
+| `witness` | bytes | `psbt.WriteTxWitness` encoding (`varint(num_items)` + `varint(item_len) + item` per item). |
+
+`OP_INSPECTPACKET` (`0xf4`) and `OP_INSPECTINPUTPACKET` (`0xf5`) read the raw packet bytes for a given type, so the wire format is part of the consensus surface for any Arkade script using those opcodes.
+
 ## Error Handling
 
 All endpoints return gRPC status codes. Common errors:
@@ -173,5 +232,6 @@ type TransportClient interface {
         connectorTree tree.FlatTxTree,
         commitmentTx string,
     ) (signedForfeits []string, signedCommitmentTx string, err error)
+    SubmitOnchainTx(ctx context.Context, tx string) (signedTx string, err error)
 }
 ```

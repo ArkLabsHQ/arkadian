@@ -29,15 +29,18 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 
 ### 3. Asset Explorer (`/asset/:assetId`)
 - View asset details by asset ID
-- Asset amount display with custom formatting
-- Asset badges for visual identification
+- Asset amount display with custom formatting via `AssetAmountDisplay` (ticker + icon) — used in tx outputs, inputs, and packet section instead of raw "X units · assetId"
+- Asset badges for visual identification, including extension-type badges ("Asset", "Extension #N") on the Packet card and per-output "Asset" badges
+- Asset amounts shown inline in VTXO table/dense rows (not only when expanded)
 - Verified asset icon system with user approval flow
 
 ### 4. Smart Search
 - Auto-detect transaction IDs (64 hex characters)
-- Auto-detect asset IDs (65+ hex characters)
-- Auto-detect addresses/scripts (anything else)
-- Available from homepage and persistent header search
+- Auto-detect asset IDs (exactly 68 hex characters, validated by `isValidAssetId()`)
+- Auto-detect outpoints (`txid:vout`); strips the `:vout` suffix and navigates to `/tx/:txid`
+- Auto-detect Ark addresses (`tark1` / `ark1` prefix)
+- Anything else routed to `/tx/:q` as a fallback
+- Available from homepage and persistent header search; placeholder reads "Search txid, address, asset, or outpoint..."
 - Recent search history via useRecentSearches hook
 
 ### 5. Real-time Activity Stream

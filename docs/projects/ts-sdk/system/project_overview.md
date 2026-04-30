@@ -9,7 +9,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 ## Package
 
 - **npm**: `@arkade-os/sdk`
-- **Version**: 0.3.13
+- **Version**: 0.4.21
 - **License**: MIT
 
 ## Core Features
@@ -26,7 +26,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Unilateral Exit | Exit without server cooperation (unroll + timelock) |
 | Service Worker | Background wallet operation via `ServiceWorkerWallet` |
 | Storage Adapters | InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage |
-| Expo/React Native | Dedicated providers for React Native streaming (SSE) |
+| Expo/React Native | Dedicated providers for React Native streaming (SSE); peer ranges accept Expo SDK 55 unified majors |
 | ArkNote | Serializable payment data format |
 | Repository Pattern | Low-level VTXO and contract data access |
 

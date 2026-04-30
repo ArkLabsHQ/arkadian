@@ -112,13 +112,70 @@ curl -X POST http://localhost:3000/faucet -H "Content-Type: application/json" \
 
 **Symptom**: Database schema mismatch errors.
 
-**Solution**: Use `ModelBuilderExtensions.ApplyArkModel()` in your DbContext:
+**Solution**: Call the schema extensions in your DbContext (the helper was renamed to `ConfigureArkEntities`; payment tables are opt-in):
+
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
-    modelBuilder.ApplyArkModel();
+    modelBuilder.ConfigureArkEntities();          // VTXOs, contracts, intents, wallets, swaps
+    modelBuilder.ConfigureArkPaymentEntities();   // optional: ArkPayment + ArkPaymentRequest
 }
 ```
+
+### "DateTimeOffset cannot be sorted/filtered" on SQLite
+
+**Symptom**: EF Core LINQ queries that order by or filter on a `DateTimeOffset` column fail on SQLite.
+
+**Solution**: Apply `DateTimeOffsetToBinaryConverter` via `ConfigureConventions` so EF Core stores the value as `long` (sortable) instead of text. This is what the WASM sample wallet does — see `samples/NArk.Wallet/NArk.Wallet.Client/Services/WalletDbContext.cs`.
+
+## WASM / GitHub Pages Sample Wallet
+
+### Blazor boot fails on GitHub Pages
+
+**Symptom**: WASM wallet 404s its assets or fails to register a service worker on a Pages subdirectory.
+
+**Solutions**:
+- Set `<base href="/dotnet-sdk/wallet/">` in `wwwroot/index.html` so relative asset paths resolve under the subdirectory.
+- Use **Bit.Besql** for SQLite, not `SqliteWasmBlazor` — Pages can't serve the COOP/COEP headers needed for SharedArrayBuffer/OPFS.
+- Ship a `wwwroot/404.html` SPA fallback that stores the requested path and reload restores it from `index.html`.
+
+### NavLink / back-button to `/`
+
+**Symptom**: Sub-page navigation jumps to the GitHub Pages site root instead of the wallet base path.
+
+**Solution**: Use relative hrefs (`./`, `send`, `receive`) so they resolve against `<base href>`. Avoid leading `/`.
+
+### `IIntentScheduler` not registered in WASM
+
+**Symptom**: `StartArkServicesAsync` crashes resolving `IntentGenerationService` because `IIntentScheduler` is missing.
+
+**Solution**: `AddArkCoreServices` does not register a scheduler — register `SimpleIntentScheduler` (or your own) explicitly. The sample wallet's `Program.cs` shows the minimal WASM DI wiring (`BoltzClient`, `CachedBoltzClient`, `IIntentScheduler`).
+
+## Network / arkd
+
+### "Network 'mutinynet' not recognized"
+
+**Symptom**: `Network.GetNetwork(serverInfo.Network)` returns null when arkd reports a custom signet name like `mutinynet`.
+
+**Solution**: Use `NetworkExtensions.ResolveArkNetwork(serverInfo.Network)` from `NArk.Core/Transport/Extensions/` — it maps the known custom names onto the right NBitcoin `Network`. Both gRPC and REST transports already do this internally.
+
+### REST `/v1/info` parser throws `KeyNotFoundException`
+
+**Symptom**: Calling `GetServerInfoAsync` against a REST/gateway arkd fails with a missing-property exception.
+
+**Solution**: This was the case-sensitive parser (`signer_pubkey` vs `signerPubkey`) and proto3 string-encoded int64s in the SSE / REST encoders. Make sure you are on a build that includes the camelCase + `GetInt64Flexible` fixes in `RestClientTransport.Info.cs` / `RestClientTransport.Batch.cs`.
+
+### "Wallet locked or syncing" on `BatchManagementService` startup
+
+**Symptom**: A loud `RpcException(FailedPrecondition)` stack trace at host startup.
+
+**Solution**: Expected during arkd boot. `BatchManagementService` now downgrades this to a single-line Warning and retries; nothing to do unless it persists.
+
+### Imports stall at exactly 11 000 VTXOs
+
+**Symptom**: Restoring a long-history wallet stops paginating after 11 k entries.
+
+**Solution**: An off-by-one in `GetVtxos` pagination (both gRPC and REST) was capping imports at exactly `total - 1` pages. Upgrade past commit `25ec2a2` (gRPC) / `7411330` (REST). Also confirm `EfCoreVtxoStorage.UpsertVtxo` no longer fires `ActiveScriptsChanged` per row — that previously caused quadratic-time stalls on large imports.
 
 ## Debugging Tips
 

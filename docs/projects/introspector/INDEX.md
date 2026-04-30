@@ -66,14 +66,15 @@ Analysis and summaries of pull requests.
 
 | Item | Value |
 |------|-------|
-| Language | Go 1.25+ |
+| Language | Go 1.26+ |
 | Default Port | 7073 (gRPC + REST gateway) |
 | Config Prefix | `INTROSPECTOR_` |
 | Entry Point | `cmd/introspector.go` |
 | Docker Image | Built from `Dockerfile` |
 | Protobuf | `api-spec/protobuf/introspector/v1/service.proto` |
-| Script Engine | `pkg/arkade/` (50+ custom opcodes) |
+| Script Engine | `pkg/arkade/` (50+ custom opcodes, BigNum arithmetic) |
 | Client Library | `pkg/client/` (Go gRPC client) |
+| RPCs | GetInfo, SubmitTx, SubmitIntent, SubmitFinalization, SubmitOnchainTx |
 
 ## Configuration
 
@@ -86,6 +87,7 @@ Analysis and summaries of pull requests.
 | `INTROSPECTOR_TLS_EXTRA_IPS` | Additional IPs for TLS cert | [] |
 | `INTROSPECTOR_TLS_EXTRA_DOMAINS` | Additional domains for TLS cert | [] |
 | `INTROSPECTOR_LOG_LEVEL` | Log level (0-6) | 4 (Debug) |
+| `INTROSPECTOR_ARKD_URL` | URL of the `arkd` instance used for finalization in `SubmitTx` | Required |
 
 ## Architecture Overview
 

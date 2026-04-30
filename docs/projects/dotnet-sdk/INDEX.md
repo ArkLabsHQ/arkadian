@@ -27,16 +27,18 @@ scripts:
 | Item | Detail |
 |------|--------|
 | **Language** | C# / .NET 8+ (net8.0, net10.0 for E2E) |
-| **Solution** | `NArk.sln` (9 projects) |
+| **Solution** | `NArk.sln` (9 projects + Blazor WASM sample) |
 | **Core Package** | `NArk.Core` |
-| **Abstractions** | `NArk.Abstractions` |
-| **Swap Package** | `NArk.Swaps` |
-| **Storage Package** | `NArk.Storage.EfCore` |
+| **Abstractions** | `NArk.Abstractions` (now ships vendored NBitcoin.Scripting) |
+| **Swap Package** | `NArk.Swaps` (incl. `PaymentTrackingService`) |
+| **Storage Package** | `NArk.Storage.EfCore` (VTXOs, contracts, intents, wallets, swaps, payments) |
 | **Meta Package** | `NArk` (aggregates Core + Swaps) |
+| **Sample Wallet** | `samples/NArk.Wallet/` (Blazor WASM, deployed to GitHub Pages) |
+| **Docs Site** | DocFX → `https://arkade-os.github.io/dotnet-sdk/` |
 | **Test Framework** | NUnit 4 + NSubstitute |
-| **E2E Orchestration** | .NET Aspire (`NArk.AppHost`) |
-| **CI** | GitHub Actions: build, test, pack, push to NuGet |
-| **Transport** | gRPC (Grpc.Net.Client) to arkd |
+| **E2E Infrastructure** | `regtest/` git submodule (`arkade-os/arkade-regtest`) + .NET Aspire `NArk.AppHost` |
+| **CI** | GitHub Actions: build, test, pack, push to NuGet; docs.yml deploys DocFX + WASM wallet |
+| **Transport** | gRPC (Grpc.Net.Client) **or** REST + SSE to arkd |
 | **Version** | `1.0-beta` (Nerdbank.GitVersioning) |
 | **License** | MIT |
 | **Repository** | `${DOTNET_SDK_REPO}` |
@@ -66,11 +68,15 @@ NArk.Scratchpad             (dev scratch area)
 - **ArkIntent** — Signed transaction intent registered with arkd for batch inclusion
 - **ArkVtxo** — Virtual Transaction Output with expiry, sweep, and spend tracking
 - **ArkCoin** — VTXO paired with its contract for spending
+- **ArkPayment / ArkPaymentRequest** — Outbound payment + inbound payment-request domain models tracked by `PaymentTrackingService`
 - **BatchSession** — Participates in arkd batch rounds: nonce exchange, tree signing (MuSig2), forfeit tx signing
 - **TreeSignerSession** — MuSig2 nonce and partial signature session for VTXO trees
-- **SpendingService** — Builds and submits Ark transactions with automatic coin selection and change handling
+- **SpendingService** — Builds and submits Ark transactions with automatic coin selection, change handling, server-driven amount bounds + OP_RETURN limits
+- **VtxoSynchronizationService** — Stream + 5 s routine poll + 750 ms / 3 s / 8 s retry schedule with `after`-window filtering for resilient VTXO sync
 - **SweeperService** — Monitors and redeems expired/swept VTXOs on-chain
-- **BoltzSwapsService** — ARK<->BTC chain swaps via Boltz (MuSig2 cross-signatures, VHTLC scripts)
+- **SwapsManagementService** — Submarine (Ark→Lightning), reverse (Lightning→Ark), and ARK<->BTC chain swaps via Boltz (MuSig2 cross-signatures, VHTLC scripts)
+- **PaymentTrackingService** — Background service auto-updating payment statuses from VTXO/intent/swap events
+- **OutputDescriptor / SigningRepository** — Vendored NBitcoin.Scripting (parser combinators, descriptor model) in `NArk.Abstractions/Scripting/`
 - **ArkApplicationBuilder** — Fluent builder for configuring all NArk services via IHostBuilder
 
 ## Directory Structure

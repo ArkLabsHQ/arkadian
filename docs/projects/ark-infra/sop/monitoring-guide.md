@@ -113,36 +113,39 @@ aws cloudwatch get-metric-statistics \
 
 ## Log Aggregation
 
-### Loki (via Grafana)
+### CloudWatch Logs (Primary, container stdout/stderr)
 
-**Access**: Grafana → Explore → Data Source: Loki
+All containers ship logs to CloudWatch via the Docker `awslogs` driver. There is one
+log group per environment with one stream per service.
 
-**Useful Queries**:
-```
-# All arkd logs
-{container_name="arkd"}
+```bash
+# Follow arkd logs
+aws logs tail "/ark/prod" --log-stream-name-prefix arkd --follow
 
-# Error logs
-{container_name="arkd"} |= "error"
+# Filter for errors in the last hour
+aws logs filter-log-events \
+  --log-group-name "/ark/prod" \
+  --log-stream-name-prefix arkd \
+  --start-time $(($(date +%s) - 3600))000 \
+  --filter-pattern "error"
 
 # Wallet unlock events
-{container_name="kms-unlocker"} |= "unlock"
+aws logs tail "/ark/prod" --log-stream-name-prefix kms-unlocker --since 1h | grep -i unlock
 
-# Bitcoin sync logs
-{container_name="bitcoind"} |= "progress"
+# Bitcoin sync progress
+aws logs tail "/ark/prod" --log-stream-name-prefix bitcoind --since 30m | grep -i progress
 ```
 
-### Docker Logs (Direct)
-```bash
-# Follow logs
-docker compose -f docker-compose.ark.prod.yaml logs -f arkd
+⚠️ `docker logs` and `docker compose logs` no longer print container stdout/stderr — the
+`awslogs` driver redirects everything to CloudWatch. Streams use multiline patterns
+(Go panics, dated lines, ANSI escapes for nbxplorer) so multi-line stack traces stay
+grouped as a single event.
 
-# Last 100 lines
-docker compose -f docker-compose.ark.prod.yaml logs --tail=100 arkd
+### Loki (via Grafana — telemetry stack only)
 
-# Grep for errors
-docker compose -f docker-compose.ark.prod.yaml logs arkd | grep -i error
-```
+Loki retains logs from the in-stack telemetry components and Prometheus targets, accessed
+via Grafana → Explore → Data Source: Loki. For application container logs, prefer
+CloudWatch (above).
 
 ### CloudWatch Logs (SSM Sessions)
 ```bash

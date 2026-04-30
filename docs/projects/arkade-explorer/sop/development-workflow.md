@@ -52,9 +52,13 @@ docker build -t arkade-explorer .
 # Run container
 docker run -p 8080:80 arkade-explorer
 
-# Or use pre-built image
+# Or use pre-built image (multi-arch: linux/amd64 + linux/arm64)
 docker run -p 8080:80 ghcr.io/arklabshq/arkade-explorer:latest
 ```
+
+CI (`.github/workflows/docker.yml`) publishes the GHCR image for both
+`linux/amd64` and `linux/arm64` using `docker/setup-qemu-action` and
+`docker/setup-buildx-action`.
 
 ## Code Style
 

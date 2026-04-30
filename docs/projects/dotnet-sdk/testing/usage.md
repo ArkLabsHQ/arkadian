@@ -37,7 +37,32 @@ await host.RunAsync();
 services.AddArkCoreServices();
 services.AddArkMainnet();
 // Register your storage implementations...
+
+// Opt-in features (none of these are pulled in by AddArkCoreServices):
+services.AddArkDelegation();        // DelegationService + IDelegationTransformer
+services.AddArkPaymentTracking();   // PaymentTrackingService (pair with payment storage)
+services.AddArkSwaps();             // SwapsManagementService + Boltz clients
 ```
+
+For EF Core consumers, payment tracking also requires the payment tables:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.ConfigureArkEntities();          // VTXOs, contracts, intents, wallets, swaps
+    modelBuilder.ConfigureArkPaymentEntities();   // ArkPayment + ArkPaymentRequest (opt-in)
+}
+```
+
+### 4. Custom Signets / Mutinynet
+
+arkd reports its network as raw strings (`mutinynet`, `signet`, etc.). Use the helper in transports rather than calling `Network.GetNetwork()` directly — it maps the known custom names onto the correct NBitcoin `Network`:
+
+```csharp
+var network = NetworkExtensions.ResolveArkNetwork("mutinynet");
+```
+
+This is what `GrpcClientTransport` and `RestClientTransport` use internally when parsing `GetInfo`.
 
 ## Required Implementations
 
@@ -52,6 +77,13 @@ You must provide implementations for these interfaces:
 | `IWalletProvider` | Provide wallet signer and address provider |
 | `ISafetyService` | Ensure no double-spend of VTXOs |
 | `IChainTimeProvider` | Current block height and timestamp |
+
+Optional, only when `AddArkPaymentTracking()` is registered:
+
+| Interface | Purpose |
+|-----------|---------|
+| `IPaymentStorage` | Persist outbound `ArkPayment` records |
+| `IPaymentRequestStorage` | Persist inbound `ArkPaymentRequest` records |
 
 For EF Core implementations, use `NArk.Storage.EfCore`:
 
@@ -80,3 +112,11 @@ var txId = await spendingService.Spend("my-wallet", selectedCoins, outputs);
 | Mainnet | `arkade.computer` | `api.ark.boltz.exchange` | `arkade.space` |
 | Mutinynet | `mutinynet.arkade.sh` | `api.boltz.mutinynet.arkade.sh` | `explorer.mutinynet.arkade.sh` |
 | Regtest | `localhost:7070` | `localhost:9069` | N/A |
+
+## Live Sample Wallet
+
+A complete Blazor WebAssembly wallet using NArk lives at `samples/NArk.Wallet/NArk.Wallet.Client/`. It is published to GitHub Pages at `https://arkade-os.github.io/dotnet-sdk/wallet/` alongside the DocFX site. Useful as a reference for: real QR rendering (QRCoder), Lightning receive via Boltz reverse swap, BTC-on-chain receive via chain swap, smart Send (Ark / on-chain / BOLT11 / BIP21 / LNURL / Lightning Address), dedicated `Contracts` / `Vtxos` / `Swaps` / `Intents` list+detail pages, mnemonic / nsec backup, and Bit.Besql for SQLite-on-WASM without COOP/COEP.
+
+## Reference Documentation
+
+The full DocFX site (API reference + conceptual articles) is published to GitHub Pages on every push to `master`. Build locally with `docfx docfx.json --serve`.

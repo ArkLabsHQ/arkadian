@@ -97,32 +97,36 @@ Go client library for building Ark wallets and applications. Provides high-level
 **GitHub**: `${WALLET_GITHUB}`
 
 **Description**:
-Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built with React 18, TypeScript, Ionic, and Vite. Provides a user-friendly interface for Ark protocol operations including VTXOs, off-chain payments, Lightning swaps via Boltz, and on-chain boarding. Installable on mobile (iOS, Android) and desktop without app store gatekeepers.
+Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built with React 18, TypeScript, and Vite, using a custom in-tree component library (Ionic React was removed in PR #534). Provides a user-friendly interface for Ark protocol operations including VTXOs, off-chain payments, Lightning swaps via Boltz, LNURL receives, and on-chain boarding. Installable on mobile (iOS, Android) and desktop without app store gatekeepers.
 
 **Key Capabilities**:
 - Create and restore wallets (BIP39 seed phrases)
 - Send and receive Bitcoin (onchain and offchain via Ark)
+- Redesigned Send (pill Paste/Scan, Max-tap confirmation, animated overlays) and Receive v2 (styled QR, tap-to-copy)
 - VTXO management, coin control, and expiry threshold handling
 - Lightning Network swaps via SwapManager (submarine, reverse submarine, chain swaps via Boltz)
+- LNURL receive via lnurl-server SSE session (amountless Lightning receives)
 - Swap restoration from Boltz endpoint
 - Nostr-based encrypted wallet backups (chunked for relay compatibility)
-- In-app announcements and Chatwoot customer support
-- Keyboard navigation and URL hash deep-linking
+- In-app announcements and Chatwoot customer support (with git-commit custom attribute)
+- Keyboard navigation, URL hash deep-linking, prefers-reduced-motion support
 - JS/JIT capability detection for restricted environments
 - Fees provider for on-chain and collaborative exit fee estimation
-- Fiat currency toggle (USD, EUR, CHF) on amount inputs
-- E2E testing with Playwright (Docker-based test environment)
+- Fiat currency symbol-prefix display (`$100.00`, `€50.00`, `¥1,000`); CHF/CNY keep trailing-code form
+- Pill navbar overlay shown only on root pages (Wallet/Apps/Settings)
+- E2E testing with Playwright using shared `arkade-regtest` submodule + `nak` Nostr relay
+- Multi-arch Docker build (amd64 + arm64) via GHCR
 - Progressive Web App features (installable, offline-capable)
-- @arkade-os/sdk 0.3.12 and @arkade-os/boltz-swap 0.2.19
+- @arkade-os/sdk 0.4.21 and @arkade-os/boltz-swap 0.3.22
 
-**Tags**: `wallet`, `pwa`, `react`, `typescript`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`
+**Tags**: `wallet`, `pwa`, `react`, `typescript`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `lnurl`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`, `arkade-regtest`
 
 **Synonyms**: `arkade-wallet`, `web-wallet`, `pwa-wallet`, `client-app`
 
 **Triggers**:
-- **ask_question**: `how to use wallet`, `pwa features`, `lightning swap`, `install wallet`, `nostr backup`, `announcements`
-- **develop**: `add wallet feature`, `fix ui bug`, `update sdk version`, `playwright test`, `swap manager`
-- **test_or_run**: `start wallet dev server`, `build pwa`, `test components`, `playwright`, `e2e test`
+- **ask_question**: `how to use wallet`, `pwa features`, `lightning swap`, `lnurl receive`, `install wallet`, `nostr backup`, `announcements`
+- **develop**: `add wallet feature`, `fix ui bug`, `update sdk version`, `playwright test`, `swap manager`, `lnurl session`, `pill navbar`
+- **test_or_run**: `start wallet dev server`, `build pwa`, `test components`, `playwright`, `e2e test`, `arkade-regtest`, `regtest:start`
 
 **Dependencies**: `@arkade-os/sdk` (0.3.12, JavaScript SDK), `@arkade-os/boltz-swap` (0.2.19), `arkd` (server connection), `nostr-tools`
 **Depended On By**: None (end-user application)
@@ -291,15 +295,20 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Docker Compose stacks for local development
 - Multi-environment support (local, dev, staging, prod)
 - Database provisioning (PostgreSQL, Redis)
+- Multi-AZ HA: 3-AZ VPC (eu-central-1a/1b/1c), Multi-AZ RDS, Multi-AZ Redis with automatic failover
+- NAT-per-AZ feature flag (`vpc_nat_per_az`) for HA vs cost-optimized topologies
+- RDS Performance Insights and configurable automatic backups (prod: 30 days)
 - Network configuration (VPC, security groups, load balancers)
 - Monitoring stack deployment (Prometheus, Grafana)
+- Centralized container logging to AWS CloudWatch via Docker `awslogs` driver (`/ark/${env}` log group)
 - Secret management (AWS Secrets Manager)
 - Automated backups and disaster recovery
 - Admin dashboard with URL-based deployment via SSM (`Ark-DeployService`)
 - Port forwarding to EC2 services and remote hosts (RDS, Redis)
 - Image pinning script for running container digest collection
+- Deploys arkd / arkd-wallet `v0.9.4` from GHCR (`ghcr.io/arkade-os/arkd*`); Traefik upgraded to `v3.6.14`
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `ssm`, `port-forwarding`, `admin-dashboard`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 
@@ -409,15 +418,21 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 - Reverse submarine swaps (Lightning → Chain)
 - Chain swaps (Chain → Chain) across Bitcoin/Liquid/EVM
 - Atomic HTLC-based swaps (non-custodial)
-- Taproot cooperative claims for privacy
-- 0-confirmation support for small amounts
-- BOLT12 offers and blinded paths
-- RESTful HTTP API (v1 and v2)
+- Taproot cooperative claims/refunds for privacy (with documented `transaction.claim.pending` / `transaction.refund.pending` states)
+- 0-confirmation support for small amounts; recomputed on chain-swap renegotiation
+- BOLT12 offers and blinded paths (hardened)
+- Persisted claim transaction tracking for reverse/chain swaps with FK-enforcing Postgres trigger
+- Positive-slippage tolerance via shared `OverpaymentProtector`
+- Hardened mempool.space integration (deduplicated, one-decimal-rounded BTC fee estimations)
+- Fulmine integration via macaroon auth and `ListVHTLCs`
+- CLI tool to rotate referral API keys
+- RESTful HTTP API (v1 and v2) with improved HTTP status codes
 - WebSocket real-time swap updates
 - PostgreSQL/SQLite storage
-- LND and CLN integration
+- LND and CLN (v26.04.1) integration; Bitcoin Core v31.0; Elements v23.3.3
+- Hybrid TypeScript v6 + Rust stack
 
-**Tags**: `swap`, `lightning`, `submarine-swap`, `atomic-swap`, `htlc`, `taproot`, `bitcoin`, `liquid`, `evm`, `rest-api`, `typescript`, `rust`, `postgres`
+**Tags**: `swap`, `lightning`, `submarine-swap`, `atomic-swap`, `htlc`, `taproot`, `cooperative-claim`, `bitcoin`, `liquid`, `evm`, `rest-api`, `typescript`, `rust`, `postgres`, `bolt12`, `fulmine-integration`, `mempool-space`, `claim-tracking`
 
 **Synonyms**: `boltz`, `swap-backend`, `swap-provider`, `boltz-exchange`
 
@@ -520,20 +535,21 @@ Rust-based compiler for the Arkade Script language that transforms `.ark` smart 
 **GitHub**: `${ARK_DOCS_GITHUB}`
 
 **Description**:
-Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark concepts, arkd server, wallet development, smart contracts (Arkade language), and security model. Used as knowledge base for Q&A agents.
+Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark concepts, arkd server, wallet development (v0.3 and v0.4), smart contracts (Tapscript and Arkade language), Arkade Assets, and security model. Used as knowledge base for Q&A agents.
 
 **Key Capabilities**:
-- Ark protocol concepts (VTXOs, rounds, settlement, pillars, glossary)
-- Arkd server documentation (components, transactions, security, scheduled sessions, Arkade PSBT)
-- Wallet development guide v0.3 (setup, payments, VTXO management, storage adapters, service worker, Expo/React Native)
-- Arkade contracts (escrow, swaps, Spilman channels, Oracle/DLC)
-- Experimental Arkade language (script, syntax, types, functions, compiler)
-- Security deep-dives (economic security, finality, exit mechanisms)
-- FAQ (16 common questions)
-- Mintlify-powered interactive documentation
-- Auto-published via GitHub integration
+- Ark protocol core concepts (`learn/concepts/`: vtxos, transactions, settlement, lifecycle, security)
+- Arkd server documentation (components, transactions, server-security, core-services with configuration)
+- Wallet development v0.4 (Latest): getting-started, operations, assets workflows, advanced (settlement-process, ramps, vtxo-management, storage adapters, service worker, Expo/React Native, AI agents)
+- Wallet development v0.3 (Legacy): retained for compatibility
+- Arkade contracts: deep-dive, Tapscript primitives (escrow, hashlock, Spilman channel, Dryja-Poon channel) and use cases (lightning-swaps, lightning-channels, chain-swaps, oracle-dlc)
+- Arkade Assets overview and core concepts (`learn/arkade-assets/`)
+- Experimental Arkade language (compiler, functions, non-interactive-swaps)
+- FAQ (9 curated questions)
+- LLM context menu integration (Claude, ChatGPT, Grok, Devin, Cursor, VSCode)
+- Mintlify-powered interactive documentation, auto-published via GitHub
 
-**Tags**: `documentation`, `docs`, `mintlify`, `ark-protocol`, `arkd`, `wallet-guide`, `smart-contracts`, `arkade-language`, `faq`, `security`
+**Tags**: `documentation`, `docs`, `mintlify`, `ark-protocol`, `arkd`, `wallet-guide`, `wallets-v0.4`, `tapscript`, `smart-contracts`, `arkade-language`, `arkade-assets`, `faq`, `security`, `llm-context`
 
 **Synonyms**: `docs`, `documentation-site`, `knowledge-base`, `ark-manual`
 
@@ -556,19 +572,19 @@ Official documentation repository for the Ark protocol and ecosystem. Built with
 **GitHub**: `${ARKADE_EXPLORER_GITHUB}`
 
 **Description**:
-Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, asset details, and VTXO addresses using the Arkade Indexer API. Features smart search (auto-detects txids, asset IDs, and addresses), VTXO tree visualization, light/dark theme, money unit toggle, real-time activity stream, and asset icon verification.
+Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, asset details, and VTXO addresses using the Arkade Indexer API. Features smart search (auto-detects txids, outpoints, Ark addresses, and 68-hex asset IDs), VTXO tree visualization, light/dark theme, money unit toggle, real-time activity stream, and asset icon verification.
 
 **Key Capabilities**:
 - Commitment transaction explorer with batch details, VTXO tree viewer, and raw hex
 - Address VTXO explorer with balance statistics, status badges, and pagination
-- Asset explorer with verified asset icon system
-- Smart search (auto-detects transaction IDs, asset IDs, and addresses)
+- Asset explorer with verified asset icon system; ticker+icon (`AssetAmountDisplay`) and extension-type badges (`AssetBadge`) across tx outputs/inputs and the Packet section
+- Smart search (auto-detects 64-hex txids, `txid:vout` outpoints, `tark1`/`ark1` addresses, and exactly-68-hex asset IDs)
 - Real-time activity stream on homepage
 - Light/dark theme toggle with persistent preference
 - Money display unit toggle (sats/BTC)
 - 5 React Context providers (Theme, MoneyDisplay, ServerInfo, ActivityStream, AssetIconApproval)
 - TanStack Query for data fetching and caching
-- Docker deployment via GHCR pre-built image
+- Multi-arch Docker deployment via GHCR (`linux/amd64` + `linux/arm64`)
 - Responsive design (mobile + desktop)
 
 **Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `assets`, `react`, `typescript`, `vite`, `tailwindcss`, `indexer`, `web-app`, `frontend`, `theme`, `docker`
@@ -635,30 +651,34 @@ Lightweight, browser-native escrow platform for instant, trust-minimized Bitcoin
 **GitHub**: `${INTROSPECTOR_GITHUB}`
 
 **Description**:
-Arkade Script execution and signing microservice for the Ark protocol. Receives Ark transactions (PSBTs) containing Arkade Script programs, executes them in a custom script engine extending Bitcoin Script with 50+ introspection opcodes, and signs transactions upon successful execution. Participates in the Ark round lifecycle by handling off-chain transaction signing, intent proof validation, and batch finalization.
+Arkade Script execution and signing microservice for the Ark protocol. Receives Ark transactions (PSBTs) carrying an **Introspector Packet** (a TLV inside an ARK extension OP_RETURN) that lists per-input Arkade Script bytecode + witness, executes those scripts in a custom VM extending Bitcoin Script with 50+ introspection opcodes (incl. unified BigNum arithmetic and packet introspection), and signs transactions upon successful execution. Participates in the Ark round lifecycle (off-chain tx, intent proofs, batch finalization) and also signs onchain Bitcoin PSBTs for unrolled VTXOs (`SubmitOnchainTx`). When this introspector is the last required non-`arkd` signer, it forwards the set to `arkd`, merges its signatures and finalizes.
 
 **Key Capabilities**:
-- Arkade Script engine with 50+ custom opcodes (introspection, 64-bit arithmetic, EC operations, SHA256 streaming)
-- Off-chain Ark transaction validation and Schnorr/Taproot signing
+- Arkade Script engine with 50+ custom opcodes (introspection, packet introspection `OP_INSPECTPACKET`/`OP_INSPECTINPUTPACKET`, BigNum arithmetic with `NUM2BIN`/`BIN2NUM`, EC operations, SHA256 streaming, asset introspection)
+- Introspector Packet (TLV inside ARK extension OP_RETURN) — per-input script + witness payload (max 1000 entries, script ≤10KB, witness ≤1MB)
+- Off-chain Ark transaction validation and Schnorr/Taproot signing; auto-finalization with `arkd` when last non-`arkd` signer
+- Onchain VTXO signing via `SubmitOnchainTx` (rejects inputs whose tapscript closure also contains the `arkd` signer pubkey)
 - Intent proof validation and signing before round registration
 - Batch finalization signing (forfeits and commitment transactions)
 - Connector tree validation for forfeit transactions
 - gRPC + REST API via meshapi gateway (port 7073)
 - Go client library (`pkg/client`) for programmatic access
-- Per-script key derivation (tweaked signing keys)
+- Per-script key derivation (tweaked signing keys; `tagged_hash("ArkScriptHash", script)`)
 - TLS with auto-generated certificates
+- Tapscript signature verification delegated to `ark-lib`
+- Fuzz-tested tokenizer, opcodes, and engine
 
-**Tags**: `arkade-script`, `introspection`, `signing`, `co-signer`, `psbt`, `schnorr`, `taproot`, `grpc`, `opcodes`, `bitcoin-script`, `covenant`, `smart-contract`
+**Tags**: `arkade-script`, `introspection`, `signing`, `co-signer`, `psbt`, `schnorr`, `taproot`, `grpc`, `opcodes`, `bitcoin-script`, `covenant`, `smart-contract`, `bignum`, `introspector-packet`, `onchain-signing`, `fuzz-tested`
 
 **Synonyms**: `arkade-script-engine`, `script-validator`, `co-signer`, `introspector-service`
 
 **Triggers**:
-- **ask_question**: `arkade script`, `introspection opcodes`, `script engine`, `co-signing`, `transaction introspection`, `covenant`, `OP_INSPECT`
-- **develop**: `add opcode`, `script engine`, `introspector api`, `signing logic`, `finalization`
-- **test_or_run**: `run introspector`, `integration test`, `test arkade script`, `e2e test`
-- **debug**: `script execution failed`, `signing error`, `connector not in tree`, `intent not signed`
+- **ask_question**: `arkade script`, `introspection opcodes`, `script engine`, `co-signing`, `transaction introspection`, `covenant`, `OP_INSPECT`, `OP_INSPECTPACKET`, `bignum arithmetic`, `introspector packet`, `ARK extension`
+- **develop**: `add opcode`, `script engine`, `introspector api`, `signing logic`, `finalization`, `onchain signing`, `submitonchain`
+- **test_or_run**: `run introspector`, `integration test`, `test arkade script`, `e2e test`, `fuzz arkade`, `htlc test`, `delegate test`
+- **debug**: `script execution failed`, `signing error`, `connector not in tree`, `intent not signed`, `arkd url missing`, `last non-arkd signer`
 
-**Dependencies**: `arkd` (ark-lib packages for intent, tree, script types)
+**Dependencies**: `arkd` (ark-lib packages for intent, tree, script, txutils, tapscript signature verification; runtime gRPC connection via `INTROSPECTOR_ARKD_URL` to fetch arkd's signer pubkey and to forward last-signer finalization sets), `go-sdk` (gRPC transport client)
 **Depended On By**: `arkd` (uses introspector for Arkade Script validation and signing)
 
 ---
@@ -673,32 +693,37 @@ Arkade Script execution and signing microservice for the Ark protocol. Receives 
 **GitHub**: `arkade-os/dotnet-sdk`
 
 **Description**:
-.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, and Boltz atomic swap integration (ARK<->BTC). Published as NuGet packages with a fluent builder pattern for DI configuration.
+.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, payment tracking, and Boltz integration (submarine / reverse / chain swaps). Published as NuGet packages with a fluent builder pattern for DI configuration. Ships a Blazor WASM sample wallet and DocFX-generated docs site, both deployed to GitHub Pages.
 
 **Key Capabilities**:
-- VTXO lifecycle management (polling, sync, expiry tracking)
+- VTXO lifecycle management with resilient sync (stream + 5 s routine poll + retry schedule, time-window `after` filtering)
 - Batch round participation with MuSig2 tree signing
 - Intent-based off-chain transactions (create, register, sync, schedule)
-- Automatic coin selection with dust and sub-dust handling
+- Automatic coin selection with dust / sub-dust handling and server-driven `MaxOpReturnOutputs` / `MaxTxWeight`
+- Server-enforced VTXO/UTXO amount bounds and `BoardingAllowed` gate
 - Taproot contracts (payment, note, hash-locked, VHTLC)
 - On-chain boarding, settlement, and collaborative exit
 - Sweeping expired/swept VTXOs on-chain
-- Boltz chain swaps (ARK<->BTC) with MuSig2 cross-signatures
+- Boltz submarine (Ark→Lightning), reverse (Lightning→Ark), and chain (ARK<->BTC) swaps with MuSig2 cross-signatures
+- Payment tracking (`ArkPayment`, `ArkPaymentRequest`, `PaymentTrackingService`) — opt-in via `AddArkPaymentTracking()`
+- Vendored NBitcoin.Scripting (`OutputDescriptor`, parsers, `SigningRepository`) in `NArk.Abstractions`
 - HD wallet support with descriptor recycling
-- EF Core storage package (pluggable DB provider)
-- .NET Aspire AppHost for comprehensive E2E test infrastructure
+- EF Core storage package (pluggable DB provider, opt-in payment entities)
+- gRPC + REST/SSE transports with camelCase, string-encoded int64, and custom-signet (mutinynet) handling
+- Shared regtest E2E environment via the `arkade-os/arkade-regtest` git submodule + .NET Aspire AppHost
+- Blazor WASM sample wallet (`samples/NArk.Wallet/`) deployed to GitHub Pages alongside DocFX docs
 
-**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `efcore`, `aspire`, `grpc-client`, `taproot`
+**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `efcore`, `aspire`, `regtest-submodule`, `grpc-client`, `rest-client`, `sse`, `taproot`, `output-descriptor`, `payment-tracking`, `lnurl`, `blazor`, `wasm`, `docfx`
 
 **Synonyms**: `nark`, `nark-sdk`, `dotnet-client`, `csharp-sdk`, `.net-sdk`
 
 **Triggers**:
-- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`
-- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`
-- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`
-- **debug**: `grpc connection`, `batch session error`, `musig2 mismatch`, `swap failed`
+- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`, `nark wasm wallet`, `nark sample wallet`
+- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`, `payment tracking`, `output descriptor`, `blazor wasm wallet`
+- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`, `arkade-regtest submodule`, `docfx serve`
+- **debug**: `grpc connection`, `rest sse 501`, `batch session error`, `musig2 mismatch`, `swap failed`, `mutinynet network`, `bit besql sqlite`, `vtxo 11k cap`
 
-**Dependencies**: `arkd` (server communication via gRPC), `fulmine` (Boltz-side wallet in E2E), `boltz` (swap provider)
+**Dependencies**: `arkd` (server communication via gRPC + REST/SSE), `fulmine` (Boltz-side wallet in E2E), `boltz-backend` (swap provider), `arkade-regtest` (shared regtest env, git submodule)
 **Depended On By**: .NET applications building on Ark protocol
 
 ---
@@ -754,32 +779,35 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 **GitHub**: `${RUST_SDK_GITHUB}`
 
 **Description**:
-Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection), ark-client (high-level API), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), and ark-fees (fee estimation). Supports WASM compilation for browser use.
+Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection, Arkade Asset V1), ark-client (high-level API with VTXO watcher and chain swaps), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), ark-delegator (REST client for delegator services), and ark-fees (fee estimation). Supports WASM compilation for browser use.
 
 **Key Capabilities**:
 - Core Ark protocol types (ArkAddress, VTXO, BoardingOutput, ArkNote, vHTLC)
 - High-level client API (send VTXOs, settle rounds, check balances, transaction history)
-- gRPC transport (tonic) and REST transport (reqwest, WASM-compatible)
+- Generic offchain transaction builder (shared by VTXO and asset sends)
+- gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2
 - MuSig2 cooperative signing for round participation
 - BDK wallet integration for on-chain operations
-- Boltz submarine and reverse submarine swap integration
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC)
+- **Arkade Asset V1**: issue, transfer, burn, reissue with asset-preserving settlement
+- **VTXO delegation**: 3-of-3 delegated VTXOs, REST delegator client (`ark-delegator`), background `VtxoWatcher` for auto-renewal
 - DLC (Discreet Log Contracts) support
-- VTXO delegation and key discovery
+- Key discovery (probes delegate addresses too)
 - Coin selection algorithms and fee estimation
 - WASM build support (ark-core, ark-rest)
-- Comprehensive E2E test suite against live arkd
+- Comprehensive E2E test suite against live arkd (incl. `e2e_assets`, `fulmine_delegator_smoke`)
 
-**Tags**: `rust`, `sdk`, `ark`, `vtxo`, `musig2`, `grpc`, `rest`, `wasm`, `bdk`, `boltz`, `bitcoin`, `wallet-library`
+**Tags**: `rust`, `sdk`, `ark`, `vtxo`, `musig2`, `grpc`, `rest`, `wasm`, `bdk`, `boltz`, `bitcoin`, `wallet-library`, `delegator`, `vtxo-watcher`, `arkade-asset`, `chain-swap`
 
 **Synonyms**: `ark-rs`, `rust-ark-sdk`, `ark-rust`
 
 **Triggers**:
-- **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `rust wallet`, `wasm ark`, `bdk integration`
-- **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`
-- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`
-- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`
+- **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `ark-delegator`, `rust wallet`, `wasm ark`, `bdk integration`, `vtxo watcher`, `arkade asset rust`, `rust chain swap`
+- **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`, `delegator client`, `asset issuance rust`, `chain swap rust`
+- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`, `e2e_assets`, `fulmine_delegator_smoke`
+- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`, `delegator error`, `vtxo watcher error`, `chain swap refund`
 
-**Dependencies**: `arkd` (gRPC/REST server), `boltz-backend` (swap provider, optional), `Nigiri` (testing)
+**Dependencies**: `arkd` (gRPC/REST server, 0.9.2), `boltz-backend` (swap provider, optional — used for chain swaps), `fulmine` (delegator service, optional), `Nigiri` (testing)
 **Depended On By**: None (library — consumed by external wallet applications)
 
 ---
@@ -848,17 +876,20 @@ wallet / @arkade-os/sdk
 | arkade-escrow | arkd | Server-Client (via @arkade-os/sdk) |
 | arkade-escrow | @arkade-os/sdk | Library-Consumer |
 | introspector | arkd | Co-Signer (Arkade Script validation) |
-| dotnet-sdk | arkd | Client-Server (via gRPC) |
+| dotnet-sdk | arkd | Client-Server (via gRPC and REST/SSE) |
 | dotnet-sdk | fulmine | E2E-Test-Dependency |
-| dotnet-sdk | boltz | Swap-Integration |
+| dotnet-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
+| dotnet-sdk | arkade-regtest | Shared E2E regtest environment (git submodule) |
 | ts-sdk | arkd | Client-Server (REST/SSE) |
 | ts-sdk | wallet | Library-Consumer |
 | ts-sdk | arkade-escrow | Library-Consumer |
 | ts-sdk | fulmine | Delegator-Integration |
-| rust-sdk | arkd | Client-Server (via gRPC/REST) |
+| rust-sdk | arkd | Client-Server (via gRPC/REST, 0.9.2) |
 | rust-sdk | go-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | ts-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | dotnet-sdk | Sibling SDK (same protocol, different language) |
+| rust-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
+| rust-sdk | fulmine | Delegator-Integration (VTXO auto-renewal) |
 | compiler | introspector | Compiler-Runtime (compiler produces, introspector executes) |
 | compiler | arkd | Compiler-Consumer (arkd uses compiled contract artifacts) |
 | compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
@@ -969,10 +1000,10 @@ For conceptual questions, prioritize documentation loading order:
 | arkade-escrow | POC | L Alpha | Escrow platform, proof-of-concept |
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
-| dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages |
-| boltz-swap | Active Dev | Alpha | TypeScript Boltz swap library |
+| dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages, DocFX site + Blazor WASM sample wallet on GitHub Pages |
+| boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.22, @arkade-os/sdk 0.4.21 |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
-| ts-sdk | Active Dev | ✓ Beta | v0.3.13, npm published, multi-platform |
+| ts-sdk | Active Dev | ✓ Beta | v0.4.21, npm published, multi-platform |
 
 ---
 
@@ -985,6 +1016,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha → beta → stable)
 
-**Last Updated**: 2026-03-13
-**Version**: 1.5.0
+**Last Updated**: 2026-04-29
+**Version**: 1.5.3
 **Maintained By**: Arkadian Documentation Team

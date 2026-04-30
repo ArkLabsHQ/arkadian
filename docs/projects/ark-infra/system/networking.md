@@ -10,9 +10,11 @@ Ark infrastructure uses a multi-layered networking approach:
 
 ## VPC Design
 - **CIDR**: 10.10.0.0/16
-- **Public subnets**: NAT Gateway only (no compute)
-- **Private subnets**: EC2, RDS, Redis (all application resources)
-- **Multi-AZ**: Resources span 2 availability zones
+- **Public subnets**: 10.10.{1,2,3}.0/24 — host NAT Gateways and VPC endpoints
+- **Private subnets**: 10.10.{101,102,103}.0/24 — EC2, RDS, Redis
+- **Multi-AZ**: Resources span 3 availability zones (eu-central-1a/1b/1c)
+- **NAT topology**: `vpc_nat_per_az` feature flag — `true` (default): one NAT per AZ for HA;
+  `false`: single shared NAT in AZ-a (saves ~$64/mo for dev/staging)
 
 ## Security Groups
 1. **app_sg**: EC2 instance (self-referential + VPC endpoints)
@@ -21,10 +23,10 @@ Ark infrastructure uses a multi-layered networking approach:
 4. **vpc_endpoints_sg**: Private endpoints (port 443 from app_sg)
 
 ## VPC Endpoints
-**Interface Endpoints** (~$50/mo):
+**Interface Endpoints** (~$50/mo, span all 3 private AZs):
 - SSM (ssm, ssmmessages, ec2messages) - Session Manager access
 - ECR (ecr.api, ecr.dkr) - Docker registry
-- CloudWatch Logs - Session logging
+- CloudWatch Logs - Session logging + container `awslogs` ingest
 
 **Gateway Endpoint** (Free):
 - S3 - ECR image layers

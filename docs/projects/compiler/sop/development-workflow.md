@@ -73,6 +73,10 @@ cargo doc --open
    git push origin feature/my-feature
    ```
 
+   On PR open/push, the `pr-preview.yml` workflow builds the playground (WASM + `contracts.js`) and deploys it to `pr-previews/pr-{number}/` on the `gh-pages` branch. A bot comment posts the preview URL (`https://arkade-os.github.io/compiler/pr-previews/pr-{number}/`) and is updated on subsequent pushes. The subdirectory is removed when the PR is closed.
+
+   On merge to `master`, `deploy-playground.yml` deploys the playground to the root of `gh-pages` via `JamesIves/github-pages-deploy-action`, with `clean-exclude: pr-previews/` to preserve open PR previews. The workflow deletes `playground/.gitignore` before deploy so generated `pkg/` and `contracts.js` are included.
+
 ## Adding a New Contract Example
 
 1. Create `examples/my_contract.ark` with the contract source

@@ -4,10 +4,10 @@
 
 ### Prerequisites
 
-- Go 1.25.3+
+- Go 1.26+
 - Docker and Docker Compose
 - Buf CLI (for protobuf generation)
-- A running arkd instance (for full integration)
+- A running arkd instance (REQUIRED — `INTROSPECTOR_ARKD_URL` must point to it; the service fetches arkd's signer pubkey at startup)
 
 ### 1. Build
 
@@ -22,10 +22,11 @@ make build
 
 ### 2. Configure
 
-Set the required environment variable:
+Set the required environment variables:
 
 ```bash
 export INTROSPECTOR_SECRET_KEY=<hex_encoded_private_key>
+export INTROSPECTOR_ARKD_URL=<grpc_url_of_arkd>   # Required — used for finalization in SubmitTx
 ```
 
 Optional configuration:

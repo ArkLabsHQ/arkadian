@@ -55,11 +55,22 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Improved payment success rates
 - Better user experience
 
+**Claim Transaction Tracking**
+- Persists claim transaction IDs for reverse and chain swaps in a dedicated `claim_transactions` table
+- PostgreSQL trigger enforces that each claim transaction's `swap_id` references an existing reverse or chain swap
+- Cooperative claims on UTXO-based chains are intentionally not stored (preimage already obtained from cooperative signing)
+
+**Robust Swap Lifecycle**
+- Tolerates positive slippage on commitment swaps and chain-swap renegotiation (single shared `OverpaymentProtector`)
+- Recomputes zero-conf decisions on chain-swap renegotiation
+- Excludes paid swaps from invoice expiry; expiry never overwrites paid swaps
+- Bounded swap-restore pagination during recovery
+
 ## Technology Stack
 
 ### TypeScript/Node.js
-- Primary backend implementation
-- Express for REST API
+- Primary backend implementation (TypeScript **v6**)
+- Express for REST API (build via `tsconfig.build.json`)
 - Sequelize ORM for database
 - gRPC clients for Lightning integration
 

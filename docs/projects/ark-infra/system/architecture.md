@@ -13,39 +13,55 @@ The Ark infrastructure follows a multi-layered architecture combining AWS cloud 
 VPC: 10.10.0.0/16 (65,536 IPs)
 ├── Public Subnets (Internet-facing)
 │   ├── 10.10.1.0/24 (AZ-a) - NAT Gateway
-│   └── 10.10.2.0/24 (AZ-b) - NAT Gateway (HA)
+│   ├── 10.10.2.0/24 (AZ-b) - NAT Gateway (when vpc_nat_per_az=true)
+│   └── 10.10.3.0/24 (AZ-c) - NAT Gateway (when vpc_nat_per_az=true)
 └── Private Subnets (Internal only)
     ├── 10.10.101.0/24 (AZ-a) - EC2, RDS, Redis
-    └── 10.10.102.0/24 (AZ-b) - RDS, Redis (Multi-AZ)
+    ├── 10.10.102.0/24 (AZ-b) - RDS replica, Redis replica
+    └── 10.10.103.0/24 (AZ-c) - RDS / Redis spare AZ for Multi-AZ failover
 ```
 
 **Design Rationale**:
-- Multi-AZ for high availability
+- 3 AZs for high availability (eu-central-1a/1b/1c)
 - Public subnets host only NAT Gateway (no compute)
 - Private subnets host all application resources
 - No public IPs on application instances
+- `vpc_nat_per_az` feature flag: `true` provisions one NAT per AZ (~$32/mo each, true HA);
+  `false` routes all egress through the AZ-a NAT (saves ~$64/mo, suitable for dev/staging)
+- OpenTofu `moved {}` blocks migrate the previous singular NAT/route table state into the
+  per-AZ map keyed by `"a"`
 
 #### Compute Resources
 - **EC2 Instance** (private subnet)
   - Default: t3.large (2 vCPU, 8GB RAM)
-  - Prod recommended: t3.xlarge+ (4+ vCPU, 16GB+ RAM)
-  - Root EBS: 60GB gp3
+  - Prod: t3.xlarge (4 vCPU, 16GB RAM)
+  - Root EBS: configurable via `root_volume_size` (default 60 GB; prod 120 GB)
   - Additional EBS: Variable (for Bitcoin data)
-  - IAM role with SSM, ECR, Secrets Manager permissions
+  - IAM role with SSM, ECR, Secrets Manager, CloudWatch Logs permissions
+  - `lifecycle { ignore_changes = all }` — instance is treated as a pet; OpenTofu
+    will not replace or modify it on subsequent applies
 
 #### Databases
 - **RDS PostgreSQL 17** (3 instances):
   - `postgres-projection`: CQRS read model (query-heavy)
   - `postgres-event`: Event sourcing (write-heavy)
   - `postgres-nbxplorer`: Blockchain indexer (highest load)
-  - Custom parameter groups with tuning
-  - Automated backups (7-day retention for prod)
+  - Custom parameter groups with tuning (`track_io_timing` applied at `pending-reboot`)
+  - **Multi-AZ**: enabled for non-ephemeral envs (~+$28/instance) — automatic standby replica
+    in a failover AZ; promotes during maintenance for near-zero downtime
+  - **Automated backups**: `db_instance_backup_retention_period` — default 7 days, prod 30 days
+  - **Performance Insights**: enabled on all instances —
+    `db_instance_performance_insights_retention_period` default 7 days, prod 31 days
+  - Subnet group spans private subnets in all 3 AZs
 
 #### Cache
-- **ElastiCache Redis 7.0**
+- **ElastiCache Redis 7.0** (replication group)
   - Default: cache.t3.micro
-  - Prod recommended: cache.t3.small+ with Multi-AZ
-  - Used for session state, queues, locks
+  - Prod: cache.t3.small
+  - Subnet group spans private subnets in all 3 AZs
+  - Non-ephemeral envs: 2 cache clusters (primary + replica), `multi_az_enabled = true`,
+    `automatic_failover_enabled = true` (~+$12/mo for replica)
+  - Ephemeral envs: 1 cache cluster, no failover
 
 #### Networking Components
 - **NAT Gateway**: Outbound internet access (~$32/mo + data)
@@ -275,12 +291,15 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
 | Aspect | Regtest | Staging | Production |
 |--------|---------|---------|------------|
 | Bitcoin Node | External (nigiri) | bitcoind mainnet | bitcoind mainnet |
-| EBS Volume | No | Optional | Required (800GB) |
-| RDS Size | t3.micro | t3.small | t3.small/medium |
-| Redis | t3.micro | t3.small | t3.small+ (Multi-AZ) |
+| Root Volume | 60 GB | 60 GB | 120 GB |
+| EBS Data Volume | No | Optional | Required (800GB) |
+| RDS Size | t3.micro | t3.micro | t3.small / t3.medium |
+| RDS Multi-AZ | No (ephemeral_env) | Yes | Yes |
+| RDS Backup Retention | None | 7 days | 30 days |
+| RDS Performance Insights | 7 days | 7 days | 31 days |
+| Redis | t3.micro single | t3.micro Multi-AZ | t3.small Multi-AZ |
+| NAT Gateways | per AZ (HA, default) | per AZ (HA, default) | per AZ (HA) |
 | Fast Sync | N/A | Yes | Yes |
-| Backups | No | Optional | Automated (7-day) |
-| Multi-AZ | No | No | Optional |
 | Cost/Month | ~$150 | ~$400 | ~$800+ |
 
 ## Security Architecture
@@ -367,9 +386,11 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
   - Bitcoin metrics (sync status, peer count)
 
 ### Logging
-- **Loki**: Log aggregation
-- **CloudWatch Logs**: SSM session logs
-- **Docker logs**: Container stdout/stderr
+- **CloudWatch Logs (primary)**: All container stdout/stderr is shipped via the Docker
+  `awslogs` driver to log group `/ark/${ARK_ENVIRONMENT}` (14-day retention) — one stream
+  per service. ⚠️ `docker logs` no longer prints output on the host; query CloudWatch instead.
+- **Loki**: Log aggregation for telemetry stack (Grafana Explore)
+- **CloudWatch Logs**: SSM session logs (`/aws/ssm/sessions/{env}`)
 
 ### Tracing
 - **Jaeger**: Distributed tracing for request flows

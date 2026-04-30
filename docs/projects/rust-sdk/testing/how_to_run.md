@@ -60,6 +60,11 @@ This runs:
 just e2e-tests     # Run all E2E tests
 ```
 
+E2E suites of note:
+- `e2e_assets` — asset issuance / transfer / burn / reissue
+- `e2e_delegate`, `e2e_multisig_delegate` — delegated settlement
+- `fulmine_delegator_smoke` — full VtxoWatcher loop against a fulmine delegator (skipped in CI; runs locally with the fulmine stack on `http://localhost:7004`)
+
 ### Full E2E Cycle (Clean Start)
 
 ```bash

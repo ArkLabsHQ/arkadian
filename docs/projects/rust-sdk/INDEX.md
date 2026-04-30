@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.0.0
-last_sync_commit: efa10e23ff5a540f16adff08f7d8856e2cc293e1
+version: 1.1.0
+last_sync_commit: 3abb5df17848079c72d01ba8f2569ef7fa8f85a8
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -65,20 +65,23 @@ Feature specifications and implementation tracking.
 - **ark-rest** (v0.8.0): REST transport for arkd (reqwest-based, WASM-compatible)
 - **ark-bdk-wallet** (v0.8.0): BDK integration for on-chain wallet operations
 - **ark-fees** (v0.8.0): Fee estimation utilities
+- **ark-delegator** (v0.8.0): REST client for Ark delegator services (auto-renewal of VTXOs)
 - **ark-rs**: Umbrella re-export crate
-- **ark-client-sample**: Example client application
+- **ark-client-sample**: Example client application (with `watch-delegated` command)
 - **e2e-tests**: End-to-end test suite against live arkd
 
 ### Protocol Features
-- Off-chain VTXO payments (send, receive, settle)
+- Off-chain VTXO payments (send, receive, settle) — unified offchain-send builder for VTXO and asset sends
 - On-chain boarding and unilateral exit
-- Round participation with MuSig2 signing
+- Round participation with MuSig2 signing — asset-preserving settlement
 - Ark notes (transferable payment proofs)
 - DLC (Discreet Log Contracts) support
-- Boltz submarine and reverse submarine swaps
-- Delegation (VTXO refresh by third party)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC)
+- **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
+- **Arkade Asset V1**: issue, transfer, burn, reissue
 - Sub-dust amounts
-- Key discovery
+- Key discovery (now probes delegate addresses too)
+- arkd protocol 0.9.2 (gRPC + REST)
 
 ### Transport Options
 - **gRPC** (default): Via `ark-grpc` with tonic, native TLS
@@ -170,14 +173,16 @@ ark-rs (umbrella re-export)
         ├── ark-core (types, crypto, protocol logic)
         ├── ark-fees (fee estimation)
         ├── ark-grpc (gRPC transport) ──── ark-core
-        └── ark-rest (REST transport) ──── ark-core
+        ├── ark-rest (REST transport) ──── ark-core
+        └── ark-delegator (REST delegator client) ──── ark-core
   └── ark-bdk-wallet (BDK on-chain wallet)
         └── ark-core
 
 e2e-tests (integration tests)
   ├── ark-client
   ├── ark-core
-  └── ark-bdk-wallet
+  ├── ark-bdk-wallet
+  └── ark-delegator (fulmine_delegator_smoke)
 ```
 
 ### Data Flow
@@ -209,7 +214,14 @@ ark-client (Client / OfflineClient)
 ### Boltz Swap Provider
 - **Submarine swaps**: On-chain → Lightning
 - **Reverse submarine swaps**: Lightning → On-chain
-- **Swap storage**: In-memory or SQLite-backed
+- **Chain swaps**: ARK ↔ on-chain BTC (`create_chain_swap` / `claim_chain_swap` / `refund_chain_swap`)
+- **Swap storage**: In-memory or SQLite-backed (with new `chain_swaps` table — migration `002_chain_swaps.sql`)
+
+### Delegator Service
+- **REST API**: `GET /v1/delegator/info`, `POST /v1/delegate`
+- **Reference implementation**: fulmine
+- **Client**: `ark-delegator` crate
+- **Background watcher**: `client.start_vtxo_watcher(delegator)` — auto-delegates new VTXOs and self-renews near-expiry ones
 
 ### Bitcoin Network
 - **Esplora**: Block explorer backend for chain queries

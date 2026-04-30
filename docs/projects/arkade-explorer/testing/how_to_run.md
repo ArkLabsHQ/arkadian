@@ -88,6 +88,8 @@ docker run -p 8080:80 arkade-explorer
 
 The Dockerfile uses a multi-stage build: Node 22 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html).
 
+The published GHCR image (`ghcr.io/arklabshq/arkade-explorer:latest`) is multi-arch (`linux/amd64` and `linux/arm64`); `docker run` will pull the variant matching your host automatically.
+
 ---
 
 ## IDE Setup

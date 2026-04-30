@@ -78,29 +78,31 @@ Swap states:
 - **ChainClient**: Bitcoin/Liquid blockchain interface
 - **ChainTipRepository**: Track chain state
 - **UTXOManager**: Manage unspent outputs
-- **FeeEstimator**: Estimate on-chain fees
+- **FeeEstimator**: Estimate on-chain fees (Bitcoin estimations rounded to one decimal for stability)
+- **MempoolClient**: Hardened mempool.space integration with deduplicated instances
 
 Supports:
-- Bitcoin Core (bitcoind)
+- Bitcoin Core **v31.0** (bitcoind)
 - btcd
-- Liquid daemon (elementsd)
+- Liquid daemon (elementsd **v23.3.3**)
 
 ### Lightning Integration (`lib/lightning/`)
 - **LndClient**: gRPC client for LND
-- **ClnClient**: gRPC client for Core Lightning (via boltzr)
+- **ClnClient**: gRPC client for Core Lightning (via boltzr) — CLN **v26.04.1**
 - **InvoiceManager**: Create and monitor invoices
 - **PaymentManager**: Execute Lightning payments
 
 Features:
 - BOLT11 invoice support
-- BOLT12 offers (CLN)
+- BOLT12 offers (CLN) — hardened offer handling
 - Routing hints
 - Multi-path payments
 
 ### Database (`lib/db/`)
 - **Sequelize ORM**: Database abstraction
-- **Models**: Swap, ReverseSwap, ChainSwap, Transaction, etc.
-- **Migrations**: Schema versioning
+- **Models**: Swap, ReverseSwap, ChainSwap, Transaction, ClaimTransaction, etc.
+- **Migrations**: Schema versioning (Sequelize + diesel for `boltzr`)
+- **Claim transactions table** (`claim_transactions`): records broadcast claim TXIDs for reverse/chain swaps, with a Postgres trigger enforcing `swap_id ∈ reverseSwaps ∪ chainSwaps`. Cooperative claims on UTXO chains are not stored.
 
 Supported databases:
 - PostgreSQL (production)

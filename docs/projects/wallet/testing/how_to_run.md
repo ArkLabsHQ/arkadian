@@ -88,16 +88,31 @@ docker run -d -p 80:80 arkade-wallet
 
 ## E2E Test Environment
 
+The wallet now uses the shared `arkade-regtest` submodule for the regtest stack
+plus a small `nak` Nostr relay docker compose. Initialize submodules once:
+
 ```bash
-# Start test backend (arkd + nak Nostr relay)
-docker compose -f test.docker-compose.yml up -d
+git submodule update --init --recursive
+```
+
+Then:
+
+```bash
+# Start arkade-regtest (nigiri + arkd + boltz + LND + fulmine) and nak relay
+pnpm run regtest:start
+
+# Seed test fixtures
+pnpm run regtest:setup
 
 # Run Playwright tests
 pnpm exec playwright test
 
-# Stop test backend
-docker compose -f test.docker-compose.yml down
+# Stop / clean
+pnpm run regtest:stop      # stop containers
+pnpm run regtest:clean     # stop + wipe volumes
 ```
+
+Image versions and per-stack overrides live in `.env.regtest`.
 
 ## Common Commands
 

@@ -15,9 +15,10 @@ scripts:
   test: "pnpm test"
   test_unit: "pnpm test:unit"
   test_integration: "pnpm test:integration"
-  regtest_up: "pnpm regtest:up"
-  regtest_down: "pnpm regtest:down"
-  regtest_setup: "pnpm regtest:setup"
+  regtest_up: "pnpm regtest:start"
+  regtest_down: "pnpm regtest:stop"
+  regtest_clean: "pnpm regtest:clean"
+  regtest_setup: "pnpm test:setup-docker"
 ---
 
 # Arkade Boltz Swap Library — Project Index

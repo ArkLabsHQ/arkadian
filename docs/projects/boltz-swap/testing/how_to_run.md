@@ -10,9 +10,13 @@
 ### Install Dependencies
 
 ```bash
-git clone git@github.com:arkade-os/boltz-swap.git
+# Clone with submodules (regtest harness lives in the arkade-regtest submodule)
+git clone --recurse-submodules git@github.com:arkade-os/boltz-swap.git
 cd boltz-swap
 pnpm install
+
+# If you already cloned without submodules:
+git submodule update --init --recursive
 ```
 
 ---
@@ -41,15 +45,15 @@ pnpm test --watch
 
 ### Integration Tests
 ```bash
-# Start regtest environment first
-pnpm regtest:up
-pnpm regtest:setup
+# Start regtest environment first (uses arkade-regtest submodule)
+pnpm regtest:start
+pnpm test:setup-docker
 
 # Run integration tests
 pnpm test:integration
 
 # Stop regtest environment
-pnpm regtest:down
+pnpm regtest:stop
 ```
 
 ### All Tests
@@ -62,30 +66,38 @@ pnpm test
 
 ## Regtest Environment
 
-The library includes a Docker Compose stack for integration testing:
+Integration testing uses the [`arkade-regtest`](https://github.com/ArkLabsHQ/arkade-regtest) git submodule (replaces the legacy bundled `test.docker-compose.yml`). Image versions and arkd flags are pinned via `.env.regtest`.
 
 ### Start Regtest
 ```bash
-# Full setup (build + up + setup)
+# Full one-shot: clean → start → setup wallets
 pnpm regtest
 
 # Or step by step:
-pnpm regtest:build   # Build Docker images
-pnpm regtest:up      # Start services
-pnpm regtest:setup   # Initialize wallets
+pnpm regtest:clean   # Tear down + remove volumes
+pnpm regtest:start   # ./regtest/start-env.sh
+pnpm test:setup-docker  # Initialize wallets
 ```
 
 ### Services
 - **Bitcoin (Nigiri)**: Port 18443 (RPC), 3000 (Esplora)
 - **NBXplorer**: Port 32838
-- **arkd-wallet**: Port 6060
-- **arkd**: Port 7070
+- **arkd-wallet**: Port 6060 (pinned to `v0.9.1` via `.env.regtest`)
+- **arkd**: Port 7070 (pinned to `v0.9.1`, block scheduler with CSV block type)
 - **Boltz Backend**: Port 9001
+- **fulmine** (optional): pinned to `v0.3.15`
 
 ### Stop Regtest
 ```bash
-pnpm regtest:down
+pnpm regtest:stop
 ```
+
+### Configuration (`.env.regtest`)
+The repo's `.env.regtest` overrides arkade-regtest defaults:
+- Pins arkd / arkd-wallet / fulmine image tags to known-good versions
+- Forces `ARKD_SCHEDULER_TYPE=block` and CSV block type for VHTLC compatibility
+- Sets `ARKD_VTXO_TREE_EXPIRY=200`, `ARKD_BOARDING_EXIT_DELAY=1024`, `ARKD_ROUND_INTERVAL=3`
+- Zeroes Ark on/off-chain input/output fees (boltz-swap tests don't account for intent fees)
 
 ---
 
@@ -187,12 +199,12 @@ const swapProvider = new BoltzSwapProvider({
 # Check Docker status
 docker ps
 
-# View logs
-docker compose -f test.docker-compose.yml logs arkd
-docker compose -f test.docker-compose.yml logs boltz-backend
+# View logs (services live under regtest/ submodule compose stack)
+docker compose -f regtest/docker-compose.yml logs arkd
+docker compose -f regtest/docker-compose.yml logs boltz-backend
 
 # Reset environment
-pnpm regtest:down
+pnpm regtest:clean
 docker system prune -f
 pnpm regtest
 ```
@@ -200,7 +212,7 @@ pnpm regtest
 ### Tests Failing
 ```bash
 # Ensure regtest is running
-pnpm regtest:up
+pnpm regtest:start
 
 # Verify services are healthy
 curl http://localhost:7070/v1/info      # arkd
@@ -208,7 +220,7 @@ curl http://localhost:9001/v1/info      # Boltz
 curl http://localhost:3000/api/blocks/tip/height  # Bitcoin
 
 # Re-run setup
-pnpm regtest:setup
+pnpm test:setup-docker
 ```
 
 ### Port Conflicts

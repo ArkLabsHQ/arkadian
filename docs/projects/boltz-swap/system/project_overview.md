@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.2.16`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.22`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -105,7 +105,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.3.10` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.21` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -209,8 +209,17 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.2.16
+**Version**: 0.3.22
 **Stability**: Stable API, active feature development
+
+**Recent Improvements (0.3.13 → 0.3.22)**:
+- Submarine swap refund robustness: include recoverable VTXOs, skip pre-CLTV recoverable VTXOs instead of aborting, only mark refunded when all VTXOs processed, fall back to `refundWithoutReceiver` when Boltz rejects refund
+- Default description `"send to Arkade address"` applied to reverse swaps when none provided
+- Schema alignment with Boltz swagger (Tree, SwapStatus, swap response, restore)
+- Retry claim when indexer returns no VTXOs
+- Renamed `Pending-` swap interfaces to `Boltz-` (with backwards-compatible type aliases)
+- Replaced bundled `test.docker-compose.yml` with `arkade-regtest` git submodule for integration testing
+- Refresh VTXOs when using `VtxoManager` to avoid stale state
 
 **Production Features**:
 - Comprehensive error handling with typed errors

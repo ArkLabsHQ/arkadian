@@ -10,24 +10,27 @@ This document describes the component structure and UI patterns used in Arkade W
 src/
 ├── App.tsx                    # Root component, routing
 ├── index.tsx                  # Entry point
-├── components/                # Reusable components
-│   ├── Announcement.tsx       # In-app announcement banners
-│   ├── Button.tsx
-│   ├── ChatWoot.tsx           # Customer support chat widget
-│   ├── Details.tsx
-│   ├── Focusable.tsx          # Keyboard navigation wrapper
-│   ├── Header.tsx
-│   ├── InputAmount.tsx        # Amount input with fiat/sats toggle
-│   ├── InputFake.tsx          # Display-only input
+├── components/                # In-tree component library (Ionic removed)
+│   ├── Button.tsx, ButtonsOnBottom.tsx
+│   ├── Input.tsx, InputAmount.tsx, InputContainer.tsx
+│   ├── InputPassword.tsx, NewPassword.tsx, InputWithScanner.tsx
+│   ├── Checkbox.tsx, Toggle.tsx, Select.tsx, Strength.tsx
 │   ├── Keyboard.tsx           # Custom numeric keyboard
-│   ├── Modal.tsx              # Reusable modal component
-│   ├── QrCode.tsx
-│   ├── Scanner.tsx            # QR scanner (refactored)
-│   ├── SwapsList.tsx          # Swap history list
-│   ├── Table.tsx              # Data table
-│   ├── TransactionsList.tsx   # Transaction history
-│   ├── Warning.tsx            # Warning/info boxes
+│   ├── Modal.tsx, SheetModal.tsx (react-spring-bottom-sheet)
+│   ├── Toast.tsx              # Toast notifications
+│   ├── Refresher.tsx          # Pull-to-refresh (replaces ion-refresher)
+│   ├── Header.tsx, Content.tsx, Padded.tsx, Grid.tsx
+│   ├── PillNavbarOverlay.tsx  # Bottom nav, root-pages only
+│   ├── QrCode.tsx             # Styled QR with tap-to-copy
+│   ├── ErrorBoundary.tsx, BootError.tsx, LoadingLogo.tsx, Empty.tsx
+│   ├── Reminder.tsx, Warning.tsx
+│   ├── AssetCard.tsx, Balance.tsx, Details.tsx, Table.tsx
+│   ├── TransactionsList.tsx, SwapsList.tsx, ExpandAddresses.tsx
+│   ├── Paste.tsx, Clipboard.tsx, Text.tsx
 │   └── ...
+├── hooks/                     # Custom React hooks
+│   ├── useLnurlSession.ts     # LNURL receive SSE session
+│   ├── useBounceMorph.ts, useReducedMotion.ts, useLoadingStatus.ts
 ├── screens/
 │   ├── Init/
 │   │   ├── Connect.tsx        # Server connection
@@ -510,51 +513,48 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 **Lendasat/**: Bitcoin lending/borrowing integration
 **Lendaswap/**: Lendaswap service integration
 
-## Ionic Components Used
+## Custom Component Library
 
-### Layout
+**Note**: As of PR #534, Ionic React (`@ionic/react`, `@ionic/normalize`) has been removed from the wallet. All UI primitives are now hand-rolled React components living under `src/components/`. CSS resets formerly provided by Ionic now live in `src/index.css` and `src/ionic.css`.
 
-- **IonApp**: Root application wrapper
-- **IonPage**: Full-page container
-- **IonHeader**: Page header
-- **IonContent**: Scrollable content area
-- **IonFooter**: Page footer
+### Layout & Containers
+- **Header**, **Content**, **Padded**, **Grid**: Page structure primitives
+- **PillNavbarOverlay**: Bottom navigation pill — visible only on root pages (Wallet, Apps, Settings), Framer Motion spring animation, `pointer-events: none` + `inert` when hidden
 
-### Navigation
+### Inputs & Forms
+- **Input**, **InputContainer**: Text inputs
+- **InputAmount**: Amount input with sats/fiat toggle and currency-symbol prefix
+- **InputPassword**, **NewPassword**: Password fields
+- **InputWithScanner**: Text input with embedded paste/scan QR pill buttons
+- **Checkbox**, **Toggle**, **Select**: Form controls
+- **Keyboard**: Custom numeric keyboard (animates with `overlaySlideUp`, respects prefers-reduced-motion)
+- **Strength**: Password strength meter
 
-- **IonRouter**: React Router wrapper
-- **IonTabs**: Tab-based navigation
-- **IonTabBar**: Tab bar at bottom
-- **IonTabButton**: Individual tab button
-- **IonBackButton**: Back navigation button
+### Buttons & Actions
+- **Button**: Primary/secondary/outline variants
+- **ButtonsOnBottom**: Footer button container with safe-area padding
+- **Paste**: Paste-from-clipboard pill
+- **Refresher**: Pull-to-refresh component (replaces `ion-refresher`)
 
-### UI Elements
+### Modals & Feedback
+- **Modal**: Centered modal dialog
+- **SheetModal**: Bottom sheet modal (uses `react-spring-bottom-sheet`)
+- **Toast**: Toast notifications (replaces previous `lib/toast.ts`)
+- **LoadingLogo**: Full-screen loading state
+- **ErrorBoundary**: React error boundary with fallback UI
+- **BootError**: Boot-time error display
+- **Empty**: Empty-state placeholder
+- **Reminder**, **Warning**: Inline notice/warning banners
 
-- **IonButton**: Buttons (primary, secondary, outline, clear)
-- **IonInput**: Text input fields
-- **IonTextarea**: Multi-line text input
-- **IonItem**: List item container
-- **IonList**: List container
-- **IonCard**: Card container
-- **IonCardHeader**, **IonCardContent**: Card sections
-- **IonLabel**: Text labels
-- **IonIcon**: Icons from Ionicons
-
-### Feedback
-
-- **IonSpinner**: Loading indicator
-- **IonAlert**: Alert dialogs
-- **IonToast**: Toast notifications
-- **IonModal**: Modal overlays
-- **IonLoading**: Full-screen loading overlay
-
-### Forms
-
-- **IonSegment**, **IonSegmentButton**: Segmented controls
-- **IonToggle**: Toggle switches
-- **IonCheckbox**: Checkboxes
-- **IonRadio**, **IonRadioGroup**: Radio buttons
-- **IonSelect**, **IonSelectOption**: Dropdowns
+### Data Display
+- **AssetCard**, **Balance**: Balance and asset cards
+- **Details**: Key/value detail rows
+- **Table**: Data table
+- **TransactionsList**: Transaction history (top-aligned rows when assets present, max 2 coins on right)
+- **SwapsList**: Swap history
+- **QrCode**: Styled QR with tap-to-copy support
+- **ExpandAddresses**: Collapsible address list
+- **Clipboard**, **Text**: Text utilities
 
 ## Styling Approach
 

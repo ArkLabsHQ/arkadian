@@ -45,27 +45,31 @@ Introspector follows a clean layered architecture with three main layers:
 
 | File | Responsibility |
 |------|---------------|
-| `service.go` | Service interface definition, constructor, GetInfo, prevout fetcher |
-| `tx.go` | SubmitTx — executes Arkade Scripts on off-chain Ark transactions |
-| `intent.go` | SubmitIntent — validates and signs intent proofs before registration |
-| `finalization.go` | SubmitFinalization — signs forfeits and commitment after prior validation |
-| `signer.go` | Schnorr/Taproot signing with Arkade Script key tweaking |
-| `utils.go` | Arkade Script reading from PSBTs, script execution wrapper |
+| `service.go` | `Service` interface, constructor, GetInfo, embedded `arkd` gRPC client + cached `arkd` signer pubkey |
+| `tx.go` | `SubmitTx` — executes Arkade Scripts on off-chain Ark transactions; when this introspector is the last non-`arkd` signer for all matched inputs, forwards the set to `arkd`, merges its sigs and finalizes |
+| `intent.go` | `SubmitIntent` — validates and signs intent proofs before registration |
+| `finalization.go` | `SubmitFinalization` — signs forfeits and commitment after prior validation |
+| `onchain.go` | `SubmitOnchainTx` — signs plain Bitcoin PSBTs whose tapscript contains the introspector's tweaked key; rejects inputs whose tapscript closure also contains the `arkd` signer pubkey |
+| `prevout.go` | Prevout fetcher implementations for Ark transactions and onchain PSBTs (used by introspection opcodes that reference previous outputs) |
+| `signer.go` | Schnorr/Taproot signing with Arkade Script key tweaking; tapscript signature verification delegated to `ark-lib` |
 
 ### Arkade Script Engine (`pkg/arkade/`)
 
 The core script VM extending Bitcoin Script. Key files:
 
-| File | Size | Purpose |
-|------|------|---------|
-| `engine.go` | ~51KB | Script execution engine, stack machine |
-| `opcode.go` | ~114KB | All opcode implementations (50+ opcodes) |
-| `sigvalidate.go` | ~15KB | Signature validation helpers |
-| `stack.go` | ~9KB | Stack data structure and operations |
-| `scriptnum.go` | ~8KB | Script number encoding/decoding |
-| `tokenizer.go` | ~7KB | Script tokenization and parsing |
-| `psbt_field.go` | ~2KB | Custom PSBT field definitions |
-| `tweak.go` | ~2KB | Key tweaking for Arkade Script signing |
+| File | Purpose |
+|------|---------|
+| `engine.go` | Script execution engine, stack machine |
+| `opcode.go` | Core opcode implementations (50+ opcodes) |
+| `asset_opcodes.go` | Arkade Asset V1 introspection opcodes (group lookups, sums, cross-input/output) |
+| `bignum.go` | Sign-magnitude little-endian BigNum arithmetic with int64 fast path; powers all VM arithmetic and CLTV/CSV |
+| `introspector_packet.go` | Encode/decode + `Validate()` for the per-input script + witness Introspector Packet (TLV inside ARK extension OP_RETURN) |
+| `psbt_fields.go` | Custom PSBT field definitions (e.g. `prevouttx` for `SubmitOnchainTx` introspection) |
+| `script.go` | High-level Arkade script wrapper (closure pubkeys, hash, execute) |
+| `stack.go` | Stack data structure and `PushBigNum` / `PopBigNum` / `PeekBigNum` helpers |
+| `tokenizer.go` | Script tokenization and parsing |
+| `tweak.go` | Key tweaking for Arkade Script signing (`introspector_key + tagged_hash("ArkScriptHash", script)`) |
+| `*_fuzz_test.go` | Fuzz harnesses for tokenizer, opcodes, and engine |
 
 ### Client Library (`pkg/client/`)
 
@@ -80,13 +84,31 @@ The core script VM extending Bitcoin Script. Key files:
 ### SubmitTx Flow
 ```
 1. Client sends ArkTx PSBT + Checkpoint PSBTs
-2. Index checkpoints by txid
-3. For each input in ArkTx:
-   a. Read Arkade Script from PSBT field
+2. Find Introspector Packet (ARK extension, type 0x01) in ArkTx OP_RETURN
+3. Index checkpoints by txid
+4. For each entry in the Introspector Packet:
+   a. Read Arkade Script + witness from packet entry; verify input has tweaked pubkey
    b. Execute script against transaction
    c. If valid: sign input with tweaked key
    d. Find matching checkpoint, sign it too
-4. Return signed ArkTx + signed Checkpoints
+5. If this introspector is the last required non-arkd signer for ALL matched inputs:
+   a. Submit signed ArkTx + Checkpoints to arkd via embedded gRPC client
+   b. Merge arkd's checkpoint signatures, finalize the ArkTx
+   c. Return finalized ArkTx + updated Checkpoint PSBTs
+   Otherwise: return only this introspector's added signatures.
+```
+
+### SubmitOnchainTx Flow
+```
+1. Client sends a plain Bitcoin PSBT
+2. Build prevout fetcher (uses optional `prevouttx` PSBT unknown when present)
+3. Find Introspector Packet in the OP_RETURN
+4. For each entry:
+   a. Read Arkade Script from packet; ensure the input tapscript carries the introspector's tweaked key
+   b. Reject if the same tapscript closure also contains the arkd signer pubkey
+   c. Execute script against transaction
+   d. Sign input with tweaked key
+5. Return signed PSBT
 ```
 
 ### SubmitIntent Flow

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.25.3+
+- Go 1.26+
 - Docker and Docker Compose
 - Buf CLI (for protobuf generation)
 - Nigiri (Bitcoin regtest environment)
@@ -44,6 +44,19 @@ make lint
 ```bash
 go test -v ./pkg/arkade/...
 ```
+
+### 3b. Run Fuzz Tests (optional)
+
+The Arkade Script engine has fuzz harnesses for the tokenizer, opcodes, and engine:
+
+```bash
+cd pkg/arkade
+go test -run=^$ -fuzz=FuzzArkadeScriptTokenizer -fuzztime=10m
+go test -run=^$ -fuzz=FuzzOpcodes -fuzztime=10m
+go test -run=^$ -fuzz=FuzzEngine -fuzztime=10m
+```
+
+Seed corpora live under `pkg/arkade/testdata/fuzz/`.
 
 ### 4. Run Integration Tests
 

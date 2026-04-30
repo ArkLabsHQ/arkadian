@@ -142,22 +142,35 @@ pnpm run test:coverage
 
 ### E2E Tests (Playwright)
 
+The wallet uses the shared `arkade-regtest` submodule for the full regtest stack
+(nigiri, custom arkd, boltz, LND, fulmine) plus a `nak` Nostr relay container.
+
 ```bash
-# Start test services (arkd + nak Nostr relay)
-docker compose -f test.docker-compose.yml up -d
+# Initialize submodules (first-time only)
+git submodule update --init --recursive
+
+# Start the regtest stack + nak relay
+pnpm run regtest:start
+
+# Seed wallets and fixtures
+pnpm run regtest:setup
 
 # Run all E2E tests
 pnpm exec playwright test
 
-# Run specific test file
-pnpm exec playwright test src/test/e2e/send.test.ts
+# Run specific test file (e.g., new lnurl tests)
+pnpm exec playwright test src/test/e2e/lnurl.test.ts
 
 # Run with Playwright UI
 pnpm exec playwright test --ui
 
-# Stop test services
-docker compose -f test.docker-compose.yml down
+# Stop / clean up
+pnpm run regtest:stop      # stop containers
+pnpm run regtest:clean     # stop + remove volumes
 ```
+
+Overrides for the shared regtest stack live in `.env.regtest` (image versions,
+zero-fee config, scheduler settings).
 
 ### Manual Testing
 

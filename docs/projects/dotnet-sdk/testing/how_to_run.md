@@ -3,13 +3,14 @@
 ## Prerequisites
 
 - .NET SDK 8.0+ (for library projects)
-- .NET SDK 10.0 (for AppHost and E2E tests)
-- Docker (for Aspire AppHost infrastructure)
+- .NET SDK 10.0 (for AppHost, E2E tests, and the WASM sample wallet)
+- Docker (for Aspire AppHost / arkade-regtest infrastructure)
 
 ## Build
 
 ```bash
 cd /path/to/dotnet-sdk
+git submodule update --init --recursive   # pulls arkade-regtest into regtest/
 dotnet restore
 dotnet build
 ```
@@ -60,6 +61,29 @@ The AppHost automatically:
 4. Funds Boltz-LND (4 BTC)
 5. Creates LND channel (2.5M sats capacity)
 6. Creates and funds Boltz-Fulmine wallet
+
+## Run the Sample Wallet (Blazor WASM)
+
+```bash
+# Standalone client (talks to a running arkd directly)
+dotnet run --project samples/NArk.Wallet/NArk.Wallet.Client
+
+# Or the full sample with the gateway (proxies to arkd + Boltz)
+dotnet run --project samples/NArk.Wallet/NArk.Wallet.Gateway
+```
+
+The published version of the wallet runs at `https://arkade-os.github.io/dotnet-sdk/wallet/` (built and deployed by `.github/workflows/docs.yml` on every push to `master`).
+
+## Run E2E via the Shared Regtest Submodule
+
+For E2E test runs without Aspire, bring up the shared `arkade-regtest` stack:
+
+```bash
+git submodule update --init --recursive
+cd regtest && ./start-env.sh
+```
+
+CI uses this same submodule for the E2E job (`.github/workflows/build.yml`).
 
 ## Pack NuGet Packages
 
