@@ -320,6 +320,46 @@ Self-contained regtest environment for Ark protocol development. Orchestrates Ni
 
 ---
 
+### arkade-wdk
+**ID**: `arkade-wdk`
+**Name**: Arkade WDK
+**Type**: Client Library / Wallet Adapter
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkade-wdk/INDEX.md`
+**Repository**: `${ARKADE_WDK_REPO}`
+**GitHub**: `ArkLabsHQ/arkade-wdk`
+
+**Description**:
+WDK (Wallet Development Kit) compatible Bitcoin wallet adapter built on top of `@arkade-os/sdk`, with optional Lightning support via `@arkade-os/boltz-swap`. Implements Tether's WDK `WalletManager` and `WalletAccount` contracts (`@tetherto/wdk-wallet`) so any WDK-based application — most notably React Native apps using `@tetherto/wdk-react-native-provider` — can plug in Ark as its Bitcoin backend. Exposes three account indices over a single underlying SDK wallet: boarding (0), offchain (1), and lightning (2). Ships submodules for the bare-kit worklet (`pear-wrk-wdk`), the React Native provider, and an Expo demo app, with local modifications tracked as patches under `./patches/`.
+
+**Key Capabilities**:
+- WDK `WalletManagerArkade` (`getAccount`, `getAccountByPath`, `dispose`)
+- Three-account model (boarding/offchain/lightning) sharing one SDK wallet
+- WDK `WalletAccountArkade` with send/sign/verify/quote and read-only conversion
+- Destination auto-detection for Ark address, BTC address, and BOLT11 invoices
+- Lightning receive via `createLightningInvoice()` (HRPC → Boltz reverse swap)
+- Lightning send via auto-detected BOLT11 in `sendTransaction()` (Boltz submarine swap)
+- LNURL / Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
+- Utility exports: address detection, BIP21 encode/decode, fees, sat formatting
+- Direct Ark-indexer + Esplora REST workaround for arkade balance on RN
+- Transaction history via HRPC → SDK
+- Patch-based submodule overlay (`scripts/apply-patches.js`, `scripts/generate-patches.js`)
+
+**Tags**: `typescript`, `wallet`, `wdk`, `tetherto`, `react-native`, `expo`, `bitcoin`, `ark`, `vtxo`, `lightning`, `boltz`, `bolt11`, `lnurl`, `bip21`, `submodules`, `npm`
+
+**Synonyms**: `@arkade-os/wdk`, `arkade-wdk-adapter`, `wdk-arkade`, `tether-wdk-arkade`
+
+**Triggers**:
+- **ask_question**: `wdk`, `wallet development kit`, `tetherto wdk`, `react native ark wallet`, `arkade wdk`, `boarding offchain lightning account`
+- **develop**: `wdk adapter`, `add wdk method`, `walletmanagerarkade`, `walletaccountarkade`, `lnurl helper`, `bip21 helper`, `lightning invoice`, `submodule patch`
+- **test_or_run**: `npm run build`, `npm test`, `setup:dev`, `apply-patches`, `generate-patches`, `expo example`, `wdk-starter-react-native`
+- **debug**: `jest setup missing`, `getfeerates zero`, `balance always zero android`, `bip21 not accepted`, `patch does not apply`, `arkadeLightning null`
+
+**Dependencies**: `ts-sdk` (`@arkade-os/sdk`), `boltz-swap` (`@arkade-os/boltz-swap`, optional for Lightning), `@tetherto/wdk-wallet`, `@tetherto/wdk` (consumer-side)
+**Depended On By**: External WDK-based React Native / Node apps via `@tetherto/wdk-react-native-provider`
+
+---
+
 ### arkade-assets
 **ID**: `arkade-assets`
 **Name**: Arkade Assets
@@ -966,6 +1006,7 @@ boltz-backend (external swap provider)
 wallet / @arkade-os/sdk
    boltz-swap (Lightning integration for Arkade wallets)
    arkade-escrow (uses @arkade-os/sdk for VEC escrow)
+   arkade-wdk (WDK adapter — wraps @arkade-os/sdk for Tether WDK consumers)
 
 arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
    monitors all ArkLabsHQ + arkade-os repos via GitHub App
@@ -1030,7 +1071,11 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | ts-sdk | arkd | Client-Server (REST/SSE) |
 | ts-sdk | wallet | Library-Consumer |
 | ts-sdk | arkade-escrow | Library-Consumer |
+| ts-sdk | arkade-wdk | Library-Consumer (WDK adapter wraps @arkade-os/sdk) |
 | ts-sdk | fulmine | Delegator-Integration |
+| arkade-wdk | ts-sdk | Adapter-Wrapper (`@arkade-os/sdk`) |
+| arkade-wdk | boltz-swap | Library-Consumer (optional Lightning via Boltz) |
+| arkade-wdk | @tetherto/wdk-wallet | Implements WDK base contracts |
 | rust-sdk | arkd | Client-Server (via gRPC/REST, 0.9.2) |
 | rust-sdk | go-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | ts-sdk | Sibling SDK (same protocol, different language) |
@@ -1050,7 +1095,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 **Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector, enclave (CLI + runtime + supervisor)
 **Rust Projects**: rust-sdk, compiler, enclave (`client-rs/` Cargo workspace member)
 **C#/.NET Projects**: dotnet-sdk
-**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
 **Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
 **Confidential Computing / Security**: enclave (AWS Nitro Enclaves), kms-unlocker (KMS + Secrets Manager)
 **Documentation**: ark-docs
@@ -1069,6 +1114,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 - Ark protocol concepts → `ark-docs`, `arkd`
 - VTXOs, rounds, settlement → `arkd`, `ark-docs`
 - Wallet usage → `wallet`, `ts-sdk`, `go-sdk`, `rust-sdk`, `ark-docs`
+- WDK / Tether wallet integration, React Native Ark wallet → `arkade-wdk`, `ts-sdk`
 - Lightning swaps → `wallet`, `boltz-swap`, `fulmine`, `ark-docs`
 - Security model → `ark-docs`, `arkd`
 - Asset protocol, NFTs, tokens → `arkade-assets`, `ark-docs`
@@ -1078,6 +1124,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 **Development Tasks**:
 - Add arkd feature → `arkd`
 - Build wallet → `go-sdk`, `rust-sdk`, `dotnet-sdk`, `wallet` (depending on language)
+- Build a WDK / Tether-based RN wallet on Ark → `arkade-wdk`, `ts-sdk`
 - Escrow development → `arkade-escrow`
 - Lightning integration → `fulmine`, `boltz-swap`, `wallet`
 - Infrastructure changes → `ark-infra`
