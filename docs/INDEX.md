@@ -239,6 +239,48 @@ OpenTelemetry-based observability stack for Ark protocol monitoring. Provides me
 
 ---
 
+### arkana-knowledge
+**ID**: `arkana-knowledge`
+**Name**: Arkana Knowledge Base
+**Type**: AI Assistant Configuration / Knowledge Base
+**Language**: Markdown + TypeScript + Bash
+**Index**: `${ARKADIAN_DIR}/docs/projects/arkana-knowledge/INDEX.md`
+**Repository**: `${ARKANA_KNOWLEDGE_REPO}`
+**GitHub**: `ArkLabsHQ/arkana-knowledge`
+
+**Description**:
+Configuration, knowledge base, and audit trail for **Arkana**, Ark Labs' always-on AI assistant deployed on a private Hetzner VPS. Contains 16 active agent system prompts, the deep `arkwiki` knowledge base, the MCP server (TypeScript), the Slack bot (TypeScript), GitHub webhook relay (Node.js), shared agent memory, security policies, and infrastructure configs. Arkana monitors repos across ArkLabsHQ and arkade-os, reviews PRs, triages issues, surfaces security findings, and runs scheduled engineering health agents — orchestrated by Paperclip on the Claude Agent SDK.
+
+**Key Capabilities**:
+- 16 specialized AI agents (daily-briefing, pr-lifecycle, security-triage, sdk-parity, repo-sync, issue-triage, release-coordinator, research-monitor, onboarding-buddy, team-pulse-weekly, self-improver, docs-auditor, linear-sync, slack-monitor, repo-detector, executive-digest)
+- Paperclip orchestration of cron-scheduled and webhook-triggered agent runs
+- MCP server (`https://arkana.arkade.sh/mcp`, port 3458) for external AI tool integration
+- Slack bot identity `@arkanaai` with channel allowlist enforcement
+- GitHub App `arkanaai[bot]` (App ID 2923031) with dual-org auth (ArkLabsHQ + arkade-os)
+- Webhook relay (port 3456) for real-time GitHub event processing
+- Semantic knowledge base (676MB SQLite, Gemini embeddings, 59+ repos, 6,422+ AST chunks)
+- Shared agent memory with executive-digest-queue for non-noisy Slack posting
+- Information classification policy (PUBLIC / INTERNAL / CONFIDENTIAL) preventing leakage to public surfaces
+- Branch+PR enforcement with `agent/{name}/{date}-{slug}` naming convention
+- Protocol-critical code boundary requiring human sign-off on VTXO/signing/forfeit/round/connector/exit changes
+- systemd-managed services (paperclip, arkana-mcp, arkana-slack, arkana-webhook-relay)
+- Nginx reverse proxy with Let's Encrypt SSL auto-renewal
+
+**Tags**: `ai-assistant`, `knowledge-base`, `claude-agent-sdk`, `mcp-server`, `slack-bot`, `github-integration`, `paperclip`, `agent-configs`, `semantic-search`, `vps`, `automation`, `arkana`, `arklabs`, `monitoring`, `webhook-relay`, `systemd`, `nginx`
+
+**Synonyms**: `arkana`, `arkana-config`, `arkana-brain`, `arkanaai`, `ark-labs-ai`, `arkana-bot`
+
+**Triggers**:
+- **ask_question**: `arkana`, `ai assistant`, `agent configs`, `paperclip`, `mcp server`, `arkana brain`, `what does arkana do`, `ark labs ai`, `executive digest`, `arkwiki`
+- **develop**: `add agent`, `modify agent prompt`, `mcp server feature`, `slack bot`, `webhook relay`, `arkana config`, `agent config`, `paperclip schedule`
+- **test_or_run**: `deploy arkana`, `restart arkana`, `arkana service`, `start mcp`, `start slack bot`, `paperclip run`
+- **debug**: `agent failed`, `arkana down`, `mcp error`, `slack bot down`, `webhook missed`, `daily briefing missing`, `paperclip not firing`, `gh-token expired`
+
+**Dependencies**: External services only — Slack API, GitHub API (two Apps), Linear API, Anthropic Claude API / OpenRouter (GLM-5), Gemini API (embeddings)
+**Depended On By**: Internal Ark Labs operations (PR review automation, security triage, executive briefings) — not consumed by other Ark protocol projects
+
+---
+
 ### arkade-assets
 **ID**: `arkade-assets`
 **Name**: Arkade Assets
@@ -842,6 +884,10 @@ boltz-backend (external swap provider)
 wallet / @arkade-os/sdk
    boltz-swap (Lightning integration for Arkade wallets)
    arkade-escrow (uses @arkade-os/sdk for VEC escrow)
+
+arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
+   monitors all ArkLabsHQ + arkade-os repos via GitHub App
+   produces digests, PR reviews, issue triage; not consumed by protocol projects
 ```
 
 ### Correlation Matrix
@@ -893,6 +939,8 @@ wallet / @arkade-os/sdk
 | compiler | introspector | Compiler-Runtime (compiler produces, introspector executes) |
 | compiler | arkd | Compiler-Consumer (arkd uses compiled contract artifacts) |
 | compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
+| arkana-knowledge | All ArkLabsHQ + arkade-os repos | Observer/Reviewer (PR reviews, issue triage, digests) |
+| arkana-knowledge | None (downstream) | Operations meta-project — not consumed by protocol projects |
 
 ### Technology Groupings
 
@@ -905,6 +953,7 @@ wallet / @arkade-os/sdk
 **External Services**: boltz-backend
 **Frontend Applications**: wallet (PWA), arkade-explorer (Web App)
 **Protocol Specifications**: arkade-assets
+**AI Assistant / Operations**: arkana-knowledge (configuration + knowledge base for Arkana, the Ark Labs AI assistant)
 
 ---
 
@@ -1004,6 +1053,7 @@ For conceptual questions, prioritize documentation loading order:
 | boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.22, @arkade-os/sdk 0.4.21 |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
 | ts-sdk | Active Dev | ✓ Beta | v0.4.21, npm published, multi-platform |
+| arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 16 active agents |
 
 ---
 
@@ -1016,6 +1066,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha → beta → stable)
 
-**Last Updated**: 2026-04-29
-**Version**: 1.5.3
+**Last Updated**: 2026-04-30
+**Version**: 1.5.4
 **Maintained By**: Arkadian Documentation Team
