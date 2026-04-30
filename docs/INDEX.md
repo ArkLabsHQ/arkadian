@@ -764,6 +764,49 @@ Arkade Script execution and signing microservice for the Ark protocol. Receives 
 
 ---
 
+### enclave
+**ID**: `enclave`
+**Name**: Simple Enclave (introspector-enclave)
+**Type**: Infrastructure Framework / Security Tool
+**Language**: Go (CLI/SDK), Rust (verified client)
+**Index**: `${ARKADIAN_DIR}/docs/projects/enclave/INDEX.md`
+**Repository**: `${ENCLAVE_REPO}`
+**GitHub**: `ArkLabsHQ/enclave`
+
+**Description**:
+CLI framework + runtime SDK for deploying any plain HTTP server inside **AWS Nitro Enclaves** with hardware-backed secret management, BIP-340 Schnorr response signing, reproducible Nix-based EIF builds, and a PCR0-locked KMS confidentiality root. Apps need zero enclave-specific code — the runtime supervisor handles attestation, KMS secret decryption, PCR extension, response signing, encrypted storage, and dynamic secrets. The host-side `enclave-supervisor.service` runs as a single binary owning gvproxy (vsock outbound), viproxy (IMDS forwarding), the nitro-cli watchdog, and a localhost management API. Supports Go (1.25+), Node.js (22+), and .NET (10.0+) app templates.
+
+**Key Capabilities**:
+- Reproducible EIF builds via pinned NixOS Docker image + `monzo/aws-nitro-util` (byte-identical PCR0 across builders)
+- PCR0-locked KMS policy — `kms:Decrypt` only when `RecipientAttestation:PCR0` matches; optional irreversible lockdown (`is_kms_key_locked: true` / `enclave lock`) where even AWS root cannot rewrite the policy
+- BIP-340 Schnorr response-signing middleware — every HTTP response carries `X-Attestation-Signature` + `X-Attestation-Pubkey` bound to the attestation document's `UserData` via `appKeyHash`
+- PCR16+ extension on boot with `SHA256(compressed_secp256k1_pubkey)` per configured secret
+- Locked-key migration — 9-step in-place re-encryption flow (`POST /migrate`, NDJSON streaming, idempotent) for rotating PCR0 even when the KMS policy is permanently frozen
+- PCR0 attestation chain — each version records its predecessor's PCR0 + an NSM signed proof; `enclave verify` walks the chain against the AWS Nitro root
+- Encrypted persistent storage — `PUT/GET/DELETE/LIST /v1/storage/{key}` backed by S3 + AES-256-GCM with a KMS-protected DEK (up to 10 MB per object)
+- Dynamic secrets API — runtime-mutable secrets persisted encrypted in S3 (reuses storage DEK), optional `env_var` boot binding, max 64 KB per secret
+- Build-time vs deploy-time env split — `app.env` baked into PCR0 (schema attested); `env_values` overlay via `TF_VAR` / `*.auto.tfvars.json` / `-var` (values not attested)
+- Two artifact-source modes — local upload (default, fast iteration) or remote curl from a published GitHub Release at apply time (`enclave tofu --remote`)
+- Verified clients in Go (`client/`) and Rust (`client-rs/` Cargo workspace member) — verify NSM attestation chain + Schnorr signatures on every response
+- Local QEMU integration test harness (`-M nitro-enclave` via QEMU 9.2 + vhost-device-vsock) — 15 integration tests + full locked-key migration + post-migration verification
+- CI scaffolding — `enclave init` and `enclave generate template` write `deploy-enclave.yml`, `destroy-enclave.yml`, `verify-enclave.yml` with OIDC, GitHub artifact attestations, and a `gh-pages` attestation status page
+- OpenTofu deployment scaffold (`./tofu/`) — merge-only-new module tree with inline `enclave-supervisor.service` systemd unit in `user_data.sh.tftpl`
+
+**Tags**: `aws-nitro`, `enclave`, `confidential-computing`, `kms`, `attestation`, `pcr0`, `schnorr`, `bip-340`, `reproducible-build`, `nix`, `vsock`, `gvproxy`, `nitriding`, `viproxy`, `cdk`, `opentofu`, `iam`, `s3`, `aes-256-gcm`, `secrets`, `framework`, `cli`, `go`, `nodejs`, `dotnet`, `rust-client`
+
+**Synonyms**: `simple-enclave`, `introspector-enclave`, `nitro-enclave-framework`, `enclave-cli`, `enclave-supervisor`
+
+**Triggers**:
+- **ask_question**: `nitro enclave`, `attestation`, `pcr0`, `kms locked`, `schnorr signature`, `confidential computing`, `enclave migration`, `pcr extension`, `appKeyHash`, `nitriding`, `gvproxy`, `viproxy`
+- **develop**: `add cli command`, `runtime feature`, `supervisor change`, `kms policy`, `migration step`, `dynamic secret`, `storage api`, `tofu module`, `cdk stack`, `attestation chain`
+- **test_or_run**: `enclave build`, `enclave deploy`, `enclave verify`, `enclave migrate`, `qemu nitro-enclave`, `integration test eif`, `make test`, `make test-docker`, `vsock loopback`
+- **debug**: `pcr0 mismatch`, `kms decrypt failed`, `attestation hash 403`, `migration already in progress`, `secret too large`, `vsock device not found`, `imds proxy unreachable`, `signature verification failed`
+
+**Dependencies**: AWS services (KMS, SSM, S3, EC2, IAM), Nix + Docker (build), `nitriding` (TLS termination), `gvproxy` (vsock outbound), `vhost-device-vsock` (local test harness), `monzo/aws-nitro-util` (EIF packaging)
+**Depended On By**: Any ArkLabs / Arkade Bitcoin / Ark protocol service that needs attested confidential execution (e.g., `introspector` co-signer deployment, future signing services, custodial wallet services)
+
+---
+
 ### dotnet-sdk
 **ID**: `dotnet-sdk`
 **Name**: NArk (.NET Ark SDK)
@@ -928,6 +971,11 @@ arkana-knowledge (Ark Labs AI assistant — operational, not protocol)
    monitors all ArkLabsHQ + arkade-os repos via GitHub App
    produces digests, PR reviews, issue triage; not consumed by protocol projects
 
+enclave (AWS Nitro Enclave framework — confidential execution for any HTTP app)
+   independent infrastructure framework
+   potential deployment target for: introspector (co-signer), future signing services
+   external deps: AWS KMS/SSM/S3/EC2/IAM, Nix, Docker, nitriding, gvproxy
+
 arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
    consumed as a git submodule by:
       arkd, fulmine, go-sdk, ts-sdk, rust-sdk, dotnet-sdk
@@ -994,14 +1042,17 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
 | arkana-knowledge | All ArkLabsHQ + arkade-os repos | Observer/Reviewer (PR reviews, issue triage, digests) |
 | arkana-knowledge | None (downstream) | Operations meta-project — not consumed by protocol projects |
+| enclave | AWS Nitro | Confidential-Execution-Framework (PCR0-locked KMS, attested boot) |
+| enclave | introspector | Potential-Deployment-Target (co-signer in attested enclave) |
 
 ### Technology Groupings
 
-**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector
-**Rust Projects**: rust-sdk, compiler
+**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector, enclave (CLI + runtime + supervisor)
+**Rust Projects**: rust-sdk, compiler, enclave (`client-rs/` Cargo workspace member)
 **C#/.NET Projects**: dotnet-sdk
 **TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, boltz-swap, boltz-backend (TypeScript + Rust hybrid)
-**Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration)
+**Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
+**Confidential Computing / Security**: enclave (AWS Nitro Enclaves), kms-unlocker (KMS + Secrets Manager)
 **Documentation**: ark-docs
 **External Services**: boltz-backend
 **Frontend Applications**: wallet (PWA), arkade-explorer (Web App)
