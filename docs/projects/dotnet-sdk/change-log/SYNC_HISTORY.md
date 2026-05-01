@@ -1,5 +1,37 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-01 - HD Wallet Gap-Limit Recovery via Modular Discovery Providers
+**From**: `1020e221ebee6f7ba325029d93d00aafef9ab1e1`
+**To**: `9dd4764b89e2d0068531d1412f562dad984e0a7c`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge commit (PR #77).
+
+**Highlights**:
+- **HD wallet recovery** — new `HdWalletRecoveryService` rebuilds local contract state after re-importing an HD wallet from its mnemonic. Sweeps derivation indices from `StartIndex` (default 0), and at each index queries every registered `IContractDiscoveryProvider` in parallel (`Task.WhenAll`); a hit from any provider counts (OR semantics), the gap counter resets, and reconstructed contracts are persisted via `IContractStorage` (deduped by script, `Source=recovery:<provider>` metadata). The scan stops after `GapLimit` consecutive unused indices (default 20) or `MaxIndex` (default 10 000). `wallet.LastUsedIndex` is monotonically bumped to `HighestUsedIndex + 1` and never lowered.
+- **New abstractions** in `NArk.Abstractions/Recovery/`: `IContractDiscoveryProvider` (per-index probe), `DiscoveryResult` (`Used`, `Contracts`), `RecoveryOptions` (`GapLimit` / `MaxIndex` / `StartIndex`, with a `Validate()` guard), `RecoveryReport` (`HighestUsedIndex`, per-provider `ProviderHits`, reconstructed contracts).
+- **Three providers shipped**:
+  - `IndexerVtxoDiscoveryProvider` (`NArk.Core`, registered by `AddArkCoreServices`) — asks arkd's indexer for VTXOs at the index's `ArkPaymentContract` script.
+  - `BoardingUtxoDiscoveryProvider` (`NArk.Core`, registered by `AddArkCoreServices` only when an `IBoardingUtxoProvider` is also resolvable; otherwise a `NullContractDiscoveryProvider` is used and filtered out by the orchestrator) — historical UTXO probe at the index's `ArkBoardingContract` on-chain address.
+  - `BoltzSwapDiscoveryProvider` (`NArk.Swaps`, registered by `AddArkSwapServices`) — delegates to `SwapsManagementService.RestoreSwaps()` so VHTLC contracts are imported with canonical `Source=swap:<id>` metadata + swap rows. Documented as the storage-mutation exception to the provider contract.
+- **Robustness** — providers throwing during a probe are logged and treated as not-found so a single bad provider can't kill the scan. `ArkServerInfo` is cached per-provider via `Lazy<Task<>>` to avoid repeated `GetInfo` round-trips. HD derivation goes through `HierarchicalDeterministicAddressProvider.GetDescriptorFromIndex` (single canonical path).
+- **Validation** — `RecoveryOptions.Validate()` rejects negative or implausible values up-front. Single-key wallets and unknown wallet IDs throw on entry.
+- **Sample wallet** — `samples/NArk.Wallet/` injects `HdWalletRecoveryService` into `ArkWalletService`, exposes `Ark.RestoreWallet()`, and surfaces a "Restore from mnemonic / nsec" panel on the home page that runs the gap-limit scan and shows the discovered-contract count.
+- **DI** — `AddArkCoreServices` now registers the orchestrator, the indexer probe, and the conditional boarding probe. `AddArkSwapServices` adds the Boltz probe.
+- **Docs** — README "HD Wallet Recovery" section + new `docs/articles/recovery.md` (with TOC entry) covering setup, usage, custom providers, and tuning.
+- **Tests** — `NArk.Tests/Recovery/HdWalletRecoveryServiceTests.cs` adds 12 cases: no usage stops at gap, usage at index 0, interleaved usage `[0,3,7]`, OR semantics across providers, throwing provider tolerated, cross-provider script dedupe, `StartIndex` / `MaxIndex` honoured, single-key throws, unknown wallet throws, `NullContractDiscoveryProvider` filtered, existing higher `LastUsedIndex` never lowered. Bonus: stale `VtxoPollingHandlerTests` repaired against v2.1.5's `GetVtxoByScriptsAsSnapshot(after, before)` signature and the b014d1f one-by-one polling removal.
+- **CI** — `regtest` submodule pinned to `cca4fba` (known-working with PR #79's E2E).
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk Key Capabilities (HD recovery + discovery providers), Tags (`hd-recovery`, `gap-limit`, `discovery-provider`), Triggers (recovery-related question/dev/debug terms), status table line.
+- `docs/projects/dotnet-sdk/INDEX.md` — Key Concepts entry for `HdWalletRecoveryService`.
+- `docs/projects/dotnet-sdk/system/project_overview.md` — HD wallets feature now mentions `HdWalletRecoveryService` + the three default providers.
+- `docs/projects/dotnet-sdk/system/architecture.md` — Abstractions `Recovery/` namespace, Core Recovery components, Swaps `BoltzSwapDiscoveryProvider`, DI registration line under `AddArkCoreServices` / `AddArkSwapServices`.
+- `docs/projects/dotnet-sdk/testing/usage.md` — new "HD Wallet Recovery" section with the typical `ScanAsync` calls.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `9dd4764b89e2d0068531d1412f562dad984e0a7c`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
 ## 2026-04-29 - Doc + DocFX Site, Sample WASM Wallet, Payment Tracking, Sync Hardening
 **From**: `ab79ffa7e907cb406b75ede5b2bb5b18c163bb59`
 **To**: `1020e221ebee6f7ba325029d93d00aafef9ab1e1`

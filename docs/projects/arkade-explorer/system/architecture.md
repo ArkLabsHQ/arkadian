@@ -92,7 +92,7 @@ Organized into domain-specific directories: Layout, UI, Transaction, Address, As
 ### 4. Library Layer (`src/lib/`)
 
 - **API Client** (`api/fetchAllPages.ts`): Generic pagination helper that fetches all pages from paginated SDK calls and merges results
-- **arkAddress.ts**: Constructs Ark addresses from script pubkeys, handles both P2TR and OP_RETURN formats
+- **arkAddress.ts**: Constructs Arkade addresses from script pubkeys (parameter renamed `aspPubkeyHex` → `operatorPubkeyHex`; default network `bitcoin`), handles both P2TR and OP_RETURN formats
 - **assetIconApproval.ts**: Verified asset checking logic using remote asset registry
 - **utils.ts**: Core utilities -- `cn()` for class merging, `formatSats()`, `formatTimestamp()`, `truncateHash()`, `copyToClipboard()`
 - **formatters.ts**: Extended formatters (satsToBtc, compact numbers, duration, relative time, bytes)

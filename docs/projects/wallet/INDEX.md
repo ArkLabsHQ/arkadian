@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.0
-last_sync_commit: c0c70aafdcd1cfa04d5d515773862fe9bef26378
+version: 1.2.1
+last_sync_commit: 047419382c723629a1eb89c674d5b7349fd55d81
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -90,6 +90,8 @@ Analysis and summaries of pull requests.
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
 - **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session
+- **Bulk submarine recovery**: Apps → Boltz → Settings scans recoverable submarine swaps and sweeps them via `arkadeSwaps.recoverSubmarineFunds()` (per-row, with `pre_cltv` deferred-locktime guidance)
+- **Invoice limit validation**: Send form rejects Lightning invoices below `minSwapAllowed()` / above `maxSwapAllowed()` before submission
 
 ---
 
@@ -183,8 +185,9 @@ pnpm run format:check
 - **react-spring-bottom-sheet**: Bottom sheet primitive for SheetModal
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.21): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.22): Lightning swap integration
+- **@arkade-os/sdk** (0.4.22): Ark protocol SDK (wallet operations, VTXOs)
+- **@arkade-os/boltz-swap** (0.3.24): Lightning swap integration (incl. submarine recovery API)
+- **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography
 - **@noble/secp256k1**: Elliptic curve cryptography

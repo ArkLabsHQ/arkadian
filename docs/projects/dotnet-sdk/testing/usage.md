@@ -91,6 +91,20 @@ For EF Core implementations, use `NArk.Storage.EfCore`:
 services.AddArkEfCoreStorage<MyDbContext>();
 ```
 
+## HD Wallet Recovery
+
+After re-importing an HD wallet from its mnemonic, rebuild local contract state by running the gap-limit scanner. `AddArkCoreServices()` registers `HdWalletRecoveryService`, the indexer probe, and (when an `IBoardingUtxoProvider` is also registered) the boarding probe; `AddArkSwapServices()` adds the Boltz probe. Custom probes implement `IContractDiscoveryProvider` and are picked up via DI automatically.
+
+```csharp
+var recovery = sp.GetRequiredService<HdWalletRecoveryService>();
+var report = await recovery.ScanAsync(walletId);                                  // gap=20, max=10000
+var deep   = await recovery.ScanAsync(walletId, new RecoveryOptions(GapLimit: 50));
+var resume = await recovery.ScanAsync(walletId, new RecoveryOptions(StartIndex: 200));
+// report.HighestUsedIndex, report.ProviderHits, report.DiscoveredContracts
+```
+
+Single-key wallets throw (no notion of indexing). The orchestrator dedupes contracts by script and never lowers `wallet.LastUsedIndex`. See `docs/articles/recovery.md` in the repo for full provider semantics and tuning.
+
 ## Spending VTXOs
 
 ```csharp

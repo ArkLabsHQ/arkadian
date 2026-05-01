@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-01 - Documentation Update
+**Commit**: `9246f043` (arkd repository)
+**Previous Sync**: `8e005262`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (`[client-lib] Update wallet interface (#1008)`)
+
+**Breaking Changes (client-lib SDK, `pkg/client-lib`)**:
+- `wallet.WalletService` interface restructured: address-returning methods (`GetAddresses`, `NewAddress`, `NewAddresses`) replaced by key-returning methods (`NewKey`, `GetKey`, `ListKeys`, `NextIndex`); addresses now derived by `client-lib` from `KeyRef`
+- `WalletService.Create` now takes a `chaincfg.Params` network argument
+- `WalletService.SignTransaction` no longer takes an `Explorer`; takes `keys map[string]string` (key IDs by prevout script) instead
+- `WalletService.NewVtxoTreeSigner` no longer takes a derivation path
+- `ArkClient.InitWithWallet` removed; wallet is now injected via `WithWallet` ServiceOption on `NewArkClient`. `NewArkClient` falls back to a default single-key wallet if no `WithWallet` option is provided. `LoadArkClientWithWallet` removed.
+- `Config.WalletType` removed from stored client config
+- `ArkClient.GetAddresses` now returns `[]types.Address` (not `[]string`) for offchain/boarding/redemption sets, exposing `KeyID` and `Tapscripts`
+- `ArkClient.SignTransaction`, `RegisterIntent`, `DeleteIntent`, `FinalizePendingTxs`, `CompleteUnroll`, `OnboardAgainAllExpiredBoardings`, `WithdrawFromAllExpiredBoardings` now accept variadic options for passing signing keys
+
+**Features Added**:
+- New `wallet.KeyRef` type (`Id`, `PubKey`) for referencing wallet keys
+- New `types.Address.KeyID` field linking addresses back to their producing key
+- New `SignOption` interface family with `WithKeys(map[string]string)` usable across `SendOption`, `BatchSessionOption`, and `UnrollOption`
+- New `pkg/client-lib/sign_opts.go` and `pkg/client-lib/vtxos_opts.go`
+
+**Files Updated**:
+- docs/INDEX.md (capability + tags for arkd embedded client SDK)
+- docs/projects/arkd/INDEX.md (version 1.2.0 → 1.3.0, sync commit)
+- docs/projects/arkd/system/folder_structure.md (added `pkg/client-lib` package section)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-02-19 - Documentation Update
 **Commit**: `74a173c6` (ark repository)
 **Previous Sync**: `a337c9ce`

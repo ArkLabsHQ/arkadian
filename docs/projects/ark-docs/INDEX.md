@@ -17,6 +17,10 @@ aliases:
   assets: ["learn/arkade-assets/", "wallets/v0.4/operations/assets/"]
 scripts:
   dev: "mintlify dev"
+package_manager: "pnpm@10.33.2"
+seo:
+  indexing: "navigable"
+  v0_3_pages: "noindex"
 ---
 
 # Ark Documentation — Project Index
@@ -80,7 +84,6 @@ Working with Tapscript and use-case contracts:
 - **lightning-channels.mdx** — Lightning channels on Ark
 - **chain-swaps.mdx** — Cross-chain swaps
 - **oracle-dlc.mdx** — Oracle and DLC integration
-- **v0.3/** — Legacy v0.3 docs (chain-swaps, lightning-swaps)
 
 ### `${ARKADIAN_DIR}/docs/projects/ark-docs/experimental/` — Experimental Arkade Language
 Arkade compiler and experimental contract patterns:
@@ -227,10 +230,7 @@ contracts/
 ├── lightning-swaps.mdx
 ├── lightning-channels.mdx
 ├── chain-swaps.mdx
-├── oracle-dlc.mdx
-└── v0.3/
-    ├── chain-swaps.mdx
-    └── lightning-swaps.mdx
+└── oracle-dlc.mdx
 ```
 
 ### Experimental Arkade Language Files
@@ -240,6 +240,12 @@ experimental/
 ├── arkade-functions.mdx
 └── non-interactive-swaps.mdx
 ```
+
+### Shared Snippets (`snippets/`)
+Reusable MDX/JSX snippets imported across pages:
+
+- **agent-context.mdx** — `<AgentContext />` component embedded on most pages. Provides AI agents (and any LLM context-menu consumer) authoritative context about Arkade terminology and the deprecated terms list ("ASP", "Round", "Ark address" → must NOT be used).
+- **outdated-version.jsx** — `<OutdatedVersion title href />` JSX component rendering a Mintlify `<Warning>` banner that links readers from a legacy page to its current version. Used on every `wallets/v0.3/*` page (which are also marked `noindex: true`).
 
 ### Wallets Documentation Files
 ```
@@ -323,18 +329,34 @@ This documentation repository serves as the **knowledge base** for the Ark Q&A a
 
 ## Mintlify Development
 
+The repo standardised on **pnpm** (`packageManager: "pnpm@10.33.2"` in `package.json`). The legacy `package-lock.json` has been removed in favour of `pnpm-lock.yaml`.
+
 To preview the documentation locally:
 
 ```bash
-# Install Mintlify CLI
-npm i -g mintlify
+# Install dependencies (including the local mintlify ^4.2.542)
+cd ${ARK_DOCS_REPO}
+pnpm install
 
 # Run development server
-cd ${ARK_DOCS_REPO}
-mintlify dev
+pnpm dev          # equivalent to: pnpm exec mintlify dev
+
+# Check broken links
+pnpm broken-links # equivalent to: pnpm exec mintlify broken-links
 
 # Access at http://localhost:3000
 ```
+
+All wallet code samples in the docs use pnpm (`pnpm add @arkade-os/sdk`, `pnpm dlx expo install ...`, `pnpm dlx skills add ...`). Do not introduce `npm`/`npx` in new pages.
+
+### SEO / Indexing
+
+- `docs.json` sets `seo.indexing: "navigable"` (only pages reachable from the navigation are indexed — explicit opt-in model, replacing the old `"all"` setting).
+- All `wallets/v0.3/*` pages declare `noindex: true` in their frontmatter and render the `<OutdatedVersion>` banner pointing to the corresponding `v0.4` page.
+
+### LLM Context Menu
+
+`docs.json` `contextual.options` exposes the documentation to the following destinations: `claude`, `chatgpt`, `grok`, `devin`, `cursor`, `vscode`, **`devin-mcp`** (newly added).
 
 ### Publishing
 

@@ -135,6 +135,37 @@ try {
 
 ---
 
+## Recovering Stranded Submarine Funds
+
+If a Lightning send fails and funds remain locked at a submarine VHTLC, recover them explicitly. Inspection is side-effect free and tolerates Boltz losing the swap from its DB:
+
+```typescript
+// Scan all locally-known swaps once
+const candidates = await arkadeLightning.scanRecoverableSubmarineSwaps();
+// status: "recoverable" | "pre_cltv" | "none" | "already_spent" | "invalid_swap"
+
+// Bulk recover everything that's actually recoverable
+const recoverable = candidates.filter(c => c.status === "recoverable");
+const results = await arkadeLightning.recoverAllSubmarineFunds(
+  recoverable.map(c => c.swap)
+);
+// results[i]: { swapId, recovered, skipped, error? }
+
+// Or inspect / sweep a single swap
+const info = await arkadeLightning.inspectSubmarineRecovery(swap);
+if (info.status === "recoverable") {
+  const outcome = await arkadeLightning.recoverSubmarineFunds(swap);
+  // outcome: { swept, skipped }
+}
+```
+
+Notes:
+- Pending swaps (`invoice.set`, `transaction.mempool`, …) return `invalid_swap` — this API is for recovery, not a generic VTXO probe.
+- Only scans swaps stored locally; cannot discover swaps that exist on Boltz but are missing from your repo.
+- `transaction.claimed` swaps with extra deposits are recoverable; the refunded flag is intentionally not written so swap history isn't muddled.
+
+---
+
 ## Checking Swap Limits
 
 ```typescript

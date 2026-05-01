@@ -49,7 +49,7 @@ Fetched once on app load via `ServerInfoContext`, provides network information (
 Retrieves commitment transaction details including batches, input/output amounts, VTXO counts, and timestamps.
 
 ### VTXOs
-Retrieves VTXOs filtered by scripts (addresses) or outpoints. Used by the AddressPage to display all VTXOs for a given address. Supports pagination.
+Retrieves VTXOs filtered by scripts (addresses) or outpoints. Used by the AddressPage to display all VTXOs for a given address (paginated), and by `TransactionDetail` on commitment-tx pages to fetch VTXOs for each input outpoint and surface the originating settlement commitment tx (`settledBy`) as a cross-link.
 
 ### Transactions
 Retrieves Arkade transaction details (off-chain transactions). Used by TransactionPage to detect transaction type and display details.

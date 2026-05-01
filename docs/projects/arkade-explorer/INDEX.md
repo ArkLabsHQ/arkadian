@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
 version: 1.1.0
-last_sync_commit: 12f198ca63a0c0ccd1ebeab066947279a0569f10
+last_sync_commit: 070ce396acde683e39021ca6f403db4412847ea3
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -23,7 +23,7 @@ scripts:
 
 # Arkade Explorer -- Project Index
 
-**arkade-explorer** is a modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of commitment transactions, Arkade transactions, asset details, and VTXO addresses using the Arkade Indexer API. Features include smart search, VTXO tree visualization, light/dark theme toggle, money unit display preferences, real-time activity streaming, and asset icon verification.
+**arkade-explorer** is a modern blockchain explorer for the Arkade Protocol with a retro Space Invaders theme. Built with React 18, TypeScript, and Vite, it provides real-time exploration of batch commitment transactions, Arkade transactions, asset details, and VTXO addresses using the Arkade Indexer API. Features include smart search, VTXO tree visualization, mempool.space cross-links on commitment transactions, light/dark theme toggle, money unit display preferences, real-time activity streaming, and asset icon verification. Default network is `bitcoin`.
 
 ## Directory Structure
 
@@ -71,22 +71,23 @@ Documentation sync history and tracking:
 |-------|-------------|
 | `/` | Home page with search, recent activity stream, and feature overview |
 | `/tx/:txid` | Transaction view (auto-redirects to commitment-tx if applicable) |
-| `/commitment-tx/:txid` | Commitment transaction details with batch list and VTXO tree |
+| `/commitment-tx/:txid` | Batch commitment transaction details with batch list, VTXO tree, mempool.space link, and cross-links to Arkade transactions |
 | `/address/:address` | Address VTXO list and stats |
 | `/asset/:assetId` | Asset details page |
 | `/*` | 404 Not Found page |
 
 ### Key Features
 
-1. **Transaction Explorer** -- View commitment transactions with batch details, VTXO tree viewer, metadata, timestamps
-2. **Address Explorer** -- View all VTXOs for an address/script with status badges and pagination
-3. **Asset Explorer** -- View asset details by asset ID
-4. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (exactly 68 hex chars), outpoints (txid:vout, navigates to /tx/txid), and addresses
-5. **Real-time Activity** -- Live activity stream on homepage via ActivityStreamContext
-6. **Theme Toggle** -- Light/dark theme with persistent preference via ThemeContext
-7. **Money Display** -- Toggle between sats and BTC display via MoneyDisplayContext
-8. **Asset Verification** -- Verified asset icon approval system via AssetIconApprovalContext
-9. **Retro UI** -- Space Invaders-inspired design with purple/orange/black theme and particle effects
+1. **Transaction Explorer** -- View batch commitment transactions with batch details, VTXO tree viewer, metadata, timestamps; on-chain inputs/outputs link to mempool.space and outputs render Bitcoin (`bc1p`/`bc1q`) addresses
+2. **Cross-links** -- Commitment-tx inputs cross-link to the originating settlement commitment tx (via VTXO `settledBy`); batch outputs link to the batch root Arkade transaction
+3. **Address Explorer** -- View all VTXOs for an Arkade address/script with status badges and pagination; Recoverable badge is hidden on spent VTXOs
+4. **Asset Explorer** -- View asset details by asset ID
+5. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (exactly 68 hex chars), outpoints (txid:vout, navigates to /tx/txid), and addresses; mobile/desktop search palette opens unconditionally
+6. **Real-time Activity** -- Live activity stream on homepage via ActivityStreamContext (events typed as `batch | vtxo | transaction`)
+7. **Theme Toggle** -- Light/dark theme with persistent preference via ThemeContext
+8. **Money Display** -- Toggle between sats and BTC display via MoneyDisplayContext
+9. **Asset Verification** -- Verified asset icon approval system via AssetIconApprovalContext
+10. **Retro UI** -- Space Invaders-inspired design with purple/orange/black theme and particle effects
 
 ### Configuration
 

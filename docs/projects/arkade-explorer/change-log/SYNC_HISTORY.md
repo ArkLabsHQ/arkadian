@@ -1,5 +1,34 @@
 # Arkade Explorer -- Sync History
 
+## 2026-05-01 -- Incremental Documentation Sync
+**Commit**: `070ce396acde683e39021ca6f403db4412847ea3`
+**Previous Sync**: `12f198ca63a0c0ccd1ebeab066947279a0569f10`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+- `070ce39` chore: misc terminology improvements (#23)
+- `443a669` fix: hide Recoverable badge on spent VTXOs (#18)
+- `2facc7c` feat: add cross-links on commitment tx page (#21)
+
+**Changes**:
+- **PR #21 (cross-links on commitment tx page)**: `TransactionDetail` now fetches input VTXOs via `indexerClient.getVtxos({ outpoints })` for commitment txs and renders a "Commitment tx" cross-link on inputs whose VTXOs were settled (`settledBy`). Batch outputs include a blue arrow linking to the batch root Arkade transaction. Commitment-tx headers and input arrows include a mempool.space external link (network-aware: `bitcoin`/`signet`/`testnet`/`mutinynet`). Commitment-tx outputs render Bitcoin (`bc1p`/`bc1q`) addresses as plain text instead of Arkade addresses (since on-chain). Spending arrows route to `/commitment-tx/` when the spend came from `settledBy`, and self-referencing arrows are suppressed (no longer falls back to `arkTxId`). Mobile and desktop search palette buttons always open the palette (previously gated on having recent or pinned searches); `useRecentSearches` import removed from `top-nav.tsx`.
+- **PR #18 (Recoverable badge fix)**: `BadgeRecoverable` is now hidden when the VTXO status is `spent` across `BatchList`, `VtxoList`, and `OutputCard`. Refactor caches `deriveVtxoStatus(vtxo)` in a local const.
+- **PR #23 (terminology)**: "ark transaction" → "arkade transaction"; "ark address" → "arkade address" (log strings, comments, function `decodeArkAddress`/`constructArkAddress` log messages); "asp pubkey" → "operator pubkey" (parameter `aspPubkeyHex` → `operatorPubkeyHex` in `src/lib/arkAddress.ts` and `src/lib/decode.ts`); "round transaction" → "batch commitment transaction" (functions/_middleware.js page meta, labels and titles); activity-stream `type: 'round'` → `'batch'` and descriptions updated ("Batch commitment transaction", "Arkade transaction", "New batch ..."); subtype badge labels expanded ("Forfeit tx" → "Forfeit transaction", etc.); default network for `constructArkAddress` changed `liquidtestnet` → `bitcoin`; README updates ("Ark address" → "Arkade address", "Ark transactions" → "Arkade transactions", arkAddress.ts comment).
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md
+- docs/projects/arkade-explorer/system/project_overview.md
+- docs/projects/arkade-explorer/system/architecture.md
+- docs/projects/arkade-explorer/system/components.md
+- docs/projects/arkade-explorer/system/integration-with-arkd.md
+- docs/projects/arkade-explorer/testing/usage.md
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+- docs/INDEX.md (arkade-explorer entry)
+
+---
+
 ## 2026-04-29 -- Incremental Documentation Sync
 **Commit**: `12f198ca63a0c0ccd1ebeab066947279a0569f10`
 **Previous Sync**: `67202183eb3b275df0dc4bff2d2883262cd19518`

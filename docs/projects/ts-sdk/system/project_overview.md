@@ -9,7 +9,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 ## Package
 
 - **npm**: `@arkade-os/sdk`
-- **Version**: 0.4.21
+- **Version**: 0.4.22
 - **License**: MIT
 
 ## Core Features

@@ -9,23 +9,28 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 ## Core Features
 
 ### 1. Transaction Explorer
-- **Commitment Transaction View** (`/commitment-tx/:txid`)
+- **Batch Commitment Transaction View** (`/commitment-tx/:txid`)
   - Transaction metadata (started/ended timestamps)
   - Input/output amounts and VTXO counts
   - Batch outputs with details (amount, VTXO count, expiration, swept status)
   - VTXO tree visualization via TreeViewer and VtxoTreeViewer components
   - Copy transaction ID to clipboard
   - Raw transaction hex viewer (expandable)
+  - **mempool.space link** in the header and on input arrows (commitment txs are on-chain)
+  - **Outputs render as Bitcoin addresses** (`bc1p`/`bc1q`) instead of Arkade addresses, displayed as text (not clickable)
+  - **Cross-links**: each input is annotated with its originating settlement commitment tx (via VTXO `settledBy`); batch outputs include a blue arrow linking to the batch root Arkade transaction
 
 - **Arkade Transaction View** (`/tx/:txid`)
   - Auto-detect transaction type
   - Auto-redirect to commitment-tx if applicable
   - Display transaction details with timestamps (createdAt, expiry)
-  - Spent status indicators and spending transaction links on outputs
+  - Spent status indicators and spending transaction links on outputs (route to `/commitment-tx/` when settled, never to self)
+  - Subtype badges expanded to full names: "Forfeit transaction", "Checkpoint transaction", "Batch tree transaction", "Connector tree transaction"
 
 ### 2. Address Explorer (`/address/:address`)
 - **Statistics Dashboard**: Total balance, total received, total VTXOs, active/spent/swept counts
 - **VTXO List**: Status badges (Active, Spent, Swept), outpoints, amounts, timestamps, links to transactions, pagination support
+- The **Recoverable** badge is suppressed when a VTXO's status is `spent` (applies to BatchList, VtxoList, and OutputCard)
 
 ### 3. Asset Explorer (`/asset/:assetId`)
 - View asset details by asset ID
@@ -41,6 +46,7 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 - Auto-detect Ark addresses (`tark1` / `ark1` prefix)
 - Anything else routed to `/tx/:q` as a fallback
 - Available from homepage and persistent header search; placeholder reads "Search txid, address, asset, or outpoint..."
+- Mobile and desktop search palette buttons always open the palette (previously gated on having recent or pinned searches)
 - Recent search history via useRecentSearches hook
 
 ### 5. Real-time Activity Stream
@@ -56,7 +62,7 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 ### 7. OP_RETURN Script Handling
 - Sub-dust VTXO outputs use OP_RETURN scripts instead of P2TR
 - Explorer automatically detects OP_RETURN format and extracts the taproot key
-- Correctly constructs Ark addresses from both P2TR and OP_RETURN scripts
+- Correctly constructs Arkade addresses from both P2TR and OP_RETURN scripts (using the operator pubkey from `serverInfo.signerPubkey`; default network `bitcoin`)
 
 ## Use Cases
 

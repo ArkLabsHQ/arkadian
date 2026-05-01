@@ -77,6 +77,7 @@ NArk.Scratchpad             (dev scratch area)
 - **SwapsManagementService** — Submarine (Ark→Lightning), reverse (Lightning→Ark), and ARK<->BTC chain swaps via Boltz (MuSig2 cross-signatures, VHTLC scripts)
 - **PaymentTrackingService** — Background service auto-updating payment statuses from VTXO/intent/swap events
 - **OutputDescriptor / SigningRepository** — Vendored NBitcoin.Scripting (parser combinators, descriptor model) in `NArk.Abstractions/Scripting/`
+- **HdWalletRecoveryService** — Gap-limit scanner that rebuilds local contract state after HD wallet re-import by sweeping derivation indices and querying registered `IContractDiscoveryProvider`s (OR semantics). Ships indexer, boarding-UTXO, and Boltz-swap providers; custom sources plug in via DI.
 - **ArkApplicationBuilder** — Fluent builder for configuring all NArk services via IHostBuilder
 
 ## Directory Structure

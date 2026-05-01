@@ -49,15 +49,17 @@ The homepage search bar auto-detects input type:
 
 Search is also available from the persistent header bar on every page. Recent searches are saved locally.
 
-### Transaction View (`/commitment-tx/:txid`)
+### Batch Commitment Transaction View (`/commitment-tx/:txid`)
 
-Displays commitment transaction details:
-- Transaction ID with copy button
+Displays batch commitment transaction details (on-chain):
+- Transaction ID with copy button and a mempool.space external link
 - Started/ended timestamps
 - Total input/output amounts and VTXO counts
 - Batch list (each batch: amount, VTXO count, expiration, swept status)
 - VTXO tree visualization
 - Raw transaction hex (expandable)
+- Inputs link to mempool.space and show a "Commitment tx" cross-link to the originating settlement (when present)
+- Outputs render Bitcoin (`bc1p`/`bc1q`) addresses; batch outputs include a blue arrow linking to the batch root Arkade transaction
 
 ### Arkade Transaction View (`/tx/:txid`)
 

@@ -26,7 +26,7 @@ The SDK is published as NuGet packages and designed to integrate into any .NET a
 6. **On-Chain Operations** -- Boarding (on-chain to off-chain), settlement, and collaborative exit
 7. **Sweeping** -- Automated recovery of expired and swept VTXOs on-chain
 8. **Boltz Swaps** -- ARK-to-BTC and BTC-to-ARK chain swaps via Boltz exchange with MuSig2 cooperative claiming
-9. **HD Wallets** -- Hierarchical deterministic address derivation with descriptor recycling
+9. **HD Wallets** -- Hierarchical deterministic address derivation with descriptor recycling, plus gap-limit recovery (`HdWalletRecoveryService`) that rebuilds local contract state after mnemonic re-import via pluggable `IContractDiscoveryProvider`s (indexer-VTXO, boarding-UTXO, Boltz-swap, plus custom sources)
 10. **Caching Transport** -- gRPC + REST clients with response caching for server info
 11. **Payment Tracking** -- ArkPayment / ArkPaymentRequest domain models with PaymentTrackingService that auto-updates statuses from VTXO/intent/swap events (opt-in via `AddArkPaymentTracking()`)
 12. **Output Descriptor Support** -- Vendored NBitcoin.Scripting (OutputDescriptor, PubKeyProvider, parser combinators, SigningRepository) shipped in `NArk.Abstractions/Scripting/` for descriptor-based wallet integrations

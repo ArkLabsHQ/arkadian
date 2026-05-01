@@ -27,13 +27,15 @@ NArk.Scratchpad           ← Development scratch area
 - Defines: `ArkVtxo`, `ArkIntent`, `ArkCoin`, `ArkContract`, `ArkAddress`, `ArkTxOut`, `ArkPayment`, `ArkPaymentRequest`
 - Interfaces: `IVtxoStorage`, `IContractStorage`, `IIntentStorage`, `IWalletStorage`, `IWalletProvider`, `ISafetyService`, `IChainTimeProvider`, `IFeeEstimator`, `IActiveScriptsProvider`, `IIntentScheduler`, `IPaymentStorage`, `IPaymentRequestStorage`
 - Vendored `Scripting/` namespace: `OutputDescriptor`, `OutputDescriptorParser`, `PubKeyProvider`, `SigningRepository`, parser combinators, `NBitcoinCompat` shim (replaces removed NBitcoin 10 helpers; HAS_SPAN gated)
+- `Recovery/` namespace: `IContractDiscoveryProvider` (per-index probe interface), `DiscoveryResult` (`Used`, `Contracts`), `RecoveryOptions` (`GapLimit` / `MaxIndex` / `StartIndex`, with `Validate()` guard clauses), `RecoveryReport` (`HighestUsedIndex`, per-provider hit counts, reconstructed contracts)
 
 ### NArk.Core (depends on Abstractions)
 - gRPC transport (`GrpcClientTransport` → `IClientTransport`)
 - Caching decorator (`CachingClientTransport`)
 - Services: `SpendingService`, `CoinService`, `ContractService`, `SweeperService`, `OnchainService`, `IntentGenerationService`, `IntentSynchronizationService`, `VtxoSynchronizationService`, `BatchManagementService`
 - Batch: `BatchSession`, `TreeSignerSession`, `TreeValidator`, `TxTree`
-- Wallet: `DefaultWalletProvider`, `HierarchicalDeterministicAddressProvider`, `HierarchicalDeterministicWalletSigner`, `NSecWalletSigner`, `SingleKeyAddressProvider`, `WalletFactory`
+- Wallet: `DefaultWalletProvider`, `HierarchicalDeterministicAddressProvider` (canonical HD derivation via `GetDescriptorFromIndex`), `HierarchicalDeterministicWalletSigner`, `NSecWalletSigner`, `SingleKeyAddressProvider`, `WalletFactory`
+- Recovery: `HdWalletRecoveryService` (sweeps derivation indices, dedupes by script, persists with `Source=recovery:<provider>`, monotonically bumps `wallet.LastUsedIndex`, probes providers in parallel per index via `Task.WhenAll`, treats throwing providers as not-found), `IndexerVtxoDiscoveryProvider` (arkd indexer probe on `ArkPaymentContract`), `BoardingUtxoDiscoveryProvider` (NBXplorer/Esplora probe on `ArkBoardingContract` on-chain address; conditional registration), `NullContractDiscoveryProvider` (no-op fallback filtered out by orchestrator)
 - Scripts: `CollaborativePathArkTapScript`, `UnilateralPathArkTapScript`, `NofNMultisigTapScript`, `HashLockTapScript`, `LockTimeTapScript`
 - Events: `PostBatchSessionEvent`, `PostCoinSpendEvent`, `PostSweepActionEvent`, `PostIntentSubmissionEvent`
 - Hosting: `ArkApplicationBuilder`, `ServiceCollectionExtensions`
@@ -46,6 +48,7 @@ NArk.Scratchpad           ← Development scratch area
 - `BtcHtlcScripts` / `BtcTransactionBuilder` -- BTC-side HTLC and transaction construction
 - `BoltzLimitsValidator` -- validates swap amounts against Boltz limits
 - `PaymentTrackingService` -- background service that auto-updates `IPaymentStorage` / `IPaymentRequestStorage` rows from VTXO, intent, and swap state changes
+- `BoltzSwapDiscoveryProvider` -- HD recovery provider that delegates to `SwapsManagementService.RestoreSwaps()`; imports VHTLC contracts itself with canonical `Source=swap:<id>` metadata + swap rows (the documented storage-mutation exception to `IContractDiscoveryProvider`'s contract-list contract)
 
 ### NArk.Storage.EfCore (depends on Core + Swaps)
 - EF Core implementations of all storage interfaces
@@ -79,6 +82,8 @@ Core services are auto-registered via `AddArkCoreServices()`:
 - `BatchManagementService`, `SweeperService`
 - VTXO polling event handlers
 - `ArkHostedLifecycle` (background service)
+- `HdWalletRecoveryService` + `IndexerVtxoDiscoveryProvider`; `BoardingUtxoDiscoveryProvider` registers automatically when an `IBoardingUtxoProvider` is also resolvable, otherwise a `NullContractDiscoveryProvider` is used (and filtered out by the orchestrator)
+- `AddArkSwapServices()` additionally registers `BoltzSwapDiscoveryProvider` so HD recovery picks up VHTLC contracts
 
 ### Opt-in Feature Wiring
 

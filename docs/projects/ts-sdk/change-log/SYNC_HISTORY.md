@@ -58,3 +58,31 @@
 **Notes**:
 - No new public APIs; all changes are internal refinements and bug fixes
 - Architecture documentation unchanged (module structure, provider/identity/storage patterns are stable)
+
+---
+
+## 2026-05-01 - Release 0.4.22 + regtest image bump
+**Previous Commit**: `273496c2870312ca57339a665c12577a227c99b2`
+**Current Commit**: `476421605df8bb8f2b4dbc7a61c37941e32947ac`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for 0.4.22 release
+
+**Commits Analyzed**:
+- `4764216` update regtest image (#465)
+- `2f8bcf8` chore: release 0.4.22
+
+**Documentation Changes**:
+- Bumped SDK version 0.4.21 → 0.4.22 in `INDEX.md`, `system/project_overview.md`, master `docs/INDEX.md`
+
+**Notable Source Changes (no architectural redesign)**:
+- `package.json` version 0.4.21 → 0.4.22 (release commit only)
+- `regtest` submodule pointer updated to `arkade-regtest` master (`3ac33b6`)
+- `.env.regtest` overrides realigned for newer arkd 0.9.4 image:
+  - `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` → `v0.9.4` (was `v0.9.1`)
+  - Removed `ARKD_ALLOW_CSV_BLOCK_TYPE`, `ARKD_BOARDING_EXIT_DELAY=1024`, `ARKD_ROUND_INTERVAL=3`
+  - Added `ARKD_BOARDING_EXIT_DELAY=40`, `ARKD_CHECKPOINT_EXIT_DELAY=20`, `ARKD_UNILATERAL_EXIT_DELAY=20`, `ARKD_PUBLIC_UNILATERAL_EXIT_DELAY=20`, `ARKD_VTXO_MIN_AMOUNT=1`
+
+**Notes**:
+- No SDK source code changes — release-only commit plus regtest harness alignment
+- No public API, architecture, or feature changes; storage/provider/identity layers untouched
+- Existing usage, testing, and how-to-run docs remain accurate (regtest stack still launches via `nigiri start --ark` / docker-compose)

@@ -94,3 +94,52 @@
 - docs/INDEX.md (ark-docs Description, Key Capabilities, Tags; Last Updated/Version bump)
 - docs/projects/ark-docs/change-log/last-sync.txt → b65b10bc5cec4a59e4bd88c78bbb6c321dab13ee
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+
+## 2026-05-01 - Tooling switch to pnpm + SEO/snippets cleanup
+**Commit**: `ceef95bdca74b96e199dece2f90edd8390709e7d`
+**Previous Sync**: `b65b10bc5cec4a59e4bd88c78bbb6c321dab13ee`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 17 commits, all small/cosmetic — no new pages, no removed pages aside from two legacy v0.3 contract files.
+
+**Tooling**:
+- Switched the repo to **pnpm**: `package.json` now declares `"packageManager": "pnpm@10.33.2"`, `package-lock.json` removed (-13,992 lines), `pnpm-lock.yaml` added (+8,778 lines).
+- Bumped `mintlify` ^4.2.489 → ^4.2.542.
+- Bulk-replaced `npm install` / `npx ...` with `pnpm add` / `pnpm dlx ...` across all wallet pages (v0.3 setup, v0.3 expo-react-native, v0.4 create-your-wallet, v0.4 advanced/expo-react-native, v0.4 getting-started/ai-agents).
+
+**Snippets / Reusable Components** (NEW directory `snippets/`):
+- NEW: `snippets/agent-context.mdx` — `<AgentContext />` MDX snippet inside `<Visibility for="agents">`. Asserts that the docs site is the authoritative source and lists deprecated terms (ASP, Round, Ark address, Arkoor, etc.) that AI agents must NOT use. Imported across virtually every page (~70 pages updated to `import AgentContext from "/snippets/agent-context.mdx"; <AgentContext />`).
+- NEW: `snippets/outdated-version.jsx` — `<OutdatedVersion title href />` JSX component (Mintlify `<Warning>` banner) that links readers from a legacy v0.3 page to its v0.4 equivalent. Imported on every `wallets/v0.3/*.mdx` page (13 pages).
+- Earlier-in-PR iterations went through MDX snippet → JSX-component refactors (commits "Use JSX component (links don't work with snippets)", "Use arrow function for JSX snippet", "Move to snippets", "Don't include snippet header in TOC", "Fix unnecessary spacing", "Use `title` not `alt` for link"). Net result is the two files above.
+
+**SEO**:
+- `docs.json` `seo.indexing` changed `"all"` → `"navigable"` — only pages reachable from the navigation are indexed.
+- Every `wallets/v0.3/*.mdx` page now sets `noindex: true` in frontmatter and renders `<OutdatedVersion>` (explicit opt-out for legacy SDK pages).
+
+**LLM context menu**:
+- `docs.json` `contextual.options` adds `"devin-mcp"` (full set: claude, chatgpt, grok, devin, cursor, vscode, devin-mcp).
+
+**Deletions**:
+- DELETED: `contracts/v0.3/chain-swaps.mdx`, `contracts/v0.3/lightning-swaps.mdx` (legacy versions, the v0.3 directory is now empty/gone). Current swap docs live at `contracts/chain-swaps.mdx` and `contracts/lightning-swaps.mdx`.
+
+**Glossary** (`learn/glossary.mdx`):
+- Removed the **"Ark Protocol"** entry (small wording cleanup; `ArkService` description switched "Ark protocol" → "Arkade protocol" for consistency).
+
+**Other Small Fixes**:
+- `wallets/v0.4/getting-started/create-your-wallet.mdx`: link `alt=` → `title=` (correct anchor attribute).
+- A "Fix render issue" / "Fix API ref link" pair (small render and link fixes).
+
+**Files Updated in Arkadian Registry**:
+- docs/projects/ark-docs/INDEX.md
+  - Frontmatter: added `package_manager: "pnpm@10.33.2"` and `seo.indexing: "navigable"` / `seo.v0_3_pages: "noindex"`.
+  - Removed `contracts/v0.3/` from the directory listing and contracts file tree (directory deleted in repo).
+  - Added a new "Shared Snippets" section describing `agent-context.mdx` and `outdated-version.jsx`.
+  - Rewrote the "Mintlify Development" section to use pnpm (`pnpm install`, `pnpm dev`, `pnpm broken-links`) and added "SEO / Indexing" + "LLM Context Menu" subsections.
+- docs/INDEX.md
+  - ark-docs Key Capabilities: LLM context menu list extended with **Devin MCP**; added bullets for snippets, SEO/`navigable` indexing, and pnpm-based tooling/Mintlify version.
+  - ark-docs Tags: added `pnpm`, `devin-mcp`, `snippets`, `seo-navigable`.
+  - Footer Last Updated 2026-04-30 → 2026-05-01, Version 1.5.5 → 1.5.6.
+- docs/projects/ark-docs/change-log/last-sync.txt → ceef95bdca74b96e199dece2f90edd8390709e7d
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

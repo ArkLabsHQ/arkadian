@@ -85,9 +85,12 @@ const WalletComponent = () => {
 ### react-spring-bottom-sheet 3.4.1
 **Purpose**: Bottom sheet modal primitive used by `SheetModal`
 
+### @tanstack/react-virtual 3.13.19
+**Purpose**: Virtualized list rendering — used by `SwapsList` (`useVirtualizer`) for performant scrolling of long swap histories.
+
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.21
+### @arkade-os/sdk 0.4.22
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -112,7 +115,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.22
+### @arkade-os/boltz-swap 0.3.24
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:
@@ -121,6 +124,7 @@ interface ArkWallet {
 - Swap status monitoring
 - Invoice generation and payment
 - HTLC-based atomic execution
+- Submarine recovery API: `scanRecoverableSubmarineSwaps()` returns `SubmarineRecoveryInfo[]` with status `recoverable | pre_cltv | invalid_swap | already_spent | none`; `recoverSubmarineFunds(BoltzSubmarineSwap)` sweeps a single swap (used by Apps → Boltz → Settings bulk recovery)
 
 **API Usage**:
 ```typescript

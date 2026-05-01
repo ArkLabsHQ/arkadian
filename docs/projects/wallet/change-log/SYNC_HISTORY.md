@@ -1,5 +1,45 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-01 - Documentation Sync
+**Commit**: `047419382c723629a1eb89c674d5b7349fd55d81`
+**Previous Sync**: `c0c70aafdcd1cfa04d5d515773862fe9bef26378`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 13 non-merge commits
+
+**Features Added**:
+- Boltz bulk recovery — new "Recover funds" section in `Apps → Boltz → Settings` (PR #581) using `arkadeSwaps.scanRecoverableSubmarineSwaps()` and `recoverSubmarineFunds()`; categorises swaps as `recoverable` / `pre_cltv` / `invalid_swap`, shows per-row buttons with deferred-locktime guidance, and refreshes the scan after a successful sweep
+- Lightning invoice limit validation in Send form (PR #567) — invoice amount checked against `minSwapAllowed()` / `maxSwapAllowed()` from `LimitsContext`; rejects below-min / above-max with explicit sats error; guards against unloaded zero limits
+- Virtualized swaps list — `SwapsList` uses `@tanstack/react-virtual` `useVirtualizer` for performant scrolling (PR #585)
+
+**Features Modified**:
+- Crash fix on swap detail for restored chain swaps (PR #575) — added regression test `boltz-swap.test.tsx`
+- UI polish: header height, transaction list resize, fancy button (PR #586); transactions list "history" label removed; lighter dividers (dark10), no border on first row, leading asset icon, regular weight asset text, "haptic feedback" typo fix
+- E2E swap test fix (PR #576) and added invoice-validation test (PR #567)
+
+**Features Removed**:
+- `bun.lock` removed (PR #583) — pnpm-only
+
+**Dependency Updates**:
+- @arkade-os/sdk: 0.4.21 → 0.4.22
+- @arkade-os/boltz-swap: 0.3.22 → 0.3.24 (adds `scanRecoverableSubmarineSwaps`, `recoverSubmarineFunds`, `BoltzSubmarineSwap`, `SubmarineRecoveryInfo` types)
+
+**Regtest / Infra**:
+- `.env.regtest` bumped to `arkd:v0.9.4` and `fulmine:v0.3.21` (PR #572)
+- `regtest` submodule pointer updated (PRs #583, #587)
+
+**Files Updated**:
+- docs/INDEX.md (wallet capabilities, dependency versions)
+- docs/projects/wallet/INDEX.md (version, last_sync_commit, sdk/boltz-swap versions, capabilities)
+- docs/projects/wallet/system/project_overview.md (bulk recovery, invoice validation, sdk/boltz-swap versions)
+- docs/projects/wallet/system/tech-stack.md (sdk/boltz-swap versions, @tanstack/react-virtual)
+- docs/projects/wallet/system/components.md (bulk recovery section in Boltz Settings, SwapsList virtualization)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-04-29 - Documentation Sync
 **Commit**: `c0c70aafdcd1cfa04d5d515773862fe9bef26378`
 **Previous Sync**: `7e24d4d244264675545eba31d70bcf345b224351`

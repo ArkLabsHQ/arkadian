@@ -1,5 +1,23 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-01 - Documentation Update
+**Commit**: `ce18517f` (boltz-backend repository)
+**Previous Sync**: `6ba692ac`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Bug Fixes**:
+- EVM address case normalization in `EthereumManager.contractsForAddress` and claim-data decoding (#1382): both contract-address comparisons and the `tx.to` comparison now run through `getAddress()` so checksummed/non-checksummed/lowercase variants match correctly.
+
+**Refactors**:
+- Persist Ark lockup transaction before amount/zero-conf checks in `ArkNursery` (#1381): `SwapRepository.setLockupTransaction` is now called immediately after the lockup vHTLC is detected, so the swap row records the lockup tx even when the subsequent expected-amount check fails and `swap.lockup.failed` is emitted.
+
+**Documentation Impact**: None — no public API, capability, dependency, env-var, component, build, or migration changes. Project INDEX, system, and testing docs unchanged.
+
+---
+
 ## 2026-04-29 - Documentation Update
 **Commit**: `6ba692ac` (boltz-backend repository)
 **Previous Sync**: `e92b7e3e`

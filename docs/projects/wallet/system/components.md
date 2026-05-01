@@ -507,8 +507,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 
 **Boltz/** (Lightning Swaps via SwapManager):
 - `Index.tsx`: Swap list and navigation
-- `Settings.tsx`: Boltz provider configuration
-- `Swap.tsx`: Create/monitor swaps with description, address display
+- `Settings.tsx`: Boltz provider configuration + bulk submarine recovery (scan via `arkadeSwaps.scanRecoverableSubmarineSwaps()`, per-row sweep via `recoverSubmarineFunds(swap)`; categorises results as `recoverable` / `pre_cltv` / `invalid_swap`, surfaces deferred-locktime guidance and per-row errors)
+- `Swap.tsx`: Create/monitor swaps with description, address display (chain-swap restoration crash fixed in PR #575)
 
 **Lendasat/**: Bitcoin lending/borrowing integration
 **Lendaswap/**: Lendaswap service integration
@@ -550,8 +550,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 - **AssetCard**, **Balance**: Balance and asset cards
 - **Details**: Key/value detail rows
 - **Table**: Data table
-- **TransactionsList**: Transaction history (top-aligned rows when assets present, max 2 coins on right)
-- **SwapsList**: Swap history
+- **TransactionsList**: Transaction history (top-aligned rows when assets present, max 2 coins on right; "history" label removed; lighter `dark10` dividers, leading asset icon, regular-weight asset text)
+- **SwapsList**: Swap history (virtualized via `@tanstack/react-virtual` `useVirtualizer` for performant scrolling)
 - **QrCode**: Styled QR with tap-to-copy support
 - **ExpandAddresses**: Collapsible address list
 - **Clipboard**, **Text**: Text utilities

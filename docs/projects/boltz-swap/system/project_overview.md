@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.22`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.24`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -34,6 +34,7 @@
 - **Batch Monitoring**: Tracks VHTLCs across Arkade batch rounds
 - **Refund Handling**: Automatic timelock-based refunds for failed swaps
 - **Recovery**: Restore and resume pending swaps after app restart
+- **User-Initiated Submarine Recovery**: `inspectSubmarineRecovery`, `scanRecoverableSubmarineSwaps`, `recoverSubmarineFunds`, `recoverAllSubmarineFunds` — surface and sweep funds stranded at submarine VHTLC lockup addresses (failed swaps that never refunded, or successful swaps with extra deposits). Inspection is side-effect free and Boltz-amnesia-tolerant (queries only the local repo + Ark indexer). Post-CLTV recovery uses `refundWithoutReceiver` so funds remain reachable even if Boltz purges the swap.
 
 ### Error Handling
 - **Structured Errors**: Type-safe error classes for all failure modes
@@ -105,7 +106,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.21` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.22` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -209,17 +210,18 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.22
+**Version**: 0.3.24
 **Stability**: Stable API, active feature development
 
-**Recent Improvements (0.3.13 → 0.3.22)**:
-- Submarine swap refund robustness: include recoverable VTXOs, skip pre-CLTV recoverable VTXOs instead of aborting, only mark refunded when all VTXOs processed, fall back to `refundWithoutReceiver` when Boltz rejects refund
-- Default description `"send to Arkade address"` applied to reverse swaps when none provided
-- Schema alignment with Boltz swagger (Tree, SwapStatus, swap response, restore)
-- Retry claim when indexer returns no VTXOs
-- Renamed `Pending-` swap interfaces to `Boltz-` (with backwards-compatible type aliases)
-- Replaced bundled `test.docker-compose.yml` with `arkade-regtest` git submodule for integration testing
-- Refresh VTXOs when using `VtxoManager` to avoid stale state
+**Recent Improvements (0.3.22 → 0.3.24)**:
+- **User-initiated submarine VHTLC recovery API** — `inspectSubmarineRecovery` / `scanRecoverableSubmarineSwaps` return a structured `SubmarineRecoveryInfo` (`recoverable` / `pre_cltv` / `none` / `already_spent` / `invalid_swap`) with no side effects; `recoverSubmarineFunds` wraps `refundVHTLC`; `recoverAllSubmarineFunds` runs sequentially with per-swap `SubmarineRecoveryResult` so a single failure never aborts the batch. Wired through `IArkadeSwaps`, `ExpoArkadeSwaps`, and the Service Worker message handler + runtime
+- **API change**: `refundVHTLC()` now returns `SubmarineRefundOutcome` (`{ swept, skipped }`) instead of `void`, distinguishing real sweeps from pre-CLTV no-op skips
+- Classify Boltz 3-of-3 refundable swaps as recoverable (not pre-CLTV) so users can sweep funds even before the absolute refund timestamp elapses, when a normal spendable VTXO is present
+- Drop chain-height path from submarine VHTLC refund readiness — Boltz Ark VHTLCs encode `refund` as an absolute Unix timestamp (CLTV with timestamp semantics, BIP65 ≥ 500_000_000), so the block-height locktime branch and `getChainHeight()` round-trip were removed
+- Service Worker exempts long-running messages (Lightning send, claim/refund VHTLC, recovery APIs, wait-and-claim variants, restore swaps) from the bus message timeout — flows that surrender control to remote peers (Boltz, Ark server, batch participants) can sit idle longer than the bus deadline; liveness still covered by the existing PING / `MESSAGE_BUS_NOT_INITIALIZED` path
+- Skip the refundable/refunded flag write in `refundVHTLC` for `transaction.claimed` swaps to avoid muddling history when sweeping stranded extras
+- Centralised BIP68 relative-timelock conversion (`toBip68RelativeTimelock`) in both `utils/scripts.ts` and `utils/vhtlc.ts`, with shared `VhtlcTimeouts` typedef and clarifying docs explaining the legacy field name
+- New unit + e2e test coverage for recovery flows (happy-path e2e, message-handler dispatch, runtime wiring)
 
 **Production Features**:
 - Comprehensive error handling with typed errors

@@ -41,6 +41,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Atomic swaps**: Trustless via HTLCs
 - **Swap restoration**: Restore pending swaps from Boltz endpoint
 - **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session (`useLnurlSession` hook)
+- **Bulk submarine recovery**: Apps → Boltz → Settings scans pending submarine swaps via `arkadeSwaps.scanRecoverableSubmarineSwaps()` and sweeps each via `recoverSubmarineFunds()`. Categorises results as `recoverable` (sweep now), `pre_cltv` (deferred until locktime), and `invalid_swap`.
+- **Invoice limit validation**: Send form rejects Lightning invoices outside `[minSwapAllowed(), maxSwapAllowed()]` from `LimitsContext` (guarded against unloaded zero limits).
 
 ### Announcements & Support
 - **In-app announcements**: Server-pushed notification banners
@@ -75,8 +77,9 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Custom component library** (Ionic React removed) — buttons, inputs, modals, sheets built in-tree
 - **react-spring-bottom-sheet** for bottom sheet modals
 - **Vite** for fast builds and development server
-- **@arkade-os/sdk** (0.4.21) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.22) for Lightning swap integration
+- **@arkade-os/sdk** (0.4.22) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.3.24) for Lightning swap integration (incl. submarine recovery API)
+- **@tanstack/react-virtual** for virtualized swap list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
 - **nostr-tools** for Nostr relay backup integration
@@ -170,7 +173,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.21, @arkade-os/boltz-swap 0.3.22
+**Dependencies**: @arkade-os/sdk 0.4.22, @arkade-os/boltz-swap 0.3.24
 
 ## Getting Started
 

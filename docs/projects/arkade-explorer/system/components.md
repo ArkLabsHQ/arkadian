@@ -84,10 +84,10 @@ Persistent compact search bar in the header, available on all pages.
 ## Transaction Components (`Transaction/`)
 
 ### TransactionDetails
-Displays transaction metadata: ID, timestamps, input/output amounts, VTXO counts, and status.
+Displays transaction metadata: ID, timestamps, input/output amounts, VTXO counts, and status. On commitment txs, the header includes a mempool.space external-link icon, input arrows link to mempool.space (on-chain), outputs render Bitcoin (`bc1p`/`bc1q`) addresses as plain text, and each input is annotated with the originating settlement commitment tx (via `settledBy`, fetched through `indexerClient.getVtxos({ outpoints })` for all commitment-tx inputs). Batch outputs include a blue arrow linking to the batch root Arkade transaction. The output spending arrow routes to `/commitment-tx/` when the spend came from `settledBy` and never points to the current txid (no self-references). Subtype badges expand to full names: "Forfeit transaction", "Checkpoint transaction", "Batch tree transaction", "Connector tree transaction".
 
 ### BatchList
-Lists batch outputs with amount, VTXO count, expiration, and swept status.
+Lists batch outputs with amount, VTXO count, expiration, and swept status. The Recoverable badge is hidden when status is `spent`.
 
 ### TransactionHex
 Expandable raw transaction hex viewer with copy-to-clipboard.
@@ -104,7 +104,7 @@ VTXO-specific tree visualization showing the VTXO tree structure within a batch.
 Aggregated statistics: total balance, total received, total VTXOs, active/spent/swept counts.
 
 ### VtxoList
-Paginated list of VTXOs for an address. Each item shows outpoint, amount, status badge, timestamps, expiration, and transaction links.
+Paginated list of VTXOs for an address. Each item shows outpoint, amount, status badge, timestamps, expiration, and transaction links. The Recoverable badge is hidden when status is `spent`.
 
 ## Asset Components (`Asset/`)
 

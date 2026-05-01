@@ -25,7 +25,11 @@ new ArkadeLightning(config: ArkadeLightningConfig)
 | `createSubmarineSwap(args)` | `PendingSubmarineSwap` | Create submarine swap (low-level) |
 | `createReverseSwap(args)` | `PendingReverseSwap` | Create reverse swap (low-level) |
 | `claimVHTLC(swap)` | `void` | Claim VHTLC for reverse swap |
-| `refundVHTLC(swap)` | `void` | Refund VHTLC for submarine swap |
+| `refundVHTLC(swap)` | `SubmarineRefundOutcome` | Refund VHTLC for submarine swap (returns `{ swept, skipped }`) |
+| `inspectSubmarineRecovery(swap)` | `SubmarineRecoveryInfo` | Side-effect-free probe of a submarine swap's lockup address (recoverable / pre_cltv / none / already_spent / invalid_swap) |
+| `scanRecoverableSubmarineSwaps()` | `SubmarineRecoveryInfo[]` | Scan all locally-known submarine swaps, batched indexer queries, side-effect free |
+| `recoverSubmarineFunds(swap)` | `SubmarineRefundOutcome` | Sweep stranded funds at a single submarine VHTLC (thin wrapper over `refundVHTLC`) |
+| `recoverAllSubmarineFunds(swaps)` | `SubmarineRecoveryResult[]` | Sequentially recover a batch of swaps; per-swap result so one failure never aborts the rest |
 | `restoreSwaps(fees?)` | `{ reverseSwaps, submarineSwaps }` | Restore swaps from Boltz |
 | `enrichReverseSwapPreimage(swap, preimage)` | `PendingReverseSwap` | Add preimage to restored swap |
 | `enrichSubmarineSwapInvoice(swap, invoice)` | `PendingSubmarineSwap` | Add invoice to restored swap |
@@ -135,6 +139,38 @@ new SwapManager(swapProvider: BoltzSwapProvider, config?: SwapManagerConfig)
 | `InsufficientFundsError` | Not enough funds |
 | `NetworkError` | HTTP/WebSocket error (has statusCode, errorData) |
 | `SchemaError` | Invalid API response format |
+
+## Submarine Recovery Types
+
+```typescript
+type SubmarineRecoveryStatus =
+  | "recoverable"      // unspent VTXOs exist and can be swept now (post-CLTV, or Boltz 3-of-3 path with a normal VTXO present)
+  | "pre_cltv"         // unspent VTXOs exist but refund locktime not yet reached and no Boltz 3-of-3 path detected
+  | "none"             // no unspent VTXOs at the lockup address
+  | "already_spent"    // address has VTXOs but every one is spent (typical healthy completion)
+  | "invalid_swap";    // pending status, incomplete data, or reconstructed VHTLC address mismatch
+
+interface SubmarineRecoveryInfo {
+  swap: BoltzSubmarineSwap;
+  status: SubmarineRecoveryStatus;
+  vtxoCount: number;
+  amountSats: number;
+  refundLocktime?: number; // absolute Unix timestamp from VHTLC
+  error?: string;          // populated when status === "invalid_swap"
+}
+
+interface SubmarineRefundOutcome {
+  swept: number;   // VTXOs successfully refunded
+  skipped: number; // VTXOs deferred (caller retries later)
+}
+
+interface SubmarineRecoveryResult {
+  swapId: string;
+  recovered: boolean; // at least one VTXO swept
+  skipped: boolean;   // at least one deferred (no error)
+  error?: string;     // failure message; supersedes `skipped`
+}
+```
 
 ## Status Helpers
 
