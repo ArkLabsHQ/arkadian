@@ -62,6 +62,11 @@ REPO_ENTRIES=(
   "ARK_INFRA_GITHUB|ARK_INFRA_REPO|ArkLabsHQ/ark-infra|ark-infra (IaC)|optional"
   "KMS_UNLOCKER_GITHUB|KMS_UNLOCKER_REPO|ArkLabsHQ/kms-unlocker|kms-unlocker (AWS KMS unlock)|optional"
   "ARK_DOCS_GITHUB|ARK_DOCS_REPO|arkade-os/docs|ark-docs (protocol docs)|optional"
+  "ARKADE_REGTEST_GITHUB|ARKADE_REGTEST_REPO|ArkLabsHQ/arkade-regtest|arkade-regtest (shared regtest env, used as submodule)|optional"
+  "ARKADE_WDK_GITHUB|ARKADE_WDK_REPO|ArkLabsHQ/arkade-wdk|arkade-wdk (Tether WDK wallet, RN/mobile)|optional"
+  "ENCLAVE_GITHUB|ENCLAVE_REPO|ArkLabsHQ/enclave|enclave (AWS Nitro Enclave framework)|optional"
+  "BLUEWALLET_GITHUB|BLUEWALLET_REPO|ArkLabsHQ/BlueWallet|BlueWallet (ArkLabs fork, parity reference)|optional"
+  "ARKANA_KNOWLEDGE_GITHUB|ARKANA_KNOWLEDGE_REPO|ArkLabsHQ/arkana-knowledge|arkana-knowledge (CTO AI memory: slack-log, research, sdk-parity)|optional"
 )
 
 # ── Start .env ───────────────────────────────────────────────────

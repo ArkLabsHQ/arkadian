@@ -149,13 +149,24 @@ limit is 40k), truncate at the end of the "Most important — expanded"
 section and append:
   `_Full edition: <NEWS_FILE> on Hetzner._`
 
-If `slack_send_message` fails, log the error in your stdout output but
+**After calling `slack_send_message`, print a single deterministic line
+on its own** so the orchestrator can verify delivery:
+
+  - On success: `SLACK_OK <permalink-or-ts-or-channel.ts>`
+    (use whatever the tool returned — permalink is best, but ts/channel
+     is fine if no permalink came back)
+  - On failure: `SLACK_FAILED <one-line error summary>`
+
+Do not put any other text on these lines.
+
+If `slack_send_message` fails, log via the SLACK_FAILED line above but
 do NOT fail the run — the file on disk is the source of truth.
 
 ## Final stdout
 
-Your last line of output must be the absolute path of the newspaper
-file. Nothing else. The orchestrator parses it.
+After the SLACK_OK / SLACK_FAILED line, your VERY last line of output
+must be the absolute path of the newspaper file. Nothing else after it.
+The orchestrator parses these two markers separately.
 
 RULES
 - Use Read with `limit:` for any file > 100 lines.

@@ -25,7 +25,6 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARKADIAN_DIR="${ARKADIAN_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 ENV_FILE="$ARKADIAN_DIR/.env"
-ARKANA_KNOWLEDGE_DIR="${ARKANA_KNOWLEDGE_DIR:-$HOME/code/typescript/arkana-knowledge}"
 LOG_DIR="${LOG_DIR:-$ARKADIAN_DIR/log/newspaper}"
 DATE="$(date +%Y-%m-%d)"
 LOG_FILE="$LOG_DIR/run-$DATE.log"
@@ -57,6 +56,13 @@ fi
 # Load .env so the prompt can see *_REPO paths.
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
+
+# Resolve arkana-knowledge path: prefer ARKANA_KNOWLEDGE_REPO from .env
+# (written by generate-env.sh's auto-detect/clone), fall back to a
+# legacy ARKANA_KNOWLEDGE_DIR if someone set it in env or .env directly.
+# If both are unset, we just don't refresh arkana memory — Claude can
+# still pull live Slack via the managed connector.
+ARKANA_KNOWLEDGE_DIR="${ARKANA_KNOWLEDGE_REPO:-${ARKANA_KNOWLEDGE_DIR:-}}"
 export ARKADIAN_DIR ARKANA_KNOWLEDGE_DIR
 
 if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
@@ -69,7 +75,11 @@ log "ARKADIAN_DIR=$ARKADIAN_DIR"
 log "ARKANA_KNOWLEDGE_DIR=$ARKANA_KNOWLEDGE_DIR"
 
 # ---- Step 1: refresh arkana-knowledge so memory is current ----------------
-if [ -d "$ARKANA_KNOWLEDGE_DIR/.git" ]; then
+if [ -z "$ARKANA_KNOWLEDGE_DIR" ]; then
+  log "INFO: ARKANA_KNOWLEDGE_REPO not set in .env — skipping memory refresh."
+  log "      Run \`make generate-env\` (or rm .env && make generate-env) to auto-detect."
+  log "      Newspaper will rely on the live Slack connector for Slack content."
+elif [ -d "$ARKANA_KNOWLEDGE_DIR/.git" ]; then
   if ! pull_out=$(timeout "$GIT_TIMEOUT" git -C "$ARKANA_KNOWLEDGE_DIR" pull --ff-only --quiet 2>&1); then
     log "WARN: arkana-knowledge pull failed (continuing with stale memory)"
     printf '%s\n' "$pull_out" | sed 's/^/      /' | tee -a "$LOG_FILE" >/dev/null
@@ -105,12 +115,25 @@ word_count="$(wc -w < "$NEWS_FILE" | tr -d ' ')"
 log "Newspaper written: $NEWS_FILE (${word_count} words)"
 
 # Slack delivery already happened inside the Claude call (see prompt).
-# Look for evidence of a successful post in the captured output.
-if printf '%s' "$claude_out" | grep -qiE 'arklabshq\.slack\.com/archives/|"ok":\s*true'; then
-  log "Slack delivery confirmed (saw a posted-message URL or ok:true in Claude output)."
-else
-  log "WARN: no Slack post URL detected in Claude output. Inspect the log to see what happened."
-fi
+# The prompt instructs Claude to emit a deterministic marker line
+# `SLACK_OK <ref>` on success or `SLACK_FAILED <reason>` on failure.
+slack_marker="$(printf '%s\n' "$claude_out" | grep -E '^SLACK_(OK|FAILED) ' | tail -1)"
+case "$slack_marker" in
+  "SLACK_OK "*)
+    log "Slack delivery confirmed: ${slack_marker#SLACK_OK }"
+    ;;
+  "SLACK_FAILED "*)
+    log "WARN: Slack delivery FAILED: ${slack_marker#SLACK_FAILED }"
+    ;;
+  *)
+    # Fallback: try to spot a permalink anyway.
+    if printf '%s' "$claude_out" | grep -qiE 'slack\.com/archives/'; then
+      log "Slack delivery likely succeeded (no marker line, but a slack.com permalink appeared in output)."
+    else
+      log "WARN: no SLACK_OK/SLACK_FAILED marker found. Inspect the log to see what Claude did."
+    fi
+    ;;
+esac
 
 log "==== Done. ===="
 echo "$NEWS_FILE"
