@@ -314,7 +314,12 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
 
 **Layer 2: Access Control**
 - SSM Session Manager only (no SSH)
-- IAM-based authentication + MFA
+- Google Workspace SAML federation per account (`ArkProd*` / `ArkDev*` roles); 15-min Lambda syncs GWS group → `Amazon.Role` attribute (`modules/ark-gws-sync`)
+- Four-tier role model with guardrail policies (`modules/ark-iam-roles`): SuperAdministrator (no guardrails), Administrator (`AdminRestrictions`), Developer (`AdminRestrictions` + `DeveloperRestrictions` + `SSMPortForwarding`), ReadOnly (`AdminRestrictions` + `DeveloperRestrictions`)
+- Guardrails deny: Secrets Manager value access, `*secure*` SSM params, CloudTrail/GuardDuty/Config/SecurityHub disruption, KMS destructive ops, Terraform state bucket / lock table mutation, SuperAdmin role assumption, S3 public-access toggles, SSM **shell** sessions (port forwarding still permitted)
+- Developer/ReadOnly additionally cannot read `/aws/ssm/sessions/*` or `/*secure*` log groups, write Terraform state, or assume the Administrator role
+- SSM access tiers — shell: SuperAdmin only; port forward: SuperAdmin + Admin + Developer; run-command: SuperAdmin + Admin
+- ABAC enabled via `sts:TagSession` in the SAML trust policy; account ID derived from `data.aws_caller_identity` (no hardcoded account variable)
 - CloudWatch audit logging (30-day retention)
 - Session encryption via TLS
 

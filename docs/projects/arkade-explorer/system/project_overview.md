@@ -98,7 +98,7 @@ Configured via `vercel.json` for automatic SPA routing.
 Configured via `netlify.toml` for automatic SPA routing. Includes serverless functions directory.
 
 ### Self-Hosted
-Build with `npm run build` and serve the `dist/` directory with any static file server. SPA fallback routing is required.
+Build with `pnpm build` and serve the `dist/` directory with any static file server. SPA fallback routing is required.
 
 ## Security Considerations
 

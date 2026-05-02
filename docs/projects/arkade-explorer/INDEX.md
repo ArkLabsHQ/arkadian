@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
 version: 1.1.0
-last_sync_commit: 070ce396acde683e39021ca6f403db4412847ea3
+last_sync_commit: 453b0b152469a1929b2b359c478040864b6cc453
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -15,10 +15,10 @@ aliases:
   components: ["system/components.md"]
   integration: ["system/integration-with-arkd.md"]
 scripts:
-  dev: "npm run dev"
-  build: "npm run build"
-  lint: "npm run lint"
-  preview: "npm run preview"
+  dev: "pnpm dev"
+  build: "pnpm build"
+  lint: "pnpm lint"
+  preview: "pnpm preview"
 ---
 
 # Arkade Explorer -- Project Index
@@ -173,19 +173,19 @@ arkade-explorer/
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server (http://localhost:5173)
-npm run dev
+pnpm dev
 
 # Build for production
-npm run build
+pnpm build
 
 # Preview production build
-npm run preview
+pnpm preview
 
 # Run linting
-npm run lint
+pnpm lint
 
 # Docker (pre-built image from GHCR)
 docker run -p 8080:80 ghcr.io/arklabshq/arkade-explorer:latest

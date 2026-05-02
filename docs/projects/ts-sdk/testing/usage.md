@@ -37,12 +37,27 @@ import { Wallet, MnemonicIdentity } from '@arkade-os/sdk'
 const identity = MnemonicIdentity.fromMnemonic(
   'your twelve word mnemonic phrase here ...'
 )
+// identity.descriptor is the wildcard template: tr([fp/86'/0'/0']xpub/0/*)
 
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://mutinynet.arkade.sh',
 })
 ```
+
+### HD Receive Rotation (HDDescriptorProvider)
+
+```typescript
+import { HDDescriptorProvider, MnemonicIdentity } from '@arkade-os/sdk'
+
+const identity = MnemonicIdentity.fromMnemonic('twelve word mnemonic ...')
+const provider = await HDDescriptorProvider.create(identity, walletRepository)
+
+const d0 = await provider.getNextSigningDescriptor() // tr(.../0/0)
+const d1 = await provider.getNextSigningDescriptor() // tr(.../0/1)
+```
+
+State persists under `WalletState.settings.hd` (no schema migration). Allocation is serialized across provider instances on the same repo via the shared `updateWalletState` mutex, so two callers never observe the same index.
 
 ### Watch-Only Wallet
 
@@ -142,6 +157,28 @@ const storage = new AsyncStorageAdapter()
 // Pass to wallet
 const wallet = await Wallet.create({ identity, arkServerUrl, storage })
 ```
+
+## Onchain Providers (Esplora vs Electrum)
+
+```typescript
+import {
+  EsploraProvider,
+  ElectrumOnchainProvider,
+  ESPLORA_URL,
+  ELECTRUM_WS_URL,
+  networks,
+} from '@arkade-os/sdk'
+import { ElectrumWS } from 'ws-electrumx-client'
+
+// HTTP / Esplora — defaults to Ark Labs mempool deployments
+const esplora = new EsploraProvider(ESPLORA_URL.bitcoin)
+
+// WebSocket / Electrum — defaults to Ark Labs Fulcrum 2.1
+const ws = new ElectrumWS(ELECTRUM_WS_URL.bitcoin)
+const electrum = new ElectrumOnchainProvider(ws, networks.bitcoin)
+```
+
+`ElectrumOnchainProvider` supports atomic 1P1C TRUC relay via `broadcast_package` (Fulcrum-only) and stays compatible with electrs by avoiding `verbose` `transaction.get`. `ELECTRUM_TCP_HOST` exposes the bare hostnames for Node-side TCP transports (ports 50001/50002/50003).
 
 ## Service Worker
 

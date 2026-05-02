@@ -86,3 +86,39 @@
 - No SDK source code changes — release-only commit plus regtest harness alignment
 - No public API, architecture, or feature changes; storage/provider/identity layers untouched
 - Existing usage, testing, and how-to-run docs remain accurate (regtest stack still launches via `nigiri start --ark` / docker-compose)
+
+---
+
+## 2026-05-02 - HD descriptor provider stack + Electrum onchain provider hardening
+**Previous Commit**: `476421605df8bb8f2b4dbc7a61c37941e32947ac`
+**Current Commit**: `a0fab06e39245e511dc0cccfeb3ea9c35bf024e8`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for HD descriptor provider work and Electrum provider hardening (no version bump — package.json still 0.4.22)
+
+**Commits Analyzed**:
+- `a0fab06` feat(wallet): HDDescriptorProvider (Phase C1) (#440)
+- `f705353` test(e2e): integration tests for ElectrumOnchainProvider over regtest (#461)
+- `37d03e0` feat(identity): HD wallet primitives on SeedIdentity (#439)
+
+**Documentation Changes**:
+- `system/architecture.md`: added `wallet/hdDescriptorProvider.ts` and the new `identity/` files (`hdCapableIdentity.ts`, `descriptor.ts`, `descriptorProvider.ts`, `staticDescriptorProvider.ts`, `serialize.ts`); added `providers/electrum.ts`; rewrote the Identity Abstraction section to explain wildcard-template inputs and added a new Descriptor Provider Pattern section; added `@bitcoinerlab/descriptors-scure` and `ws-electrumx-client` to the crypto/dep table
+- `system/project_overview.md`: extended Core Features with descriptor providers and HD receive rotation; added Electrum integration point and noted default URL maps for Esplora and Electrum
+- `INDEX.md`: added Descriptor Providers tier in the architecture diagram; added `ElectrumOnchainProvider` next to `EsploraProvider`; updated Key Concepts to mention template-based identities and the descriptor provider allocator
+- `testing/usage.md`: added HD Receive Rotation example using `HDDescriptorProvider.create` and an Onchain Providers section showing `EsploraProvider` vs `ElectrumOnchainProvider` with default URL constants
+- `testing/how_to_test.md`: noted the new `e2e/electrum.test.ts` alongside `e2e/onchain.test.ts`
+- Master `docs/INDEX.md`: expanded ts-sdk capabilities (template-based HD identity, DescriptorProvider allocator with HD/static implementations, ElectrumOnchainProvider with broadcast_package/electrs notes, default endpoint maps); added tags `hd-wallet`, `descriptor-provider`, `electrum`, `esplora`
+
+**Notable Source Changes**:
+- `DescriptorProvider` (in `src/identity/descriptorProvider.ts`) is now a pure allocator: `getNextSigningDescriptor(): Promise<string>` plus `isOurs` / `signWithDescriptor` / `signMessageWithDescriptor`. No "current" read accessor — that lives on the contract repository
+- `StaticDescriptorProvider` wraps a legacy `Identity` for single-key flows; `HDDescriptorProvider` (in `src/wallet/hdDescriptorProvider.ts`) handles HD receive rotation. State is `{ descriptor, lastIndexUsed }` under `WalletState.settings.hd`; index allocation happens inside the per-repo `updateWalletState` mutex so two provider instances on the same repo never observe the same index. First allocation returns index 0; descriptor-mismatch guard refuses HD state written by a different seed
+- New `HDCapableIdentity` / `ReadonlyHDCapableIdentity` capability markers (`src/identity/hdCapableIdentity.ts`); `SeedIdentity` `implements HDCapableIdentity` and no longer `implements DescriptorProvider`. `MnemonicIdentity` extends `SeedIdentity`; `ReadonlyDescriptorIdentity` `implements ReadonlyHDCapableIdentity`
+- **Public surface change**: identities now consume a wildcard descriptor template (`tr(.../0/*)`); `identity.descriptor` returns the template (was the index-0 materialization). The wire format also stores the template, but `hydrateIdentity` chops back via `templateOf` so older envelopes carrying concrete `/N)` descriptors still deserialize. Constructors validate the template and reject non-wildcard inputs
+- Shared descriptor helpers in `src/identity/descriptor.ts` (`isMainnetDescriptor`, `descriptorIsOurs`, `parseHDDescriptor`, etc.) — most thin wrappers were eventually inlined onto `expand()` / `canonicalExpression` / `isRanged` from `@bitcoinerlab/descriptors-scure`, which now does wildcard substitution, BIP86 template construction (`scriptExpressions.trBIP32`), and ranged/non-ranged classification natively
+- `ElectrumOnchainProvider` (`src/providers/electrum.ts`) hardened for cross-server compatibility: dropped `verbose` `transaction.get` (electrs unsupported), uses raw-tx parsing for exact sat outputs, adopts `WsElectrumChainSource.safeBatchRequest` everywhere to avoid the orphan-rejection leak in `ws-electrumx-client.batchRequest`, and tolerates electrs's "missingheight" index-lag race in `historyToExplorerTxs`, `getTxStatus`, and `fetchTxMerkle` (block_time degrades to 0 in that window; confirmation status is still authoritative)
+- New default URL maps exported from the SDK barrel: `ESPLORA_URL` (Ark Labs mempool: `mempool.arkade.sh`, `mempool.signet.arkade.sh`, `mempool.mutinynet.arkade.sh`), `ELECTRUM_WS_URL` (Ark Labs Fulcrum 2.1 with `broadcast_package` support for bitcoin/signet/mutinynet; testnet → Blockstream; regtest → `ws://localhost:50003`), `ELECTRUM_TCP_HOST` (informational, ports 50001/50002/50003)
+- New `test/e2e/electrum.test.ts` covers every method on `OnchainProvider` against nigiri's electrum-ws bridge (port 50003); regtest submodule pin temporarily points at `arkade-regtest#12` (NIGIRI_BRANCH=electrum-ws-bridge) until that PR merges; unit suite up to 1024 passing with 49 electrum tests
+
+**Notes**:
+- No package version bump (still `0.4.22`); no public-facing rename of identity options — `DescriptorOptions` and `ReadonlyDescriptorIdentity.fromDescriptor` retained their pre-existing names
+- The semantic shift (identities now hold a *template*, not a concrete descriptor) is a breaking constructor-input change but the field name stayed the same
+

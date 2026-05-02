@@ -18,38 +18,46 @@ git submodule update --init --recursive
 
 ## Local Development Setup
 
-The repository ships a setup helper that installs root dependencies, builds the package, and links submodule dependencies in a sensible order.
+The repository ships an idempotent setup helper that installs root dependencies, initialises submodules, applies all patches, and symlinks packages into one another's `node_modules`.
 
 ```bash
 npm install
 npm run setup:dev
 ```
 
-> **Note:** `scripts/setup-dev.js` still references the legacy `@wdk/bare` naming in some link commands while the actual submodule package is `@tetherto/pear-wrk-wdk`. Treat the script's results as best-effort — verify links explicitly when something looks off.
+`scripts/setup-dev.js` is safe to re-run: each patch is checked with `git apply --reverse --check` first, and existing symlinks are removed before being recreated. There is **no build step** for the runtime code (the package ships `src/*.js` directly).
 
-## Build
+## Build (declarations only)
+
+The package has no compiled runtime — only emitted type declarations:
 
 ```bash
-npm run build         # tsc → dist/
-npm run dev           # tsc --watch
-npm run clean         # rimraf dist
+npm run build:types   # tsc -p tsconfig.json → types/*.d.ts
 ```
 
-## Lint & Format
+This is what `prepublishOnly` runs before `npm publish`.
+
+## Lint, Format, Type-Check
 
 ```bash
-npm run lint          # eslint src --ext .ts
-npm run lint:fix      # eslint src --ext .ts --fix
-npm run format        # prettier --write "src/**/*.ts"
+npm run lint          # eslint src --ext .js && tsc -p jsconfig.json --noEmit
+npm run lint:fix      # eslint src --ext .js --fix
+npm run format        # prettier --write "src/**/*.js"
+npm run typecheck     # tsc -p jsconfig.json --noEmit (JSDoc-driven type-check)
 ```
 
 ## Tests
 
 ```bash
-npm test
+npm test              # node --test src/__tests__/*.test.js
+npm run test:watch    # node --test --watch src/__tests__/*.test.js
 ```
 
-> **Known issue:** `jest.config.js` references `src/__tests__/setup.ts`, which is missing from the current tree. `npm test` therefore fails on Jest config validation until that file is added (or the reference is removed). See `testing/troubleshooting.md`.
+Tests use the built-in `node:test` runner (no Jest, no `--experimental-vm-modules`). Current specs:
+
+- `src/__tests__/bech32m.test.js` — cross-checks `arkAddressToPkScript` against `ArkAddress` from the SDK.
+- `src/__tests__/phase-0.test.js` — Phase-0 wiring (manager / account boundary tests).
+- `src/__tests__/wdk.test.js` — WDK integration: `WdkManager` registration, account types, etc.
 
 ## Submodule Workflow
 
@@ -68,24 +76,19 @@ git add packages/wdk-react-native-provider
 git commit -m "Update wdk-react-native-provider submodule"
 ```
 
-Repeat for each touched submodule (`packages/pear-wrk-wdk`, `examples/wdk-starter-react-native`).
-
 ## Patch Workflow
 
-When you cannot commit upstream (e.g., changes go into a fork tracking a vendor repo), keep the diff as a patch file under `./patches/`.
+When you cannot commit upstream (e.g., changes go into a vendor repo), keep the diff as a patch file under `./patches/`.
 
 ```bash
-# Apply patches after a fresh clone or submodule update
-node scripts/apply-patches.js
+# Apply patches into a freshly synced submodule
+npm run setup:dev   # idempotent: applies every patch via git apply
 
-# Verify patches still apply cleanly without modifying the working tree
-node scripts/apply-patches.js --check
-
-# Regenerate patches after editing submodule files
+# Regenerate patches after editing submodule files (default base = parent's pinned submodule SHA)
 node scripts/generate-patches.js
 
-# Use a different base ref (default: origin/main)
-node scripts/generate-patches.js --base origin/v2
+# Use a different base ref
+node scripts/generate-patches.js --base origin/main
 ```
 
 After regenerating, commit the updated patch files in the parent repo:
@@ -95,43 +98,31 @@ git add patches/wdk-react-native-provider.patch
 git commit -m "Update wdk-react-native-provider patch"
 ```
 
-## Provider Build (Submodule)
-
-After editing `packages/wdk-react-native-provider`, regenerate bundles and type definitions before committing:
-
-```bash
-cd packages/wdk-react-native-provider
-npm run prepare   # gen:secret-manager-bundle + gen:worker-bundle + bob build
-```
-
-This re-bundles the worklet (picking up HRPC schema changes from `pear-wrk-wdk`) and type-checks under the stricter `bob build` settings.
+The `--base` default was changed (`30aabf8`) to the parent's pinned submodule SHA — important when the submodule is checked out at an older tag (true for the two `packages/` submodules).
 
 ## Running the Example RN App
 
 ```bash
 cd examples/wdk-starter-react-native
 
-# Install according to the example's own README/instructions
-npm install   # or pnpm/yarn depending on the submodule
-
-# Typecheck (if available)
-npm run typecheck
+# Install according to the example's own README
+npm install
 
 # Run on Android or iOS
 npm run android
 npm run ios
 ```
 
-> **Reminder:** The Expo example currently routes Bitcoin through `@wdk/wallet-btc` by default — not `@arkade-os/wdk`. If you are validating `@arkade-os/wdk` end-to-end, ensure the provider/example wiring has been updated to register `WalletManagerArkade` for the `bitcoin` chain.
+The example app exercises the full Arkade chain (send/receive, including BIP21 + Lightning) once `setup:dev` has applied all patches.
 
 ## Environment Variables
 
-The adapter itself reads no environment variables; configuration is passed at construction time via `ArkadeWalletConfig`. The example app may define its own `.env`/`app.json` settings — see its own README.
+The adapter itself reads no environment variables; configuration is passed at construction time via `ArkadeWalletConfig`. The example app may define its own `.env` / `app.json` settings — see its own README.
 
 ## Pre-Hand-off Checklist
 
-- `npm run build` passes at root.
-- `npm run lint` passes at root.
-- Any expected failures (e.g. the current Jest config issue) are called out in the PR description.
+- `npm run lint` passes (covers ESLint + JSDoc type-check).
+- `npm test` passes.
+- `npm run format` produced no further changes (or formatting changes are isolated in a separate commit).
 - `git status --short` is clean at root and in any touched submodule.
-- No accidental lockfile churn unless intentional.
+- No accidental lockfile churn unless intentional (the project commits `package-lock.json`; `pnpm-lock.yaml` was removed and `npm` is enforced).

@@ -304,6 +304,8 @@ Self-contained regtest environment for Ark protocol development. Orchestrates Ni
 - Submodule-first design: auto-discovers parent-repo `.env.regtest`
 - Configurable image versions for Fulmine, Boltz, LND, LNURL, Wallet, Nginx
 - Fully configurable arkd parameters (round interval, session duration, exit delays, fees, etc.) when in override mode
+- Unified wallet setup across both built-in and `ARKD_IMAGE` paths (admin API: seed → create → unlock, with up to 60-attempt sync wait)
+- Centralized `ARK_CONTAINER` env (auto-derived: `arkd` in override mode, `ark` for built-in) — overridable for SDK tests that expect a specific container name
 - Lightning helper scripts for invoice creation/payment via Boltz LND
 - Stop / clean lifecycle scripts (preserve volumes vs full teardown)
 - Ready-made GitHub Actions integration pattern with `_build/` cache
@@ -431,8 +433,14 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Port forwarding to EC2 services and remote hosts (RDS, Redis)
 - Image pinning script for running container digest collection
 - Deploys arkd / arkd-wallet `v0.9.4` from GHCR (`ghcr.io/arkade-os/arkd*`); Traefik upgraded to `v3.6.14`
+- **Google Workspace SAML SSO** per AWS account (prod `982590065524`, dev `438465126741`) with reusable modules `ark-iam-roles` and `ark-gws-sync`
+- Four-tier role model with prefix per account (`ArkProd*` / `ArkDev*`): SuperAdministrator, Administrator, Developer, ReadOnly
+- Layered guardrail policies (`AdminRestrictions`, `DeveloperRestrictions`, `SSMPortForwarding`): deny secrets, Terraform state mutation, security-tooling tampering, sensitive log groups (`/*secure*`, `/aws/ssm/sessions/*`), and SSM shell sessions for non-SuperAdmins
+- Lambda (`secure-gws-aws-sync-{env}`) reconciles GWS group membership to the `Amazon.Role` attribute every 15 min; multi-account aware (preserves sibling-account attributes) and revokes orphaned users
+- ABAC enabled via `sts:TagSession`; account ID derived from `data.aws_caller_identity` (no hardcoded account variable); provider `default_tags` standardized (`ManagedBy = "opentofu"`, `Repository`, `Owner`)
+- Nix devshell (`flake.nix` + `.envrc`) pinning OpenTofu 1.9.1, Node.js 20, and Python 3 for reproducible local tooling
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 
@@ -661,24 +669,25 @@ Rust-based compiler for the Arkade Script language that transforms `.ark` smart 
 **GitHub**: `${ARK_DOCS_GITHUB}`
 
 **Description**:
-Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark concepts, arkd server, wallet development (v0.3 and v0.4), smart contracts (Tapscript and Arkade language), Arkade Assets, and security model. Used as knowledge base for Q&A agents.
+Official documentation repository for the Ark protocol and ecosystem. Built with Mintlify and published as interactive documentation site. Includes comprehensive guides on Ark core concepts, arkd server, wallet development (v0.3 legacy and the unprefixed latest set), smart contracts (Tapscript and Arkade language), Arkade Assets, and security model. Used as knowledge base for Q&A agents.
 
 **Key Capabilities**:
-- Ark protocol core concepts (`learn/concepts/`: vtxos, transactions, settlement, lifecycle, security)
+- Ark protocol core concepts (`learn/core-concepts/`: vtxos-and-ownership, transactions-and-execution, settlement-and-finality, vtxo-lifecycle-and-liveness, security-and-trust-model — slugs match titles; renamed from `learn/concepts/`)
 - Arkd server documentation (components, transactions, server-security, core-services with configuration)
-- Wallet development v0.4 (Latest): getting-started, operations, assets workflows, advanced (settlement-process, ramps, vtxo-management, storage adapters, service worker, Expo/React Native, AI agents)
-- Wallet development v0.3 (Legacy): retained for compatibility
+- Wallet development (Latest, top-level `wallets/`): getting-started, operations, assets workflows, advanced (settlement-process, ramps, vtxo-management, storage adapters, service worker, Expo/React Native, AI agents) — `v0.4/` prefix removed and old URLs redirected
+- Wallet development v0.3 (Legacy): retained for compatibility under `wallets/v0.3/`
 - Arkade contracts: deep-dive, Tapscript primitives (escrow, hashlock, Spilman channel, Dryja-Poon channel) and use cases (lightning-swaps, lightning-channels, chain-swaps, oracle-dlc)
 - Arkade Assets overview and core concepts (`learn/arkade-assets/`)
 - Experimental Arkade language (compiler, functions, non-interactive-swaps)
 - FAQ (9 curated questions)
+- Top-level **Glossary** tab (`glossary.mdx` promoted from `learn/glossary.mdx`)
 - LLM context menu integration (Claude, ChatGPT, Grok, Devin, Devin MCP, Cursor, VSCode)
-- Reusable MDX/JSX snippets (`snippets/agent-context.mdx` enforces Arkade terminology for AI agents; `snippets/outdated-version.jsx` renders the v0.3 → v0.4 redirect banner)
+- Reusable MDX/JSX snippets (`snippets/agent-context.mdx` enforces Arkade terminology for AI agents; `snippets/outdated-version.jsx` renders the v0.3 → latest redirect banner)
 - SEO model: `seo.indexing: "navigable"` with explicit `noindex` on all v0.3 wallet pages
 - Tooling: pnpm-based workflow (`packageManager: pnpm@10.33.2`, `pnpm-lock.yaml`), Mintlify ^4.2.542
 - Mintlify-powered interactive documentation, auto-published via GitHub
 
-**Tags**: `documentation`, `docs`, `mintlify`, `pnpm`, `ark-protocol`, `arkd`, `wallet-guide`, `wallets-v0.4`, `tapscript`, `smart-contracts`, `arkade-language`, `arkade-assets`, `faq`, `security`, `llm-context`, `devin-mcp`, `snippets`, `seo-navigable`
+**Tags**: `documentation`, `docs`, `mintlify`, `pnpm`, `ark-protocol`, `arkd`, `wallet-guide`, `wallets-latest`, `core-concepts`, `glossary`, `tapscript`, `smart-contracts`, `arkade-language`, `arkade-assets`, `faq`, `security`, `llm-context`, `devin-mcp`, `snippets`, `seo-navigable`
 
 **Synonyms**: `docs`, `documentation-site`, `knowledge-base`, `ark-manual`
 
@@ -718,7 +727,7 @@ Modern blockchain explorer for the Arkade Protocol with a retro Space Invaders t
 - Multi-arch Docker deployment via GHCR (`linux/amd64` + `linux/arm64`)
 - Responsive design (mobile + desktop)
 
-**Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `assets`, `react`, `typescript`, `vite`, `tailwindcss`, `indexer`, `web-app`, `frontend`, `theme`, `docker`
+**Tags**: `explorer`, `blockchain`, `vtxo`, `transactions`, `assets`, `react`, `typescript`, `vite`, `tailwindcss`, `indexer`, `web-app`, `frontend`, `theme`, `docker`, `pnpm`
 
 **Synonyms**: `ark-explorer`, `block-explorer`, `tx-explorer`, `vtxo-explorer`
 
@@ -916,7 +925,8 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 
 **Key Capabilities**:
 - Wallet creation and management (Wallet, ReadonlyWallet, ServiceWorkerWallet, OnchainWallet)
-- HD identity with BIP39 mnemonic and BIP86 Taproot derivation
+- HD identity with BIP39 mnemonic and BIP86 Taproot derivation; identities consume wildcard descriptor templates and expose them via `identity.descriptor`
+- DescriptorProvider allocator interface with `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation, persisted under `settings.hd`, cross-instance serialized via shared `updateWalletState` mutex)
 - VTXO operations (send, receive, settle, renew, recover)
 - Batch settlement with MuSig2 tree signing
 - Asset management (issue, reissue, burn, transfer)
@@ -925,10 +935,12 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 - Unilateral exit (unroll + timelock)
 - Service worker wallet for background operation
 - 5 storage adapters (InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage)
+- Onchain providers: `EsploraProvider` (HTTP) and `ElectrumOnchainProvider` (WebSocket Electrum, supports atomic 1P1C TRUC relay via `broadcast_package` on Fulcrum, electrs-compatible fallbacks)
+- Default onchain endpoint maps: `ESPLORA_URL`, `ELECTRUM_WS_URL`, `ELECTRUM_TCP_HOST` (Ark Labs–operated mempool/Fulcrum 2.1 deployments for bitcoin/signet/mutinynet)
 - Expo/React Native support with SSE-compatible providers
 - ArkNote serializable payment format
 
-**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`
+**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `hd-wallet`, `descriptor-provider`, `electrum`, `esplora`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`
 
 **Synonyms**: `@arkade-os/sdk`, `ark-ts-sdk`, `typescript-sdk`, `js-sdk`
 
@@ -1282,6 +1294,6 @@ This index should be updated when:
 - New capabilities are added to existing projects
 - Project status changes (alpha → beta → stable)
 
-**Last Updated**: 2026-05-01
-**Version**: 1.5.6
+**Last Updated**: 2026-05-02
+**Version**: 1.5.7
 **Maintained By**: Arkadian Documentation Team

@@ -1,5 +1,32 @@
 # Arkade Explorer -- Sync History
 
+## 2026-05-02 -- Incremental Documentation Sync
+**Commit**: `453b0b152469a1929b2b359c478040864b6cc453`
+**Previous Sync**: `070ce396acde683e39021ca6f403db4412847ea3`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `453b0b1` chore: replace npm with pnpm (#22)
+
+**Changes**:
+- **PR #22 (replace npm with pnpm)**: Project switched from npm to pnpm as the primary package manager. `CONTRIBUTING.md`, `DEPLOYMENT.md`, `PROJECT_SUMMARY.md`, and `README.md` updated with `pnpm install`, `pnpm dev`, `pnpm build`, `pnpm preview`, `pnpm lint`, and `pnpm add -g` (for Vercel/Netlify CLI installs). `netlify.toml` intentionally left unmodified in case pnpm is not supported by the Netlify build environment.
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md (scripts metadata + Development Commands)
+- docs/projects/arkade-explorer/system/project_overview.md (self-hosted build command)
+- docs/projects/arkade-explorer/system/integration-with-arkd.md (local indexer dev command)
+- docs/projects/arkade-explorer/system/tech-stack.md (package manager note)
+- docs/projects/arkade-explorer/sop/development-workflow.md (all dev/build/lint commands)
+- docs/projects/arkade-explorer/testing/usage.md (prerequisites, install, dev, build)
+- docs/projects/arkade-explorer/testing/how_to_run.md (all commands + lockfile name)
+- docs/projects/arkade-explorer/testing/how_to_test.md (all commands + Vitest install + CI example)
+- docs/projects/arkade-explorer/testing/troubleshooting.md (all commands + lockfile name)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-01 -- Incremental Documentation Sync
 **Commit**: `070ce396acde683e39021ca6f403db4412847ea3`
 **Previous Sync**: `12f198ca63a0c0ccd1ebeab066947279a0569f10`

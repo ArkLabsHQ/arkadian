@@ -15,7 +15,7 @@ Arkade Explorer uses linting, type checking, and manual testing. No unit test fr
 ### Linting
 
 ```bash
-npm run lint
+pnpm lint
 ```
 
 Runs ESLint with TypeScript-aware rules, React hooks rules, React Refresh rules, and zero warnings tolerance (`--max-warnings 0`).
@@ -23,14 +23,14 @@ Runs ESLint with TypeScript-aware rules, React hooks rules, React Refresh rules,
 ### Type Checking
 
 ```bash
-npx tsc --noEmit        # Standalone type check
-npm run build            # Also runs tsc before vite build
+pnpm exec tsc --noEmit   # Standalone type check
+pnpm build               # Also runs tsc before vite build
 ```
 
 ### Full Validation
 
 ```bash
-npm run lint && npx tsc --noEmit && npm run build
+pnpm lint && pnpm exec tsc --noEmit && pnpm build
 ```
 
 ---
@@ -94,7 +94,7 @@ Key rules enforced:
 
 ```bash
 echo "VITE_INDEXER_URL=http://localhost:7070" > .env.local
-npm run dev
+pnpm dev
 ```
 
 Test scenarios: valid transaction lookup, invalid transaction (404), address with multiple VTXOs, empty address, asset lookup.
@@ -118,7 +118,7 @@ Test scenarios: valid transaction lookup, invalid transaction (404), address wit
 ### Vitest Setup
 
 ```bash
-npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom
+pnpm add -D vitest @testing-library/react @testing-library/jest-dom jsdom
 ```
 
 Add to `vite.config.ts`:
@@ -159,10 +159,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
 ```

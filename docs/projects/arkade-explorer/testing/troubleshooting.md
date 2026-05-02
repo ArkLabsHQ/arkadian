@@ -4,27 +4,27 @@
 
 ### TypeScript Errors
 
-**Diagnosis**: `npx tsc --noEmit`
+**Diagnosis**: `pnpm exec tsc --noEmit`
 
 **Common causes**: Missing type definitions, incorrect import paths, type mismatches.
 
 **Solution**:
 ```bash
-npm install -D @types/react @types/react-dom
+pnpm add -D @types/react @types/react-dom
 # Verify tsconfig.json "include": ["src"]
 ```
 
 ### ESLint Errors
 
-**Diagnosis**: `npm run lint -- --debug`
+**Diagnosis**: `pnpm lint -- --debug`
 
 **Common fixes**: Add missing hook dependencies, remove unused variables, ensure exports are HMR-compatible (react-refresh rule).
 
 ### Module Not Found
 
 ```bash
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
 ```
 
 ---
@@ -50,7 +50,7 @@ curl https://indexer.arkadeos.com/v1/info
 
 # Try different indexer
 echo "VITE_INDEXER_URL=https://alt-indexer.example.com" > .env.local
-npm run dev
+pnpm dev
 ```
 
 ### Transaction Not Found
@@ -78,7 +78,7 @@ Possible indexer cache lag or recent transaction not yet processed. Wait and ref
 ```bash
 # Hard refresh: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows)
 rm -rf node_modules/.vite    # Clear Vite cache
-npm run dev                   # Restart dev server
+pnpm dev                     # Restart dev server
 ```
 
 ### Port Already in Use
@@ -86,7 +86,7 @@ npm run dev                   # Restart dev server
 ```bash
 lsof -i :5173
 kill -9 <PID>
-# Or: npm run dev -- --port 3000
+# Or: pnpm dev -- --port 3000
 ```
 
 ### Styling Not Applied (TailwindCSS)
@@ -131,7 +131,7 @@ The Clipboard API may fail in older Safari. The app uses `navigator.clipboard.wr
 
 ### Performance Issues
 
-**Slow initial load**: Check bundle size with `npm run build`. Enable lazy loading for routes if needed.
+**Slow initial load**: Check bundle size with `pnpm build`. Enable lazy loading for routes if needed.
 
 **Memory leaks**: Check for uncleared intervals/timeouts. Use Chrome DevTools Performance tab.
 
@@ -142,7 +142,7 @@ The Clipboard API may fail in older Safari. The app uses `navigator.clipboard.wr
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `VITE_INDEXER_URL is undefined` | Missing env var | Add to .env file |
-| `Module not found: @arkade-os/sdk` | Missing dependency | Run `npm install` |
+| `Module not found: @arkade-os/sdk` | Missing dependency | Run `pnpm install` |
 | `Network Error` | API unreachable | Check indexer URL and connectivity |
 | `Invalid hook call` | Hooks outside component | Move hooks inside function component |
 | `Cannot read property of undefined` | Null data access | Add null checks or optional chaining |

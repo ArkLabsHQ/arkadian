@@ -32,6 +32,7 @@ When `NIGIRI_BRANCH` is non-empty, `start-env.sh` clones/pulls the repo into `_b
 | -------------------- | ------- | ------------------------------------------------------------------ |
 | `ARKD_IMAGE`         | (empty) | If set, replace nigiri's built-in arkd with this image.            |
 | `ARKD_WALLET_IMAGE`  | (empty) | If set, replace nigiri's built-in arkd-wallet with this image.     |
+| `ARK_CONTAINER`      | (auto)  | Ark container name used for `docker exec` (wallet setup, faucet, logs). Auto-derived: `arkd` when `ARKD_IMAGE` is set, `ark` for nigiri built-in. Override only if your SDK tests expect a specific container name. |
 
 Example pinning to a release:
 ```bash

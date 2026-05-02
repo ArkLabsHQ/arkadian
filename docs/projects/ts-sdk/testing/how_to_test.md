@@ -111,7 +111,7 @@ Coverage uses v8 provider and generates text + HTML reports. Excludes:
 | `vtxo-manager.test.ts` | VTXO renewal, recovery, expiry detection |
 | `asset.test.ts` | Asset issuance, reissuance, burn |
 | `vhtlc.test.ts` | Virtual Hash Time-Locked Contracts |
-| `e2e/` | Full integration with regtest arkd |
+| `e2e/` | Full integration with regtest arkd; includes `e2e/electrum.test.ts` (ElectrumOnchainProvider over nigiri's electrum-ws bridge on port 50003) and `e2e/onchain.test.ts` (Esplora) |
 
 ## Writing Tests
 

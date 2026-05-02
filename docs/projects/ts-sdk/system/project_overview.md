@@ -17,7 +17,9 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Feature | Description |
 |---------|-------------|
 | Wallet Management | Full signing (`Wallet`) and watch-only (`ReadonlyWallet`) wallets |
-| HD Identity | BIP39 mnemonics, BIP86 Taproot derivation paths |
+| HD Identity | BIP39 mnemonics, BIP86 Taproot derivation paths; identities consume wildcard descriptor templates (`tr(.../0/*)`) |
+| Descriptor Providers | `DescriptorProvider` allocator interface — `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation) |
+| HD Receive Rotation | `HDDescriptorProvider.getNextSigningDescriptor()` allocates fresh descriptors via wallet-repo-persisted index, with cross-instance serialization through the shared `updateWalletState` mutex |
 | VTXO Operations | Get balance, send, receive, settle, renew, recover VTXOs |
 | Boarding/Offboarding | On-chain ↔ off-chain fund conversion via `Ramps` |
 | Batch Settlement | Participate in Ark rounds with MuSig2 tree signing |
@@ -81,6 +83,7 @@ The SDK provides multiple entry points:
 
 - **arkd**: REST API + SSE for settlement events, transaction submission, and info queries
 - **Indexer**: REST + streaming for address subscriptions, VTXO updates, transaction history
-- **Esplora**: On-chain block explorer for UTXO lookups and transaction broadcasting
+- **Esplora**: On-chain block explorer for UTXO lookups and transaction broadcasting (default `ESPLORA_URL` map points at Ark Labs–operated mempool deployments for bitcoin/signet/mutinynet)
+- **Electrum**: WebSocket Electrum (`ElectrumOnchainProvider`) as an alternative onchain provider; `ELECTRUM_WS_URL` defaults to Ark Labs Fulcrum 2.1 endpoints (which support `broadcast_package` for atomic 1P1C TRUC relay), with electrs-compatible fallbacks (no `verbose` transaction.get usage); `ELECTRUM_TCP_HOST` provided for Node-side TCP transports
 - **Delegator**: REST API for VTXO delegation (renewal outsourcing)
-- **Nigiri**: Local Bitcoin regtest environment for integration testing
+- **Nigiri**: Local Bitcoin regtest environment for integration testing (electrum-ws bridge on port 50003)

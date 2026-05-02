@@ -1,10 +1,22 @@
 # Arkade WDK — API Reference
 
-Reflects `@arkade-os/wdk` `0.1.0`. Some methods are implemented, some are stubs/placeholders, and some are tracked as TODO. The sections below mark each with its current status.
+Reflects `@arkade-os/wdk` `0.1.0` (post-WDK-conformance refactor). The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
+
+## Public Exports (`src/index.js`)
+
+```js
+export { default } from './wallet-manager-arkade.js';        // WalletManagerArkade
+export { WalletAccountArkade } from './wallet-account-arkade.js';
+export { WalletAccountReadOnlyArkade } from './wallet-account-read-only-arkade.js';
+```
+
+Nothing else is part of the public surface — the `lib/*` helpers are internal.
+
+---
 
 ## `WalletManagerArkade`
 
-```typescript
+```ts
 class WalletManagerArkade extends WalletManager {
   // Inherited from @tetherto/wdk-wallet WalletManager:
   static getRandomSeedPhrase(wordCount?: 12 | 24): string
@@ -14,8 +26,8 @@ class WalletManagerArkade extends WalletManager {
 
   getAccount(index?: number): Promise<WalletAccountArkade>
   getAccountByPath(path: string): Promise<WalletAccountArkade>
-  getFeeRates(): Promise<{ normal: bigint; fast: bigint }>   // ⚠ placeholder (returns 0n/0n)
-  dispose(): void
+  getFeeRates(): Promise<{ normal: bigint; fast: bigint }>   // real rate from arkInfo
+  dispose(): Promise<void>                                   // wipes seed via sodium_memzero
 }
 ```
 
@@ -27,34 +39,40 @@ class WalletManagerArkade extends WalletManager {
 | 1 | offchain |
 | 2 | lightning |
 
-Returns the same account instance for the same index across calls (sharing the underlying SDK wallet).
+Resolves `m/86'/<network>/0'/0/<index>` (network = `0` for mainnet, `1` otherwise) and forwards to `getAccountByPath`.
 
 ### `getAccountByPath(path)`
 
-Resolves a derivation path string to an account in one of the three modes. Path-to-index mapping follows the same convention used internally by `getAccount`.
+Cached per-path: subsequent calls with the same path return the same `WalletAccountArkade`. The underlying SDK `Wallet` is also memoised per-path; failed creations are evicted so the next call retries.
 
 ### `getFeeRates()`
 
-Currently returns `{ normal: 0n, fast: 0n }`. Tracked as a TODO in the README.
+Returns `{ normal, fast }` where both equal `BigInt(Math.ceil(parseFeeRate(info.fees.txFeeRate)))`. Ark has no mempool fee tiers — the split is preserved to match the WDK `FeeRates` shape.
+
+### `dispose()`
+
+Async. Marks the manager disposed (so further `getAccount` calls throw), disposes every cached wallet, then zeroes the seed buffer via `sodium_memzero(this.seed)`.
 
 ---
 
-## `WalletAccountArkadeReadOnly`
+## `WalletAccountReadOnlyArkade`
 
-```typescript
-class WalletAccountArkadeReadOnly {
-  readonly index: number
-  readonly path: string
-  readonly keyPair: { publicKey: Uint8Array }
+Extends `WalletAccountReadOnly` from `@tetherto/wdk-wallet`. Backed by an `IReadonlyWallet`, an `IndexerProvider`, and the manager's cached `arkInfo` promise.
 
+```ts
+class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
+  // address handling inherited from WalletAccountReadOnly
   getAddress(): Promise<string>                       // '' for lightning (index 2)
-  getBalance(): Promise<bigint>
-  getTransactionHistory(): Promise<ArkTransaction[]>
+
+  getBoardingAddress(): Promise<string>
+  getBalance(): Promise<bigint>                       // total = offchain + onchain
   verify(message: string, signature: string): Promise<boolean>
   getTransactionReceipt(hash: string): Promise<unknown | null>
-  getTokenBalance(tokenAddress: string): Promise<bigint>      // always 0n for Bitcoin
+  getTransactionHistory(): Promise<ArkTransaction[]>
+  getTokenBalance(tokenAddress: string): Promise<bigint>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }>  // throws — N/A
+  quoteTransfer(options: { token: string; recipient: string; amount: number | bigint }):
+    Promise<{ fee: bigint }>
 }
 ```
 
@@ -66,183 +84,153 @@ class WalletAccountArkadeReadOnly {
 | 1 | Ark address (Taproot) |
 | 2 | `''` (empty string) — UI should switch to invoice flow |
 
-### `getTokenBalance(...)`
+### `getTokenBalance(assetId)`
 
-Always returns `0n`. Bitcoin/Ark does not have a generic token model exposed through this WDK adapter (assets live in `@arkade-os/sdk`'s asset surface, not WDK token semantics).
+Searches `wallet.getBalance().assets` for a matching `assetId` and returns its amount as `bigint`. Returns `0n` when no match (Bitcoin/Ark itself does not have a generic token model — assets are an SDK-level concept).
 
-### `quoteTransfer(...)`
+### `quoteTransfer(options)`
 
-Throws — WDK's account-to-account transfer concept does not apply.
+Returns the offchain fee estimate from `calculateOffchainFee(arkInfo)` (no longer throws — read-only quote is supported).
 
 ---
 
 ## `WalletAccountArkade`
 
-Extends `WalletAccountArkadeReadOnly` with signing capabilities and Lightning hooks.
+Extends `WalletAccountReadOnlyArkade` with signing, sending, asset transfer, and Lightning hooks.
 
-```typescript
-class WalletAccountArkade extends WalletAccountArkadeReadOnly {
-  readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
-  readonly wallet: IWallet                            // underlying @arkade-os/sdk wallet
-  readonly arkadeLightning: ArkadeLightning | null    // present iff swapProviderUrl is set
+```ts
+class WalletAccountArkade extends WalletAccountReadOnlyArkade {
+  readonly path: string
+  readonly index: number                              // parsed from path's last segment
+  readonly keyPair: KeyPair                           // { publicKey; privateKey }
+  readonly arkadeSwaps: ArkadeSwaps | null            // present iff swapProviderUrl is set
 
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  transfer(options: TransferOptions): Promise<TransferResult>          // throws — N/A
-  sign(message: string): Promise<string>
-  toReadOnlyAccount(): Promise<WalletAccountArkadeReadOnly>
-  dispose(): void
+  transfer(options: { token: string; recipient: string; amount: number | bigint }):
+    Promise<{ hash: string; fee: bigint }>
+  sign(message: string): Promise<string>              // BIP322 sign
+  toReadOnlyAccount(): Promise<WalletAccountReadOnlyArkade>
+  dispose(): void                                     // wipes private key, disposes swaps
 
-  // Lightning (only when arkadeLightning is non-null):
+  // Lightning (only when arkadeSwaps is non-null):
   createLightningInvoice(
     amount: number,
     description?: string,
   ): Promise<{ invoice: string; paymentHash: string }>
+  waitForLightningPayment(invoice: string): Promise<{ txid: string }>
+  getPendingLightningReceives(): Promise<PendingReverseSwap[]>
+  getPendingLightningSends(): Promise<PendingSubmarineSwap[]>
+  getSwapHistory(): Promise<(PendingReverseSwap | PendingSubmarineSwap | PendingChainSwap)[]>
+  getLightningLimits(): Promise<LimitsResponse>
+  getLightningFees(): Promise<FeesResponse>
 }
 ```
 
-### `sendTransaction(tx)`
+### `sendTransaction(tx)` / `quoteSendTransaction(tx)`
 
-Routes on the destination string in `tx.to`:
+Routes through `lib/send.js#send` / `quoteSend`, which:
+
+1. **Resolve BIP21**: if `tx.to` starts with `bitcoin:` or carries `?ark=` / `?lightning=` / `?amount=`, the inner address/invoice is extracted (priority: lightning > ark > bitcoin).
+2. **Detect type**: Ark / BTC / BOLT11 destinations are dispatched separately.
 
 | Detected | Implementation |
 |----------|----------------|
-| Ark address | SDK off-chain send |
-| BTC address | SDK on-chain send |
-| BOLT11 invoice | Boltz submarine swap (requires `arkadeLightning`) |
-| BIP21 URI | **Not accepted** — caller must `decodeBip21` first |
+| `ARK_OFFCHAIN` (Ark address) | SDK off-chain send |
+| `BITCOIN_ONCHAIN` (BTC address) | SDK on-chain send |
+| `LIGHTNING` (BOLT11 invoice) | Boltz submarine swap (requires `arkadeSwaps`) |
+| BIP21 URI wrapping any of the above | Resolved + re-routed |
 | `EMAIL` (in `TransactionType` enum) | Not implemented |
 
-Returns `{ hash, fee }`. `hash` is a stable identifier the consumer can pass to `getTransactionReceipt`.
+Returns `{ hash, fee }`.
 
-### `createLightningInvoice(amount, description?)`
+### `transfer(options)` / `quoteTransfer(...)` (signing)
 
-Available only when `swapProviderUrl` was configured at manager construction. Internally a Boltz reverse swap that returns a BOLT11 invoice the counterparty pays; we receive an Ark VTXO once the swap settles.
+`transfer({ token, recipient, amount })` issues `wallet.send({ address: recipient, assets: [{ assetId: token, amount: Number(amount) }] })` and returns `{ hash: txid, fee: <offchain estimate> }`.
 
-### `transfer(...)` / `quoteTransfer(...)`
+`quoteTransfer` is inherited from the read-only base and returns the offchain fee estimate.
 
-Throw — not applicable to Bitcoin/Ark.
+### `sign(message)`
 
-### `initialize()`
+BIP322 sign using `wallet.identity` from the SDK.
 
-Currently a no-op (reserved for future eager setup).
+### `toReadOnlyAccount()`
+
+Constructs an `IReadonlyWallet` projection of the underlying SDK wallet:
+
+- `identity` is `ReadonlySingleKey.fromPublicKey(await wallet.identity.compressedPublicKey())`.
+- `assetManager` is narrowed to `{ getAssetDetails }` so the read-only facade cannot sign asset transactions (the full `IAssetManager` exposes issue / reissue / burn).
+
+Returns a `WalletAccountReadOnlyArkade` wrapping that projection.
+
+### `dispose()`
+
+Wipes `keyPair.privateKey` via `sodium_memzero`, asynchronously disposes `arkadeSwaps` (if present), and forwards to the read-only base's `dispose()` if it exists (forward-compat).
+
+### Lightning Methods
+
+All Lightning methods route through an internal `_requireSwaps()` that throws `Lightning support not configured. Provide swapProviderUrl in wallet config.` when `arkadeSwaps` is `null`. Otherwise:
+
+- `createLightningInvoice(amount, description?)` → `swaps.createLightningInvoice({ amount, description })`.
+- `waitForLightningPayment(invoice)` → finds the matching pending reverse swap (by `swap.response.invoice`) and calls `swaps.waitAndClaim(swap)`. Throws if no match (the invoice must have been created on this account).
+- `getPendingLightningReceives` / `getPendingLightningSends` / `getSwapHistory` / `getLightningLimits` / `getLightningFees` are thin pass-throughs to the corresponding `ArkadeSwaps` methods.
 
 ---
 
 ## `WdkManager` Integration
 
-`WdkManager` from `@tetherto/wdk` is the consumer-facing entry point. Register the Arkade wallet manager for the `bitcoin` chain:
-
-```typescript
+```js
 const wdk = new WdkManager(seedPhrase)
 wdk.registerWallet('bitcoin', WalletManagerArkade, config)
 
 const account = await wdk.getAccount('bitcoin', 0)
 ```
 
-`@arkade-os/wdk` does not own the `WdkManager` itself — it only provides the wallet manager that gets registered.
+`@arkade-os/wdk` does not own `WdkManager` — it only provides the wallet manager that gets registered.
 
 ---
 
 ## `ArkadeWalletConfig`
 
-```typescript
-type ArkadeWalletConfig = SdkWalletConfig & {
-  swapProviderUrl?: string
-}
-```
+Defined as a JSDoc typedef in `src/types.js`:
 
-Where `SdkWalletConfig` is `@arkade-os/sdk`'s wallet config minus `identity` (which is supplied by the seed). Minimum requirement: `arkServerUrl` (or `arkProvider`).
+```ts
+type ArkadeWalletConfig =
+  WalletConfig &                              // from @tetherto/wdk-wallet
+  Omit<SdkWalletConfig, 'identity'> & {       // from @arkade-os/sdk
+    swapProviderUrl?: string
+  }
+```
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `arkServerUrl` | one of `arkServerUrl`/`arkProvider` | URL of the arkd REST/SSE endpoint |
+| `arkServerUrl` | one of `arkServerUrl` / `arkProvider` | URL of the arkd REST/SSE endpoint |
 | `arkProvider` | (alternative) | Pre-built `ArkProvider` instance |
 | `swapProviderUrl` | optional | Enables Lightning via Boltz |
+| `swapRepository` | optional | Forwarded into `ArkadeSwaps.create` (e.g. SQLite-backed) |
+| `storage` | optional | Defaults to `{ walletRepository: InMemoryWalletRepository, contractRepository: InMemoryContractRepository }` when omitted |
 | _(other SDK config fields)_ | optional | See `@arkade-os/sdk` for the full set |
 
 ---
 
-## Utility Exports
+## Internal Helpers (Not Exported)
 
-All re-exported from the package root.
+The following live under `src/lib/` and are **not** exported from the package:
 
-### Address
+- `address.js`: `decodeArkAddress`, `isArkAddress`, `isBTCAddress`, `isLightningInvoice`
+- `bech32m.js`: `bech32mDecode`, `bech32mFromWords`, `arkAddressToPkScript` (cross-checked against `ArkAddress` from the SDK)
+- `bip21.js`: `isBip21`, `decodeBip21`, `encodeBip21`
+- `bolt11.js`: `decodeInvoice`, `isValidInvoice`
+- `lnurl.js`: `isLnUrl`, `isLightningAddress`, `isValidLnUrl`, `getCallbackUrl`, `checkLnUrlConditions`, `fetchInvoice`, `fetchArkAddress`, `getLnUrlLimits`, `extractRecipientFromMetadata`
+- `send.js`: `detectTransactionType`, `resolveDestination`, `quoteSend`, `send`, `TransactionType`
+- `fees.js`: `parseFeeRate`, `calculateOffchainFee`, `calculateOnchainFee`, `calculateLightningFee`
+- `format.js`: `fromSatoshis`, `toSatoshis`, `formatSats`, `formatSatsWithCommas`, `prettyNumber`
 
-| Export | Description |
-|--------|-------------|
-| `decodeArkAddress(addr)` | Decode an Ark address into its components |
-| `isArkAddress(value)` | Type guard for Ark addresses |
-| `isBTCAddress(value)` | Type guard for plain BTC addresses |
-| `isLightningInvoice(value)` | Type guard for BOLT11 invoices |
-
-### Transaction Routing
-
-| Export | Description |
-|--------|-------------|
-| `detectTransactionType(to)` | Returns one of `TransactionType.{ARK, BTC, LIGHTNING, EMAIL}` |
-| `quoteSend(...)` | Lower-level quote helper (used internally by `quoteSendTransaction`) |
-| `send(...)` | Lower-level send helper (used internally by `sendTransaction`) |
-| `TransactionType` | Enum of routable destination types (`EMAIL` is reserved, not implemented) |
-
-### BIP21
-
-| Export | Description |
-|--------|-------------|
-| `isBip21(value)` | Type guard for BIP21 URIs |
-| `decodeBip21(uri)` | Parse a BIP21 URI into address + parameters |
-| `encodeBip21(address, params?)` | Build a BIP21 URI |
-
-### BOLT11
-
-| Export | Description |
-|--------|-------------|
-| `decodeInvoice(invoice)` | Wrapper over `light-bolt11-decoder` |
-| `isValidInvoice(value)` | Validity check for BOLT11 invoices |
-
-### LNURL / Lightning Address
-
-| Export | Description |
-|--------|-------------|
-| `isLnUrl(value)` | Type guard for LNURL strings |
-| `isLightningAddress(value)` | Type guard for `user@host` Lightning addresses |
-| `isValidLnUrl(value)` | Stronger validity check for LNURLs |
-| `getCallbackUrl(lnurlOrAddress)` | Resolve the LNURL callback URL |
-| `checkLnUrlConditions(lnurlData, amount)` | Validate amount against min/max bounds |
-| `fetchInvoice(lnurlOrAddress, amount, comment?)` | Fetch a BOLT11 invoice from a LNURL/Lightning address |
-| `fetchArkAddress(lnurlOrAddress)` | Fetch an Ark address from a Lightning-address-style endpoint |
-| `getLnUrlLimits(lnurlData)` | Return min/max sendable bounds |
-| `extractRecipientFromMetadata(metadata)` | Pull a human-readable recipient from LNURL metadata |
-
-### Fees
-
-| Export | Description |
-|--------|-------------|
-| `calculateOffchainFee(...)` | Off-chain (Ark) fee estimate |
-| `calculateOnchainFee(...)` | On-chain (BTC) fee estimate |
-| `calculateLightningFee(...)` | Lightning (Boltz swap) fee estimate |
-
-### Formatting
-
-| Export | Description |
-|--------|-------------|
-| `fromSatoshis(value)` | Convert sats → BTC string |
-| `toSatoshis(value)` | Convert BTC string → sats `bigint` |
-| `formatSats(value)` | Human-friendly sats formatter |
-| `formatSatsWithCommas(value)` | Like `formatSats` with thousands separators |
-| `prettyNumber(value)` | Generic pretty-print for amounts |
+Consumers should rely on the WDK contract (`sendTransaction` / `quoteSendTransaction` / `transfer` / etc.) rather than reaching into these.
 
 ---
 
-## Not Implemented (Tracked TODO)
+## Not Implemented
 
-The following are referenced in historical docs but **not** present in the current implementation:
-
-- `waitForLightningPayment`
-- `getPendingLightningReceives`
-- `getPendingLightningSends`
-- `getSwapHistory`
-- `getLightningLimits`
-- `getLightningFees`
-- BIP21 URIs as direct input to `sendTransaction` / `quoteSendTransaction`
-- `TransactionType.EMAIL` routing
+- `TransactionType.EMAIL` routing (the enum value exists but no implementation).
+- WDK `initialize()` is not overridden on the read-only base; signing-only setup happens lazily during `getAccountByPath`.

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.2.0
-last_sync_commit: c12813d1c9039a82fe8367f1971a010a1b0e869c
-last_sync_date: 2026-04-29T00:00:00Z
+version: 1.3.0
+last_sync_commit: cf02b85cf224f4c2c2d8025309cc066dec4eb6f7
+last_sync_date: 2026-05-02T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -15,6 +15,8 @@ aliases:
   deploy: ["testing/deployment-guide.md", "sop/deployment-workflow.md"]
   aws: ["system/aws-infrastructure.md", "system/networking.md"]
   security: ["system/security.md", "sop/secrets-management.md"]
+  iam: ["system/security.md"]
+  sso: ["system/security.md"]
 scripts:
   tofu_init: "cd docker-compose/opentofu && tofu init"
   tofu_plan: "make tofu-plan ENV=<env>"
@@ -121,8 +123,8 @@ All container stdout/stderr is shipped directly to CloudWatch via the Docker `aw
 ### Environment Setup
 ```bash
 # Prerequisites
-# 1. OpenTofu installed
-# 2. AWS credentials configured
+# 1. OpenTofu installed (or `direnv allow` to enter the Nix devshell from flake.nix)
+# 2. AWS credentials configured (Google SSO via AWS app tile, role picker)
 # 3. Required secrets available
 
 # Initialize OpenTofu
@@ -249,6 +251,15 @@ make clean-local-state ENV=prod
 ### IAM Roles
 - **EC2 Instance Role**: SSM, ECR, Secrets Manager, CloudWatch
 - **ECS Task Execution Role**: For future ECS support
+
+### Human Access — Google Workspace SSO (per AWS account)
+Defined in `aws/{prod-982590065524,dev-438465126741}/`, built from reusable modules:
+- `modules/ark-iam-roles` — four SAML-federated roles per account (`ArkProd*` / `ArkDev*`): `SuperAdministrator`, `Administrator`, `Developer`, `ReadOnly` with layered guardrails (`AdminRestrictions`, `DeveloperRestrictions`, `SSMPortForwarding`)
+- `modules/ark-gws-sync` — Lambda (`secure-gws-aws-sync-{env}`) running every 15 minutes that maps Google Workspace group membership to the `Amazon.Role` attribute, multi-account aware (preserves attributes from sibling accounts), clears the attribute for users orphaned from all mapped groups
+- Login flow: https://accounts.google.com/ → AWS app tile → role picker
+- SSM access tiers — shell: SuperAdmin only; port forward: SuperAdmin/Admin/Developer; run-command: SuperAdmin/Admin
+- Sensitive log groups (`/*secure*`, `/aws/ssm/sessions/*`) are denied to Developer and ReadOnly
+- Terraform state bucket and lock table protected against admin mutation and developer/read-only access
 
 ---
 

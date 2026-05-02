@@ -19,6 +19,7 @@ src/
 │   ├── asset.ts             # Asset types and helpers
 │   ├── unroll.ts            # Unroll (unilateral exit)
 │   ├── utils.ts             # Wallet utilities
+│   ├── hdDescriptorProvider.ts # HDDescriptorProvider (HD receive rotation, persisted under settings.hd)
 │   └── serviceWorker/       # Service worker wallet
 │       ├── wallet.ts        # ServiceWorkerWallet, ServiceWorkerReadonlyWallet
 │       ├── worker.ts        # Worker (runs in service worker context)
@@ -27,14 +28,20 @@ src/
 │       └── utils.ts         # Service worker registration helpers
 │
 ├── identity/                # Key management
-│   ├── index.ts             # Identity and ReadonlyIdentity interfaces
+│   ├── index.ts             # Identity, ReadonlyIdentity, BatchSignableIdentity interfaces
 │   ├── singleKey.ts         # SingleKey (raw private key), ReadonlySingleKey
-│   └── seedIdentity.ts      # SeedIdentity, MnemonicIdentity, ReadonlyDescriptorIdentity
+│   ├── seedIdentity.ts      # SeedIdentity, MnemonicIdentity, ReadonlyDescriptorIdentity
+│   ├── hdCapableIdentity.ts # HDCapableIdentity / ReadonlyHDCapableIdentity (capability markers)
+│   ├── descriptor.ts        # Shared descriptor helpers (isMainnetDescriptor, descriptorIsOurs, parseHDDescriptor)
+│   ├── descriptorProvider.ts # DescriptorProvider interface (getNextSigningDescriptor, isOurs, signWithDescriptor)
+│   ├── staticDescriptorProvider.ts # StaticDescriptorProvider (single-key wrapper)
+│   └── serialize.ts         # Identity serialize/hydrate (envelope.descriptor stores wildcard template)
 │
 ├── providers/               # External service communication
 │   ├── ark.ts               # RestArkProvider (arkd REST + SSE)
 │   ├── indexer.ts           # RestIndexerProvider (indexer REST + streaming)
-│   ├── onchain.ts           # EsploraProvider (on-chain block explorer)
+│   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments)
+│   ├── electrum.ts          # ElectrumOnchainProvider (WebSocket Electrum) + ELECTRUM_WS_URL / ELECTRUM_TCP_HOST defaults
 │   ├── delegator.ts         # RestDelegatorProvider (delegator REST)
 │   ├── expoArk.ts           # ExpoArkProvider (React Native SSE)
 │   ├── expoIndexer.ts       # ExpoIndexerProvider (React Native streaming)
@@ -116,11 +123,28 @@ Each provider has a REST implementation (`RestArkProvider`, etc.) and Expo-compa
 The `Identity` interface decouples key management from wallet logic:
 
 - `SingleKey` — Raw private key (simplest, for testing/prototyping)
-- `SeedIdentity` — HD wallet from raw seed bytes with BIP86 derivation
-- `MnemonicIdentity` — HD wallet from BIP39 mnemonic phrase
-- `ReadonlyDescriptorIdentity` — Watch-only from output descriptor
+- `SeedIdentity` — HD wallet from raw seed bytes with BIP86 derivation; `implements HDCapableIdentity`
+- `MnemonicIdentity` — HD wallet from BIP39 mnemonic phrase (extends `SeedIdentity`)
+- `ReadonlyDescriptorIdentity` — Watch-only from xpub-derived account descriptor template; `implements ReadonlyHDCapableIdentity`
 
-Derivation path: `m/86'/{coinType}'/0'/0/0` (BIP86 Taproot)
+Derivation path: `m/86'/{coinType}'/0'/0/*` (BIP86 Taproot, wildcard template).
+
+Seed-backed and watch-only identities are now conceptually HD wallets and consume a wildcard-suffixed account descriptor template (e.g. `tr([fp/86'/0'/0']xpub/0/*)`). The public `descriptor` field carries that template; consumers materialize a concrete descriptor at index N via the descriptor library (`expand({ descriptor, network, index }).canonicalExpression`). The wire format (`SerializedSigningIdentity.descriptor` / `SerializedReadonlyIdentity.descriptor`) also stores the template; older envelopes carrying concrete `/N)` descriptors continue to deserialize via `templateOf` chop.
+
+### Descriptor Provider Pattern
+
+`DescriptorProvider` is a pure rotating allocator decoupled from "current state":
+
+- `getNextSigningDescriptor()` — allocates and returns a fresh signing descriptor on each call (HD rotates the index, single-key returns the same descriptor)
+- `isOurs(descriptor)` — descriptor-membership predicate
+- `signWithDescriptor(requests)` / `signMessageWithDescriptor(...)` — descriptor-keyed signing
+
+Implementations:
+
+- `StaticDescriptorProvider` — wraps a legacy `Identity` with a single fixed descriptor.
+- `HDDescriptorProvider` (`src/wallet/`) — backed by `HDCapableIdentity`; persists `{ descriptor, lastIndexUsed }` under `WalletState.settings.hd`. Read-modify-write of the index runs inside the per-repo `updateWalletState` mutex, serializing allocation across multiple provider instances on the same repo. First allocation returns index 0; the descriptor-mismatch guard refuses to reuse HD state written by a different seed.
+
+The provider has no read-side accessor for "current" — "what addresses am I bound to right now?" is answered by querying the contract repository for active contracts, mirroring the dotnet SDK's `IArkadeAddressProvider` design.
 
 ### Storage Adapter Pattern
 
@@ -154,6 +178,8 @@ interface StorageAdapter {
 | `@scure/bip39` | Mnemonic generation/validation (BIP39) |
 | `@scure/btc-signer` | Bitcoin transaction signing, Taproot |
 | `@kukks/bitcoin-descriptors` | Output descriptor parsing |
+| `@bitcoinerlab/descriptors-scure` | Ranged descriptor expansion (`expand`, `canonicalExpression`, `isRanged`, `scriptExpressions.trBIP32`) used by HD identities and descriptor helpers |
+| `ws-electrumx-client` | WebSocket Electrum transport (used by `ElectrumOnchainProvider` via `WsElectrumChainSource.safeBatchRequest`) |
 | `bip68` | Relative timelock encoding (CSV) |
 
 ## Build Configuration

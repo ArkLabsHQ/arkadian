@@ -57,3 +57,25 @@
 - `docs/projects/introspector/testing/api-reference.md` — SubmitTx last-signer behavior, SubmitOnchainTx endpoint, Introspector Packet wire-format section, Go client `SubmitOnchainTx`
 - `docs/projects/introspector/testing/usage.md` — Go 1.26+, required `INTROSPECTOR_ARKD_URL`
 - `docs/projects/introspector/sop/development-workflow.md` — Go 1.26+, fuzz test commands
+
+---
+
+## 2026-05-02 - Sync from b60e40ad to 697f94f4
+**Commit**: `697f94f40245fc8a4b564f85de1712b531fe662b`
+**Previous**: `b60e40adcde19ddb23221fbf9bb55c0d02e4bfd9`
+**Synced By**: /update-project introspector
+**Status**: Sync tracking only — no documentation updates required
+
+**Changes Analyzed** (1 commit):
+- `test: htlc script v2` (#76) — refresh of `test/htlc_test.go` only; no production code touched.
+  - `enforcePayTo` arkade script no longer hardcodes the contract amount or requires a witness-supplied output index. The script now reads the index via `OP_PUSHCURRENTINPUTINDEX` and asserts `output[i].value >= input[i].value` with `OP_GREATERTHANOREQUAL` instead of `OP_EQUAL` against a fixed amount.
+  - Arkade witness is now empty (`wire.TxWitness{}`); claim/refund condition witnesses unchanged.
+  - New `claim_multiple` subtest exercises a single taker batch-claiming `numHTLCs=3` HTLCs in one ark tx, with inputs and outputs paired by index.
+
+**Files Updated**:
+- `docs/projects/introspector/change-log/last-sync.txt` — bumped to `697f94f4`
+- `docs/projects/introspector/change-log/SYNC_HISTORY.md` — this entry
+
+**Notes**:
+- No production behavior or API surface changed; per smart-update detection (test-only commit) no project_overview / architecture / api-reference / INDEX updates were required.
+- `docs/projects/introspector/testing/how_to_test.md` test list remains stale (does not enumerate `htlc_test.go`, `delegate_test.go`, `counter_contract_test.go`, etc.) — pre-existing drift outside the scope of this sync.

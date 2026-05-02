@@ -92,14 +92,20 @@ Analysis and summaries of pull requests.
 ├──────────────────────────────────────────────────────────────┤
 │  Identity Layer                                              │
 │  ├── SingleKey                   (raw private key)           │
-│  ├── SeedIdentity                (HD from seed bytes)        │
+│  ├── SeedIdentity                (HD from seed; HDCapable)   │
 │  ├── MnemonicIdentity            (HD from BIP39 mnemonic)    │
-│  └── ReadonlyDescriptorIdentity  (watch-only descriptor)     │
+│  └── ReadonlyDescriptorIdentity  (xpub template, HD-aware)   │
+├──────────────────────────────────────────────────────────────┤
+│  Descriptor Providers                                        │
+│  ├── DescriptorProvider          (allocator interface)       │
+│  ├── StaticDescriptorProvider    (single-key wrapper)        │
+│  └── HDDescriptorProvider        (HD receive rotation)       │
 ├──────────────────────────────────────────────────────────────┤
 │  Provider Layer                                              │
 │  ├── RestArkProvider             (arkd REST + SSE)           │
 │  ├── RestIndexerProvider         (indexer REST + streaming)   │
-│  ├── EsploraProvider             (on-chain block explorer)   │
+│  ├── EsploraProvider             (HTTP block explorer)       │
+│  ├── ElectrumOnchainProvider     (WebSocket Electrum)        │
 │  ├── RestDelegatorProvider       (delegator REST)            │
 │  └── Expo variants               (React Native adapters)     │
 ├──────────────────────────────────────────────────────────────┤
@@ -121,7 +127,8 @@ Analysis and summaries of pull requests.
 ## Key Concepts
 
 - **Wallet**: Full signing wallet (`Wallet`) or watch-only (`ReadonlyWallet`)
-- **Identity**: Key management abstraction — SingleKey, SeedIdentity (HD), MnemonicIdentity
+- **Identity**: Key management abstraction — SingleKey, SeedIdentity (HD), MnemonicIdentity. Seed-backed and watch-only identities take a wildcard descriptor template (`tr(.../0/*)`) and expose it as `identity.descriptor`
+- **Descriptor Provider**: Pure rotating allocator (`getNextSigningDescriptor`) — `StaticDescriptorProvider` for single-key, `HDDescriptorProvider` for HD receive rotation
 - **VTXOs**: Virtual transaction outputs managed off-chain via Ark protocol
 - **Boarding**: Converting on-chain BTC to off-chain VTXOs
 - **Settlement / Batch**: Participating in Ark rounds to settle VTXOs

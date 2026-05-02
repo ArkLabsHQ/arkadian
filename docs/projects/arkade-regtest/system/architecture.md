@@ -47,8 +47,11 @@ Centralized environment loading shared by `start-env.sh` (via the script). Behav
   2. `../.env.regtest` (parent repo, the typical submodule case)
   3. `.env` (local override inside arkade-regtest)
 - Override files only need to specify variables that differ; missing variables keep their defaults.
+- After overrides are applied, `lib/env.sh` derives `ARK_CONTAINER` once (`arkd` when `ARKD_IMAGE` is set, `ark` for nigiri built-in) and exports it. All downstream scripts (`start-env.sh`, `stop-env.sh`, `clean-env.sh`, compose override) use `$ARK_CONTAINER` instead of branching on mode, and SDK tests can pin a specific container name by exporting `ARK_CONTAINER` themselves.
 
 This design lets parent repos (arkd, fulmine, etc.) pin versions and ports in `.env.regtest` without modifying arkade-regtest itself.
+
+Wallet setup is also unified across modes: both the nigiri built-in arkd and the `ARKD_IMAGE` override path call the admin API directly (seed → create → unlock via `docker exec $ARK_CONTAINER`), then wait up to 60 attempts for the wallet to sync before running faucet flows.
 
 ### 3. Nigiri Layer
 By default, Nigiri is built from source from `NIGIRI_REPO_URL` on branch `NIGIRI_BRANCH` (default `master`) into `_build/nigiri/`. The resulting binary is platform-specific (`nigiri-${os}-${arch}`).

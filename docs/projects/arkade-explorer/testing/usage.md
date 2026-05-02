@@ -3,7 +3,7 @@
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+ and pnpm
 - Access to Arkade Indexer API (default: https://indexer.arkadeos.com)
 
 ### Installation
@@ -11,7 +11,7 @@
 ```bash
 git clone git@github.com:ArkLabsHQ/arkade-explorer.git
 cd arkade-explorer
-npm install
+pnpm install
 ```
 
 ### Configuration
@@ -26,7 +26,7 @@ VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.js
 ### Start Development Server
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 The app will be available at `http://localhost:5173` with hot reload enabled.
@@ -107,7 +107,7 @@ Push to GitHub and connect the repository. SPA routing is pre-configured via `ve
 ### Self-Hosted
 
 ```bash
-npm run build
+pnpm build
 # Serve dist/ with any static server, configure SPA fallback routing
 ```
 

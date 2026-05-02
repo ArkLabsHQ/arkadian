@@ -5,8 +5,8 @@
 ### Quick Start
 
 ```bash
-npm install       # First time only
-npm run dev       # Start dev server
+pnpm install      # First time only
+pnpm dev          # Start dev server
 ```
 
 The development server starts at `http://localhost:5173` with HMR, fast refresh, and source maps.
@@ -15,17 +15,17 @@ The development server starts at `http://localhost:5173` with HMR, fast refresh,
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start dev server (port 5173) |
-| `npm run build` | TypeScript check + Vite production build |
-| `npm run preview` | Preview production build (port 4173) |
-| `npm run lint` | Run ESLint |
+| `pnpm dev` | Start dev server (port 5173) |
+| `pnpm build` | TypeScript check + Vite production build |
+| `pnpm preview` | Preview production build (port 4173) |
+| `pnpm lint` | Run ESLint |
 
 ---
 
 ## Production Build
 
 ```bash
-npm run build    # Runs tsc && vite build
+pnpm build       # Runs tsc && vite build
 ls dist/         # index.html, assets/, favicon
 ```
 
@@ -34,7 +34,7 @@ The build process: (1) runs TypeScript compiler for type checking, (2) runs Vite
 ### Preview Production Build
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 Opens at `http://localhost:4173` with production-optimized code.
@@ -57,14 +57,14 @@ Vite loads environment files in order: `.env` -> `.env.local` -> `.env.developme
 ```bash
 # Local indexer (regtest)
 echo "VITE_INDEXER_URL=http://localhost:7070" > .env.local
-npm run dev
+pnpm dev
 
 # Staging indexer
 echo "VITE_INDEXER_URL=https://staging-indexer.arkadeos.com" > .env.local
-npm run dev
+pnpm dev
 
 # Production (default .env)
-npm run dev
+pnpm dev
 ```
 
 ---
@@ -116,19 +116,19 @@ The published GHCR image (`ghcr.io/arklabshq/arkade-explorer:latest`) is multi-a
 ```bash
 lsof -i :5173                    # Find process
 kill -9 <PID>                    # Kill it
-npm run dev -- --port 3000       # Or use different port
+pnpm dev -- --port 3000          # Or use different port
 ```
 
 ### Dependencies Not Found
 ```bash
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
 ```
 
 ### Build Fails
 ```bash
-npx tsc --noEmit    # Check TypeScript errors
-npm run lint         # Check lint errors
+pnpm exec tsc --noEmit    # Check TypeScript errors
+pnpm lint                 # Check lint errors
 ```
 
 ### Build Stats

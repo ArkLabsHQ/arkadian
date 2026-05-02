@@ -85,7 +85,7 @@
 
 ### Docker
 - **Base**: Node 22 Alpine (build) + nginx Alpine (serve)
-- **Package Manager**: pnpm (in Docker build)
+- **Package Manager**: pnpm
 - **Pre-built Image**: `ghcr.io/arklabshq/arkade-explorer:latest`
 
 ### Vercel

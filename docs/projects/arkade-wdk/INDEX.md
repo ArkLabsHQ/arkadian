@@ -12,16 +12,14 @@ aliases:
   api: ["testing/api-reference.md"]
 scripts:
   install: "npm install"
-  build: "npm run build"
-  dev: "npm run dev"
   test: "npm test"
   test_watch: "npm run test:watch"
+  typecheck: "npm run typecheck"
+  build_types: "npm run build:types"
   lint: "npm run lint"
   lint_fix: "npm run lint:fix"
   format: "npm run format"
-  clean: "npm run clean"
   setup_dev: "npm run setup:dev"
-  apply_patches: "node scripts/apply-patches.js"
   generate_patches: "node scripts/generate-patches.js"
   submodules_init: "git submodule update --init --recursive"
 ---
@@ -73,11 +71,12 @@ Analysis and summaries of pull requests.
 |------|-------|
 | Package | `@arkade-os/wdk` |
 | Version | `0.1.0` |
-| Language | TypeScript (Node ESM, ES2022) |
-| Runtime | Node.js >= 18, React Native (via `bare-node-runtime`) |
+| Language | JavaScript with JSDoc types (Node ESM, ES2022) |
+| Runtime | Node.js >= 18, React Native (via bare-kit worklet `pear-wrk-wdk`) |
 | Package Manager | npm (root); submodules use their own |
-| Test Framework | Jest (ESM) |
-| Build Output | `dist/` (ESM + type declarations) |
+| Test Framework | `node --test` (Node built-in test runner) |
+| Type Output | `types/` (declaration files emitted by `tsc -p tsconfig.json`) |
+| Source Layout | Ships `src/*.js` directly — no compile step for runtime code |
 | GitHub | `ArkLabsHQ/arkade-wdk` |
 | License | MIT |
 
@@ -89,22 +88,23 @@ Analysis and summaries of pull requests.
 ├──────────────────────────────────────────────────────────────┤
 │  WDK Adapter Layer                                           │
 │  ├── WalletManagerArkade           (extends WDK WalletManager)│
-│  ├── WalletAccountArkade           (signing account)          │
-│  └── WalletAccountArkadeReadOnly   (watch-only account)       │
+│  ├── WalletAccountReadOnlyArkade   (extends WDK ReadOnly)     │
+│  └── WalletAccountArkade           (extends ReadOnlyArkade)   │
 ├──────────────────────────────────────────────────────────────┤
 │  Account Index Model                                         │
 │  ├── Index 0: boarding             (on-chain BTC deposit)     │
 │  ├── Index 1: offchain             (Ark VTXO transfers)       │
 │  └── Index 2: lightning            (Boltz swaps, no address)  │
 ├──────────────────────────────────────────────────────────────┤
-│  Utility Layer (src/lib/)                                    │
-│  ├── address.ts        (decodeArkAddress, isArkAddress, …)   │
-│  ├── bip21.ts          (decode/encode BIP21 URIs)             │
-│  ├── bolt11.ts         (decode/validate BOLT11 invoices)      │
-│  ├── lnurl.ts          (LNURL/Lightning-address resolution)   │
-│  ├── send.ts           (auto-detect destination type, route)  │
-│  ├── fees.ts           (offchain/onchain/lightning fees)      │
-│  └── format.ts         (sat formatting helpers)               │
+│  Internal Helper Layer (src/lib/, NOT re-exported)           │
+│  ├── address.js        (Ark/BTC/BOLT11 detection)             │
+│  ├── bech32m.js        (arkAddressToPkScript for indexer)     │
+│  ├── bip21.js          (decode/encode BIP21 URIs)             │
+│  ├── bolt11.js         (decode/validate BOLT11 invoices)      │
+│  ├── lnurl.js          (LNURL / Lightning-address resolution) │
+│  ├── send.js           (BIP21 + auto-detect routing)          │
+│  ├── fees.js           (parseFeeRate + offchain/onchain/LN)   │
+│  └── format.js         (sat formatting helpers)               │
 ├──────────────────────────────────────────────────────────────┤
 │  Submodules (packages/, examples/)                           │
 │  ├── packages/pear-wrk-wdk            (bare-kit worklet)      │
@@ -112,9 +112,10 @@ Analysis and summaries of pull requests.
 │  └── examples/wdk-starter-react-native  (Expo demo app)       │
 ├──────────────────────────────────────────────────────────────┤
 │  Underlying Dependencies                                     │
-│  ├── @arkade-os/sdk                (Ark protocol wallet)      │
-│  ├── @arkade-os/boltz-swap         (optional Lightning)       │
-│  ├── @tetherto/wdk-wallet          (WDK base classes)         │
+│  ├── @arkade-os/sdk          0.4.21  (Ark protocol wallet)    │
+│  ├── @arkade-os/boltz-swap   0.3.22  (optional Lightning)     │
+│  ├── @tetherto/wdk-wallet    1.0.0-beta.5 (WDK base classes)  │
+│  ├── sodium-universal        ^5.0.1  (sodium_memzero)         │
 │  └── @scure/bip32, @scure/base, light-bolt11-decoder          │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -122,8 +123,9 @@ Analysis and summaries of pull requests.
 ## Key Concepts
 
 - **WDK (Wallet Development Kit)**: Tether's framework defining a uniform `WalletManager`/`WalletAccount` API across chains. `arkade-wdk` is the Ark plugin for that framework.
-- **Account index**: A small integer that selects one of the three operational modes (boarding/offchain/lightning), all backed by a single underlying SDK wallet.
-- **Destination auto-detection**: `sendTransaction()` inspects the `to` field and routes Ark addresses, BTC addresses, and BOLT11 invoices to the correct path.
+- **Account index**: A small integer that selects one of the three operational modes (boarding/offchain/lightning), all backed by a per-derivation-path SDK wallet (each call to `getAccount(index)` resolves a distinct BIP-86 derivation path).
+- **Destination auto-detection**: `sendTransaction()` inspects the `to` field and routes Ark addresses, BTC addresses, BOLT11 invoices, and BIP21 URIs (which are resolved internally) to the correct path.
 - **HRPC bridge**: React Native provider talks to a bare-kit worklet (`pear-wrk-wdk`) over HRPC, which in turn calls `@arkade-os/sdk`.
-- **Esplora workaround**: Arkade balances are currently fetched directly from the Ark indexer + Esplora REST APIs from the RN side, bypassing the worklet — until the SDK's Esplora URL becomes configurable.
-- **Patch-based submodule overlay**: Local changes to `packages/*` and `examples/*` are tracked as patch files under `./patches/`, applied via `scripts/apply-patches.js`.
+- **Direct indexer / Esplora**: For arkade networks the RN provider hits the Ark indexer (`/v1/indexer/vtxos`) and Esplora REST directly to compute balances and watch incoming funds — this is the in-the-default RN pipeline, not a transient workaround.
+- **Secure key erasure**: Private key material is wiped via `sodium_memzero` on `dispose()`, and the master HDKey is wiped immediately after derivation.
+- **Patch-based submodule overlay**: Local changes to `packages/*` and `examples/*` are tracked as patch files under `./patches/`, applied by `scripts/setup-dev.js`.

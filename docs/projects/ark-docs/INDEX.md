@@ -1,20 +1,21 @@
 ---
 project_id: ark-docs
 default_sections_by_intent:
-  qna:        ["learn/faq/", "learn/concepts/", "arkd/what-is-arkd.mdx"]
-  qa:         ["wallets/v0.4/", "wallets/v0.3/", "arkd/"]
-  dev:        ["arkd/", "contracts/", "wallets/v0.4/"]
+  qna:        ["learn/faq/", "learn/core-concepts/", "arkd/what-is-arkd.mdx"]
+  qa:         ["wallets/", "wallets/v0.3/", "arkd/"]
+  dev:        ["arkd/", "contracts/", "wallets/"]
   monitoring: ["arkd/core-services/"]
 aliases:
   overview: ["index.mdx", "primer.mdx", "arkd/what-is-arkd.mdx"]
   faq: ["learn/faq/"]
-  concepts: ["learn/concepts/"]
-  security: ["learn/concepts/security.mdx", "learn/security/advanced-security.mdx"]
+  concepts: ["learn/core-concepts/"]
+  security: ["learn/core-concepts/security-and-trust-model.mdx"]
   contracts: ["contracts/"]
-  wallets: ["wallets/v0.4/", "wallets/v0.3/"]
+  wallets: ["wallets/", "wallets/v0.3/"]
   arkd: ["arkd/"]
-  vtxos: ["learn/faq/what-are-vtxos.mdx", "learn/concepts/vtxos.mdx"]
-  assets: ["learn/arkade-assets/", "wallets/v0.4/operations/assets/"]
+  vtxos: ["learn/faq/what-are-vtxos.mdx", "learn/core-concepts/vtxos-and-ownership.mdx"]
+  assets: ["learn/arkade-assets/", "wallets/operations/assets/"]
+  glossary: ["glossary.mdx"]
 scripts:
   dev: "mintlify dev"
 package_manager: "pnpm@10.33.2"
@@ -56,20 +57,19 @@ Educational content about Ark protocol:
   - What is the virtual mempool
   - What's a TEE and how does Arkade use it
 
-- **concepts/** — Core conceptual deep-dives (replaces former pillars/):
-  - vtxos.mdx — VTXO model and lifecycle
-  - transactions.mdx — Arkade transaction types and the virtual mempool
-  - settlement.mdx — Batch settlement, batch outputs, and batch swaps
-  - lifecycle.mdx — Batch expiry and liveness requirements
-  - security.mdx — Trust model, unilateral exit, risks & limitations
+- **core-concepts/** — Core conceptual deep-dives (renamed from `concepts/`, page slugs match titles):
+  - vtxos-and-ownership.mdx — VTXO model and ownership
+  - transactions-and-execution.mdx — Arkade transaction types and the virtual mempool
+  - settlement-and-finality.mdx — Batch settlement, batch outputs, batch swaps, and finality
+  - vtxo-lifecycle-and-liveness.mdx — Batch/VTXO lifecycle and liveness requirements
+  - security-and-trust-model.mdx — Trust model, unilateral exit, risks & limitations (replaces former `learn/security/`)
 
 - **arkade-assets/** — Asset protocol overview:
   - overview.mdx — Arkade Assets overview
   - core-concepts.mdx — Asset core concepts
 
-- **security/advanced-security.mdx** — Advanced security topics
-
-- **glossary.mdx** — Protocol terminology
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/glossary.mdx` — Protocol Terminology
+Top-level Glossary page (promoted from `learn/glossary.mdx` to its own top-level navigation tab).
 
 ### `${ARKADIAN_DIR}/docs/projects/ark-docs/contracts/` — Tapscript Contracts & Use Cases
 Working with Tapscript and use-case contracts:
@@ -95,11 +95,13 @@ Arkade compiler and experimental contract patterns:
 ### `${ARKADIAN_DIR}/docs/projects/ark-docs/wallets/` — Wallet Development
 Guide for building Ark wallets with the TypeScript SDK.
 
-**v0.4 (Latest)** — `wallets/v0.4/`:
+**Latest (top-level, formerly `wallets/v0.4/`)** — `wallets/`:
 - **getting-started/** — introduction, developer-resources, create-your-wallet, arkade-addresses, ai-agents
 - **operations/** — receiving-payments, checking-balances, sending-payments, payment-history
 - **operations/assets/** — get-started, issue-assets, reissue-and-burn, send-assets, check-balance, verify-asset-metadata
 - **advanced/** — ramps, settlement-process, vtxo-management, storage-adapters, service-worker, expo-react-native
+
+The `v0.4/` prefix was dropped: the latest wallet docs now live directly under `wallets/`. Page slugs no longer carry a `v0.4` segment, and `docs.json` redirects all former `/wallets/v0.4/...` URLs to the new locations. The `version` selector in the Mintlify nav still distinguishes "v0.4 (Latest)" from "v0.3".
 
 **v0.3 (Legacy)** — `wallets/v0.3/`:
 - introduction, setup, ark-addresses, balances, receiving-payments, sending-payments, settlement, payment-history, ramps, vtxo-management, storage-adapters, service-worker, expo-react-native
@@ -193,6 +195,7 @@ arkd/
 
 ### Learn Documentation Files
 ```
+glossary.mdx              # promoted to top-level (was learn/glossary.mdx)
 learn/
 ├── faq/  (9 entries)
 │   ├── what-are-vtxos.mdx
@@ -204,18 +207,17 @@ learn/
 │   ├── what-is-batch-output-and-onchain-settlement.mdx
 │   ├── what-is-the-virtual-mempool.mdx
 │   └── whats-a-tee-and-how-does-arkade-use-it.mdx
-├── glossary.mdx
-├── concepts/
-│   ├── vtxos.mdx
-│   ├── transactions.mdx
-│   ├── settlement.mdx
-│   ├── lifecycle.mdx
-│   └── security.mdx
-├── arkade-assets/
-│   ├── overview.mdx
-│   └── core-concepts.mdx
-└── security/
-    └── advanced-security.mdx
+├── core-concepts/        # renamed from concepts/
+│   ├── vtxos-and-ownership.mdx
+│   ├── transactions-and-execution.mdx
+│   ├── settlement-and-finality.mdx
+│   ├── vtxo-lifecycle-and-liveness.mdx
+│   └── security-and-trust-model.mdx
+└── arkade-assets/
+    ├── overview.mdx
+    └── core-concepts.mdx
+# learn/security/ has been deleted — advanced-security.mdx now redirects
+# to learn/core-concepts/security-and-trust-model#security-stack.
 ```
 
 ### Contracts Documentation Files
@@ -250,32 +252,31 @@ Reusable MDX/JSX snippets imported across pages:
 ### Wallets Documentation Files
 ```
 wallets/
-├── v0.4/  (Latest)
-│   ├── getting-started/
-│   │   ├── introduction.mdx
-│   │   ├── developer-resources.mdx
-│   │   ├── create-your-wallet.mdx
-│   │   ├── arkade-addresses.mdx
-│   │   └── ai-agents.mdx
-│   ├── operations/
-│   │   ├── receiving-payments.mdx
-│   │   ├── checking-balances.mdx
-│   │   ├── sending-payments.mdx
-│   │   ├── payment-history.mdx
-│   │   └── assets/
-│   │       ├── get-started.mdx
-│   │       ├── issue-assets.mdx
-│   │       ├── reissue-and-burn.mdx
-│   │       ├── send-assets.mdx
-│   │       ├── check-balance.mdx
-│   │       └── verify-asset-metadata.mdx
-│   └── advanced/
-│       ├── ramps.mdx
-│       ├── settlement-process.mdx
-│       ├── vtxo-management.mdx
-│       ├── storage-adapters.mdx
-│       ├── service-worker.mdx
-│       └── expo-react-native.mdx
+├── getting-started/        # Latest (was wallets/v0.4/getting-started/)
+│   ├── introduction.mdx
+│   ├── developer-resources.mdx
+│   ├── create-your-wallet.mdx
+│   ├── arkade-addresses.mdx
+│   └── ai-agents.mdx
+├── operations/             # Latest (was wallets/v0.4/operations/)
+│   ├── receiving-payments.mdx
+│   ├── checking-balances.mdx
+│   ├── sending-payments.mdx
+│   ├── payment-history.mdx
+│   └── assets/
+│       ├── get-started.mdx
+│       ├── issue-assets.mdx
+│       ├── reissue-and-burn.mdx
+│       ├── send-assets.mdx
+│       ├── check-balance.mdx
+│       └── verify-asset-metadata.mdx
+├── advanced/               # Latest (was wallets/v0.4/advanced/)
+│   ├── ramps.mdx
+│   ├── settlement-process.mdx
+│   ├── vtxo-management.mdx
+│   ├── storage-adapters.mdx
+│   ├── service-worker.mdx
+│   └── expo-react-native.mdx
 └── v0.3/  (Legacy)
     ├── introduction.mdx
     ├── setup.mdx
@@ -300,7 +301,7 @@ This documentation repository serves as the **knowledge base** for the Ark Q&A a
 
 1. **Search FAQ first**: Check `learn/faq/` for common questions
 2. **Technical details**: Reference `arkd/` for server implementation details
-3. **Security questions**: Use `learn/security/` for security model explanations
+3. **Security questions**: Use `learn/core-concepts/security-and-trust-model.mdx` for security model explanations
 4. **Wallet development**: Reference `wallets/` for integration guidance
 5. **Smart contracts**: Use `contracts/` for Arkade language reference
 6. **Combine with code**: Cross-reference documentation with arkd codebase for accurate technical answers
@@ -311,7 +312,7 @@ This documentation repository serves as the **knowledge base** for the Ark Q&A a
 
 **Agent should:**
 1. Read `learn/faq/what-are-vtxos.mdx` for high-level explanation
-2. Read `learn/concepts/vtxos.mdx` for the conceptual deep-dive
+2. Read `learn/core-concepts/vtxos-and-ownership.mdx` for the conceptual deep-dive
 3. Read `arkd/components/arkade-notes.mdx` for technical implementation
 4. Read arkd code in `internal/core/domain/vtxo.go` for actual structure
 5. Synthesize answer combining docs and code
@@ -320,8 +321,8 @@ This documentation repository serves as the **knowledge base** for the Ark Q&A a
 
 **Agent should:**
 1. Read `learn/faq/what-if-the-operator-disappears-or-acts-maliciously.mdx`
-2. Read `learn/concepts/lifecycle.mdx` for liveness requirements
-3. Read `learn/concepts/security.mdx` for unilateral exit and the trust model
+2. Read `learn/core-concepts/vtxo-lifecycle-and-liveness.mdx` for liveness requirements
+3. Read `learn/core-concepts/security-and-trust-model.mdx` for unilateral exit and the trust model
 4. Read `arkd/server-security/checkpoint-transactions.mdx` for checkpoint mechanism
 5. Explain unilateral exit process
 

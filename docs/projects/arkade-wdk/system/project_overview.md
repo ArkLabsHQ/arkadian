@@ -2,7 +2,7 @@
 
 ## What is arkade-wdk?
 
-`@arkade-os/wdk` is a WDK-compatible Bitcoin wallet adapter that exposes the Ark protocol through Tether's Wallet Development Kit (`@tetherto/wdk`). It implements the WDK `WalletManager` and `WalletAccount` interfaces on top of `@arkade-os/sdk`, so any WDK-aware application — most notably React Native apps using `@tetherto/wdk-react-native-provider` — can treat an Ark wallet like any other Bitcoin wallet.
+`@arkade-os/wdk` is a WDK-compatible Bitcoin wallet adapter that exposes the Ark protocol through Tether's Wallet Development Kit (`@tetherto/wdk`). It implements the WDK `WalletManager` and `WalletAccount` contracts on top of `@arkade-os/sdk`, so any WDK-aware application — most notably React Native apps using `@tetherto/wdk-react-native-provider` — can treat an Ark wallet like any other Bitcoin wallet.
 
 Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Boltz swap provider URL is configured, the adapter can create BOLT11 invoices (via reverse swaps) and pay BOLT11 invoices (via submarine swaps) without the consumer needing to know about Boltz.
 
@@ -12,27 +12,32 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 - **Version**: `0.1.0`
 - **License**: MIT
 - **Repository**: `ArkLabsHQ/arkade-wdk`
+- **Source**: ships `src/*.js` directly (JavaScript with JSDoc); declaration files emitted into `types/` via `tsc -p tsconfig.json`.
 
 ## Core Features
 
 | Feature | Description |
 |---------|-------------|
-| WDK WalletManager | `getAccount`, `getAccountByPath`, `dispose` over a single shared SDK wallet |
-| Three Account Types | Boarding (0), Offchain (1), Lightning (2) — same underlying wallet |
+| WDK WalletManager | `getAccount`, `getAccountByPath`, `getFeeRates`, `dispose` over per-path SDK wallets |
+| Three Account Indices | Boarding (0), Offchain (1), Lightning (2) — via BIP-86 paths |
 | Send/Sign/Verify/Quote | Standard WDK account methods, plus read-only conversion |
-| Destination Auto-Detection | Ark address, BTC address, BOLT11 invoice routed automatically |
-| LNURL / Lightning Address | `fetchInvoice`, limits, callback resolution helpers |
-| BIP21 Helpers | Parse and encode BIP21 URIs |
-| Lightning Receive | `createLightningInvoice()` via HRPC → Boltz reverse swap |
-| Lightning Send | Auto-detect BOLT11 in `sendTransaction()` |
-| Transaction History | `getTransactionHistory()` via HRPC → SDK |
-| Direct Indexer/Esplora Balance | Workaround path for arkade balance on RN |
-| Read-Only Account | `toReadOnlyAccount()` strips the private key |
-| Utility Exports | Address detection, BIP21, fees, formatting from one entry point |
+| Destination Auto-Detection | Ark address, BTC address, BOLT11 invoice, **and BIP21 URIs** routed automatically |
+| LNURL / Lightning Address | `fetchInvoice`, limits, callback resolution helpers (internal) |
+| BIP21 Helpers | Parse/encode BIP21 URIs (internal `lib/bip21.js`) |
+| Lightning Receive | `createLightningInvoice()` → Boltz reverse swap |
+| Lightning Send | Auto-detect BOLT11 in `sendTransaction()` → Boltz submarine swap |
+| Lightning Lifecycle | `waitForLightningPayment`, `getPendingLightningReceives`, `getPendingLightningSends`, `getSwapHistory`, `getLightningLimits`, `getLightningFees` |
+| Real Fee Rates | `getFeeRates()` returns `info.fees.txFeeRate` from arkInfo (no longer a placeholder) |
+| Transaction History | `getTransactionHistory()` via SDK |
+| Boarding Address | Dedicated `getBoardingAddress()` on read-only base |
+| Asset Transfer | `transfer()` is now wired to the SDK's asset send (instead of throwing) |
+| Read-Only Account | `toReadOnlyAccount()` returns a `WalletAccountReadOnlyArkade` backed by `ReadonlySingleKey` |
+| Secure Key Erasure | `sodium_memzero` wipes private key material on `dispose()` |
+| In-Memory Storage Fallback | Manager defaults to in-memory wallet/contract repos when the consumer doesn't supply storage (RN/Bare have no IndexedDB) |
 
 ## Account Model
 
-The wallet manager exposes three account indices, all sharing the same underlying `@arkade-os/sdk` wallet instance:
+The wallet manager exposes account indices over the BIP-86 path `m/86'/<network>/0'/0/<index>` (`network` is `0` for mainnet, `1` otherwise). A separate underlying `@arkade-os/sdk` wallet is created per derivation path:
 
 | Index | AddressType | Purpose |
 |-------|-------------|---------|
@@ -40,33 +45,33 @@ The wallet manager exposes three account indices, all sharing the same underlyin
 | 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
 | 2 | `lightning` | Lightning via Boltz swaps (no static address) |
 
-`getAddress()` returns an empty string for Lightning (index 2). Consumer UIs should detect this and present an amount-input + invoice-generation flow instead of a static QR code.
+`getAddress()` returns an empty string for Lightning (index 2). Consumer UIs should detect this and present an amount-input + invoice-generation flow instead of a static QR code. Use `getBoardingAddress()` from the read-only surface to obtain the on-chain deposit address.
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Language | TypeScript |
+| Language | JavaScript (Node ESM) with JSDoc types |
 | Module System | ESM (`"type": "module"`) |
 | Compile Target | ES2022 |
 | Node | >= 18 |
-| Test Framework | Jest 29 (ESM via `--experimental-vm-modules`) |
-| Linter | ESLint 8 + `@typescript-eslint` |
-| Formatter | Prettier (single quotes, semicolons, 2 spaces, width 100) |
-| Build | `tsc` to `dist/` |
+| Test Framework | `node --test` (Node built-in test runner) |
+| Linter | ESLint 8 (`eslint:recommended`) + `tsc --noEmit` (JSDoc type-check via `jsconfig.json`) |
+| Formatter | Prettier (single quotes, semicolons, 2 spaces) |
+| Type Output | `tsc -p tsconfig.json` emits declarations into `types/` |
 | Package Manager | npm at root; submodules vary |
 
 ## Key Runtime Dependencies
 
-| Dependency | Role |
-|------------|------|
-| `@arkade-os/sdk` | Underlying Ark protocol wallet |
-| `@arkade-os/boltz-swap` | Optional Lightning swap integration |
-| `@tetherto/wdk-wallet` | WDK base `WalletManager` / `WalletAccount` classes |
-| `@scure/bip32` | BIP32 HD key derivation |
-| `@scure/base` | Bech32m / base encoding (used in pkScript helper) |
-| `light-bolt11-decoder` | BOLT11 invoice parsing |
-| `bare-node-runtime` | Node-runtime shims for the bare-kit worklet path |
+| Dependency | Pinned | Role |
+|------------|--------|------|
+| `@arkade-os/sdk` | `0.4.21` | Underlying Ark protocol wallet |
+| `@arkade-os/boltz-swap` | `0.3.22` | Optional Lightning swap integration |
+| `@tetherto/wdk-wallet` | `^1.0.0-beta.5` | WDK base `WalletManager` / `WalletAccountReadOnly` classes |
+| `@scure/bip32` | `^2.0.1` | BIP32 HD key derivation |
+| `@scure/base` | `^2.0.0` | Bech32 / base encoding |
+| `light-bolt11-decoder` | `^3.2.0` | BOLT11 invoice parsing |
+| `sodium-universal` | `^5.0.1` | `sodium_memzero` for secure key erasure |
 
 ## Submodules
 
@@ -76,7 +81,7 @@ The wallet manager exposes three account indices, all sharing the same underlyin
 | `packages/wdk-react-native-provider` | React Native provider (WDK service, contexts, UI wiring) |
 | `examples/wdk-starter-react-native` | Expo example app exercising the full stack |
 
-Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/apply-patches.js`.
+Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/setup-dev.js`.
 
 ## Use Cases
 
@@ -84,23 +89,18 @@ Each submodule is an independent git repository. Local modifications are kept as
 2. **Multi-chain WDK app** — Register `WalletManagerArkade` next to other WDK chains under one `WdkManager`.
 3. **Lightning-enabled Ark wallet** — Configure `swapProviderUrl` to send/receive BOLT11.
 4. **Watch-only display wallet** — Use `toReadOnlyAccount()` for read-only UIs.
-5. **Custom integration** — Use the utility helpers (`isArkAddress`, `decodeBip21`, `fetchInvoice`, fee calculators) standalone.
 
 ## Integration Points
 
 - **`@arkade-os/sdk`**: Underlying wallet, transport to arkd, VTXO management.
-- **arkd**: Reached transitively through the SDK; also queried directly for balance via `/v1/indexer/vtxos`.
+- **arkd**: Reached transitively through the SDK; the RN provider also queries `/v1/indexer/vtxos` directly for balance.
 - **Boltz backend**: Reached through `@arkade-os/boltz-swap` when `swapProviderUrl` is set.
-- **Esplora**: Direct REST calls for boarding (on-chain) UTXO lookups.
+- **Esplora**: Direct REST calls (configurable via `indexerUrl`) for boarding (on-chain) UTXO lookups.
 - **`@tetherto/wdk-react-native-provider`**: Consumes this package via the worklet/HRPC bridge in submodules.
 
-## Current Implementation Gaps
+## Current Implementation Notes
 
-Tracked in `README.md`:
-
-- `getFeeRates()` returns placeholder values (`normal: 0n`, `fast: 0n`).
-- Lightning swap lifecycle helpers (`waitForLightningPayment`, `getPendingLightningReceives`, etc.) are not implemented.
-- `TransactionType.EMAIL` is in the routing enum but not implemented.
-- `sendTransaction` / `quoteSendTransaction` expect direct destinations, not BIP21 URIs.
-- Jest setup file (`src/__tests__/setup.ts`) is referenced by config but missing — `npm test` fails on config validation until added.
-- `WalletAccountArkade.initialize()` is a no-op.
+- `transfer()` is implemented for asset sends; only the read-only `quoteTransfer` returns a fee estimate.
+- BIP21 URIs are accepted directly by `sendTransaction` / `quoteSendTransaction` — `resolveDestination` in `lib/send.js` extracts the inner address/invoice and any `?amount=` carried in the URI.
+- The package public surface is intentionally narrow: `index.js` only exports the manager (default) plus `WalletAccountArkade` and `WalletAccountReadOnlyArkade`. The `lib/*` helpers are internal.
+- Lightning-only methods on `WalletAccountArkade` throw `Lightning support not configured` when `swapProviderUrl` was not supplied — the `arkadeSwaps` field (renamed from `arkadeLightning`) is `null` in that case.

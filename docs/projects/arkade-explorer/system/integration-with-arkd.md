@@ -89,7 +89,7 @@ To use a local indexer (e.g., for development against a regtest arkd):
 
 ```bash
 echo "VITE_INDEXER_URL=http://localhost:7070" > .env.local
-npm run dev
+pnpm dev
 ```
 
 ## Error Handling

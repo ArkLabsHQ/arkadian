@@ -3,14 +3,14 @@
 ## Prerequisites
 
 - Node.js 18+
-- npm (or pnpm for Docker builds)
+- pnpm
 
 ## Setup
 
 ```bash
 git clone git@github.com:ArkLabsHQ/arkade-explorer.git
 cd arkade-explorer
-npm install
+pnpm install
 cp .env.example .env  # Configure VITE_INDEXER_URL and VITE_VERIFIED_ASSETS_URL
 ```
 
@@ -18,27 +18,27 @@ cp .env.example .env  # Configure VITE_INDEXER_URL and VITE_VERIFIED_ASSETS_URL
 
 ```bash
 # Start dev server with hot reload
-npm run dev
+pnpm dev
 # Opens at http://localhost:5173
 
 # Run linting
-npm run lint
+pnpm lint
 
 # Type check (via TypeScript compiler)
-npx tsc --noEmit
+pnpm exec tsc --noEmit
 
 # Full validation
-npm run lint && npx tsc --noEmit && npm run build
+pnpm lint && pnpm exec tsc --noEmit && pnpm build
 ```
 
 ## Build and Deploy
 
 ```bash
 # Production build (runs tsc + vite build)
-npm run build
+pnpm build
 
 # Preview production build locally
-npm run preview
+pnpm preview
 
 # Output: dist/ directory (static files ready for deployment)
 ```
@@ -60,6 +60,9 @@ CI (`.github/workflows/docker.yml`) publishes the GHCR image for both
 `linux/amd64` and `linux/arm64` using `docker/setup-qemu-action` and
 `docker/setup-buildx-action`.
 
+Note: `netlify.toml` is intentionally left using npm in case pnpm is not
+supported by the Netlify build environment.
+
 ## Code Style
 
 - TypeScript strict mode
@@ -77,22 +80,22 @@ CI (`.github/workflows/docker.yml`) publishes the GHCR image for both
 1. Edit source files in `src/`
 2. Browser auto-refreshes via HMR
 3. TypeScript errors shown in terminal
-4. Run `npm run lint` before committing
+4. Run `pnpm lint` before committing
 
 ## PR Workflow
 
 1. Create feature branch from `main`
 2. Implement changes
-3. Run `npm run lint` and `npx tsc --noEmit`
-4. Test locally with `npm run dev` (check all affected routes)
-5. Build check: `npm run build`
+3. Run `pnpm lint` and `pnpm exec tsc --noEmit`
+4. Test locally with `pnpm dev` (check all affected routes)
+5. Build check: `pnpm build`
 6. Open PR against `main`
 
 ## PR Checklist
 
-- [ ] Lint passes (`npm run lint`)
-- [ ] No TypeScript errors (`npx tsc --noEmit`)
-- [ ] Build succeeds (`npm run build`)
+- [ ] Lint passes (`pnpm lint`)
+- [ ] No TypeScript errors (`pnpm exec tsc --noEmit`)
+- [ ] Build succeeds (`pnpm build`)
 - [ ] Tested manually in browser
 - [ ] Tested responsive layout (mobile/desktop)
 - [ ] No console errors or warnings

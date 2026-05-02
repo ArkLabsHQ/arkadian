@@ -1,38 +1,34 @@
 # Arkade WDK — Troubleshooting
 
-## `npm test` fails with a Jest config error
+## `npm test` fails on Jest config (legacy issue — resolved)
 
-**Symptom:** Jest exits before any test runs, complaining about a missing setup file.
+**Old symptom:** Jest exited before any test ran, complaining about a missing `src/__tests__/setup.ts`.
 
-**Cause:** `jest.config.js` references `src/__tests__/setup.ts`, which is not present in the current tree.
-
-**Resolution:**
-- Create `src/__tests__/setup.ts` (even if empty) **or**
-- Remove the `setupFilesAfterEach`/`setupFiles` reference from `jest.config.js`.
-
-This is a known issue tracked in `AGENTS.md`.
+**Current state:** Resolved. The repo was converted from TypeScript + Jest to JavaScript + JSDoc + `node:test`. There is no Jest, no setup file, and no config-validation step. If you see this error you are on a stale checkout — `git pull` and `npm install`.
 
 ---
 
-## `getFeeRates()` returns zeros
+## `getFeeRates()` returns zeros (legacy issue — resolved)
 
-**Symptom:** `await manager.getFeeRates()` resolves to `{ normal: 0n, fast: 0n }`.
+**Old symptom:** `await manager.getFeeRates()` returned `{ normal: 0n, fast: 0n }`.
 
-**Cause:** Not implemented — placeholder values, intentional.
+**Current state:** Resolved. `getFeeRates()` returns the actual `info.fees.txFeeRate` from the Ark info response (parsed and validated by `parseFeeRate`). Both `normal` and `fast` are equal — Ark has no mempool fee tiers.
 
-**Resolution:** Use the SDK directly (`account.wallet`) for fee estimation until the adapter wires this up. Track the gap via the README TODO list.
+If you see zeros now, your ASP is reporting `txFeeRate: 0` (or 0.0) — that's a server-side configuration. Investigate the Ark server, not the adapter.
 
 ---
 
-## Lightning methods unavailable / `arkadeLightning` is `null`
+## Lightning methods unavailable / `arkadeSwaps` is `null`
 
-**Symptom:** `account.createLightningInvoice(...)` throws or `arkadeLightning` is `null`.
+**Symptom:** `account.createLightningInvoice(...)` (or `waitForLightningPayment` / `getPendingLightning*` / `getSwapHistory` / `getLightningLimits` / `getLightningFees`) throws `Lightning support not configured. Provide swapProviderUrl in wallet config.`
 
-**Cause:** `swapProviderUrl` was not provided in `ArkadeWalletConfig`.
+**Cause:** `swapProviderUrl` was not provided in `ArkadeWalletConfig`, so the manager left `arkadeSwaps` as `null`.
+
+> Note: the field name was renamed from `arkadeLightning` to `arkadeSwaps`.
 
 **Resolution:** Construct the manager with a Boltz-compatible swap provider:
 
-```ts
+```js
 new WalletManagerArkade(seed, {
   arkServerUrl: 'https://arkade.computer',
   swapProviderUrl: 'https://api.ark.boltz.exchange',
@@ -45,46 +41,63 @@ new WalletManagerArkade(seed, {
 
 **Symptom:** Offchain or Lightning balance reads correctly on web/regtest, but stays at `0` on a physical Android device.
 
-**Cause:** `@arkade-os/sdk`'s internal Esplora URL defaults to `http://localhost:3000` (regtest), which the device cannot reach.
+**Cause:** The default `@arkade-os/sdk` Esplora URL (`http://localhost:3000`) is unreachable from a physical device.
 
-**Resolution:** This is the known Esplora issue. The `wdk-react-native-provider` submodule contains a workaround that calls the Ark indexer + Esplora REST APIs directly from the RN side:
-- Offchain/Lightning: `GET ${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true`
-- Boarding: `GET ${esploraUrl}/address/${addr}/utxo`
-
-Make sure the provider patch is applied (`node scripts/apply-patches.js`) and `arkServerUrl` / `esploraUrl` are correctly configured for your environment. Once the SDK exposes a configurable Esplora URL across the worklet path, this workaround can be removed.
+**Resolution:** The RN provider hits the Ark indexer + Esplora REST APIs directly from the RN side. Set `indexerUrl` (virtual mempool) and a reachable `esploraUrl` on the Arkade chain config. Confirm `setup:dev` applied the provider patch and that incoming-funds auto-refresh is wired (see `feat(provider): auto-refresh balance on incoming Arkade funds`).
 
 ---
 
-## `sendTransaction` rejects a valid BIP21 URI
+## `Wallet creation timed out`
 
-**Symptom:** Passing `bitcoin:bc1q...?amount=...` to `sendTransaction` errors.
+**Symptom:** `getAccount` rejects with `Ark wallet creation timed out after 30000ms — is the Ark server at <url> reachable?`.
 
-**Cause:** `sendTransaction` / `quoteSendTransaction` accept direct destination values (Ark address, BTC address, BOLT11), not BIP21 URIs.
+**Cause:** `Wallet.create` did not resolve within 30 seconds. The most common reason is `arkServerUrl` being unreachable from where the manager is running.
 
-**Resolution:** Decode first:
-
-```ts
-import { isBip21, decodeBip21 } from '@arkade-os/wdk'
-
-const dest = isBip21(input) ? decodeBip21(input).address : input
-await account.sendTransaction({ to: dest, value })
-```
+**Resolution:** Verify the Ark server is reachable from the runtime (browser, RN device, Bare worklet). On RN, also check `indexerUrl` / `esploraUrl` if balance reads are involved.
 
 ---
 
-## `transfer()` / `quoteTransfer()` throws
+## `Invalid Ark fee rate from server: <raw>`
 
-**Symptom:** Calling `account.transfer(...)` or `account.quoteTransfer(...)` throws.
+**Symptom:** `getFeeRates()` (or `quoteSendTransaction`) throws this.
 
-**Cause:** WDK's `transfer` concept (token transfers between accounts in the same chain) does not apply to Bitcoin/Ark. The adapter intentionally throws.
+**Cause:** The ASP returned a non-finite or negative `txFeeRate`. `parseFeeRate` rejects it explicitly so it doesn't propagate as `NaN`.
 
-**Resolution:** Use `sendTransaction` / `quoteSendTransaction` instead.
+**Resolution:** Check the Ark server's reported fees. If the server is correct and the rate is genuinely zero, that is a different problem — `parseFeeRate` accepts `0`.
+
+---
+
+## `WalletManagerArkade has been disposed`
+
+**Symptom:** Any call after `dispose()` throws this.
+
+**Cause:** Expected — `dispose()` is one-shot. Calling `getAccount`, `getAccountByPath`, or `getFeeRates` afterwards rejects.
+
+**Resolution:** Construct a fresh `WalletManagerArkade`. Do not reuse a disposed instance.
+
+---
+
+## `transfer()` throws (legacy expectation — changed)
+
+**Old behaviour:** `transfer()` and `quoteTransfer()` threw because WDK's transfer concept did not apply.
+
+**Current state:** `transfer({ token, recipient, amount })` is implemented as an SDK asset send (`wallet.send({ address, assets: [...] })`). `quoteTransfer` is also implemented and returns the offchain fee estimate.
+
+For plain Bitcoin/Ark sends (no asset), use `sendTransaction` / `quoteSendTransaction`.
+
+---
+
+## `sendTransaction` rejected a BIP21 URI (legacy issue — resolved)
+
+**Old symptom:** Passing `bitcoin:bc1q...?amount=...` threw.
+
+**Current state:** Resolved. `sendTransaction` and `quoteSendTransaction` now accept BIP21 URIs directly — `resolveDestination` extracts the inner address/invoice and any `?amount=` carried in the URI (priority: lightning > ark > bitcoin).
 
 ---
 
 ## Patches do not apply after a fresh clone
 
-**Symptom:** `node scripts/apply-patches.js` fails with hunks that no longer match.
+**Symptom:** `npm run setup:dev` reports patch hunks that no longer match.
 
 **Cause:** Submodule HEAD has moved past the base ref the patches were generated against.
 
@@ -99,25 +112,19 @@ node scripts/generate-patches.js
 git -C packages/wdk-react-native-provider checkout <known-good-sha>
 ```
 
-Use `--check` first to verify cleanly:
-
-```bash
-node scripts/apply-patches.js --check
-```
+`scripts/setup-dev.js` uses `git apply --reverse --check` to skip already-applied patches, so reruns are idempotent.
 
 ---
 
-## `setup:dev` reports unfamiliar package names
+## `setup:dev` complains about `@wdk/bare` (legacy — fixed)
 
-**Symptom:** `npm run setup:dev` mentions `@wdk/bare` or other legacy names.
+**Old symptom:** `npm run setup:dev` mentioned `@wdk/bare` and other legacy package names.
 
-**Cause:** `scripts/setup-dev.js` still uses the old naming for some link commands while the actual submodule package is `@tetherto/pear-wrk-wdk`.
-
-**Resolution:** Treat the script's output as best-effort. If something feels off, verify links manually with `ls node_modules/@tetherto/pear-wrk-wdk` (or the equivalent package) and re-run `npm link` against the correct package name as needed.
+**Current state:** Fixed (`fix: link example-app packages via direct symlinks, bypass npm link`). The script now reads `package.json#name` from each linked source and creates direct symlinks under the target's `node_modules` — no `npm link`, no `prepare` re-runs, no stale snapshots.
 
 ---
 
-## Submodules are dirty after `setup:dev`
+## Submodules dirty after `setup:dev`
 
 **Symptom:** `git -C packages/<sub> status --short` shows lockfile or build-artifact changes.
 
@@ -127,10 +134,18 @@ node scripts/apply-patches.js --check
 
 ---
 
-## RN example doesn't seem to use `@arkade-os/wdk`
+## RN example does not seem to use `@arkade-os/wdk` (legacy concern — addressed)
 
-**Symptom:** Edits to `@arkade-os/wdk` do not affect the running RN example app.
+**Old symptom:** Edits to `@arkade-os/wdk` had no effect on the running RN example.
 
-**Cause:** `examples/wdk-starter-react-native` currently routes Bitcoin through `@wdk/wallet-btc`, not `@arkade-os/wdk`. This is documented in `AGENTS.md`.
+**Current state:** Addressed. The provider was refactored to run the Arkade `WalletManagerArkade` on the RN JS thread (`refactor(provider): run Arkade wallet on RN side, not Bare worklet`), and the example app now exposes the Arkade chain in its send/receive flows. If the example still reaches `@wdk/wallet-btc`, you are on a stale submodule pointer or stale patch — re-run `npm run setup:dev`.
 
-**Resolution:** Validation requires explicit submodule wiring to register `WalletManagerArkade` for the `bitcoin` chain in the provider/example. Plan that as a separate integration step.
+---
+
+## `bare-*` addon mismatch / SIGABRT in worklet
+
+**Symptom:** Worklet crashes with abort or addon-mismatch errors on RN.
+
+**Cause:** Bare addons in the dev environment did not match the versions `react-native-bare-kit` ships.
+
+**Resolution:** Multiple recent fixes pin and shim the addons. After pulling, run `npm run setup:dev` to refresh — the patches now pin `bare-crypto`, `bare-type`, `bare-pack@1`, and shim `bare-abort`, `bare-stdio`, `bare-performance`, `bare-type` with pure-JS replacements for the worklet. Also ensure `wdk-react-native-provider` does not re-export `WdkManager` from `pear-wrk-wdk index.js` (regression fixed in `be25ba7`).

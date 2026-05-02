@@ -57,8 +57,8 @@ After setting `ARKD_IMAGE`, nigiri's bundled arkd is still running.
 
 **Fix**:
 ```bash
-docker logs arkd 2>&1 | tail -50
-docker pull "$ARKD_IMAGE"   # verify the image is reachable
+docker logs "$ARK_CONTAINER" 2>&1 | tail -50    # $ARK_CONTAINER = "arkd" in override mode, "ark" otherwise
+docker pull "$ARKD_IMAGE"                       # verify the image is reachable
 ```
 
 ## Service Connectivity Issues
@@ -73,14 +73,14 @@ BITCOIN_LOW_FEE=false
 Then `./clean-env.sh && ./start-env.sh`.
 
 ### Fulmine cannot reach arkd
-Symptoms: Fulmine logs show repeated connection refused to `http://ark:7070`.
+Symptoms: Fulmine logs show repeated connection refused to `http://ark:7070` (or `http://arkd:7070` in override mode).
 
 **Cause**: arkd container failed to start (see arkd override section above) or the compose network isn't healthy.
 
 **Fix**:
 ```bash
-docker compose -p nigiri ps          # confirm all services are running
-docker compose -p nigiri logs ark    # inspect arkd logs
+docker compose -p nigiri ps                       # confirm all services are running
+docker compose -p nigiri logs "$ARK_CONTAINER"    # inspect arkd logs (container name varies by mode)
 ```
 
 ### Boltz REST returns 502 / connection refused via Nginx (port 9069)
@@ -95,14 +95,14 @@ docker compose -p nigiri logs boltz | tail -50
 ## Faucet Issues
 
 ### "no funded channels" / wallet has zero balance after startup
-**Cause**: The faucet flow inside `start-env.sh` failed (commonly because Bitcoin Core wasn't ready, or arkd hadn't unlocked yet).
+**Cause**: The faucet flow inside `start-env.sh` failed (commonly because Bitcoin Core wasn't ready, or arkd hadn't unlocked yet). Both modes now wait up to 60 attempts for the Ark wallet to sync before funding, so a recurring zero-balance result usually means the wallet never finished syncing in time.
 
 **Fix**:
 ```bash
 ./clean-env.sh
 ./start-env.sh
 ```
-A clean restart almost always resolves this since the faucet logic is idempotent.
+A clean restart almost always resolves this since the faucet logic is idempotent. If the issue persists, inspect the wallet sync output: `docker logs "$ARK_CONTAINER" 2>&1 | tail -50`.
 
 ### LND channel never opens / `num_active_channels: 0`
 Even after faucet flow, the channel may not be confirmed yet.

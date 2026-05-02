@@ -143,3 +143,51 @@
 - docs/projects/ark-docs/change-log/last-sync.txt → ceef95bdca74b96e199dece2f90edd8390709e7d
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
 
+## 2026-05-02 - Concepts→Core Concepts rename, Glossary as top-level tab, Wallets v0.4 prefix removed
+**Commit**: `1ff89b89d4647757f6f6a460af87e62ffecb65a5`
+**Previous Sync**: `ceef95bdca74b96e199dece2f90edd8390709e7d`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 9 commits — IA tweak that renames slugs to match page titles, promotes Glossary to a top-level tab, drops the `v0.4` prefix from the latest wallet docs, and adds the corresponding `docs.json` redirects. No new pages, one deleted page.
+
+**Renames (slugs match titles)**:
+- `learn/concepts/` → `learn/core-concepts/`, with each file renamed:
+  - `vtxos.mdx` → `vtxos-and-ownership.mdx`
+  - `transactions.mdx` → `transactions-and-execution.mdx`
+  - `settlement.mdx` → `settlement-and-finality.mdx`
+  - `lifecycle.mdx` → `vtxo-lifecycle-and-liveness.mdx`
+  - `security.mdx` → `security-and-trust-model.mdx`
+- `learn/glossary.mdx` → `glossary.mdx` (top-level), now exposed as a dedicated **Glossary** navigation tab.
+- `wallets/v0.4/*` → `wallets/*` — every page under `wallets/v0.4/{getting-started,operations,operations/assets,advanced}/` moved up one level. Page slugs no longer carry a `v0.4` segment. The Mintlify navigation still labels this version "v0.4 (Latest)" via the `version` selector.
+
+**Deletions**:
+- `learn/security/advanced-security.mdx` — last remaining file in `learn/security/`; redirected to `/learn/core-concepts/security-and-trust-model#security-stack`.
+
+**`docs.json` redirects added (all 200-style)**:
+- `/learn/glossary` → `/glossary`
+- `/learn/concepts/{vtxos,transactions,settlement,lifecycle,security}` → `/learn/core-concepts/{vtxos-and-ownership,transactions-and-execution,settlement-and-finality,vtxo-lifecycle-and-liveness,security-and-trust-model}`
+- All `/wallets/v0.4/...` URLs → unprefixed `/wallets/...` (verified for getting-started, operations, operations/assets, advanced).
+- `/learn/pillars/*` and `/learn/security/*` redirects retargeted from old `/learn/concepts/*` to the new `/learn/core-concepts/*` slugs.
+- `/learn/faq/what-about-the-fees` → `/learn/core-concepts/settlement-and-finality`.
+- Minor: `/arkd/components/scheduled-session` destination prefixed with leading slash.
+
+**Other Small Fixes**:
+- Bulk typo fix: "livecycle" → "lifecycle" across 13 files (arkd components, server-security, transactions, contracts, glossary, learn/core-concepts, learn/faq, primer, wallets advanced) plus `docs.json`.
+- Cross-link cleanup so all internal references hit the new slugs (35-file batches in commits 60177a1 "Match Core Concepts slug and group" and 9370b80 "Match concepts slugs and titles").
+- `glossary.mdx` link sweep so the new top-level location is referenced consistently.
+
+**Files Updated in Arkadian Registry**:
+- docs/projects/ark-docs/INDEX.md
+  - Frontmatter aliases: `concepts` now points to `learn/core-concepts/`; `security` points to `learn/core-concepts/security-and-trust-model.mdx`; `vtxos` updated to `learn/core-concepts/vtxos-and-ownership.mdx`; `wallets`/`assets` paths updated to drop `v0.4`; new `glossary` alias.
+  - Default sections by intent updated (`learn/concepts/` → `learn/core-concepts/`, `wallets/v0.4/` → `wallets/`).
+  - Directory descriptions and file trees rewritten for the renamed `core-concepts/` directory, the new top-level `glossary.mdx`, the unprefixed `wallets/` layout, and the deletion of `learn/security/`.
+  - Agent workflow examples updated to point at `learn/core-concepts/vtxos-and-ownership.mdx`, `vtxo-lifecycle-and-liveness.mdx`, and `security-and-trust-model.mdx`.
+- docs/INDEX.md
+  - ark-docs Description rewritten for "core concepts" vocabulary and unprefixed wallet docs.
+  - Key Capabilities updated: `learn/core-concepts/` listing, top-level Glossary capability added, wallets entry rephrased as "Latest, top-level `wallets/`".
+  - Tags: `wallets-v0.4` → `wallets-latest`; added `core-concepts`, `glossary`.
+  - Footer Last Updated 2026-05-01 → 2026-05-02, Version 1.5.6 → 1.5.7.
+- docs/projects/ark-docs/change-log/last-sync.txt → 1ff89b89d4647757f6f6a460af87e62ffecb65a5
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

@@ -10,7 +10,7 @@ npm install @arkade-os/wdk @tetherto/wdk
 
 ## Quick Start
 
-```typescript
+```js
 import WdkManager from '@tetherto/wdk'
 import WalletManagerArkade from '@arkade-os/wdk'
 
@@ -27,15 +27,8 @@ const account = await wdk.getAccount('bitcoin', 0) // boarding account
 const arkAddress = await account.getAddress()
 const balance = await account.getBalance()
 
-const quote = await account.quoteSendTransaction({
-  to: arkAddress,
-  value: 1000n,
-})
-
-const tx = await account.sendTransaction({
-  to: arkAddress,
-  value: 1000n,
-})
+const quote = await account.quoteSendTransaction({ to: arkAddress, value: 1000n })
+const tx = await account.sendTransaction({ to: arkAddress, value: 1000n })
 
 console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 ```
@@ -46,21 +39,21 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 |-------|------|----------------------------|
 | 0 | boarding | On-chain BTC deposit address |
 | 1 | offchain | Ark address (Taproot) |
-| 2 | lightning | `''` (empty) — generate invoice via `createLightningInvoice` instead |
+| 2 | lightning | `''` (empty) — generate invoice via `createLightningInvoice` |
 
-```typescript
+```js
 const boarding = await wdk.getAccount('bitcoin', 0)
 const offchain = await wdk.getAccount('bitcoin', 1)
 const lightning = await wdk.getAccount('bitcoin', 2)
 ```
 
-All three are backed by the **same** underlying SDK wallet — the index controls which surface is exposed.
+Each index is a distinct BIP-86 derivation path (`m/86'/<network>/0'/0/<index>`). The manager memoises one underlying SDK wallet per path. To get the on-chain deposit address from any account, call `account.getBoardingAddress()`.
 
 ## Lightning Invoices
 
 Requires `swapProviderUrl` to be set on the manager.
 
-```typescript
+```js
 const lightning = await wdk.getAccount('bitcoin', 2)
 
 const { invoice, paymentHash } = await lightning.createLightningInvoice(
@@ -68,67 +61,68 @@ const { invoice, paymentHash } = await lightning.createLightningInvoice(
   'Payment for coffee',
 )
 
-console.log(invoice) // BOLT11 string
+// Block until Boltz settles and the VTXO is claimed:
+const { txid } = await lightning.waitForLightningPayment(invoice)
 ```
 
-## Pay a Lightning Address / LNURL
+## Pay BOLT11 / BIP21
 
-```typescript
-import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk'
+`sendTransaction` accepts:
 
-if (isLightningAddress('user@wallet.com')) {
-  const invoice = await fetchInvoice('user@wallet.com', 1000, 'tip')
-  await account.sendTransaction({ to: invoice, value: 1000n })
-}
+- Ark addresses, BTC addresses, BOLT11 invoices (auto-detected).
+- BIP21 URIs — the inner address/invoice and any `?amount=` carried in the URI are extracted automatically.
+
+```js
+await account.sendTransaction({ to: 'bitcoin:bc1q...?amount=0.001', value: 100_000n })
+await account.sendTransaction({ to: '<BOLT11 invoice>', value: 50_000n })
 ```
 
-`sendTransaction` auto-detects BOLT11 strings and routes them through Boltz internally.
+## Lightning Lifecycle
+
+Available on signing accounts when `swapProviderUrl` was configured:
+
+```js
+await lightning.getPendingLightningReceives() // PendingReverseSwap[]
+await lightning.getPendingLightningSends()    // PendingSubmarineSwap[]
+await lightning.getSwapHistory()              // reverse + submarine + chain swaps, newest first
+await lightning.getLightningLimits()          // min/max bounds
+await lightning.getLightningFees()            // fee schedule
+```
+
+All Lightning methods throw `Lightning support not configured. Provide swapProviderUrl in wallet config.` when `arkadeSwaps` is `null`.
 
 ## Read-Only Account
 
-```typescript
+```js
+import { WalletAccountReadOnlyArkade } from '@arkade-os/wdk'
+
 const ro = await account.toReadOnlyAccount()
 const balance = await ro.getBalance()
 const history = await ro.getTransactionHistory()
+const boardingAddr = await ro.getBoardingAddress()
 // ro.sign(...) does not exist — read-only accounts cannot sign
 ```
 
-## Direct SDK Access
+`toReadOnlyAccount` builds an `IReadonlyWallet` projection (using `ReadonlySingleKey.fromPublicKey(...)` and a narrowed `assetManager` exposing only `getAssetDetails`) and wraps it in `WalletAccountReadOnlyArkade`.
 
-For operations not covered by the WDK interface, use `account.wallet`:
+## Asset Transfer
 
-```typescript
-const detailedBalance = await account.wallet.getBalance()
-// → { total, offchain, onchain }
-
-const history = await account.getTransactionHistory()
-// → ArkTransaction[] (mapped to Transaction by RN provider on the consumer side)
+```js
+const result = await account.transfer({
+  token: '<assetId>',
+  recipient: '<ark address>',
+  amount: 1000,
+})
+console.log(result.hash, result.fee)
 ```
 
-## Utility Imports (Standalone)
-
-```typescript
-import {
-  // address
-  isArkAddress, isBTCAddress, isLightningInvoice, decodeArkAddress,
-  // BIP21
-  isBip21, decodeBip21, encodeBip21,
-  // BOLT11
-  isValidInvoice, decodeInvoice,
-  // LNURL
-  isLightningAddress, isLnUrl, fetchInvoice, fetchArkAddress,
-  // fees
-  calculateOffchainFee, calculateOnchainFee, calculateLightningFee,
-  // formatting
-  fromSatoshis, toSatoshis, formatSats, formatSatsWithCommas, prettyNumber,
-} from '@arkade-os/wdk'
-```
+`transfer` issues an SDK asset send (`wallet.send({ address, assets: [{ assetId, amount }] })`) and returns the SDK txid plus an offchain fee estimate.
 
 ## Static Helpers
 
 Inherited from the WDK base `WalletManager`:
 
-```typescript
+```js
 import WalletManagerArkade from '@arkade-os/wdk'
 
 const phrase = WalletManagerArkade.getRandomSeedPhrase(12) // or 24
@@ -137,20 +131,33 @@ const ok = WalletManagerArkade.isValidSeedPhrase(phrase)
 
 ## Configuration
 
-```typescript
-import type { ArkadeWalletConfig } from '@arkade-os/wdk'
-
-const config: ArkadeWalletConfig = {
+```js
+/** @type {import('@arkade-os/wdk').ArkadeWalletConfig} */
+const config = {
   arkServerUrl: 'https://arkade.computer',
   swapProviderUrl: 'https://api.ark.boltz.exchange',
+  // storage: { walletRepository, contractRepository },
+  // swapRepository: <SQLite-backed repo>,
 }
 ```
 
-`ArkadeWalletConfig` is the SDK wallet config (minus `identity`) plus `swapProviderUrl`. At minimum, set `arkServerUrl` (or `arkProvider`).
+`ArkadeWalletConfig` is the SDK wallet config (minus `identity`) plus `swapProviderUrl` and the optional `swapRepository`. At minimum, set `arkServerUrl` (or `arkProvider`). When `storage` is omitted, the manager defaults to in-memory wallet/contract repos (RN/Bare have no IndexedDB).
+
+## Public Exports
+
+The package surface is intentionally narrow:
+
+```js
+import WalletManagerArkade, {
+  WalletAccountArkade,
+  WalletAccountReadOnlyArkade,
+} from '@arkade-os/wdk'
+```
+
+The `lib/*` helpers (address detection, BIP21, fees, formatting, LNURL) are **internal** — do not import them from `@arkade-os/wdk/src/lib/*`. Use the WDK contract for routing instead, or pull equivalent helpers from `@arkade-os/sdk` / `light-bolt11-decoder` directly.
 
 ## Known Caveats
 
-- `getFeeRates()` returns `{ normal: 0n, fast: 0n }` placeholders.
-- `sendTransaction` does **not** accept BIP21 URIs directly — decode first with `decodeBip21`.
-- `transfer()` and `quoteTransfer()` throw — WDK's transfer concept does not apply.
-- Lightning lifecycle helpers (`waitForLightningPayment`, `getPendingLightningReceives`, etc.) are not implemented.
+- `transfer()` only handles asset sends; for plain Bitcoin/Ark sends use `sendTransaction`.
+- `TransactionType.EMAIL` is reserved in the routing enum but not implemented.
+- `getTokenBalance(...)` returns `0n` unless the asset is present in `wallet.getBalance().assets`.

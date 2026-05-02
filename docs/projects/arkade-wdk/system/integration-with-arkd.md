@@ -37,55 +37,62 @@ This includes:
 - `sign()` / `verify()`
 - `getTransactionHistory()`
 
-### 2. Direct indexer/Esplora workaround (RN balance)
+### 2. Direct indexer / Esplora (RN balance + watcher)
 
-In `wdk-react-native-provider`, balance computation for arkade networks bypasses the worklet:
+In `wdk-react-native-provider`, balance computation and incoming-funds watching for arkade networks go through direct REST calls (not the worklet):
 
 | Account Mode | REST Call |
 |--------------|-----------|
 | Offchain / Lightning | `GET ${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true` |
 | Boarding | `GET ${esploraUrl}/address/${addr}/utxo` |
 
-`pkScript` is extracted from the Ark address by an inline bech32m decoder (`arkAddressToPkScript`) so the workaround does not pull in additional dependencies. The reason for this workaround is documented in `system/architecture.md` and `README.md`: the SDK's Esplora URL defaults to `http://localhost:3000` (regtest), which is unreachable from a physical device. Once the SDK exposes a configurable Esplora URL through the worklet path, this workaround is expected to be removed.
+`pkScript` is extracted from the Ark address by an inline bech32m decoder (`arkAddressToPkScript`); the cross-checked counterpart in `src/lib/bech32m.js` is unit-tested against the SDK's `ArkAddress`. The Arkade chain config now accepts an explicit `indexerUrl` (the virtual mempool / indexer endpoint) so the RN side can target the right indexer without relying on the SDK's defaults. The provider also auto-refreshes balances when incoming Arkade funds are detected.
 
 ### 3. Lightning (optional)
 
-When the manager is constructed with `swapProviderUrl`, an `ArkadeLightning` instance from `@arkade-os/boltz-swap` is attached to each account:
+When the manager is constructed with `swapProviderUrl`, an `ArkadeSwaps` instance from `@arkade-os/boltz-swap` is attached to each account (the field is `arkadeSwaps`, not `arkadeLightning`):
 
 | Operation | Path |
 |-----------|------|
 | `createLightningInvoice(amount, description?)` | Boltz reverse swap (Boltz pays the BOLT11 invoice they hand back; we receive Ark via VTXO) |
 | `sendTransaction({ to: BOLT11, value })` | Boltz submarine swap (we send Ark; Boltz pays the BOLT11 invoice) |
+| `waitForLightningPayment(invoice)` | Looks up the matching pending reverse swap and calls `swaps.waitAndClaim(swap)` |
+| `getPendingLightning{Receives,Sends}` / `getSwapHistory` | Pending and historical swaps from `ArkadeSwaps` |
+| `getLightningLimits` / `getLightningFees` | Min/max bounds and fee schedule from the swap provider |
 
-The Lightning swap lifecycle (status polling, refunds, swap history) is not yet exposed through this adapter — those helpers are flagged TODO in the README.
+The swap manager runs with `autoStart: true` and a 5-second poll interval. A consumer-supplied `swapRepository` (e.g. SQLite-backed) is forwarded into `ArkadeSwaps.create` if present in `ArkadeWalletConfig`.
 
 ## Configuration
 
-```ts
-import type { ArkadeWalletConfig } from '@arkade-os/wdk'
-
-const config: ArkadeWalletConfig = {
-  arkServerUrl: 'https://arkade.computer',     // arkd endpoint
+```js
+/** @type {import('@arkade-os/wdk').ArkadeWalletConfig} */
+const config = {
+  arkServerUrl: 'https://arkade.computer',          // arkd endpoint
   swapProviderUrl: 'https://api.ark.boltz.exchange', // optional: enables Lightning
+  // storage: { walletRepository, contractRepository }, // optional; defaults to in-memory
+  // swapRepository: <SQLite-backed repo>,              // optional; forwarded into ArkadeSwaps
 }
 ```
 
-`ArkadeWalletConfig` is a superset of the `@arkade-os/sdk` wallet config (excluding `identity`, which is provided by the seed) plus `swapProviderUrl`. At minimum, `arkServerUrl` (or `arkProvider`) is required.
+`ArkadeWalletConfig` (defined as a JSDoc typedef in `src/types.js`) is a superset of the `@arkade-os/sdk` wallet config (excluding `identity`, which is provided by the seed) plus `swapProviderUrl`. At minimum, `arkServerUrl` (or `arkProvider`) is required.
 
 ## Failure Modes & Operational Notes
 
-- **arkd unreachable** — Surfaces as errors from the SDK on any account method. The adapter does not retry; consumer apps decide.
-- **Indexer endpoint unreachable** (RN balance workaround) — Balance reads fail; fallback would be to route through the standard SDK path on platforms where Esplora is reachable.
-- **Boltz unreachable / `swapProviderUrl` not set** — `arkadeLightning` is `null` and `createLightningInvoice` is unavailable; BOLT11 sends through `sendTransaction` will fail at the routing layer.
-- **Worklet path failures** (RN) — `getTransactionHistory` and other HRPC-bridged calls require the bare-kit worklet (`pear-wrk-wdk`) to be running and patched; build issues in `packages/pear-wrk-wdk` propagate to runtime.
+- **arkd unreachable** — `arkProvider.getInfo()` is retried once at construction; if both attempts fail, every `getAccount` / `getFeeRates` await rejects with the original SDK error. `Wallet.create` is also wrapped in a 30s timeout that surfaces a clear "Ark wallet creation timed out — is the Ark server reachable?" error.
+- **Indexer / Esplora unreachable** (RN) — Balance reads fail; Lightning/offchain balance returns null on the RN side.
+- **Malformed `txFeeRate` from ASP** — Validated by `parseFeeRate`; throws `Invalid Ark fee rate from server: <raw>` instead of producing `NaN` further down.
+- **Boltz unreachable / `swapProviderUrl` not set** — `arkadeSwaps` is `null` and `createLightningInvoice` (and every other Lightning method) throws `Lightning support not configured`. BOLT11 sends through `sendTransaction` fail at the routing layer.
+- **Worklet path** (RN) — Non-Arkade chains still route through the bare-kit worklet (`pear-wrk-wdk`); for Arkade the wallet runs on the RN JS thread directly.
 
 ## Versioning Coupling
 
 | Component | Pinned Version (current) |
 |-----------|--------------------------|
-| `@arkade-os/sdk` | `^0.4.8` |
-| `@arkade-os/boltz-swap` | `^0.3.6` |
+| `@arkade-os/sdk` | `0.4.21` |
+| `@arkade-os/boltz-swap` | `0.3.22` |
 | `@tetherto/wdk-wallet` | `^1.0.0-beta.5` |
 | `@tetherto/wdk` (devDep, runtime via consumer) | `^1.0.0-beta.4` |
+| `sodium-universal` | `^5.0.1` |
+| `bare-*` worklet addons | Pinned to versions `react-native-bare-kit` ships (multiple shims for `bare-abort`, `bare-stdio`, `bare-performance`, `bare-type`, `bare-crypto`) |
 
-Bumping `@arkade-os/sdk` may require regenerating patches under `packages/wdk-react-native-provider` if any worklet or HRPC types changed.
+Bumping `@arkade-os/sdk` typically requires regenerating patches under `packages/wdk-react-native-provider` if any worklet or HRPC types changed.

@@ -25,6 +25,14 @@ ark-infra is the single source of truth for all Ark infrastructure deployments a
 ```
 ark-infra/
 ├── README.md                          # Global entry point
+├── flake.nix / .envrc                 # Nix devshell (nodejs_20, opentofu 1.9.1, python3) via direnv
+├── aws/                               # Per-account IAM/SSO OpenTofu configs
+│   ├── README.md                      # SSO setup + per-account deployment guide
+│   ├── dev-438465126741/              # Dev account (ArkDev* roles)
+│   └── prod-982590065524/             # Prod account (ArkProd* roles)
+├── modules/                           # Reusable OpenTofu modules
+│   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
+│   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
 └── docker-compose/                    # Docker Compose + OpenTofu automation
     ├── README.md                      # Docker Compose documentation
     ├── Makefile                       # Automation commands
@@ -172,6 +180,7 @@ ark-infra/
 - **Security groups**: Least-privilege access rules
 - **Secrets management**: AWS Secrets Manager + KMS encryption
 - **Localhost-only services**: Admin APIs bound to 127.0.0.1
+- **Federated human access**: Google Workspace SAML SSO with four account-prefixed roles (`ArkProd*` / `ArkDev*`: SuperAdministrator, Administrator, Developer, ReadOnly). A 15-minute Lambda (`secure-gws-aws-sync-{env}`) syncs GWS group membership to the `Amazon.Role` user attribute and clears it for users orphaned from all mapped groups. Guardrail policies restrict secrets, Terraform state, security-tooling tampering, sensitive log groups (`/*secure*`, `/aws/ssm/sessions/*`), and SSM shell sessions for non-SuperAdmins (port forwarding remains available for Admin/Developer)
 
 ### State Management
 - **S3 backend**: State stored in versioned S3 buckets

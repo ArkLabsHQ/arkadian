@@ -4,52 +4,43 @@
 
 | Tool | Role |
 |------|------|
-| Jest 29 | Test runner |
-| ts-jest 29 | TypeScript transformer |
-| `@jest/globals`, `@types/jest` | Type wiring |
-| ESM mode | Enabled via `node --experimental-vm-modules node_modules/jest/bin/jest.js` |
+| `node:test` | Node's built-in test runner (no Jest, no extra deps) |
+| `node:assert/strict` | Assertions |
+| `mock` from `node:test` | Mocking inside specs |
+
+Tests live in `src/__tests__/*.test.js` and run under stock Node (>= 18).
 
 ## Commands
 
 ```bash
-npm test               # one-shot
-npm run test:watch     # watch mode
+npm test               # node --test src/__tests__/*.test.js
+npm run test:watch     # node --test --watch src/__tests__/*.test.js
 ```
 
-Both invoke Jest with `--experimental-vm-modules` to run ES modules.
+No `--experimental-vm-modules` flag, no `ts-jest`, no Jest config validation step. The previous Jest-related footgun (a missing `src/__tests__/setup.ts`) is gone — it was removed when the repo was converted to JavaScript with JSDoc.
 
-## Current Known Issue
+## Current Test Specs
 
-`jest.config.js` references a setup file (`src/__tests__/setup.ts`) that is not present in the repository. As a result, `npm test` currently fails during Jest's config validation step before any test can run.
+- `src/__tests__/bech32m.test.js` — Cross-checks `arkAddressToPkScript` (and the helper functions in `lib/bech32m.js`) against `ArkAddress` from `@arkade-os/sdk`. Keeps the inline RN bech32m decoder in lockstep.
+- `src/__tests__/phase-0.test.js` — Phase-0 wiring tests (manager / account contracts, derivation paths, in-memory storage default, `getFeeRates`, etc.).
+- `src/__tests__/wdk.test.js` — Integration with `@tetherto/wdk` `WdkManager` (registration, chaining, accounts of the right type).
 
-To unblock testing locally:
+`stubArkProvider` is used liberally so tests never make real network calls (e.g. `getInfo` returns `{ network: 'testnet', fees: { txFeeRate: '1' } }`).
 
-1. Create the setup file, or
-2. Remove the reference in `jest.config.js`.
-
-This is a known footgun documented in `AGENTS.md`. Validate any fix is consistent with whatever upstream maintainers prefer before submitting a PR.
-
-## Recommended Manual Verification (until the test config is fixed)
-
-For root-only adapter changes, use this pragmatic loop:
-
-1. `npm run build` — verify the package compiles.
-2. `npm run lint` — verify no lint regressions.
-3. **Optional:** write a short consumer harness that imports from `dist/` and calls a few account methods against a known Ark server (e.g. a regtest stack from `arkade-regtest`). The harness lives outside the repo and is not committed.
-
-## Recommended Test Coverage Targets (once Jest is unblocked)
+## Recommended Coverage Targets
 
 The adapter's surface that benefits most from automated tests:
 
-- `src/lib/address.ts` — `isArkAddress`, `isBTCAddress`, `isLightningInvoice`, `decodeArkAddress` (deterministic, no network).
-- `src/lib/bip21.ts` — `isBip21`, `decodeBip21`, `encodeBip21` (deterministic).
-- `src/lib/bolt11.ts` — `isValidInvoice`, `decodeInvoice` (deterministic on canned invoices).
-- `src/lib/lnurl.ts` — argument validation paths; mock `fetch` for `fetchInvoice` / `getCallbackUrl`.
-- `src/lib/fees.ts` — fee math.
-- `src/lib/format.ts` — sat formatting.
-- `src/lib/send.ts` — `detectTransactionType` decision matrix.
-- `src/wallet-manager-arkade.ts` — account resolution by index/path; placeholder `getFeeRates`.
-- `src/wallet-account-arkade.ts` — destination routing inside `sendTransaction` (mock the SDK wallet).
+- `src/lib/address.js` — `isArkAddress`, `isBTCAddress`, `isLightningInvoice`, `decodeArkAddress` (deterministic, no network).
+- `src/lib/bech32m.js` — `bech32mDecode`, `bech32mFromWords`, `arkAddressToPkScript` (already covered).
+- `src/lib/bip21.js` — `isBip21`, `decodeBip21`, `encodeBip21`.
+- `src/lib/bolt11.js` — `isValidInvoice`, `decodeInvoice`.
+- `src/lib/lnurl.js` — argument validation paths; mock `fetch` for `fetchInvoice` / `getCallbackUrl`.
+- `src/lib/fees.js` — `parseFeeRate` boundary cases, fee math.
+- `src/lib/format.js` — sat formatting.
+- `src/lib/send.js` — `resolveDestination` BIP21 resolution + `detectTransactionType` decision matrix.
+- `src/wallet-manager-arkade.js` — account caching by path, in-memory storage default, retry-on-getInfo, dispose semantics.
+- `src/wallet-account-arkade.js` — destination routing inside `sendTransaction`, `transfer` calls into `wallet.send`, `toReadOnlyAccount` projection.
 
 E2E coverage of round/settlement behavior is the responsibility of `@arkade-os/sdk` and downstream RN integration tests; this adapter intentionally does not duplicate that.
 
@@ -57,14 +48,13 @@ E2E coverage of round/settlement behavior is the responsibility of `@arkade-os/s
 
 For changes that touch RN integration, tests live (or should live) inside the submodules:
 
-1. Build relevant package(s) under `packages/*`.
-2. Re-link dependencies (`npm run setup:dev` at root, or manual `npm link`).
+1. Make changes inside the relevant submodule.
+2. Re-link via `npm run setup:dev` at root (idempotent).
 3. Run example app validation in `examples/wdk-starter-react-native`:
-   - `npm run typecheck` (if available)
    - `npm run android` or `npm run ios` for manual verification.
 
-If you are specifically validating `@arkade-os/wdk` (not `@wdk/wallet-btc`), make sure the provider's chain registration has been updated to use `WalletManagerArkade` for `bitcoin` — by default the example does not.
+The example app now drives the Arkade chain end-to-end (send/receive across boarding/offchain/lightning, BIP21 inputs).
 
 ## CI
 
-There is no CI configuration documented in the root README. PRs are expected to be validated locally via the build + lint + (eventually) Jest commands above.
+There is no CI configuration documented in the root README. PRs are expected to be validated locally via `npm run lint` + `npm test`.

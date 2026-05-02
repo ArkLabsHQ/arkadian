@@ -1,5 +1,63 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-02 - Documentation Update
+**Commit**: `cf02b85cf224f4c2c2d8025309cc066dec4eb6f7`
+**Previous Sync**: `c12813d1c9039a82fe8367f1971a010a1b0e869c`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 6 commits
+
+**Highlights**:
+- 🔐 **AWS IAM + Google Workspace SSO** (#26): SAML federation provisioned per AWS account
+  (prod `982590065524`, dev `438465126741`) with role prefixes `ArkProd` / `ArkDev`. Four
+  roles per account — `SuperAdministrator`, `Administrator`, `Developer`, `ReadOnly` — built
+  from two new reusable OpenTofu modules:
+  - `modules/ark-iam-roles`: SAML-federated roles with layered guardrail policies
+    (`AdminRestrictions`, `DeveloperRestrictions`, `SSMPortForwarding`).
+  - `modules/ark-gws-sync`: Lambda (`secure-gws-aws-sync-{env}`) running every 15 minutes
+    that reads Google Workspace group membership and writes the `Amazon.Role` user attribute.
+    Multi-account aware (preserves sibling-account attributes) and clears the attribute for
+    users orphaned from all mapped groups (revokes access on next sync).
+- Repo restructure: flattened from `aws/{account}/gws-aws/opentofu/` to `aws/{account}/`;
+  per-account configs `aws/dev-438465126741/` and `aws/prod-982590065524/`.
+- Guardrails: deny Secrets Manager value access, `*secure*` SSM parameters, CloudTrail /
+  GuardDuty / Config / SecurityHub / Access Analyzer disruption, KMS destructive ops,
+  Route53 domain transfer, `*secure*` Lambda mutation, S3 public-access toggles, Terraform
+  state bucket / lock table mutation, `sts:AssumeRole` on SuperAdministrator, and SSM
+  **shell** sessions for non-SuperAdmins (port forwarding stays available).
+- Sensitive log restriction (commit `0c854fc`): `DenySensitiveLogs` added to
+  `DeveloperRestrictions` for `/aws/ssm/sessions/*` and any `/*secure*` log group
+  (`Get/FilterLogEvents`, `StartQuery`, `CreateExportTask`, etc.) — applies to Developer
+  and ReadOnly.
+- ReadOnly inherits `DeveloperRestrictions` so it cannot read Terraform state via
+  `s3:GetObject` (which `ReadOnlyAccess` would otherwise grant).
+- ABAC: SAML trust policy includes `sts:TagSession` to enable principal-tag based access
+  control from Google Workspace; account ID derived from `data.aws_caller_identity`
+  (no hardcoded account variable).
+- Provider `default_tags` standardized: `Environment`, `ManagedBy = "opentofu"`,
+  `Repository = "ark-infra"`, `Owner` (resource-level `ManagedBy` removed).
+- SSM access model:
+  - SuperAdministrator: shell ✓, port forward ✓, run commands ✓
+  - Administrator: shell ✗, port forward ✓, run commands ✓
+  - Developer: shell ✗, port forward ✓, run commands ✗
+  - ReadOnly: shell ✗, port forward ✗, run commands ✗
+- Nix devshell (`flake.nix` + `.envrc`, commit `825be6e`): pins OpenTofu 1.9.1
+  (`nixpkgs e6f23dc0`), Node.js 20, Python 3 — `direnv allow` enters the shell.
+- `Makefile`: cross-platform `bash` resolution fix (commit `cad9b75`).
+- Terraform lock files added/updated for both accounts (`commits cf02b85`, `4dd7d27`).
+
+**Files Updated**:
+- docs/INDEX.md (capabilities, tags — IAM/SSO/SAML/Nix)
+- docs/projects/ark-infra/INDEX.md (frontmatter, repo structure, IAM Roles section, SSO aliases, prerequisites)
+- docs/projects/ark-infra/system/project_overview.md (repo structure with aws/ + modules/, Security Architecture: SSO)
+- docs/projects/ark-infra/system/architecture.md (Layer 2: federated access, role tiers, SSM access model)
+- docs/projects/ark-infra/system/security.md (full IAM/SSO section, role hierarchy, guardrails, SSM access model, ABAC)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-04-29 - Documentation Update
 **Commit**: `c12813d1c9039a82fe8367f1971a010a1b0e869c`
 **Previous Sync**: `ef32279f8e8830ba50b235c4ddf95d0eadeb2aa5`
