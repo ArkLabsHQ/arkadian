@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-03 - Documentation Update
+**Commit**: `4a9c282b` (boltz-backend repository)
+**Previous Sync**: `ce18517f`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Bug Fixes**:
+- Racy renegotiation (#1383): pass `{ allowLockupFailedUpdate: true }` from `Renegotiator` into lockup-tx setters across `ArkNursery`, `EthereumNursery`, and `UtxoNursery` so renegotiation-driven lockup updates can apply even when the swap previously transitioned to `lockup.failed`. `ChainSwapRepository.setUserLockupTransaction` / `setServerLockupTransaction` now accept and gate this allowance, with new repository-level integration tests and unit-test coverage for each nursery.
+
+**Documentation Impact**: None — bug fix in internal swap-nursery / repository logic; no public API, capability, dependency, env-var, component, build, or migration changes. Project INDEX, system, and testing docs unchanged.
+
+---
+
 ## 2026-05-01 - Documentation Update
 **Commit**: `ce18517f` (boltz-backend repository)
 **Previous Sync**: `6ba692ac`
