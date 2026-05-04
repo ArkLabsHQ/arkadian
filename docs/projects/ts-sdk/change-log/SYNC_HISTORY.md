@@ -122,3 +122,35 @@
 - No package version bump (still `0.4.22`); no public-facing rename of identity options — `DescriptorOptions` and `ReadonlyDescriptorIdentity.fromDescriptor` retained their pre-existing names
 - The semantic shift (identities now hold a *template*, not a concrete descriptor) is a breaking constructor-input change but the field name stayed the same
 
+---
+
+## 2026-05-04 - Default to bitcoin mainnet + arkade.computer
+**Previous Commit**: `a0fab06e39245e511dc0cccfeb3ea9c35bf024e8`
+**Current Commit**: `0b45841414d8ef8c969af34523ca20365b77ee83`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for mainnet-default UX change (no version bump — still 0.4.22)
+
+**Commits Analyzed**:
+- `0b45841` feat: default to bitcoin mainnet + arkade.computer (#460)
+
+**Documentation Changes**:
+- `system/project_overview.md`: added a "Mainnet Defaults" row to the Core Features table covering `DEFAULT_ARKADE_SERVER_URL`, `DEFAULT_ARKADE_HRP`, `DEFAULT_NETWORK_NAME`, and the `getArkadeServerUrl` helper
+- `INDEX.md`: added a Key Concepts entry describing the mainnet-default behavior across `Wallet.create`, `ReadonlyWallet.create`, `ServiceWorkerWallet.create`, `OnchainWallet.create`, `ArkAddress`, and `contractFromArkContractWithAddress`
+- `testing/usage.md`: simplified the basic Quick Start, Watch-Only, and Service Worker examples to omit `arkServerUrl` (mainnet default); added an `OnchainWallet (Mainnet Default)` snippet showing the optional `networkName`; kept an explicit mutinynet override example
+- Master `docs/INDEX.md`: added Mainnet Defaults capability bullet and `mainnet-default` tag for `ts-sdk`
+
+**Notable Source Changes**:
+- New constants exported from `src/wallet/index.ts`: `DEFAULT_ARKADE_SERVER_URL = "https://arkade.computer"`, `DEFAULT_ARKADE_HRP = "ark"`, `DEFAULT_NETWORK_NAME = "bitcoin"`
+- New helper `getArkadeServerUrl({ arkServerUrl })` exported from `src/wallet/wallet.ts` — returns `arkServerUrl || DEFAULT_ARKADE_SERVER_URL`
+- `Wallet.create` / `ReadonlyWallet.create`: dropped the `"Either arkProvider or arkServerUrl must be provided"` throw; `RestArkProvider` now constructs from `getArkadeServerUrl(config)` when no provider/url is supplied
+- `ServiceWorkerWallet.create` / `ServiceWorkerReadonlyWallet.create`: `arkServerUrl` parameter is now optional; both `INIT_WALLET` and `INITIALIZE_MESSAGE_BUS` payloads are routed through `getArkadeServerUrl(options)`
+- `OnchainWallet.create(identity, networkName?)`: `networkName` now defaults to `DEFAULT_NETWORK_NAME` (`"bitcoin"`)
+- `ArkAddress` constructor: `hrp` parameter defaulted to `DEFAULT_ARKADE_HRP` (`"ark"`)
+- `contractFromArkContractWithAddress(encoded, serverPubKey, addressPrefix?)`: `addressPrefix` defaulted to `DEFAULT_ARKADE_HRP`
+- New tests assert mainnet defaults for `ArkAddress`, `contractFromArkContractWithAddress`, `ReadonlyWallet.create`, `OnchainWallet.create`, `ServiceWorkerWallet.create`, and `ServiceWorkerReadonlyWallet.create`
+
+**Notes**:
+- Backwards compatible: explicit `arkServerUrl` / `networkName` / `hrp` arguments still work as before
+- Architecture, module layout, provider/identity/storage patterns, and crypto stack are unchanged
+- No package.json version bump; release-tagged 0.4.22 still applies
+

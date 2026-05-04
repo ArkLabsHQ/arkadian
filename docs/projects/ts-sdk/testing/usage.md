@@ -23,7 +23,12 @@ import { Wallet, SingleKey } from '@arkade-os/sdk'
 const identity = SingleKey.fromHex('your_private_key_hex')
 // Or generate: SingleKey.fromRandomBytes()
 
-const wallet = await Wallet.create({
+// arkServerUrl is optional — defaults to DEFAULT_ARKADE_SERVER_URL
+// ('https://arkade.computer'). Override for non-mainnet deployments.
+const wallet = await Wallet.create({ identity })
+
+// Non-mainnet (e.g. mutinynet)
+const mutinynetWallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://mutinynet.arkade.sh',
 })
@@ -64,12 +69,24 @@ State persists under `WalletState.settings.hd` (no schema migration). Allocation
 ```typescript
 import { ReadonlyWallet } from '@arkade-os/sdk'
 
+// arkServerUrl optional — defaults to https://arkade.computer (mainnet).
 const readonlyWallet = await ReadonlyWallet.create({
   identity: await identity.toReadonly(),
-  arkServerUrl: 'https://mutinynet.arkade.sh',
 })
 
 const balance = await readonlyWallet.getBalance()
+```
+
+### OnchainWallet (Mainnet Default)
+
+```typescript
+import { OnchainWallet } from '@arkade-os/sdk'
+
+// networkName is optional — defaults to DEFAULT_NETWORK_NAME ('bitcoin').
+const onchain = await OnchainWallet.create(identity)
+
+// Override for non-mainnet networks
+const regtest = await OnchainWallet.create(identity, 'regtest')
 ```
 
 ## Core Operations
@@ -186,9 +203,9 @@ const electrum = new ElectrumOnchainProvider(ws, networks.bitcoin)
 // Main thread
 import { ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
 
+// arkServerUrl optional — defaults to https://arkade.computer (mainnet).
 const wallet = await ServiceWorkerWallet.setup({
   serviceWorkerPath: '/service-worker.js',
-  arkServerUrl: 'https://mutinynet.arkade.sh',
   identity: SingleKey.fromHex('private_key_hex'),
 })
 

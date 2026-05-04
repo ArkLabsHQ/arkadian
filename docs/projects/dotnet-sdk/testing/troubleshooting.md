@@ -82,6 +82,14 @@ var limits = await boltzClient.GetPairsAsync();
 
 **Solution**: Boltz uses BIP327 KeySort ordering. Keys must be sorted: `[boltzKey, userKey]`. The `ChainSwapMusigSession` handles this -- ensure you're using it rather than manual aggregation.
 
+### Swap stuck Pending after Boltz endpoint change
+
+**Symptom**: A previously-Pending swap stays Pending forever; logs show repeated `BoltzSwapNotFoundException` (HTTP 404 from `/v2/swap/{id}` with body `could not find swap`) every minute. Typically happens after the configured Boltz endpoint changes (operator switches the default URL) so in-flight swaps from the old instance are unknown to the new one.
+
+**Solution**: `SwapsManagementService.PollSwapState` tracks a per-swap consecutive-unknown counter and, after 10 consecutive `BoltzSwapNotFoundException`s (~10 minutes at the 1-min cadence), marks the swap **Failed** with a `FailReason` describing the on-chain script-path recovery, sets `Metadata["unknownToProvider"] = "true"`, removes it from polling, and lets `NotifySwapChanged` evict it via `SaveSwap`. Any successful poll resets the counter, so transient 404s recover. Other 404s (renamed routes, proxy misconfig) still propagate as `HttpRequestException` and don't trip the safety net.
+
+This bounds the noise but does **not** recover funds — the user must spend the contract via the script-path after CSV expiry. Surface `Metadata["unknownToProvider"]` in your UI so users get a "refund manually after CSV expiry" hint.
+
 ## E2E Test Issues
 
 ### "Aspire host failed to start"

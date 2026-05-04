@@ -1,5 +1,29 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-04 - Bounded safety net for swaps stuck on missing Boltz endpoint
+**From**: `9dd4764b89e2d0068531d1412f562dad984e0a7c`
+**To**: `269b877ff04806c64226f94fad842a693581891e`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 commit (PR #80, `fix: mark swaps Failed after 10 consecutive Boltz 404s`).
+
+**Highlights**:
+- New `BoltzSwapNotFoundException` thrown by `BoltzClient.GetSwapStatusAsync` when Boltz responds with 404 + a "could not find swap" body. Other 404s (renamed routes, proxy misconfig) still propagate as plain `HttpRequestException`, so the safety net only fires on the genuine "this swap is unknown to this provider" case.
+- `SwapsManagementService.PollSwapState` now tracks a per-swap consecutive-unknown counter, reset on any successful response. After 10 consecutive unknowns (~10 minutes at the 1-min poll cadence) the swap is marked **Failed** with a `FailReason` explaining the on-chain script-path recovery path, plus `Metadata["unknownToProvider"] = "true"` so consumer UIs can surface a "refund manually after CSV expiry" hint. The swap is removed from `_swapsIdToWatch`, the counter cleared, and `NotifySwapChanged` evicts `_scriptToSwapId` via the `SaveSwap` event so polling actually stops.
+- Funds are **not** automatically recovered — the user must spend the contract via the script-path after CSV expiry. The change just bounds the noise (no more 404 spam every minute) and gives operators something actionable in their dashboard.
+- `NArk.Tests/BoltzClientNotFoundTests.cs` covers the 404-with-body / 404-other / non-404 / counter-reset / 10-consecutive-fail paths.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/testing/troubleshooting.md` — new "Swap stuck Pending after Boltz endpoint change" entry under Swap Issues describing the symptom, the 10-strike safety net, and the manual script-path recovery requirement.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `269b877ff04806c64226f94fad842a693581891e`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/INDEX.md` — bug fix, no new capability/tag/dependency.
+- `docs/projects/dotnet-sdk/INDEX.md` — same, no public-API surface change worth surfacing in Key Concepts.
+- `system/architecture.md` — `SwapsManagementService` already listed; the consecutive-unknown counter is internal polling logic, not architecture.
+
 ## 2026-05-01 - HD Wallet Gap-Limit Recovery via Modular Discovery Providers
 **From**: `1020e221ebee6f7ba325029d93d00aafef9ab1e1`
 **To**: `9dd4764b89e2d0068531d1412f562dad984e0a7c`

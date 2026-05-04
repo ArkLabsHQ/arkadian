@@ -17,6 +17,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Feature | Description |
 |---------|-------------|
 | Wallet Management | Full signing (`Wallet`) and watch-only (`ReadonlyWallet`) wallets |
+| Mainnet Defaults | `arkServerUrl` defaults to `DEFAULT_ARKADE_SERVER_URL` (`https://arkade.computer`); `OnchainWallet.create` defaults to `DEFAULT_NETWORK_NAME` (`bitcoin`); `ArkAddress` and `contractFromArkContractWithAddress` default HRP to `DEFAULT_ARKADE_HRP` (`ark`). `getArkadeServerUrl({ arkServerUrl })` helper resolves the value. |
 | HD Identity | BIP39 mnemonics, BIP86 Taproot derivation paths; identities consume wildcard descriptor templates (`tr(.../0/*)`) |
 | Descriptor Providers | `DescriptorProvider` allocator interface — `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation) |
 | HD Receive Rotation | `HDDescriptorProvider.getNextSigningDescriptor()` allocates fresh descriptors via wallet-repo-persisted index, with cross-instance serialization through the shared `updateWalletState` mutex |

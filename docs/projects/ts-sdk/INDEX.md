@@ -126,6 +126,7 @@ Analysis and summaries of pull requests.
 
 ## Key Concepts
 
+- **Mainnet Defaults**: `Wallet.create` / `ReadonlyWallet.create` / `ServiceWorkerWallet.create` default `arkServerUrl` to `DEFAULT_ARKADE_SERVER_URL` (`https://arkade.computer`); `OnchainWallet.create` defaults `networkName` to `DEFAULT_NETWORK_NAME` (`bitcoin`); `ArkAddress` and `contractFromArkContractWithAddress` default HRP to `DEFAULT_ARKADE_HRP` (`ark`). The `getArkadeServerUrl({ arkServerUrl })` helper resolves the URL with the same fallback
 - **Wallet**: Full signing wallet (`Wallet`) or watch-only (`ReadonlyWallet`)
 - **Identity**: Key management abstraction — SingleKey, SeedIdentity (HD), MnemonicIdentity. Seed-backed and watch-only identities take a wildcard descriptor template (`tr(.../0/*)`) and expose it as `identity.descriptor`
 - **Descriptor Provider**: Pure rotating allocator (`getNextSigningDescriptor`) — `StaticDescriptorProvider` for single-key, `HDDescriptorProvider` for HD receive rotation
