@@ -65,8 +65,8 @@ The wallet manager exposes account indices over the BIP-86 path `m/86'/<network>
 
 | Dependency | Pinned | Role |
 |------------|--------|------|
-| `@arkade-os/sdk` | `0.4.21` | Underlying Ark protocol wallet |
-| `@arkade-os/boltz-swap` | `0.3.22` | Optional Lightning swap integration |
+| `@arkade-os/sdk` | `0.4.23` | Underlying Ark protocol wallet |
+| `@arkade-os/boltz-swap` | `0.3.25` | Optional Lightning swap integration |
 | `@tetherto/wdk-wallet` | `^1.0.0-beta.5` | WDK base `WalletManager` / `WalletAccountReadOnly` classes |
 | `@scure/bip32` | `^2.0.1` | BIP32 HD key derivation |
 | `@scure/base` | `^2.0.0` | Bech32 / base encoding |

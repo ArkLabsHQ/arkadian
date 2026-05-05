@@ -83,7 +83,8 @@ src/
 ├── repositories/            # Data access layer
 │   ├── index.ts             # Repository interfaces
 │   ├── walletRepository.ts  # WalletRepositoryImpl (VTXO caching)
-│   └── contractRepository.ts # ContractRepositoryImpl (contract data, collections)
+│   ├── contractRepository.ts # ContractRepositoryImpl (contract data, collections)
+│   └── serialization.ts     # SerializedAsset / serializeAssets / deserializeAssets (bigint→decimal-string round-trip; legacy number/string accepted on read)
 │
 ├── storage/                 # Storage adapter interface
 │   └── ...
@@ -102,7 +103,8 @@ src/
     ├── transaction.ts       # Transaction construction
     ├── arkTransaction.ts    # Off-chain tx building, tapscript signature verification
     ├── unknownFields.ts     # PSBT custom fields (VtxoTaprootTree, CosignerPublicKey, etc.)
-    └── anchor.ts            # P2A (Pay-to-Anchor) and AnchorBumper
+    ├── anchor.ts            # P2A (Pay-to-Anchor) and AnchorBumper
+    └── txSizeEstimator.ts   # TxWeightEstimator + VSize type (fee estimation, re-exported from package root since 0.4.23)
 ```
 
 ## Design Patterns

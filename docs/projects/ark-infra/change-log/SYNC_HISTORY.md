@@ -1,5 +1,31 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-05 - Documentation Update
+**Commit**: `c64a12b7b769c84766b38fbf92b91dc6c6f6584c`
+**Previous Sync**: `cf02b85cf224f4c2c2d8025309cc066dec4eb6f7`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Highlights**:
+- 🧪 **Developer sandbox sub-account** (`c64a12b`): added `aws/dev-438465126741/organizations.tf`
+  provisioning an `aws_organizations_account` named `se7enz` under the dev account, plus an
+  `aws_iam_user_policy` (`Se7enZAccountAssumeRole`) granting IAM user `aaron.carlucci`
+  `sts:AssumeRole` on `arn:aws:iam::<se7enz-account-id>:role/OrganizationAccountAccessRole`.
+  Establishes the pattern for per-developer sandbox sub-accounts isolated from the shared
+  dev account.
+
+**Files Updated**:
+- docs/INDEX.md (capability + tags: `aws-organizations`, `sandbox-accounts`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.3.1)
+- docs/projects/ark-infra/system/project_overview.md (repo structure note on `organizations.tf`)
+- docs/projects/ark-infra/system/security.md (Developer Sandbox Sub-Accounts subsection)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-02 - Documentation Update
 **Commit**: `cf02b85cf224f4c2c2d8025309cc066dec4eb6f7`
 **Previous Sync**: `c12813d1c9039a82fe8367f1971a010a1b0e869c`

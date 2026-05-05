@@ -154,3 +154,38 @@
 - Architecture, module layout, provider/identity/storage patterns, and crypto stack are unchanged
 - No package.json version bump; release-tagged 0.4.22 still applies
 
+---
+
+## 2026-05-05 - Release 0.4.23: bigint asset amounts (breaking) + anchor/sequence helper exports
+**Previous Commit**: `0b45841414d8ef8c969af34523ca20365b77ee83`
+**Current Commit**: `d0ee956e80acc68d61eb0e274e896da0845d0d51`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for 0.4.23 release
+
+**Commits Analyzed**:
+- `d0ee956` chore: release 0.4.23
+- `d25866e` feat: export anchor helpers (#468)
+- `36fa1b5` fix!: represent asset amounts as bigint (alt to #469) (#472)
+
+**Documentation Changes**:
+- Bumped SDK version 0.4.22 → 0.4.23 in `INDEX.md`, `system/project_overview.md`, master `docs/INDEX.md` (status table)
+- `INDEX.md`: extended Assets Key Concept with the bigint type change + persistence note; added "Anchor / Sequence Helpers" Key Concept covering the new `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` exports
+- `system/project_overview.md`: rewrote Asset Management Core Features row to call out the breaking bigint change and the new `serializeAssets` / `deserializeAssets` persistence path; added Anchor / Sequence Helpers Core Features row
+- `system/architecture.md`: added `utils/txSizeEstimator.ts` and `repositories/serialization.ts` (with the new `SerializedAsset` / asset round-trip helpers) to the module layout
+- `testing/usage.md`: rewrote the Asset Management snippet so all amounts are bigint literals (`1000n`, `100n`); added explanatory comment and reissue/burn examples for the new bigint API
+- Master `docs/INDEX.md`: rewrote the Asset Management capability bullet for ts-sdk to flag the breaking change + persistence layer; added new "anchor / sequence helpers" capability bullet; added `bigint-assets` tag; expanded the project status row with the 0.4.23 highlights
+
+**Notable Source Changes**:
+- **Breaking** (`#472`): `Asset.amount` and `AssetDetails.supply` change from `number` to `bigint`; `IssuanceParams.amount`, `ReissuanceParams.amount`, and `BurnParams.amount` likewise switch to `bigint`. Reason: real-world asset supplies routinely exceed `Number.MAX_SAFE_INTEGER` (2^53 - 1) and silent truncation in arithmetic would corrupt balances. `Recipient.amount` (BTC sats) stays `number` — it's typed `number` everywhere
+- Cascade across `providers/` (indexer, expoIndexer parse `BigInt(a.amount)` from JSON), `utils/transactionHistory.ts` (aggregation maps now `Map<string, bigint>` with `0n` neutral), `wallet/wallet.ts` (`getBalance`, `send` change-output accounting), `wallet/asset.ts` (greedy selection sort returns -1/0/1 from a bigint diff), `wallet/asset-manager.ts` (drops redundant `BigInt(...)` casts), `wallet/delegator.ts`, `wallet/validation.ts`, and `wallet/serviceWorker/wallet-message-handler.ts` (GET_BALANCE map switch)
+- New `SerializedAsset = { assetId: string; amount: string }` type and `serializeAssets` / `deserializeAssets` helpers in `src/repositories/serialization.ts`. JSON.stringify cannot serialize bigint, so on-disk shape persists the amount as a decimal string. `deserializeAsset` accepts `string | number | bigint` so legacy on-disk data (number-shaped) round-trips without migration; an unsafe-integer guard rejects out-of-range legacy numbers with a re-sync hint
+- Wired through SQLite (`src/repositories/sqlite/walletRepository.ts`), Realm (`src/repositories/realm/walletRepository.ts`), the legacy migration impl (`src/repositories/migrations/walletRepositoryImpl.ts`), and the `ArkTransaction` shape via new `serializeTransaction` / `deserializeTransaction` helpers — covers vtxos and transaction history alike
+- New top-level exports from `src/index.ts` (`#468`): `TxWeightEstimator` and `VSize` type from `utils/txSizeEstimator.ts`; `timelockToSequence` and `sequenceToTimelock` from `contracts/handlers/helpers` (BIP68 sequence ↔ custom `RelativeTimelock` round-trip)
+- Test fixture sweep: `test/e2e/ark.test.ts`, `test/transactionHistory.test.ts`, `test/sqlite-wallet-repository.test.ts`, `test/realm-wallet-repository.test.ts` — all asset-amount fixtures and assertions migrated to `Nn` literals; `IssuanceParams.amount` test-side variables (`issueAmount`, `reissueAmount`, `burnAmount`) likewise. e2e numeric literals in 12 specific call sites that flow into asset-amount params were fixed (test files are excluded from typecheck so the compiler couldn't catch them)
+- Migration UX: TypeScript flags every existing `Asset.amount` / `AssetDetails.supply` / params arithmetic site at the call site, pointing callers at the change. Callers that genuinely need a `number` (e.g. for display) must call `Number(...)` explicitly when the value fits
+
+**Notes**:
+- Breaking change: any caller doing arithmetic on `asset.amount` / `assetDetails.supply` as a number will now get a TS error and must migrate to bigint (or coerce explicitly with `Number(...)` when safe). Persistence is forward + backward compatible — no data migration step needed
+- Architecture, module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
+- New helper exports are additive; no rename or removal in this release
+

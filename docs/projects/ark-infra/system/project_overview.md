@@ -28,7 +28,7 @@ ark-infra/
 ├── flake.nix / .envrc                 # Nix devshell (nodejs_20, opentofu 1.9.1, python3) via direnv
 ├── aws/                               # Per-account IAM/SSO OpenTofu configs
 │   ├── README.md                      # SSO setup + per-account deployment guide
-│   ├── dev-438465126741/              # Dev account (ArkDev* roles)
+│   ├── dev-438465126741/              # Dev account (ArkDev* roles + organizations.tf for developer sandbox sub-accounts)
 │   └── prod-982590065524/             # Prod account (ArkProd* roles)
 ├── modules/                           # Reusable OpenTofu modules
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies

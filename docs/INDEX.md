@@ -439,8 +439,9 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Lambda (`secure-gws-aws-sync-{env}`) reconciles GWS group membership to the `Amazon.Role` attribute every 15 min; multi-account aware (preserves sibling-account attributes) and revokes orphaned users
 - ABAC enabled via `sts:TagSession`; account ID derived from `data.aws_caller_identity` (no hardcoded account variable); provider `default_tags` standardized (`ManagedBy = "opentofu"`, `Repository`, `Owner`)
 - Nix devshell (`flake.nix` + `.envrc`) pinning OpenTofu 1.9.1, Node.js 20, and Python 3 for reproducible local tooling
+- Per-developer AWS Organizations sandbox sub-accounts under the dev account (`aws/dev-438465126741/organizations.tf`) with scoped `sts:AssumeRole` IAM user policies for `OrganizationAccountAccessRole`
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`, `aws-organizations`, `sandbox-accounts`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 
@@ -601,21 +602,22 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 - Swap fee calculation for both submarine and reverse swaps
 - VHTLC (Virtual HTLC) creation, monitoring, and refund handling
 - **User-initiated submarine VHTLC recovery** (`inspectSubmarineRecovery`, `scanRecoverableSubmarineSwaps`, `recoverSubmarineFunds`, `recoverAllSubmarineFunds`) — Boltz-amnesia-tolerant inspection and post-CLTV `refundWithoutReceiver` sweep
+- **Unknown-to-Boltz safety net** — SwapManager transitions a swap to terminal `swap.expired` after 10 consecutive Boltz 404s (new `SwapNotFoundError`), notifies subscribers + listeners, and stops polling. Avoids hammering Boltz with requests for swap IDs unknown to the configured endpoint (e.g. after a Boltz endpoint switch)
 - Persistent swap storage using wallet contract repository
 - Event-driven architecture with flexible subscription patterns for swap lifecycle events
 - Support for both standard Wallet, ServiceWorkerWallet, and Expo (React Native) implementations
 
-**Tags**: `lightning-network`, `submarine-swaps`, `chain-swaps`, `boltz`, `arkade`, `typescript`, `swap-manager`, `vhtlc`, `submarine-recovery`, `bitcoin`, `payment-integration`, `event-driven`, `websocket`, `invoice-decoding`
+**Tags**: `lightning-network`, `submarine-swaps`, `chain-swaps`, `boltz`, `arkade`, `typescript`, `swap-manager`, `vhtlc`, `submarine-recovery`, `swap-not-found`, `bitcoin`, `payment-integration`, `event-driven`, `websocket`, `invoice-decoding`
 
 **Synonyms**: `lightning-swaps`, `arkade-lightning`, `boltz-integration`, `swap-library`
 
 **Triggers**:
-- **ask_question**: `lightning swap`, `boltz swap`, `submarine swap`, `reverse swap`, `chain swap`, `arkade lightning`, `vhtlc`, `swap manager`, `lightning invoice`, `lightning payment`, `swap monitoring`, `swap refund`, `swap claim`, `invoice decoding`, `swap fees`, `swap limits`, `submarine recovery`, `recover stranded funds`
+- **ask_question**: `lightning swap`, `boltz swap`, `submarine swap`, `reverse swap`, `chain swap`, `arkade lightning`, `vhtlc`, `swap manager`, `lightning invoice`, `lightning payment`, `swap monitoring`, `swap refund`, `swap claim`, `invoice decoding`, `swap fees`, `swap limits`, `submarine recovery`, `recover stranded funds`, `SwapNotFoundError`, `swap unknown to Boltz`
 - **develop**: `add lightning`, `integrate boltz`, `implement swap`, `create invoice`, `send lightning`, `monitor swap`, `handle refund`, `swap provider`, `arkade lightning`, `submarine recovery`, `recoverAllSubmarineFunds`
 - **test_or_run**: `test swap`, `test lightning`, `run swap test`, `integration test`, `e2e swap`, `regtest swap`
-- **debug**: `swap failing`, `invoice expired`, `swap timeout`, `refund failed`, `claim failed`, `vhtlc issue`, `swap stuck`, `websocket disconnect`, `stranded funds`, `pre_cltv`
+- **debug**: `swap failing`, `invoice expired`, `swap timeout`, `refund failed`, `claim failed`, `vhtlc issue`, `swap stuck`, `websocket disconnect`, `stranded funds`, `pre_cltv`, `swap unknown to provider`, `boltz 404`, `swap.expired after endpoint change`
 
-**Dependencies**: `@arkade-os/sdk` (Arkade Wallet SDK, 0.4.22), Boltz API server, Bitcoin/Lightning infrastructure
+**Dependencies**: `@arkade-os/sdk` (Arkade Wallet SDK, 0.4.23), Boltz API server, Bitcoin/Lightning infrastructure
 **Depended On By**: Arkade PWA wallet, Arkade-powered applications requiring Lightning integration
 
 ---
@@ -930,7 +932,8 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 - DescriptorProvider allocator interface with `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation, persisted under `settings.hd`, cross-instance serialized via shared `updateWalletState` mutex)
 - VTXO operations (send, receive, settle, renew, recover)
 - Batch settlement with MuSig2 tree signing
-- Asset management (issue, reissue, burn, transfer)
+- Asset management (issue, reissue, burn, transfer) — `Asset.amount`, `AssetDetails.supply`, and `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` are `bigint` since 0.4.23 (breaking, supplies exceed `Number.MAX_SAFE_INTEGER`); persistence layer round-trips bigint amounts as decimal strings via `serializeAssets` / `deserializeAssets` while accepting legacy `number` reads
+- Anchor / sequence helpers re-exported from package root: `TxWeightEstimator`, `VSize`, `timelockToSequence`, `sequenceToTimelock` (added 0.4.23)
 - VTXO delegation to third-party delegator services
 - Onboarding/offboarding (on-chain to off-chain conversion)
 - Unilateral exit (unroll + timelock)
@@ -941,7 +944,7 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 - Expo/React Native support with SSE-compatible providers
 - ArkNote serializable payment format
 
-**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `hd-wallet`, `descriptor-provider`, `electrum`, `esplora`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`, `mainnet-default`
+**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `hd-wallet`, `descriptor-provider`, `electrum`, `esplora`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`, `mainnet-default`, `bigint-assets`
 
 **Synonyms**: `@arkade-os/sdk`, `ark-ts-sdk`, `typescript-sdk`, `js-sdk`
 
@@ -1278,9 +1281,9 @@ For conceptual questions, prioritize documentation loading order:
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
 | dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages, DocFX site + Blazor WASM sample wallet on GitHub Pages, HD wallet gap-limit recovery via modular discovery providers |
-| boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.24, @arkade-os/sdk 0.4.22, user-initiated submarine recovery API |
+| boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.26, @arkade-os/sdk 0.4.23, user-initiated submarine recovery API + SwapManager 404 safety net (`SwapNotFoundError`, prod endpoint `api.boltz.exchange`) |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
-| ts-sdk | Active Dev | ✓ Beta | v0.4.22, npm published, multi-platform |
+| ts-sdk | Active Dev | ✓ Beta | v0.4.23, npm published, multi-platform; **breaking**: asset amounts (`Asset.amount`, `AssetDetails.supply`, issuance/reissuance/burn params) are now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
 | arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 16 active agents |
 | bluewallet | Active | ✓ Production | v8.0.0, App Store/Google Play; integrates @arkade-os/sdk 0.4.16 + @arkade-os/boltz-swap 0.3.17 |
 

@@ -141,15 +141,22 @@ const txid = await manager.renewVtxos()
 ### Asset Management
 
 ```typescript
+// Asset amounts are bigint (since 0.4.23) — supplies routinely
+// exceed Number.MAX_SAFE_INTEGER, so amounts must use bigint literals
+// (1000n) or BigInt(...) on numbers known to fit.
 const result = await wallet.assetManager.issue({
-  amount: 1000,
+  amount: 1000n,
   metadata: { name: 'My Token', ticker: 'MTK', decimals: 8 },
 })
 
 await wallet.send({
   address: 'ark1qq4...',
-  assets: [{ assetId: result.assetId, amount: 100 }],
+  assets: [{ assetId: result.assetId, amount: 100n }],
 })
+
+// AssetManager also exposes reissue and burn — both take bigint amounts.
+await wallet.assetManager.reissue({ assetId: result.assetId, amount: 500n })
+await wallet.assetManager.burn({ assetId: result.assetId, amount: 50n })
 ```
 
 ## Storage Adapters

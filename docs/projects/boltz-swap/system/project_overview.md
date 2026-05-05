@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.24`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.26`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -41,6 +41,7 @@
 - **Automatic Refunds**: SwapManager handles refunds for expired/failed swaps
 - **Retry Logic**: Exponential backoff for network operations
 - **Timeout Management**: Configurable timeouts for swap operations
+- **Unknown-to-Provider Safety Net**: SwapManager stops polling and transitions a swap to terminal `swap.expired` after 10 consecutive Boltz HTTP 404 responses matching the "could not find swap" body. Avoids hammering Boltz with requests for swap IDs unknown to the configured endpoint (typically after a Boltz endpoint switch). Surfaces `SwapNotFoundError` via `onSwapFailed`, while `swapUpdateListeners` and per-swap subscribers see the terminal transition.
 
 ---
 
@@ -106,7 +107,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.22` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.23` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -210,18 +211,15 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.24
+**Version**: 0.3.26
 **Stability**: Stable API, active feature development
 
-**Recent Improvements (0.3.22 → 0.3.24)**:
-- **User-initiated submarine VHTLC recovery API** — `inspectSubmarineRecovery` / `scanRecoverableSubmarineSwaps` return a structured `SubmarineRecoveryInfo` (`recoverable` / `pre_cltv` / `none` / `already_spent` / `invalid_swap`) with no side effects; `recoverSubmarineFunds` wraps `refundVHTLC`; `recoverAllSubmarineFunds` runs sequentially with per-swap `SubmarineRecoveryResult` so a single failure never aborts the batch. Wired through `IArkadeSwaps`, `ExpoArkadeSwaps`, and the Service Worker message handler + runtime
-- **API change**: `refundVHTLC()` now returns `SubmarineRefundOutcome` (`{ swept, skipped }`) instead of `void`, distinguishing real sweeps from pre-CLTV no-op skips
-- Classify Boltz 3-of-3 refundable swaps as recoverable (not pre-CLTV) so users can sweep funds even before the absolute refund timestamp elapses, when a normal spendable VTXO is present
-- Drop chain-height path from submarine VHTLC refund readiness — Boltz Ark VHTLCs encode `refund` as an absolute Unix timestamp (CLTV with timestamp semantics, BIP65 ≥ 500_000_000), so the block-height locktime branch and `getChainHeight()` round-trip were removed
-- Service Worker exempts long-running messages (Lightning send, claim/refund VHTLC, recovery APIs, wait-and-claim variants, restore swaps) from the bus message timeout — flows that surrender control to remote peers (Boltz, Ark server, batch participants) can sit idle longer than the bus deadline; liveness still covered by the existing PING / `MESSAGE_BUS_NOT_INITIALIZED` path
-- Skip the refundable/refunded flag write in `refundVHTLC` for `transaction.claimed` swaps to avoid muddling history when sweeping stranded extras
-- Centralised BIP68 relative-timelock conversion (`toBip68RelativeTimelock`) in both `utils/scripts.ts` and `utils/vhtlc.ts`, with shared `VhtlcTimeouts` typedef and clarifying docs explaining the legacy field name
-- New unit + e2e test coverage for recovery flows (happy-path e2e, message-handler dispatch, runtime wiring)
+**Recent Improvements (0.3.24 → 0.3.26)**:
+- **Unknown-to-Boltz safety net**: `SwapManager` now tracks consecutive `SwapNotFoundError`s per swap (`NOT_FOUND_THRESHOLD = 10`, ≈5-minute grace at the default 30s poll cadence). After the threshold, the swap is transitioned to terminal `swap.expired`, persisted, removed from monitoring, and reported via `onSwapFailed` with `SwapNotFoundError`. Bypasses `handleSwapStatusUpdate` so no claim/refund actions are fired against a Boltz instance that has no record of the swap. Counter is cleared on any successful poll/WS update.
+- **Subscribers receive the terminal transition**: when the safety net trips, `swapUpdateListeners` and per-swap `swapSubscriptions` are now invoked with `(swap, oldStatus)` mirroring `handleSwapStatusUpdate`'s emission shape, so `waitForSwapCompletion` and UI subscribers see the `swap.expired` resolution before the subscription set is dropped.
+- **New `SwapNotFoundError`** (extends `NetworkError`, statusCode 404, exported from `src/index.ts`): thrown by `BoltzSwapProvider.getSwapStatus` when Boltz returns a 404 with body matching `"could not find swap"`. Distinguishes a real "swap unknown to this Boltz instance" from a generic 404 (route change, proxy misconfig) so only the former drives the per-swap counter. Detection is defensive — matches either parsed `errorData.error` JSON field or the raw message text.
+- **Production endpoint switch**: `BASE_URLS.bitcoin` changed from `https://api.ark.boltz.exchange` to `https://api.boltz.exchange` (canonical Boltz mainnet endpoint). Existing swap IDs from the previous endpoint will now naturally trip the safety net rather than hang in monitoring forever.
+- `@arkade-os/sdk` bumped 0.4.22 → 0.4.23.
 
 **Production Features**:
 - Comprehensive error handling with typed errors

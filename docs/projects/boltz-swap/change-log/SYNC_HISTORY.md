@@ -135,3 +135,42 @@ Run `arkadian sync-project boltz-swap` to sync with latest repository changes.
 - `docs/projects/boltz-swap/testing/usage.md` — added "Recovering Stranded Submarine Funds" section with scan/inspect/recover examples
 - `docs/INDEX.md` — bumped boltz-swap status row to v0.3.24 + SDK 0.4.22; added submarine recovery to capabilities, tags, triggers; SDK dep version updated
 - `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `737c08b9`
+
+---
+
+## 2026-05-05 — Sync 0.3.24 → 0.3.26
+
+**From**: `737c08b954369f3a4d4ab15e2e06d891c5e453d5` (release 0.3.24)
+**To**: `0ada9496fcdd956029ca521bc0387f3fd9816125` (release 0.3.26)
+**Commits Analyzed**: 7 (non-merge)
+**Status**: ✓ Complete
+
+### Notable Changes
+
+**Versions**
+- `@arkade-os/boltz-swap`: 0.3.24 → 0.3.26 (releases 0.3.25 and 0.3.26)
+- `@arkade-os/sdk`: 0.4.22 → 0.4.23
+
+**SwapManager unknown-to-provider safety net** (commits `2893b2a`, `a3c4a0f`)
+- Stops polling and transitions a swap to terminal `swap.expired` after `SwapManager.NOT_FOUND_THRESHOLD = 10` consecutive Boltz 404s — roughly a 5-minute grace at the default 30s poll cadence. Long enough to ride out a transient Boltz blip, short enough that a real "swap unknown to this provider" surfaces quickly.
+- Per-swap counter (`notFoundCounts: Map<string, number>`) is incremented on `SwapNotFoundError` and cleared on any successful poll, successful WS update, swap removal, or stop.
+- New private helpers: `pollSingleSwap`, `handleSwapNotFound`, `markSwapAsUnknownToProvider`. Trip path persists the swap with `status = "swap.expired"`, removes it from `monitoredSwaps`, clears any retry timer, and reports via `onSwapFailed(swap, SwapNotFoundError)`. Bypasses `handleSwapStatusUpdate` on purpose to skip the auto-claim/refund branch — there's nothing to claim or refund against an instance that has no record of the swap.
+- 429 retry path also recognises `SwapNotFoundError` so a rate-limited retry can trip the safety net just like a normal poll.
+- **Subscriber notification (follow-up `a3c4a0f`)**: when the safety net trips, `swapUpdateListeners` and per-swap `swapSubscriptions` are now invoked with `(swap, oldStatus)` mirroring `handleSwapStatusUpdate`'s emission shape, so `waitForSwapCompletion` and UI subscribers see the `swap.expired` resolution. Subscriptions are cleared *after* notification, not before.
+
+**New `SwapNotFoundError`** (extends `NetworkError`, statusCode 404, exported from `src/index.ts`)
+- Thrown by `BoltzSwapProvider.getSwapStatus` when Boltz returns a 404 with body matching the "could not find swap" pattern (matched defensively against either parsed `errorData.error` JSON field or the raw message text).
+- Distinct from a generic 404 (route change, proxy misconfig) so only the canonical "swap unknown to this Boltz instance" body drives the SwapManager counter.
+- Exposes `swapId: string`. Test coverage: 7 new tests in `boltz-swap-provider.test.ts`, ~131 lines of safety-net coverage in `swap-manager.test.ts` (counter accumulation, reset on success, threshold trip with subscriber notification, 429 retry path).
+
+**Production endpoint switch** (commit `2893b2a`)
+- `BASE_URLS.bitcoin` changed from `https://api.ark.boltz.exchange` to `https://api.boltz.exchange` (canonical Boltz mainnet endpoint). Existing swap IDs created against the previous endpoint will now naturally trip the safety net instead of hanging in monitoring forever.
+
+**Misc**
+- `Format` commits cover prettier-only churn in `swap-manager.ts`, `boltz-swap-provider.test.ts`, `swap-manager.test.ts` (no behaviour change).
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — bump version to 0.3.26, SDK to 0.4.23; new "Unknown-to-Provider Safety Net" bullet under Error Handling; replaced "Recent Improvements" with 0.3.24 → 0.3.26 highlights
+- `docs/projects/boltz-swap/testing/api-reference.md` — added `SwapNotFoundError` row to Error Types table
+- `docs/INDEX.md` — bumped boltz-swap status row to v0.3.26 + SDK 0.4.23; added 404 safety net to capabilities; added `swap-not-found` tag; added new ask_question / debug triggers
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `0ada9496`

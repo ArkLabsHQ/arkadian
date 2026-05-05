@@ -45,6 +45,9 @@ SAML federation is provisioned per AWS account (prod `982590065524`, dev `438465
 
 **Tagging / ABAC**: SAML trust policy includes `sts:TagSession`, enabling principal-tag based access control from Google Workspace. Provider `default_tags` set `Environment`, `ManagedBy = "opentofu"`, `Repository = "ark-infra"`, `Owner`. Account ID is derived from `data.aws_caller_identity` (no hardcoded account variable).
 
+**Developer Sandbox Sub-Accounts** (`aws/dev-438465126741/organizations.tf`):
+Per-developer AWS Organizations sub-accounts (e.g. `se7enz`) are provisioned under the dev account via `aws_organizations_account`. A scoped `aws_iam_user_policy` grants the named IAM user (e.g. `aaron.carlucci`) `sts:AssumeRole` on `arn:aws:iam::<sub-account-id>:role/OrganizationAccountAccessRole`, isolating experimental work from the shared dev account.
+
 **Audit Logging**:
 - SSM sessions: CloudWatch Logs (30-day retention)
 - GWS-AWS sync Lambda: `/aws/lambda/secure-gws-aws-sync-{env}`

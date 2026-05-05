@@ -138,6 +138,7 @@ new SwapManager(swapProvider: BoltzSwapProvider, config?: SwapManagerConfig)
 | `TransactionRefundedError` | Already refunded |
 | `InsufficientFundsError` | Not enough funds |
 | `NetworkError` | HTTP/WebSocket error (has statusCode, errorData) |
+| `SwapNotFoundError` | Subclass of `NetworkError` (statusCode 404). Thrown by `BoltzSwapProvider.getSwapStatus` when Boltz responds 404 with body `"could not find swap with id: …"`. Drives the SwapManager unknown-to-provider counter (terminal `swap.expired` after 10 consecutive). Has `swapId: string`. |
 | `SchemaError` | Invalid API response format |
 
 ## Submarine Recovery Types

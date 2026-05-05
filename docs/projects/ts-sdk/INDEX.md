@@ -67,7 +67,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.22` |
+| Version | `0.4.23` |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
 | Package Manager | pnpm 10.29.2 |
@@ -136,5 +136,6 @@ Analysis and summaries of pull requests.
 - **Ramps**: Onboard (BTC→VTXO) and offboard (VTXO→BTC) operations
 - **Delegation**: Outsourcing VTXO renewal to a third-party delegator service
 - **Unilateral Exit**: Withdrawing funds without server cooperation via unroll + timelock
-- **Assets**: Issuing, reissuing, burning, and transferring assets on Ark
+- **Assets**: Issuing, reissuing, burning, and transferring assets on Ark. `Asset.amount`, `AssetDetails.supply`, and the `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` fields are typed as `bigint` (since 0.4.23, breaking) so values above `Number.MAX_SAFE_INTEGER` round-trip without truncation; persistence goes through `serializeAssets` / `deserializeAssets` (decimal-string on-disk form, accepts legacy number/string/bigint inputs)
 - **ArkNote**: Serializable representation of Ark payment data
+- **Anchor / Sequence Helpers**: `TxWeightEstimator` and `VSize` (fee/weight estimation), `timelockToSequence` / `sequenceToTimelock` (BIP68 sequence ↔ `RelativeTimelock`) re-exported from the package root since 0.4.23

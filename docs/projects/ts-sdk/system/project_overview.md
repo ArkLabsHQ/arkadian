@@ -9,7 +9,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 ## Package
 
 - **npm**: `@arkade-os/sdk`
-- **Version**: 0.4.22
+- **Version**: 0.4.23
 - **License**: MIT
 
 ## Core Features
@@ -24,7 +24,8 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | VTXO Operations | Get balance, send, receive, settle, renew, recover VTXOs |
 | Boarding/Offboarding | On-chain ↔ off-chain fund conversion via `Ramps` |
 | Batch Settlement | Participate in Ark rounds with MuSig2 tree signing |
-| Asset Management | Issue, reissue, burn, and transfer assets on Ark |
+| Asset Management | Issue, reissue, burn, and transfer assets on Ark. **Breaking (0.4.23)**: `Asset.amount`, `AssetDetails.supply`, and `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` are now `bigint` (was `number`) — supplies routinely exceed `Number.MAX_SAFE_INTEGER`. Persistence layer (`serializeAssets` / `deserializeAssets`) writes amounts as decimal strings while still accepting legacy `number` / `string` / `bigint` reads |
+| Anchor / Sequence Helpers | `TxWeightEstimator` + `VSize` (fee/weight estimation), `timelockToSequence` / `sequenceToTimelock` (BIP68 sequence ↔ custom `RelativeTimelock`) re-exported from the package root since 0.4.23 |
 | VTXO Delegation | Outsource renewal to delegator services |
 | Unilateral Exit | Exit without server cooperation (unroll + timelock) |
 | Service Worker | Background wallet operation via `ServiceWorkerWallet` |
