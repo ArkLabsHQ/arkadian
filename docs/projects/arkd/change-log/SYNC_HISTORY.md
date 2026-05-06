@@ -1,5 +1,47 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-06 - Documentation Update
+**Commit**: `216951ee` (arkd repository)
+**Previous Sync**: `9246f043`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 6 commits
+- `216951ee` Add tests for unrolled vtxo rejoining batch (#1055)
+- `1815bb99` fix (singlekey wallet `NextIndex` returns 1 once initialized)
+- `fd062bb9` Upgrade to Postgres 17.8 (#1057)
+- `0eb3ac4d` Fix: print repo-root-relative path after build-cli completes (#1059)
+- `2444c613` client-lib: Fix single-key wallet empty KeyID (#1060)
+- `701a100d` docs: add missing breaking changes documentation (#1007)
+
+**Features Added**:
+- `pkg/client-lib/types.Utxo.Assets` field — boarding UTXOs now carry Arkade Asset balances forward through batch sessions
+- `batch_session.getFundsToSettle` aggregates asset balances from boarding UTXOs in addition to VTXOs
+- `toIntentInputs` now records boarding-UTXO assets in the proof PSBT (`assetInputs[len(vtxos)+boardingIndex+1]`)
+- New e2e tests covering unrolled VTXO rejoining a batch (success path and invalid case)
+- New `api-spec/BREAKING_CHANGES.md` documenting the Protobuf/OpenAPI breaking-change policy and resolution framework (revert / add new field / reserve / document); verified via `./scripts/check-proto-breaking master`
+
+**Bug Fixes (client-lib SDK, `pkg/client-lib`)**:
+- Single-key wallet `NewKey` / `GetKey` now return a non-empty `KeyRef.Id` (`"m"`) — previously the `Id` field was empty, causing key lookups to fail
+- Single-key wallet `NextIndex` returns `1` once `walletData` is initialized (was always returning `0`)
+
+**Configuration Changes**:
+- `ARKD_SESSION_DURATION` added to `envs/arkd.dev.env` (set to `10` for fast regtest cycles); env var was already supported in `internal/config/config.go` (default `30`)
+- `docker-compose.regtest.yml` upgraded `postgres:16` → `postgres:17.8`
+
+**Tooling**:
+- `pkg/ark-cli/scripts/build` now prints the repo-root-relative output path after a successful build (uses `git rev-parse --show-toplevel`)
+
+**Files Updated**:
+- docs/projects/arkd/INDEX.md (version 1.3.0 → 1.3.1, sync commit + date)
+- docs/projects/arkd/system/configuration.md (added `ARKD_SESSION_DURATION`)
+- docs/projects/arkd/system/tech_stack.md (Postgres 17.8 in regtest compose)
+- docs/projects/arkd/system/folder_structure.md (referenced `api-spec/BREAKING_CHANGES.md`)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-01 - Documentation Update
 **Commit**: `9246f043` (arkd repository)
 **Previous Sync**: `8e005262`

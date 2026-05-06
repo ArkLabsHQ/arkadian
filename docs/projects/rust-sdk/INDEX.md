@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.1.0
-last_sync_commit: 3abb5df17848079c72d01ba8f2569ef7fa8f85a8
+version: 1.2.0
+last_sync_commit: f12ef0a7494a99f40076ec3ceb3bce9e7737d144
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -66,19 +66,23 @@ Feature specifications and implementation tracking.
 - **ark-bdk-wallet** (v0.8.0): BDK integration for on-chain wallet operations
 - **ark-fees** (v0.8.0): Fee estimation utilities
 - **ark-delegator** (v0.8.0): REST client for Ark delegator services (auto-renewal of VTXOs)
+- **ark-script**: Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
+- **ark-introspector-client**: HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
 - **ark-rs**: Umbrella re-export crate
 - **ark-client-sample**: Example client application (with `watch-delegated` command)
-- **e2e-tests**: End-to-end test suite against live arkd
+- **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector)
 
 ### Protocol Features
 - Off-chain VTXO payments (send, receive, settle) — unified offchain-send builder for VTXO and asset sends
 - On-chain boarding and unilateral exit
+- VTXOs with **distinct forfeit and unilateral-exit keys** (split-key model)
 - Round participation with MuSig2 signing — asset-preserving settlement
 - Ark notes (transferable payment proofs)
-- DLC (Discreet Log Contracts) support
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC)
+- DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors)
 - **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
-- **Arkade Asset V1**: issue, transfer, burn, reissue
+- **Arkade Asset V1**: issue, transfer, burn, reissue (rejects empty asset packets)
+- **Arkade Script** (introspector flow): extension opcodes, key-tweaked introspector pubkeys, `ArkadeVtxoScript` taproot encoding, PSBT-driven introspector packet insertion
 - Sub-dust amounts
 - Key discovery (now probes delegate addresses too)
 - arkd protocol 0.9.2 (gRPC + REST)
@@ -170,7 +174,7 @@ just clippy        # Lint with clippy
 ```
 ark-rs (umbrella re-export)
   └── ark-client (high-level API)
-        ├── ark-core (types, crypto, protocol logic)
+        ├── ark-core (types, crypto, protocol logic, introspector packet builder)
         ├── ark-fees (fee estimation)
         ├── ark-grpc (gRPC transport) ──── ark-core
         ├── ark-rest (REST transport) ──── ark-core
@@ -178,11 +182,15 @@ ark-rs (umbrella re-export)
   └── ark-bdk-wallet (BDK on-chain wallet)
         └── ark-core
 
+ark-script (arkade scripting extension — standalone, not pulled by ark-core)
+ark-introspector-client (HTTP client for the introspector service — standalone)
+
 e2e-tests (integration tests)
   ├── ark-client
   ├── ark-core
   ├── ark-bdk-wallet
-  └── ark-delegator (fulmine_delegator_smoke)
+  ├── ark-delegator (fulmine_delegator_smoke)
+  └── ark-introspector-client (e2e_arkade_script against dockerized introspector)
 ```
 
 ### Data Flow
@@ -222,6 +230,11 @@ ark-client (Client / OfflineClient)
 - **Reference implementation**: fulmine
 - **Client**: `ark-delegator` crate
 - **Background watcher**: `client.start_vtxo_watcher(delegator)` — auto-delegates new VTXOs and self-renews near-expiry ones
+
+### Introspector Service
+- **HTTP client**: `ark-introspector-client` (preserves error response bodies, configurable per-request timeout)
+- **Local dev / CI**: dockerized introspector image built from source by `justfile` and CI; `e2e_arkade_script` exercises arkade-script flows end-to-end
+- **Packet builder**: `ark-core::introspector::packet` constructs introspector PSBT inputs with strict length / trailing-byte validation; `ark-core::extension` appends introspector packets as Ark extension fields
 
 ### Bitcoin Network
 - **Esplora**: Block explorer backend for chain queries

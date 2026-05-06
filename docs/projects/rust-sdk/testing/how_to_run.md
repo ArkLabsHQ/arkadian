@@ -63,7 +63,10 @@ just e2e-tests     # Run all E2E tests
 E2E suites of note:
 - `e2e_assets` — asset issuance / transfer / burn / reissue
 - `e2e_delegate`, `e2e_multisig_delegate` — delegated settlement
+- `e2e_arkade_script` — arkade-script flow against a dockerized introspector (image built from source by `justfile` / CI)
 - `fulmine_delegator_smoke` — full VtxoWatcher loop against a fulmine delegator (skipped in CI; runs locally with the fulmine stack on `http://localhost:7004`)
+
+> **arkd timelocks**: the local dev/CI setup now uses **seconds-based** delays (matching production Arkade); block-based delays are regtest-only and were dropped from the DLC e2e tests. Override values via env vars in `.env.sample` — `justfile` forwards them through `run-wallet` / `run-light`.
 
 ### Full E2E Cycle (Clean Start)
 

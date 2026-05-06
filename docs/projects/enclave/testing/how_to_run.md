@@ -141,3 +141,16 @@ curl -X POST http://127.0.0.1:8443/start
 ```
 
 `enclave-supervisor.service` runs with `Restart=always`; the in-process watchdog restarts the enclave with bounded backoff (1s → 30s) when `nitro-cli describe-enclaves` shows it stopped.
+
+### Read-only CLI commands (cross-repo)
+
+`verify`, `log`, `trace`, and `metrics` no longer read `enclave.yaml` or depend on tofu output — pass connection details directly via flags so they work from any working directory:
+
+```sh
+enclave verify  --base-url https://<elastic-ip> --expected-pcr0 <pcr0>
+enclave log     --instance-id <i-...> --region <region>
+enclave trace   --instance-id <i-...> --region <region>
+enclave metrics --instance-id <i-...> --region <region>
+```
+
+A strict `runCommand` helper now surfaces SSM errors and non-zero exit codes from `log`/`trace`/`metrics` (the previous `curl ... || echo '[]'` fallback that masked supervisor-reachability failures as "no data" was removed).

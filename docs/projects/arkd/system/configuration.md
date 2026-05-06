@@ -32,6 +32,7 @@ arkd uses environment variables with the `ARKD_` prefix for configuration. The s
 
 ### Round Configuration
 - `ARKD_ROUND_INTERVAL` (default: 30) - Interval between rounds in seconds
+- `ARKD_SESSION_DURATION` (default: 30) - Session duration in seconds; must be >=2 and <= `ARKD_UNROLLED_VTXO_MIN_EXPIRY_MARGIN`
 - `ARKD_SCHEDULER_TYPE` (default: gocron) - Scheduler type: gocron, block
 - `ARKD_ROUND_MIN_PARTICIPANTS_COUNT` (default: 1) - Minimum participants
 - `ARKD_ROUND_MAX_PARTICIPANTS_COUNT` (default: 128) - Maximum participants

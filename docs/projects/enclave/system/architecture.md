@@ -94,14 +94,16 @@ Triggered by host management API `POST /migrate` (NDJSON streaming). Resumable �
 1. Read current KMS key ID from SSM.
 2. Create a new KMS key with a policy allowing the **new PCR0** to decrypt.
 3. Apply transitional KMS policy (Encrypt + PutKeyPolicy for EC2 role, no Decrypt).
-4. Store migration parameters in SSM (`MigrationKMSKeyID`, `MigrationOldKMSKeyID`).
-5. Call `POST /v1/export-key` on the **running old enclave**. The enclave reads `MigrationKMSKeyID` from SSM (the only gate), decrypts each secret with the old key, re-encrypts with the new key, stores ciphertexts at `Migration/{secretName}/Ciphertext`, and stores its PCR0 + an NSM proof.
+4. Store migration parameters in SSM (`MigrationKMSKeyID`, `MigrationOldKMSKeyID`, `MigrationTargetPCR0`).
+5. Call `POST /v1/start-migration` on the **running old enclave**. The enclave reads `MigrationKMSKeyID` from SSM (the only gate), decrypts each secret with the old key, re-encrypts with the new key, and writes ciphertexts plus the chain proof to **staging-only** SSM paths (`/Migration/{secretName}/Ciphertext`, `/Migration/PreviousPCR0`, `/Migration/PreviousPCR0Attestation`). Primary is never touched here.
 6. Poll SSM for migration ciphertexts (60s timeout).
-7. Adopt — copy migration ciphertexts to permanent paths, update `KMSKeyID`.
-8. Download new EIF from S3, stop old enclave, replace EIF, start new enclave.
-9. Clean up migration SSM parameters; new enclave schedules old key for 7-day deletion.
+7. Stage the new EIF on disk (downloaded from S3) and swap it in: stop old enclave, replace `image.eif`, start new enclave.
+8. New enclave's `Init` classifies its role from `MigrationTargetPCR0`. **Target boot** runs `PromoteToPrimary` (copies staged ciphertexts + chain proof to permanent paths, updates `KMSKeyID`); **orphan boot** (own PCR0 ≠ target) runs `AbortOrphaned` (clears staging only, primary intact).
+9. Supervisor polls `/v1/enclave-info` for a terminal `migration.state` (`committed` or `aborted`). On `committed` it cleans up migration SSM parameters and schedules the old key for 7-day deletion; on `aborted` (or timeout) it rolls back.
 
-The new enclave self-applies a PCR0-locked policy on boot, so confidentiality is preserved at every step.
+The new enclave self-applies a PCR0-locked policy on boot, so confidentiality is preserved at every step. Re-running `POST /migrate` after a mid-flight failure resumes from the staged state — primary data is mutated only when `PromoteToPrimary` succeeds end-to-end.
+
+**Endpoint rename:** `/v1/export-key` was renamed to `/v1/start-migration` (verb-noun parity with `/v1/extend-pcr`, `/v1/lock-pcr`).
 
 ## Response Signing (Schnorr middleware)
 
@@ -132,19 +134,21 @@ Clients (`client/`, `client-rs/`):
 ## PCR0 Attestation Chain
 
 ```
-Genesis → PCR0_v1
+Genesis → PCR0_v1 (previous_pcr0 = "genesis")
        → PCR0_v2 (previous_pcr0 = PCR0_v1, previous_pcr0_attestation = NSM proof)
        → PCR0_v3 (previous_pcr0 = PCR0_v2, previous_pcr0_attestation = NSM proof)
 ```
 
-`GET /v1/enclave-info` exposes `previous_pcr0` + `previous_pcr0_attestation` (NSM COSE Sign1). `enclave verify` validates the chain against the AWS Nitro root.
+`GET /v1/enclave-info` exposes `previous_pcr0` (`"genesis"` on first boot) + `previous_pcr0_attestation` (NSM COSE Sign1). `enclave verify` validates the chain against the AWS Nitro root.
+
+The runtime no longer validates a baked-in `previous_pcr0` against the live chain — a single EIF can legitimately be deployed against any predecessor (skipped versions, manual recovery), so the build-time `ENCLAVE_PREVIOUS_PCR0` is unreliable as a runtime claim. The value is still measured into PCR0 for external auditors but is not consumed by the runtime, and the variable is no longer wired through the OpenTofu deployment templates.
 
 ## File Map (key Go packages)
 
 | Package | Files | Role |
 |---------|-------|------|
 | `cli/` | `aws.go`, `build.go`, `config.go`, `init.go`, `setup.go`, `template.go`, `tofu.go`, `verify.go`, `lifecycle.go`, `migration_status.go` | CLI subcommands, OpenTofu scaffold, CDK stack, attestation verify |
-| `runtime/` | `runtime.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime, KMS, secrets, storage, migration export, observability |
+| `runtime/` | `runtime.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime, KMS, secrets, storage, migration export (`PromoteToPrimary` / `AbortOrphaned`), observability. SSM read/write paths take a typed `ParamPrefix` (`PrimaryPrefix` / `MigrationPrefix`) instead of magic-string prefixes. |
 | `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 9-step migration) |
 | `client/` | `client.go`, `verify.go` | Verified Go HTTP client |
 | `client-rs/` (Cargo workspace member) | `Cargo.toml` | Verified Rust HTTP client |

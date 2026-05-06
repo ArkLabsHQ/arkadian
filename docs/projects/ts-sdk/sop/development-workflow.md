@@ -104,6 +104,21 @@ pnpm release:dry-run
 pnpm release:cleanup
 ```
 
+### CHANGELOG Discipline
+
+Each release adds a section to `CHANGELOG.md` using the section-ordered, bolded-headline + root-cause style defined in `FOUNDATION.md` (see "Repo Guide Files" below). Sections are grouped — typically `### Fixes`, `### Features`, `### Refactors`, etc. — and each entry names the symptom or capability and explains the underlying cause, referencing affected files/classes by name where it adds context. Pre-0.4 history (0.3.x and earlier) lives in `git log` only and is not backfilled.
+
+## Repo Guide Files
+
+This repo follows a multi-AI agent guide pattern (mirroring `pietro909/trixie-wallet`):
+
+- **`FOUNDATION.md`** — canonical agent guide (recurring workflow, version-bump conventions via `pnpm release`, CHANGELOG format, PR/commit conventions, directory map). Edit this file when conventions change.
+- **`CLAUDE.md`** — thin pointer for Claude Code; imports `FOUNDATION.md` via the `@<file>` include directive.
+- **`AGENTS.md`** — thin pointer for non-Claude agents (e.g. Codex).
+- **`GEMINI.md`** — thin pointer for Gemini.
+
+Agent scratch files remain gitignored: `TASKS.md`, `*.agents.md`, `REVIEW.md`.
+
 ## Building Documentation
 
 ```bash

@@ -24,9 +24,13 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Supervisor health (`ready` / `degraded`) |
-| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0`, `previous_pcr0_attestation`, `metrics` |
+| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot), `previous_pcr0_attestation`, `metrics`, `migration: {state, reason}` |
 | `GET` | `/enclave/attestation` | NSM attestation document (served by nitriding, COSE Sign1) |
 | `*` | `/*` | All other requests reverse-proxied to user app on `:7074` |
+
+While Init is still running the runtime returns HTTP 503 with body `{version, previous_pcr0, initializing: true}` regardless of the underlying cause.
+
+The `migration` block carries the boot-time outcome of any locked-key migration: `state` ∈ `"none"` (no migration in progress) | `"committed"` (PromoteToPrimary succeeded) | `"aborted"` (orphan target detected, primary untouched). `reason` is set on `aborted`.
 
 ### Encrypted Storage (Token)
 
@@ -76,7 +80,7 @@ curl -X PUT https://your-enclave/v1/secrets/api-token \
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/v1/export-key` | Re-encrypt secrets for locked-key migration. Gated by `MigrationKMSKeyID` SSM parameter (no body required); only callable from host supervisor. |
+| `POST` | `/v1/start-migration` | Re-encrypt secrets for locked-key migration. Gated by `MigrationKMSKeyID` SSM parameter; called by the host supervisor. Writes new ciphertexts plus the chain proof (`/Migration/PreviousPCR0`, `/Migration/PreviousPCR0Attestation`) to staging SSM paths — `PromoteToPrimary` (commit) or `AbortOrphaned` (abort) on the new enclave's next boot decides the outcome. Renamed from `/v1/export-key` (verb-noun parity with `/v1/extend-pcr`, `/v1/lock-pcr`). |
 
 ---
 
@@ -105,6 +109,17 @@ Plain HTTP, **localhost only**. Reach it via [SSM Session Manager](https://docs.
 `/migrate` is **idempotent** — re-running resumes from the last checkpoint (`MigrationKMSKeyID` in SSM).
 
 ---
+
+## `migration` field in `/v1/enclave-info`
+
+The supervisor's `POST /migrate` flow polls `/v1/enclave-info` after the swap step to learn whether the new enclave committed or aborted; SSM-based commit detection alone cannot distinguish the two outcomes (both clear `MigrationKMSKeyID` and leave `/health=200`).
+
+```json
+"migration": {
+  "state": "none" | "committed" | "aborted",
+  "reason": "<set on aborted>"
+}
+```
 
 ## `metrics` field in `/v1/enclave-info`
 

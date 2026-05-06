@@ -33,7 +33,7 @@ arkd is built with Go 1.24.6+ using modern Bitcoin libraries and infrastructure 
 
 ## Database Technologies
 
-**PostgreSQL (Production)** - Primary database with ACID transactions, JSONB support for tree structures, advanced indexing, and connection pooling. Integrated with sqlc for type-safe queries and Watermill for event streaming.
+**PostgreSQL (Production)** - Primary database with ACID transactions, JSONB support for tree structures, advanced indexing, and connection pooling. Integrated with sqlc for type-safe queries and Watermill for event streaming. The bundled `docker-compose.regtest.yml` uses `postgres:17.8`.
 
 **SQLite (Development)** - Embedded SQL database with zero configuration, compatible schema with PostgreSQL, excellent for testing and development.
 

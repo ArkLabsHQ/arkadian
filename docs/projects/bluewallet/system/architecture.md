@@ -147,8 +147,12 @@ All endpoints are configurable per wallet via settings.
   - Swift code in `ios/Shared/`, `ios/Widgets/`, `ios/Stickers/`
   - CocoaPods for dependencies
   - Catalyst-enabled for macOS distribution
+  - Custom `SegmentedControl` Fabric component under `ios/Components/SegmentedControl/` (in-house migration to the New Architecture, replacing the deprecated upstream module)
 - **Android** (`android/`): standard Gradle project, package `io.bluewallet.bluewallet`
-- **Native modules**: BlueWallet maintains forks of several RN native modules under `BlueWallet/*` GitHub org (e.g., `react-native-blue-crypto`, `rn-electrum-client`, `react-native-context-menu-view`)
+  - Custom `SegmentedControl` Fabric/TurboModule under `android/app/src/main/java/io/bluewallet/bluewallet/components/segmentedcontrol/`
+  - **16kb page size support** (Android 15+) — native libs and Gradle config aligned with the new ELF alignment requirement
+- **Native modules**: BlueWallet maintains forks of several RN native modules under `BlueWallet/*` GitHub org (e.g., `react-native-blue-crypto`, `rn-electrum-client`, `react-native-context-menu-view`). `react-native-camera-kit` is now pulled directly from a pinned GitHub commit rather than npm
+- **New Architecture**: the app runs on Fabric + TurboModules (RN 0.85). Codegen specs live in `codegen/` (e.g., `SegmentedControlNativeComponent.ts`)
 
 ## Build & Codegen
 

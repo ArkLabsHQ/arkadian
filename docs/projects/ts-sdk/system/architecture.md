@@ -104,6 +104,7 @@ src/
     ├── arkTransaction.ts    # Off-chain tx building, tapscript signature verification
     ├── unknownFields.ts     # PSBT custom fields (VtxoTaprootTree, CosignerPublicKey, etc.)
     ├── anchor.ts            # P2A (Pay-to-Anchor) and AnchorBumper
+    ├── timelock.ts          # Centralized BIP68 helpers — `timelockToSequence` / `sequenceToTimelock` (RelativeTimelock ↔ sequence number); single `bip68` import site, consumed by `script/base.ts`, `script/tapscript.ts`, `utils/unknownFields.ts`, `wallet/wallet.ts`, `wallet/unroll.ts`, and re-exported from the package root since 0.4.23
     └── txSizeEstimator.ts   # TxWeightEstimator + VSize type (fee estimation, re-exported from package root since 0.4.23)
 ```
 

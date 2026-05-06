@@ -1,8 +1,8 @@
 ---
 project_id: arkana-knowledge
 version: 1.0.0
-last_sync_commit: cc6b6e2b98201566f072d476224fa58051435fe6
-last_sync_date: 2026-04-30T00:00:00Z
+last_sync_commit: 9f70e22f1c6d9e6a140e3c335dc2fd16abca264f
+last_sync_date: 2026-05-06T00:00:00Z
 repository_path: ${ARKANA_KNOWLEDGE_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/arkana-knowledge
 commits_behind_upstream: 0
@@ -30,7 +30,7 @@ scripts:
 
 # Arkana Knowledge — Project Index
 
-**arkana-knowledge** is the configuration, knowledge base, and audit trail for **Arkana**, Ark Labs' always-on AI assistant. It contains 16+ agent configurations, the deep arkwiki knowledge base, the MCP server, the Slack bot, GitHub webhook integration, infrastructure configs, and shared agent memory. Arkana runs on a private Hetzner VPS, is orchestrated by Paperclip on the Claude Agent SDK, and monitors repos across the [ArkLabsHQ](https://github.com/ArkLabsHQ) and [arkade-os](https://github.com/arkade-os) GitHub organizations.
+**arkana-knowledge** is the configuration, knowledge base, and audit trail for **Arkana**, Ark Labs' always-on AI assistant. It contains 17 agent configurations, the deep arkwiki knowledge base, the MCP server, the Slack bot, GitHub webhook integration, infrastructure configs, and shared agent memory. Arkana runs on a private Hetzner VPS, is orchestrated by Paperclip on the Claude Agent SDK, and monitors repos across the [ArkLabsHQ](https://github.com/ArkLabsHQ) and [arkade-os](https://github.com/arkade-os) GitHub organizations.
 
 ## Directory Structure
 
@@ -74,7 +74,7 @@ Analysis and summaries of pull requests.
 - **GitHub identity**: `arkanaai[bot]` (App ID 2923031)
 - **Slack handle**: `@arkanaai`
 
-### Agent Catalog (16 active)
+### Agent Catalog (17 active)
 Stored in `agent-configs/`, each as a markdown system prompt:
 
 | Agent | Schedule | Purpose |
@@ -87,6 +87,7 @@ Stored in `agent-configs/`, each as a markdown system prompt:
 | security-triage | every 2h | Surface security-relevant changes and CVEs |
 | pr-lifecycle | every 30m | Review open PRs, post structured feedback |
 | issue-triage | every 30m | Triage and expand new issues |
+| issue-staleness | Mon 09:00 UTC | Weekly sweep of stale/outdated open issues; flags for human review (never closes) |
 | release-coordinator | every 4h | Track release readiness across repos |
 | research-monitor | Mon/Wed/Fri 14:00 | Deep research on protocol questions |
 | onboarding-buddy | 09:00 UTC | Help new contributors get oriented |

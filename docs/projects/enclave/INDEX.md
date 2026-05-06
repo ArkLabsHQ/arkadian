@@ -106,7 +106,7 @@ EC2 Instance (Amazon Linux 2023, Nitro)
      │   • PCR16+ extension with SHA256(secret_pubkey)
      │   • Encrypted storage (AES-256-GCM + S3 + KMS DEK)
      │   • Dynamic secrets API
-     │   • Locked-key migration (POST /v1/export-key)
+     │   • Locked-key migration (POST /v1/start-migration)
      └── Your App          (plain HTTP :7074 — Go / Node.js / .NET)
 ```
 

@@ -1,5 +1,30 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-06 - Documentation Sync
+**Commit**: `7192bdf948d7922dc244abaf928d5496743fd367`
+**Previous Sync**: `047419382c723629a1eb89c674d5b7349fd55d81`
+**Synced By**: /update-project skill
+**Status**: Completed (tracking-only — no doc content changes)
+
+**Commits Analyzed**: 2 non-merge commits
+
+**Bug Fixes**:
+- Fix layout issues (PR #601) — `src/index.css` only (3 lines)
+- Fix fiat amount precision (PR #602) — `prettyFiatAmount` in `src/lib/format.ts` now pads to each currency's `fiatDecimalsFor()` minor units, so USD/EUR show two decimals while JPY remains zero-decimal; `src/test/lib/format.test.ts` extended with whole-and-fractional regression coverage for every supported fiat
+
+**Features Added/Modified/Removed**: None
+**Dependency Updates**: None
+**Configuration Changes**: None
+
+**Rationale for no doc updates**: Both commits are user-visible bug fixes that do not change any documented capability, tag, dependency, env var, API surface, build/test workflow, or architecture. The master `docs/INDEX.md` "Fiat currency symbol-prefix display" capability line and the project-level `system/` docs all remain accurate.
+
+**Files Updated**:
+- docs/projects/wallet/INDEX.md (frontmatter `last_sync_commit` only)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-01 - Documentation Sync
 **Commit**: `047419382c723629a1eb89c674d5b7349fd55d81`
 **Previous Sync**: `c0c70aafdcd1cfa04d5d515773862fe9bef26378`

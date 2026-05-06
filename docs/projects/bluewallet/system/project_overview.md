@@ -83,13 +83,13 @@ Found in `class/wallets/`:
 
 | Layer | Tech |
 |-------|------|
-| UI | React Native 0.83.x, React 19.x |
+| UI | React Native 0.85.x (New Architecture / Fabric), React 19.2.3 |
 | Navigation | React Navigation 7 |
 | State | React Context + custom hooks |
 | Persistence | Realm 20.x, AsyncStorage, Keychain |
 | Crypto | bitcoinjs-lib 7.x, @noble/secp256k1, bip32/39 |
 | Electrum | `rn-electrum-client` (BlueWallet fork) |
-| Ark | `@arkade-os/sdk` 0.4.16, `@arkade-os/boltz-swap` 0.3.17 |
+| Ark | `@arkade-os/sdk` 0.4.23, `@arkade-os/boltz-swap` 0.3.26 |
 | Test | Jest 29 (unit + integration), Detox 20 (E2E) |
 | Lint | ESLint 8, Prettier 3, TypeScript 5.9, custom unused-loc check |
 | CI | GitHub Actions, BrowserStack, Bugsnag |

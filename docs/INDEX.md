@@ -24,11 +24,11 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - Covenantless Bitcoin architecture (no consensus changes required)
 - Onchain boarding and offchain payment processing
 - Collaborative and unilateral exit mechanisms
-- Arkade Assets: UTXO-native fungible/non-fungible token protocol with teleport transfers
+- Arkade Assets: UTXO-native fungible/non-fungible token protocol with teleport transfers (boarding UTXOs are asset-aware in batch sessions)
 - CEL-based programmable fee system with admin management APIs
 - Liquidity analysis and manual sweep admin tools
-- gRPC and REST API interfaces
-- Multiple database backends (PostgreSQL with auto-creation, SQLite, Badger)
+- gRPC and REST API interfaces (Protobuf/OpenAPI breaking-change policy in `api-spec/BREAKING_CHANGES.md`)
+- Multiple database backends (PostgreSQL 17.8 in regtest, with auto-creation, plus SQLite, Badger)
 - Multiple cache backends (Redis, in-memory)
 - Embedded client SDK (`pkg/client-lib`) with key-based wallet interface, `WithWallet` ServiceOption, and `WithKeys` signing option
 
@@ -842,8 +842,8 @@ CLI framework + runtime SDK for deploying any plain HTTP server inside **AWS Nit
 - PCR0-locked KMS policy — `kms:Decrypt` only when `RecipientAttestation:PCR0` matches; optional irreversible lockdown (`is_kms_key_locked: true` / `enclave lock`) where even AWS root cannot rewrite the policy
 - BIP-340 Schnorr response-signing middleware — every HTTP response carries `X-Attestation-Signature` + `X-Attestation-Pubkey` bound to the attestation document's `UserData` via `appKeyHash`
 - PCR16+ extension on boot with `SHA256(compressed_secp256k1_pubkey)` per configured secret
-- Locked-key migration — 9-step in-place re-encryption flow (`POST /migrate`, NDJSON streaming, idempotent) for rotating PCR0 even when the KMS policy is permanently frozen
-- PCR0 attestation chain — each version records its predecessor's PCR0 + an NSM signed proof; `enclave verify` walks the chain against the AWS Nitro root
+- Locked-key migration — 9-step in-place re-encryption flow (`POST /migrate`, NDJSON streaming, idempotent) for rotating PCR0 even when the KMS policy is permanently frozen; old enclave writes ciphertexts + chain proof to `/Migration/...` staging paths via `POST /v1/start-migration` (renamed from `/v1/export-key`), and the new enclave's boot decides commit vs abort (`PromoteToPrimary` / `AbortOrphaned`), surfaced to the supervisor via the `migration: {state, reason}` block in `/v1/enclave-info`
+- PCR0 attestation chain — each version records its predecessor's PCR0 + an NSM signed proof (`previous_pcr0` is `"genesis"` on first boot); `enclave verify` walks the chain against the AWS Nitro root. Runtime no longer enforces a baked-in predecessor PCR0 — that value is still measured into PCR0 for external auditors but is not validated at startup
 - Encrypted persistent storage — `PUT/GET/DELETE/LIST /v1/storage/{key}` backed by S3 + AES-256-GCM with a KMS-protected DEK (up to 10 MB per object)
 - Dynamic secrets API — runtime-mutable secrets persisted encrypted in S3 (reuses storage DEK), optional `env_var` boot binding, max 64 KB per secret
 - Build-time vs deploy-time env split — `app.env` baked into PCR0 (schema attested); `env_values` overlay via `TF_VAR` / `*.auto.tfvars.json` / `-var` (values not attested)
@@ -969,7 +969,7 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 **GitHub**: `${RUST_SDK_GITHUB}`
 
 **Description**:
-Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection, Arkade Asset V1), ark-client (high-level API with VTXO watcher and chain swaps), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), ark-delegator (REST client for delegator services), and ark-fees (fee estimation). Supports WASM compilation for browser use.
+Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection, Arkade Asset V1, introspector packet builder), ark-client (high-level API with VTXO watcher and chain swaps), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), ark-delegator (REST client for delegator services), ark-fees (fee estimation), ark-script (Arkade scripting extension — standalone), and ark-introspector-client (HTTP client for the Go introspector co-signer). Supports WASM compilation for browser use.
 
 **Key Capabilities**:
 - Core Ark protocol types (ArkAddress, VTXO, BoardingOutput, ArkNote, vHTLC)
@@ -978,26 +978,28 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 - gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2
 - MuSig2 cooperative signing for round participation
 - BDK wallet integration for on-chain operations
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap rows now persist BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors)
 - **Arkade Asset V1**: issue, transfer, burn, reissue with asset-preserving settlement
+- **Arkade Script** (introspector flow): `ark-script` extension opcodes / ASM / tapscript / vtxo-script encoders; `ark-core::introspector::packet` strict-validating packet builder; `ark-introspector-client` HTTP co-signer client
 - **VTXO delegation**: 3-of-3 delegated VTXOs, REST delegator client (`ark-delegator`), background `VtxoWatcher` for auto-renewal
-- DLC (Discreet Log Contracts) support
+- **Split forfeit / unilateral-exit keys** on `Vtxo`
+- DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
 - Key discovery (probes delegate addresses too)
 - Coin selection algorithms and fee estimation
 - WASM build support (ark-core, ark-rest)
-- Comprehensive E2E test suite against live arkd (incl. `e2e_assets`, `fulmine_delegator_smoke`)
+- Comprehensive E2E test suite against live arkd (incl. `e2e_assets`, `e2e_arkade_script`, `fulmine_delegator_smoke`)
 
-**Tags**: `rust`, `sdk`, `ark`, `vtxo`, `musig2`, `grpc`, `rest`, `wasm`, `bdk`, `boltz`, `bitcoin`, `wallet-library`, `delegator`, `vtxo-watcher`, `arkade-asset`, `chain-swap`
+**Tags**: `rust`, `sdk`, `ark`, `vtxo`, `musig2`, `grpc`, `rest`, `wasm`, `bdk`, `boltz`, `bitcoin`, `wallet-library`, `delegator`, `vtxo-watcher`, `arkade-asset`, `chain-swap`, `arkade-script`, `introspector-client`
 
 **Synonyms**: `ark-rs`, `rust-ark-sdk`, `ark-rust`
 
 **Triggers**:
-- **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `ark-delegator`, `rust wallet`, `wasm ark`, `bdk integration`, `vtxo watcher`, `arkade asset rust`, `rust chain swap`
-- **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`, `delegator client`, `asset issuance rust`, `chain swap rust`
-- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`, `e2e_assets`, `fulmine_delegator_smoke`
-- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`, `delegator error`, `vtxo watcher error`, `chain swap refund`
+- **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `ark-delegator`, `ark-script`, `ark-introspector-client`, `rust wallet`, `wasm ark`, `bdk integration`, `vtxo watcher`, `arkade asset rust`, `rust chain swap`, `arkade script rust`
+- **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`, `delegator client`, `asset issuance rust`, `chain swap rust`, `arkade tapscript`, `introspector packet`, `forfeit unilateral exit key`
+- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`, `e2e_assets`, `e2e_arkade_script`, `fulmine_delegator_smoke`, `dockerized introspector`
+- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`, `delegator error`, `vtxo watcher error`, `chain swap refund`, `introspector timeout`, `arkade opcode parse error`
 
-**Dependencies**: `arkd` (gRPC/REST server, 0.9.2), `boltz-backend` (swap provider, optional — used for chain swaps), `fulmine` (delegator service, optional), `Nigiri` (testing)
+**Dependencies**: `arkd` (gRPC/REST server, 0.9.2), `boltz-backend` (swap provider, optional — used for chain swaps), `fulmine` (delegator service, optional), `introspector` (Go co-signer service, dockerized for arkade-script e2e), `Nigiri` (testing)
 **Depended On By**: None (library — consumed by external wallet applications)
 
 ---
@@ -1012,7 +1014,7 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 **GitHub**: `BlueWallet/BlueWallet`
 
 **Description**:
-Popular open-source Bitcoin & Lightning Network wallet for iOS, Android, and macOS (via Mac Catalyst). Built with React Native and Electrum, distributed natively on the App Store / Google Play. Ships 15+ wallet types (Legacy/SegWit/Taproot/HD, Multisig, Watch-only, Lightning Custodian) and integrates the Ark protocol as a first-class wallet via `@arkade-os/sdk` (0.4.16) and `@arkade-os/boltz-swap` (0.3.17). Includes Realm-backed Ark repositories, Expo-flavoured providers, and a custom background swap reconciliation queue.
+Popular open-source Bitcoin & Lightning Network wallet for iOS, Android, and macOS (via Mac Catalyst). Built with React Native 0.85 (New Architecture / Fabric) and Electrum, distributed natively on the App Store / Google Play. Ships 15+ wallet types (Legacy/SegWit/Taproot/HD, Multisig, Watch-only, Lightning Custodian) and integrates the Ark protocol as a first-class wallet via `@arkade-os/sdk` (0.4.23) and `@arkade-os/boltz-swap` (0.3.26). Includes Realm-backed Ark repositories (imported directly from the SDK), Expo-flavoured providers, and a custom background swap reconciliation queue. Android 15 16kb-page-size compatible.
 
 **Key Capabilities**:
 - Multi-wallet mobile UX: Bitcoin (Legacy/SegWit/Taproot/HD/Aezeed/Electrum/SLIP-39/BreadWallet), Multisig HD, Watch-only, BIP47 PayCodes
@@ -1028,7 +1030,7 @@ Popular open-source Bitcoin & Lightning Network wallet for iOS, Android, and mac
 - Hardware wallet support via QR (Keystone, BC-UR registry)
 - BIP38 / WIF imports, RBF, CPFP
 
-**Tags**: `wallet`, `mobile`, `react-native`, `ios`, `android`, `macos`, `bitcoin`, `lightning`, `ark`, `vtxo`, `boltz`, `submarine-swap`, `reverse-swap`, `realm`, `electrum`, `ark-sdk-consumer`, `arkade-os-sdk`, `multi-wallet`, `self-custodial`, `taproot`, `multisig`
+**Tags**: `wallet`, `mobile`, `react-native`, `new-architecture`, `fabric`, `ios`, `android`, `macos`, `bitcoin`, `lightning`, `ark`, `vtxo`, `boltz`, `submarine-swap`, `reverse-swap`, `realm`, `electrum`, `ark-sdk-consumer`, `arkade-os-sdk`, `multi-wallet`, `self-custodial`, `taproot`, `multisig`
 
 **Synonyms**: `blue-wallet`, `bluewallet-rn`, `bw`, `BlueWallet`
 
@@ -1038,7 +1040,7 @@ Popular open-source Bitcoin & Lightning Network wallet for iOS, Android, and mac
 - **test_or_run**: `bluewallet test`, `npm test bluewallet`, `bluewallet detox`, `run bluewallet ios`, `run bluewallet android`, `bluewallet metro`
 - **debug**: `bluewallet build error`, `bluewallet crash`, `bluewallet ark balance`, `bluewallet swap stuck`, `bluewallet realm error`, `bluewallet keychain`, `metro cache`, `pod install`
 
-**Dependencies**: `ts-sdk` (`@arkade-os/sdk` 0.4.16), `boltz-swap` (`@arkade-os/boltz-swap` 0.3.17), `arkd` (default `arkade.computer`), `boltz-backend` (default `api.ark.boltz.exchange`)
+**Dependencies**: `ts-sdk` (`@arkade-os/sdk` 0.4.23), `boltz-swap` (`@arkade-os/boltz-swap` 0.3.26), `arkd` (default `arkade.computer`), `boltz-backend` (default `api.ark.boltz.exchange`)
 **Depended On By**: None (end-user application)
 
 ---
@@ -1144,8 +1146,8 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | arkade-wdk | ts-sdk | Adapter-Wrapper (`@arkade-os/sdk`) |
 | arkade-wdk | boltz-swap | Library-Consumer (optional Lightning via Boltz) |
 | arkade-wdk | @tetherto/wdk-wallet | Implements WDK base contracts |
-| bluewallet | ts-sdk | Library-Consumer (`@arkade-os/sdk` 0.4.16, Expo adapters) |
-| bluewallet | boltz-swap | Library-Consumer (`@arkade-os/boltz-swap` 0.3.17 — submarine + reverse swaps) |
+| bluewallet | ts-sdk | Library-Consumer (`@arkade-os/sdk` 0.4.23, Expo adapters) |
+| bluewallet | boltz-swap | Library-Consumer (`@arkade-os/boltz-swap` 0.3.26 — submarine + reverse swaps) |
 | bluewallet | arkd | Client-Server (default `arkade.computer`, custom override per-wallet) |
 | bluewallet | boltz-backend | Client-Server (default `api.ark.boltz.exchange`) |
 | bluewallet | wallet | Sibling Frontend (RN mobile equivalent of Arkade PWA) |
@@ -1156,6 +1158,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | rust-sdk | dotnet-sdk | Sibling SDK (same protocol, different language) |
 | rust-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
 | rust-sdk | fulmine | Delegator-Integration (VTXO auto-renewal) |
+| rust-sdk | introspector | Co-Signer-Client (arkade-script flows via `ark-introspector-client`; dockerized for e2e) |
 | compiler | introspector | Compiler-Runtime (compiler produces, introspector executes) |
 | compiler | arkd | Compiler-Consumer (arkd uses compiled contract artifacts) |
 | compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
@@ -1284,8 +1287,8 @@ For conceptual questions, prioritize documentation loading order:
 | boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.26, @arkade-os/sdk 0.4.23, user-initiated submarine recovery API + SwapManager 404 safety net (`SwapNotFoundError`, prod endpoint `api.boltz.exchange`) |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
 | ts-sdk | Active Dev | ✓ Beta | v0.4.23, npm published, multi-platform; **breaking**: asset amounts (`Asset.amount`, `AssetDetails.supply`, issuance/reissuance/burn params) are now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
-| arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 16 active agents |
-| bluewallet | Active | ✓ Production | v8.0.0, App Store/Google Play; integrates @arkade-os/sdk 0.4.16 + @arkade-os/boltz-swap 0.3.17 |
+| arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 17 active agents (new `issue-staleness` weekly sweep) |
+| bluewallet | Active | ✓ Production | v8.0.0 on RN 0.85 (New Architecture); integrates @arkade-os/sdk 0.4.23 + @arkade-os/boltz-swap 0.3.26; Android 16kb-page-size ready |
 
 ---
 

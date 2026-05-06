@@ -189,3 +189,33 @@
 - Architecture, module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
 - New helper exports are additive; no rename or removal in this release
 
+---
+
+## 2026-05-06 - BIP68 helper consolidation + repo agent guides + refreshVtxos cursor fix
+**Previous Commit**: `d0ee956e80acc68d61eb0e274e896da0845d0d51`
+**Current Commit**: `b9f3466871f5ba1bb31b7f1d8cc99349ebb63227`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for internal refactor + repo conventions (no version bump — still 0.4.23)
+
+**Commits Analyzed**:
+- `b9f3466` docs: add CLAUDE.md and AGENTS.md repo guides (#475) — split into `FOUNDATION.md` (canonical) + thin `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` pointers per Pietro's review; backfilled `CHANGELOG.md` for the 0.4.x line in the section-ordered, bolded-headline + root-cause style
+- `bd748c3` fix(wallet): refreshVtxos() forwards an undefined window when no opts (#476)
+- `0980a22` tests: enhance VHTLC test fixtures with comprehensive script information (#138)
+- `7f59276` refactor(timelock): centralise BIP68 encode/decode helpers (#412)
+
+**Documentation Changes**:
+- `system/architecture.md`: added `utils/timelock.ts` to the module map (centralized BIP68 helpers — single `bip68` import site; consumers `script/base.ts`, `script/tapscript.ts`, `utils/unknownFields.ts`, `wallet/wallet.ts`, `wallet/unroll.ts`)
+- `sop/development-workflow.md`: added "Repo Guide Files" section pointing to `FOUNDATION.md` (canonical) + `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (thin pointers via the `@<file>` include directive); added "CHANGELOG Discipline" subsection under Releasing describing the section-ordered, root-cause entry style
+- Master `docs/INDEX.md`: not changed — capabilities, tags, dependencies, and 0.4.23 status row remain accurate (this sync is internal refactor + docs only; no public surface change)
+
+**Notable Source Changes**:
+- **Refactor (`#412`)**: `timelockToSequence` and `sequenceToTimelock` moved from `src/contracts/handlers/helpers.ts` → `src/utils/timelock.ts` (now the single `bip68` import site in the SDK). Public surface unchanged: both helpers are still re-exported from the package root via `src/index.ts` (just imported from a different internal path). Inline `bip68.encode` / `bip68.decode` call sites in `src/script/base.ts` (`getSequence`), `src/script/tapscript.ts` (`CSVMultisigTapscript.encode` / `decode`), `src/utils/unknownFields.ts` (`VtxoTreeExpiry`), `src/wallet/wallet.ts`, and `src/wallet/unroll.ts` collapsed to use the centralized helpers. Removes the inline `RelativeTimelock` ↔ `bip68` adapter blocks that had been copy-pasted across these modules
+- **Bug fix (`#476`)**: `ContractManager.refreshVtxos()` previously forwarded `window: { after: undefined, before: undefined }` even when the caller supplied no options. That truthy-but-empty object short-circuited two things in `syncContracts`: (a) the `options.window ?? computeSyncWindow(cursor)` fallback didn't fire, so the indexer query ran without an `after` filter (every refresh became an unbounded full re-scan); (b) `mustUpdateCursor` requires `options.window === undefined`, which was always false — so the cursor never advanced. Symptom in the wild: a 60-second loop where the auto-settle `pollIntervalMs` would fire, get a 400 `VTXO_ALREADY_SPENT`, fall back to `maybeRefreshAfterVtxoSpent` → `refreshVtxos()`, and download ~2 MB of VTXO history while leaving the cursor pinned. Fix: forward `window` only when at least one of `after` / `before` is supplied. Two regression tests in `test/contracts/manager.test.ts` cover both branches (no-opts must produce a cursor-derived delta query AND advance the cursor; caller-supplied window must NOT advance the cursor)
+- **Test fixtures (`#138`)**: `test/fixtures/vhtlc.json` now carries complete `scripts` / `taproot` blocks per receiver-side combination, asserted live against the current `VHTLC.Script` output in `test/vhtlc.test.ts`. Useful as test vectors when another implementation (e.g. rust-sdk) verifies its scripts match. No standalone generator script is committed — the live assertion is the only thing keeping the fixture honest
+- **Repo guides (`#475`)**: added `FOUNDATION.md` (canonical agent doc — recurring workflow, `pnpm release` conventions, CHANGELOG format, PR/commit conventions, directory map) and thin `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` pointer files. The Claude Code `@<file>` include directive is also surfaced as a plain reference by Codex / Gemini. `.gitignore` no longer ignores `CLAUDE.md` (the previously-blanket "AI" block was tightened); `TASKS.md` / `*.agents.md` / `REVIEW.md` remain ignored. `CHANGELOG.md` was backfilled for 0.4.0 → 0.4.23 in the new section-ordered, bolded-headline + root-cause style; pre-0.4 history is intentionally left in `git log`
+
+**Notes**:
+- No package version bump (still `0.4.23`); no public API additions, removals, or renames
+- Architecture, module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
+- The BIP68 refactor is a pure internal cleanup: external callers continue to import `timelockToSequence` / `sequenceToTimelock` from `@arkade-os/sdk` exactly as before
+

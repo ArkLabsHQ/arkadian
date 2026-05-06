@@ -1,5 +1,37 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-06 - Documentation Update
+**Commit**: `85fd54d4` (boltz-backend repository)
+**Previous Sync**: `4a9c282b`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits
+
+**Bug Fixes**:
+- Sync linked swap and commitment on cooperative refund (#1385): `EipSigner` now atomically marks the linked swap as refund-signature-created and the matching `commitments` row as refunded for both refund paths. The commitment-only path additionally resolves any linked swap, runs `MusigSigner.refundNonEligibilityReason` against it, and rejects with `NOT_ELIGIBLE_FOR_COOPERATIVE_REFUND` when the linked swap isn't eligible. Adds `EipSigner.setRefundSignatureCreated` helper and 405-line `EipSigner.spec.ts` integration suite; `CommitmentRepository.markRefunded` no longer needs a transaction passed in.
+
+**Dependency Bumps** (#1388):
+- `axios` ^1.15.0 → ^1.16.0
+- OpenTelemetry suite (sdk-node, exporter-trace-otlp-grpc, instrumentation-{express,grpc,http,pg,winston}) bumped to 0.216.0 / 0.64.0 / 0.68.0 / 0.60.0 lines
+- `@bufbuild/protobuf` ^2.11.0 → ^2.12.0
+- `@scure/base` ^2.0.0 → ^2.2.0; `@scure/btc-signer` ^2.0.1 → ^2.2.0
+- `redis` ^5.11.0 → ^5.12.1; `swagger-ui-dist` ^5.32.2 → ^5.32.5
+- `@swc-contrib/mut-cjs-exports` ^14.8.0 → ^14.9.0; `@swc/core` ^1.15.24 → ^1.15.33
+- Plus matching Cargo.lock / Cargo.toml refresh across `boltz-backup`, `boltz-cache`, `boltzr`
+
+**Tooling**:
+- ESLint and Prettier now run with persistent caches under `node_modules/.cache/eslint/` and `node_modules/.cache/prettier/cache`.
+- Regtest submodule bumped (`b616d748` → `0420b69a`).
+
+**Upstream Documentation** (no impact on Arkadian docs):
+- LLM-friendly publishing made discoverable from `docs/index.md`: `/llms.txt`, `/llms-full.txt`, and per-page `.md` Markdown sources (#1386).
+- New Boltz Lightning node "Mini" listed alongside CLN/LND nodes (#1390).
+
+**Documentation Impact**: None — cooperative-refund fix is internal to `EipSigner`/`CommitmentRepository`; no public API, capability, dependency-graph, env-var, component, build, or migration changes. Project INDEX, system, and testing docs unchanged.
+
+---
+
 ## 2026-05-03 - Documentation Update
 **Commit**: `4a9c282b` (boltz-backend repository)
 **Previous Sync**: `ce18517f`

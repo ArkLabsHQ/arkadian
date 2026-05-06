@@ -42,6 +42,8 @@ enclave init
 
 Both create `enclave/enclave.yaml` and `enclave/flake.nix` (language-specific). If `make build` baked hashes, `sdk:` is auto-populated.
 
+> **Layout:** the CLI accepts either the canonical `<root>/enclave/enclave.yaml` or a flattened `<root>/enclave.yaml` ("bare layout"). `findRepoRoot` walks upward looking for either, which unblocks projects that don't want a separate `enclave/` directory.
+
 ## Configure Hashes
 
 ```sh

@@ -1,6 +1,6 @@
 ---
 project_id: bluewallet
-last_sync_commit: cce2f216f1a11a030ddde3e028c226d90a27cd80
+last_sync_commit: f1b13271cf7031510171b42aef311f2a815703b3
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "system/integration-with-arkd.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -79,8 +79,8 @@ Analysis and summaries of pull requests.
 | Package Manager | npm |
 | Test Frameworks | Jest (unit, integration), Detox (E2E) |
 | Lint | ESLint + Prettier + tsc + custom unused-loc-keys check |
-| Ark SDK | `@arkade-os/sdk` 0.4.16 |
-| Ark Boltz | `@arkade-os/boltz-swap` 0.3.17 |
+| Ark SDK | `@arkade-os/sdk` 0.4.23 |
+| Ark Boltz | `@arkade-os/boltz-swap` 0.3.26 |
 | Default Ark Server | `https://arkade.computer` |
 | Default Delegator | `https://delegate.arkade.money` |
 | Default Boltz API | `https://api.ark.boltz.exchange` |
@@ -110,6 +110,7 @@ The `LightningArkWallet` class (`class/wallets/lightning-ark-wallet.ts`, ~845 LO
 - **Background tasks**: `blue_modules/arkade-adapters/background/` — swap-queue, swap-processor, task-scheduler, foreground-poller
 
 ### React Native Foundations
+- **Runtime**: React Native 0.85.x on the **New Architecture** (Fabric + TurboModules); React 19.2.3
 - **Navigation**: React Navigation 7.x (native stack, drawer)
 - **State**: Context providers (SettingsProvider, StorageProvider) + custom hooks (useStorage, useSettings, useBiometrics)
 - **Persistence**: Realm (Ark contracts/swaps), AsyncStorage (settings), Keychain (secrets)

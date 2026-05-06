@@ -37,8 +37,8 @@ Confidential computing on AWS Nitro requires a substantial amount of glue: TLS t
 - **PCR16+ extension** — at boot, supervisor extends PCR registers with `SHA256(compressed_secp256k1_pubkey)` per configured secret, binding cryptographic identity to PCR values.
 - **Encrypted persistent storage** — `PUT/GET/DELETE/LIST /v1/storage/{key}` backed by S3 + AES-256-GCM with a KMS-protected Data Encryption Key (DEK).
 - **Dynamic secrets** — runtime-mutable secrets stored encrypted in S3, optionally bound to env vars on boot.
-- **Locked-key migration** — 9-step in-place re-encryption flow (`POST /migrate`) for rotating to a new PCR0 even when the KMS policy is irreversibly frozen.
-- **PCR0 attestation chain** — each version records its predecessor's PCR0 + an NSM signed proof. `enclave verify` walks the chain.
+- **Locked-key migration** — 9-step in-place re-encryption flow (`POST /migrate`) for rotating to a new PCR0 even when the KMS policy is irreversibly frozen. Old enclave writes ciphertexts + chain proof to **staging** SSM paths (`/Migration/...`); the new enclave's boot-time `PromoteToPrimary` (commit) or `AbortOrphaned` (abort) decides the outcome, which the supervisor reads from `/v1/enclave-info`'s `migration.{state,reason}` block.
+- **PCR0 attestation chain** — each version records its predecessor's PCR0 + an NSM signed proof (`previous_pcr0` is `"genesis"` on first boot). `enclave verify` walks the chain. The runtime no longer validates a baked-in predecessor PCR0 — the value is still measured into PCR0 for external auditors but is not enforced at startup.
 - **Build-time vs deploy-time env** — `app.env` baked into PCR0; `env_values` (TF_VAR / .auto.tfvars.json / -var) overlay at boot without rebuilding the EIF (schema attested, values not).
 - **Two artifact-source modes** — Tofu uploads local artifacts (default) or curls them from a published GitHub Release at apply time (`enclave tofu --remote`).
 - **CI scaffolding** — `enclave init`/`generate template` writes `deploy-enclave.yml`, `destroy-enclave.yml`, `verify-enclave.yml` with OIDC, GitHub artifact attestations, and an attestation status page on `gh-pages`.

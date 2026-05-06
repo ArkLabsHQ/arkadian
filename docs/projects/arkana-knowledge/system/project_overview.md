@@ -4,12 +4,12 @@
 
 `arkana-knowledge` is the configuration, knowledge base, and audit trail for **Arkana**, the always-on AI assistant deployed by Ark Labs on a private VPS. The repository contains everything needed to operate Arkana: agent system prompts, the deep arkwiki knowledge base, the MCP server, the Slack bot, GitHub webhook integration, infrastructure configs, security policies, and shared agent memory.
 
-Arkana monitors repos across [ArkLabsHQ](https://github.com/ArkLabsHQ) and [arkade-os](https://github.com/arkade-os), reviews PRs, triages issues, surfaces security findings, and runs 16 scheduled agents that keep the engineering org healthy. She runs on the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk), orchestrated by Paperclip.
+Arkana monitors repos across [ArkLabsHQ](https://github.com/ArkLabsHQ) and [arkade-os](https://github.com/arkade-os), reviews PRs, triages issues, surfaces security findings, and runs 17 scheduled agents that keep the engineering org healthy. She runs on the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk), orchestrated by Paperclip.
 
 ## Key Features
 
 ### Agent Orchestration
-- **16 specialized AI agents** with markdown system prompts in `agent-configs/`
+- **17 specialized AI agents** with markdown system prompts in `agent-configs/`
 - Schedules range from continuous (slack-monitor) to weekly (team-pulse-weekly)
 - Agents communicate via the **executive-digest-queue** to avoid Slack noise
 
@@ -83,7 +83,7 @@ Arkana monitors repos across [ArkLabsHQ](https://github.com/ArkLabsHQ) and [arka
 
 ```
 arkana-knowledge/
-├── agent-configs/         # 16 agent system prompts (markdown)
+├── agent-configs/         # 17 agent system prompts (markdown)
 ├── arkwiki/               # Deep knowledge base
 ├── bin/                   # Helper scripts (gh-token, slack-post, slack-read)
 ├── infrastructure/        # Nginx configs, openclaw permissions
@@ -117,7 +117,7 @@ arkana-knowledge/
 - **Repository**: `github.com/ArkLabsHQ/arkana-knowledge`
 - **Status**: Production
 - **Visibility**: Private
-- **Active Agents**: 16
+- **Active Agents**: 17
 - **Knowledge Base Size**: 676MB SQLite, 59+ repos indexed, 6,422+ AST chunks
 - **Deployment**: Hetzner CPX32 VPS at `arkana.arkade.sh`
 - **Runtime**: Claude Agent SDK (Arkana v2), orchestrated by Paperclip

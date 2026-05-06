@@ -9,12 +9,12 @@ This document describes how BlueWallet integrates the Ark protocol via `@arkade-
 
 ```json
 {
-  "@arkade-os/sdk": "0.4.16",
-  "@arkade-os/boltz-swap": "0.3.17"
+  "@arkade-os/sdk": "0.4.23",
+  "@arkade-os/boltz-swap": "0.3.26"
 }
 ```
 
-These are pinned exact versions — bumps require explicit dependency updates and full regression tests.
+These are pinned exact versions — bumps require explicit dependency updates and full regression tests. Recent SDK upgrades (0.4.18 → 0.4.23, boltz-swap 0.3.19 → 0.3.26) were paired with a Realm migration and removal of the obsolete in-wallet `_contractsLoaded` background init: contract metadata is now part of the SDK's standard load path.
 
 ## The `LightningArkWallet` Class
 
@@ -93,19 +93,12 @@ import {
 
 ## Realm Repositories
 
-`blue_modules/arkade-adapters/realm/index.ts` re-exports SDK-provided Realm repositories:
+The wallet imports SDK-provided Realm repositories **directly** from the SDK packages (the previous `blue_modules/arkade-adapters/realm/index.ts` re-export shim was removed):
 
 ```typescript
-export {
-  RealmWalletRepository,
-  RealmContractRepository,
-  ArkRealmSchemas,
-} from '@arkade-os/sdk/repositories/realm';
-
-export {
-  RealmSwapRepository,
-  BoltzRealmSchemas,
-} from '@arkade-os/boltz-swap/repositories/realm';
+import { RealmWalletRepository, RealmContractRepository } from '@arkade-os/sdk/repositories/realm';
+import { RealmSwapRepository } from '@arkade-os/boltz-swap/repositories/realm';
+import { getArkadeRealm, deleteArkadeRealm } from '../../blue_modules/arkade-adapters/realm/realmInstance';
 ```
 
 These repositories provide:
@@ -113,7 +106,9 @@ These repositories provide:
 - **`RealmContractRepository`**: Ark contract state (boarding, redemption commitments)
 - **`RealmSwapRepository`**: Boltz swap state (submarine + reverse)
 
-A helper `getArkadeRealm(namespace)` opens the Realm with the per-wallet `_taskNamespace`, ensuring each Ark wallet has its own database file.
+`blue_modules/arkade-adapters/realm/realmInstance.ts` exposes:
+- **`getArkadeRealm(namespace)`** — opens the Realm with the per-wallet `_taskNamespace`, ensuring each Ark wallet has its own database file. The Realm file is now stored under `DocumentDirectoryPath` (rather than the cache directory) so it persists across OS-level cache eviction.
+- **`deleteArkadeRealm(namespace)`** — closes and removes the Realm file; called from the wallet's new `static onBeforeDelete(wallet)` cleanup hook.
 
 ## Per-Wallet Task Namespace (Privacy)
 
@@ -199,11 +194,12 @@ These are private fields with hard-coded defaults but can be overridden per-wall
    ├── Wallet.send(...) / Wallet.receive(...)
    └── Ramps for boarding/exit
 
-6. Wallet deletion
+6. Wallet deletion (LightningArkWallet.onBeforeDelete)
    ├── unregisterArkadeBackgroundTask(_taskNamespace)
-   ├── stopPolling(_taskNamespace)
+   ├── stopPolling(_taskNamespace) (also exposed as static stopPolling())
    ├── clearNamespaceTasks(_taskNamespace)
-   ├── Drop Realm DB file
+   ├── Clear in-memory caches (staticWalletCache / staticSwapsCache / locks)
+   ├── deleteArkadeRealm(_taskNamespace) — drops Realm DB file
    └── Remove Keychain entry
 ```
 

@@ -34,6 +34,12 @@
 
 **Fix:** the migration is **idempotent** — wait for it to complete, or re-run `enclave migrate` / `POST /migrate`. It resumes from the last checkpoint (`MigrationKMSKeyID` in SSM).
 
+### `migration.state == "aborted"` in `/v1/enclave-info`
+
+**Cause:** the new enclave's PCR0 didn't match `MigrationTargetPCR0` (orphan boot — wrong target locked into the migration key, or the wrong EIF was swapped in). `AbortOrphaned` ran, leaving primary state untouched. The `migration.reason` field describes the mismatch.
+
+**Fix:** the supervisor automatically rolls back the swap on seeing `state == "aborted"` (or on `awaitMigrationOutcome` timeout). Confirm the rollback succeeded (`migration.state` returns to `"none"` after a clean reboot), fix the target PCR0 / EIF inputs, and re-trigger `POST /migrate`. No manual SSM cleanup is needed — staging-only writes mean primary was never mutated.
+
 ### `secret value too large (N bytes, max 65536)`
 
 **Cause:** dynamic secret value exceeds the 64 KB limit.

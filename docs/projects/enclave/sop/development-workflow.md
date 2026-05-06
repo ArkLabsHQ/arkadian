@@ -64,8 +64,11 @@ Required: Linux host with KVM + `vsock_loopback`.
 ```sh
 make test          # test-build + test-run
 make test-build    # builds v1/v2/v3 EIFs
-make test-run      # docker compose --profile test run --build test-runner
+make test-run      # docker compose --profile test run (no rebuild of test-runner image)
+make test-rebuild  # rebuild test-runner image, then run integration tests
 ```
+
+`make test-run` no longer rebuilds the test-runner image on every invocation; use `make test-rebuild` after changing `test/Dockerfile.runner` or its build-time inputs.
 
 For macOS / ARM hosts, the build phase runs in a `linux/amd64` container; the run phase still requires Linux:
 
