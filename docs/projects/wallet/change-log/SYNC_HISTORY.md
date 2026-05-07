@@ -1,5 +1,47 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-07 - Documentation Sync
+**Commit**: `0b51d64fd09c052e6983c5d0f675adae24f80e81`
+**Previous Sync**: `7192bdf948d7922dc244abaf928d5496743fd367`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 6 non-merge commits
+
+**Features Added**:
+- Boltz `referralId: 'arkade-money'` propagated to `BoltzSwapProvider` and service-worker arkadeSwaps for swap attribution (PR #606)
+- Mainnet Boltz endpoint defaults to `https://api.boltz.exchange`; env-unset fallback now defers to SDK defaults instead of a hard-coded `api.ark.boltz.exchange` URL (PRs #599, #606); README docker examples updated
+
+**Features Modified**:
+- Asset amount math migrated to `bigint`: `unitsToCents`/`centsToUnits` operate on `bigint`, `AssetOption.balance` and tx-asset `amount` are `bigint`, asset metadata `supply` is `bigint` (serialised via `JSON.stringify` replacer in `lib/storage.ts`) (PR #599)
+- New `prettyAssetAmount(amount, decimals, useGrouping?)` formatter in `src/lib/assets.ts` splits whole/fractional via BigInt arithmetic to fix truncation of fractional units (e.g. `1.5 USDT`); companion helpers `prettyAssetNumber`, `prettyAssetAmountHide`, `isValidDecimals` (allows `0..MAX_DECIMALS=8`) (PR #599)
+- Non-negative integer clamp on Burn / Mint / Reissue / Send / Receive QrCode / `InputAmount` so `BigInt(1.5)` no longer throws RangeError (PR #599)
+- Mainnet `explorers.bitcoin.api` removed — `getRestApiExplorerURL` returns `string | undefined`; callers fall back to SDK defaults (PR #599)
+- `formatAssetAmount` now takes `bigint` and routes through `prettyAssetNumber` (PR #599)
+
+**Bug Fixes**:
+- PWA safe-area handling restored — page top safe-area offset (`top: env(safe-area-inset-top)`) re-added so installed iOS PWAs no longer render beneath the status bar; pill-navbar clearance and scroll-fade applied to plain `.content` instead of legacy `::part(scroll)`; `--pill-navbar-spacer` CSS var removed (PR #600)
+- Scrollbar hidden cross-browser on `.content` directly, off the legacy Ionic `::part(scroll)` shadow part (PR #608)
+- Scanner button positioning fixed via new `.label.has-buttons` layout in `src/index.css` and applied to `InputWithScanner` (PR #603)
+
+**Dependency Updates**:
+- @arkade-os/sdk: 0.4.22 → 0.4.24 (PRs #599, #605)
+- @arkade-os/boltz-swap: 0.3.24 → 0.3.28 (PRs #599, #605, #606) — adds `referralId` constructor option
+
+**Configuration Changes**:
+- `package.json` `start:mainnet` script: `VITE_BOLTZ_URL=https://api.ark.boltz.exchange` → `https://api.boltz.exchange`
+- `swaps.tsx` `BASE_URLS.bitcoin`: hard-coded `api.ark.boltz.exchange` fallback → `null` (defer to SDK defaults)
+
+**Files Updated**:
+- docs/INDEX.md (wallet capabilities, dependency versions)
+- docs/projects/wallet/INDEX.md (version 1.2.2, last_sync_commit, sdk/boltz-swap versions, referralId note)
+- docs/projects/wallet/system/project_overview.md (sdk/boltz-swap versions, referralId, mainnet endpoint, asset bigint refactor, PWA safe-area, scanner)
+- docs/projects/wallet/system/tech-stack.md (sdk/boltz-swap versions, referralId option)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-06 - Documentation Sync
 **Commit**: `7192bdf948d7922dc244abaf928d5496743fd367`
 **Previous Sync**: `047419382c723629a1eb89c674d5b7349fd55d81`

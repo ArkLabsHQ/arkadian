@@ -174,3 +174,33 @@ Run `arkadian sync-project boltz-swap` to sync with latest repository changes.
 - `docs/projects/boltz-swap/testing/api-reference.md` — added `SwapNotFoundError` row to Error Types table
 - `docs/INDEX.md` — bumped boltz-swap status row to v0.3.26 + SDK 0.4.23; added 404 safety net to capabilities; added `swap-not-found` tag; added new ask_question / debug triggers
 - `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `0ada9496`
+
+---
+
+## 2026-05-07 — Sync 0.3.26 → 0.3.28
+
+**From**: `0ada9496fcdd956029ca521bc0387f3fd9816125` (release 0.3.26)
+**To**: `4c32983560415c0bfa892533c2d5ac88f3cc6a8b` (release 0.3.28)
+**Commits Analyzed**: 4 (non-merge)
+**Status**: ✓ Complete
+
+### Notable Changes
+
+**Versions**
+- `@arkade-os/boltz-swap`: 0.3.26 → 0.3.28 (releases 0.3.27 and 0.3.28)
+- `@arkade-os/sdk`: 0.4.23 → 0.4.24
+
+**ServiceWorker `referralId` propagation** (commit `3ba60f7`)
+- The existing `BoltzSwapProvider` `referralId` option is now plumbed through the service worker layer end-to-end so SW-hosted callers can attribute swaps to a referral the same way direct-instantiation callers already could.
+- `SvcWrkArkadeSwapsConfig` (`src/serviceWorker/arkade-swaps-runtime.ts`) gained an optional `referralId?: string` alongside `arkServerUrl` / `network`.
+- `RequestInitArkSwaps` payload (`src/serviceWorker/arkade-swaps-message-handler.ts`) gained the same optional field. `ServiceWorkerArkadeSwaps` forwards `config.referralId` into the `INIT_ARK_SWAPS` message envelope; the handler instantiates `BoltzSwapProvider` with `{ apiUrl, network, referralId }`.
+- Non-breaking: existing SW callers that omit the field continue to work.
+- Bundled `regtest` submodule pointer also bumped in this commit.
+
+**Misc**
+- `chore: release 0.3.27` (`9dd28cb`) and `chore: release 0.3.28` (`4c32983`) are pure version bumps in `package.json`. The 0.3.27 cut released the SDK 0.4.24 upgrade, 0.3.28 cut released the SW `referralId` plumbing.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — bump version to 0.3.28, SDK to 0.4.24; replaced "Recent Improvements" with 0.3.26 → 0.3.28 highlights (SW `referralId`)
+- `docs/INDEX.md` — bumped boltz-swap status row to v0.3.28 + SDK 0.4.24 with new SW `referralId` note; updated boltz-swap **Dependencies** line to SDK 0.4.24
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `4c329835`

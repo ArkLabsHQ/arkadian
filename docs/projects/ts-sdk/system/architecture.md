@@ -9,15 +9,15 @@ src/
 ├── forfeit.ts               # Forfeit transaction construction
 │
 ├── wallet/                  # Wallet implementations
-│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds
+│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo
 │   ├── onchain.ts           # OnchainWallet (on-chain fee payment, anchor bumping)
 │   ├── ramps.ts             # Ramps (onboard/offboard)
 │   ├── batch.ts             # Batch session (round participation, tree signing)
-│   ├── vtxo-manager.ts      # VtxoManager (renewal, recovery, expiry monitoring)
+│   ├── vtxo-manager.ts      # VtxoManager (renewal, recovery, expiry monitoring); revalidateBeforeSettle pre-flight + maybeRefreshAfterVtxoSpent reactive recovery on VTXO_ALREADY_SPENT (surgical refreshOutpoints, falls back to refreshVtxos when no outpoint metadata)
 │   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party)
 │   ├── asset-manager.ts     # AssetManager (issue, reissue, burn)
 │   ├── asset.ts             # Asset types and helpers
-│   ├── unroll.ts            # Unroll (unilateral exit)
+│   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support
 │   ├── utils.ts             # Wallet utilities
 │   ├── hdDescriptorProvider.ts # HDDescriptorProvider (HD receive rotation, persisted under settings.hd)
 │   └── serviceWorker/       # Service worker wallet
@@ -25,6 +25,7 @@ src/
 │       ├── worker.ts        # Worker (runs in service worker context)
 │       ├── request.ts       # Request serialization
 │       ├── response.ts      # Response serialization
+│       ├── wallet-message-handler.ts # Service-worker proxy handlers (incl. REFRESH_OUTPOINTS message for surgical VTXO_ALREADY_SPENT recovery)
 │       └── utils.ts         # Service worker registration helpers
 │
 ├── identity/                # Key management
@@ -50,12 +51,17 @@ src/
 │   └── utils.ts             # Provider utilities
 │
 ├── script/                  # Bitcoin script construction
-│   ├── base.ts              # VtxoScript, TapLeafScript, TapTreeCoder, getSequence
+│   ├── base.ts              # VtxoScript, TapLeafScript, TapTreeCoder, getSequence; VtxoScript.exitPaths now compares isScriptValid === true (prior truthy check routed ConditionCSV leaves to CSV's decode)
 │   ├── address.ts           # ArkAddress encoding/decoding
 │   ├── default.ts           # DefaultVtxo script
 │   ├── delegate.ts          # Delegation script
-│   ├── tapscript.ts         # Tapscript types (CSV, CLTV, Condition multisig variants)
+│   ├── tapscript.ts         # Tapscript types (CSV, CLTV, Condition multisig variants); per-namespace isScriptValid helpers returning true | Error, shared getVerifyIndex between condition tapscripts
 │   └── vhtlc.ts             # VHTLC (Virtual Hash Time-Locked Contract)
+│
+├── contracts/               # Contract orchestration
+│   ├── contractManager.ts   # IContractManager + impl; refreshOutpoints(outpoints) for surgical indexer-by-outpoint upserts at the contract address
+│   ├── contractWatcher.ts   # SSE-driven watcher; seedLastKnownVtxos baseline now script-gated (legacy wrong-script rows no longer seed phantom vtxo_spent events)
+│   └── vtxoOwnership.ts     # Ownership-gating helpers — applied at every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup; throw on user paths, warn-and-skip on background sync
 │
 ├── musig2/                  # MuSig2 distributed signing
 │   ├── index.ts             # MuSig2 module exports

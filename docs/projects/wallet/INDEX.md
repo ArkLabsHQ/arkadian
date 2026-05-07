@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.1
-last_sync_commit: 7192bdf948d7922dc244abaf928d5496743fd367
+version: 1.2.2
+last_sync_commit: 0b51d64fd09c052e6983c5d0f675adae24f80e81
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -185,8 +185,8 @@ pnpm run format:check
 - **react-spring-bottom-sheet**: Bottom sheet primitive for SheetModal
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.22): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.24): Lightning swap integration (incl. submarine recovery API)
+- **@arkade-os/sdk** (0.4.24): Ark protocol SDK (wallet operations, VTXOs)
+- **@arkade-os/boltz-swap** (0.3.28): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography

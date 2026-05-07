@@ -67,7 +67,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.23` |
+| Version | `0.4.24` |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
 | Package Manager | pnpm 10.29.2 |
@@ -130,12 +130,13 @@ Analysis and summaries of pull requests.
 - **Wallet**: Full signing wallet (`Wallet`) or watch-only (`ReadonlyWallet`)
 - **Identity**: Key management abstraction — SingleKey, SeedIdentity (HD), MnemonicIdentity. Seed-backed and watch-only identities take a wildcard descriptor template (`tr(.../0/*)`) and expose it as `identity.descriptor`
 - **Descriptor Provider**: Pure rotating allocator (`getNextSigningDescriptor`) — `StaticDescriptorProvider` for single-key, `HDDescriptorProvider` for HD receive rotation
-- **VTXOs**: Virtual transaction outputs managed off-chain via Ark protocol
+- **VTXOs**: Virtual transaction outputs managed off-chain via Ark protocol. Cache reconciliation is surgical: `IContractManager.refreshOutpoints(outpoints)` queries the indexer by outpoint, annotates with the owning contract's tapscripts, and upserts at the contract address (no cursor change, no full re-scan). `VtxoManager.revalidateBeforeSettle` pre-flights candidates against the indexer before submitting `renewVtxos` / `runPeriodicSettle` so stale-cache VTXOs are dropped silently rather than driving 60-second `VTXO_ALREADY_SPENT` retry loops. Persisted VTXOs are gated by owning script via `src/contracts/vtxoOwnership.ts` so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup
+- **Ownership Gating**: `vtxoOwnership` helpers run at every contract-scoped read/write site; background sync writers warn-and-skip on unowned scripts, user-initiated wallet write paths throw. `updateDbAfterOffchainTx` / `updateDbAfterSettle` now group spent rows by owning script and route each bucket to its contract's address (multi-contract spends no longer collapse into the primary bucket); `getVtxosFromRepo` fails fast on undecodable wallet addresses (was silently zeroing balance)
 - **Boarding**: Converting on-chain BTC to off-chain VTXOs
 - **Settlement / Batch**: Participating in Ark rounds to settle VTXOs
 - **Ramps**: Onboard (BTC→VTXO) and offboard (VTXO→BTC) operations
 - **Delegation**: Outsourcing VTXO renewal to a third-party delegator service
-- **Unilateral Exit**: Withdrawing funds without server cooperation via unroll + timelock
+- **Unilateral Exit**: Withdrawing funds without server cooperation via unroll + timelock. Since 0.4.24 the unroll flow splits `prepareUnrollTransaction` (build + sign, no broadcast) from `completeUnroll` (broadcast); `completeUnroll` passes `wallet.network` to `tx.addOutputAddress` so regtest bech32 (`bcrt1...`) addresses no longer fall through to mainnet base58 decoding. Tapscript validation centralised under per-namespace `isScriptValid` helpers returning `true | Error`; `VtxoScript.exitPaths` now checks `=== true` (truthy `Error` objects no longer route ConditionCSV scripts to CSV's decode)
 - **Assets**: Issuing, reissuing, burning, and transferring assets on Ark. `Asset.amount`, `AssetDetails.supply`, and the `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` fields are typed as `bigint` (since 0.4.23, breaking) so values above `Number.MAX_SAFE_INTEGER` round-trip without truncation; persistence goes through `serializeAssets` / `deserializeAssets` (decimal-string on-disk form, accepts legacy number/string/bigint inputs)
 - **ArkNote**: Serializable representation of Ark payment data
 - **Anchor / Sequence Helpers**: `TxWeightEstimator` and `VSize` (fee/weight estimation), `timelockToSequence` / `sequenceToTimelock` (BIP68 sequence ↔ `RelativeTimelock`) re-exported from the package root since 0.4.23

@@ -24,8 +24,8 @@ NArk.Scratchpad           ← Development scratch area
 
 ### NArk.Abstractions (leaf -- no project dependencies)
 - `NBitcoin`, `NBitcoin.Secp256k1`
-- Defines: `ArkVtxo`, `ArkIntent`, `ArkCoin`, `ArkContract`, `ArkAddress`, `ArkTxOut`, `ArkPayment`, `ArkPaymentRequest`
-- Interfaces: `IVtxoStorage`, `IContractStorage`, `IIntentStorage`, `IWalletStorage`, `IWalletProvider`, `ISafetyService`, `IChainTimeProvider`, `IFeeEstimator`, `IActiveScriptsProvider`, `IIntentScheduler`, `IPaymentStorage`, `IPaymentRequestStorage`
+- Defines: `ArkVtxo`, `ArkIntent`, `ArkCoin`, `ArkContract`, `ArkAddress`, `ArkTxOut`, `ArkPayment`, `ArkPaymentRequest`, `ArkWalletInfo` (now includes a generic `Metadata: IReadOnlyDictionary<string,string>?` for per-wallet bookkeeping)
+- Interfaces: `IVtxoStorage`, `IContractStorage`, `IIntentStorage`, `IWalletStorage` (now exposes `SetMetadataValue(walletId, key, value, ct)` for sparse-key updates; `value=null` removes the key, concurrent writers on different keys don't clobber each other), `IWalletProvider`, `ISafetyService`, `IChainTimeProvider`, `IFeeEstimator`, `IActiveScriptsProvider`, `IIntentScheduler`, `IPaymentStorage`, `IPaymentRequestStorage`
 - Vendored `Scripting/` namespace: `OutputDescriptor`, `OutputDescriptorParser`, `PubKeyProvider`, `SigningRepository`, parser combinators, `NBitcoinCompat` shim (replaces removed NBitcoin 10 helpers; HAS_SPAN gated)
 - `Recovery/` namespace: `IContractDiscoveryProvider` (per-index probe interface), `DiscoveryResult` (`Used`, `Contracts`), `RecoveryOptions` (`GapLimit` / `MaxIndex` / `StartIndex`, with `Validate()` guard clauses), `RecoveryReport` (`HighestUsedIndex`, per-provider hit counts, reconstructed contracts)
 
@@ -41,8 +41,8 @@ NArk.Scratchpad           ← Development scratch area
 - Hosting: `ArkApplicationBuilder`, `ServiceCollectionExtensions`
 
 ### NArk.Swaps (depends on Core)
-- `SwapsManagementService` -- orchestrates submarine (Ark→Lightning), reverse (Lightning→Ark), and chain (ARK<->BTC) swaps
-- `BoltzClient` / `CachedBoltzClient` -- REST API client for Boltz exchange
+- `SwapsManagementService` -- orchestrates submarine (Ark→Lightning), reverse (Lightning→Ark), and chain (ARK<->BTC) swaps. Holds a single long-lived Boltz websocket (`_websocket` guarded by `_websocketLock`, reconnect with 5 s backoff, re-subscribes from `_swapsIdToWatch`); `DoUpdateStorage` and `PollSwapState` use `SubscribeOnWebsocketAsync` / `UnsubscribeOnWebsocketAsync` instead of tearing down the connection per swap-set change.
+- `BoltzClient` / `CachedBoltzClient` -- REST API client for Boltz exchange. Stamps `BoltzClient.ReferralId` (configured via `BoltzClientOptions.ReferralId`, defaults to `BoltzClientOptions.DefaultReferralId = "arkade-dotnet-sdk"`) on every Submarine / Reverse / Chain swap-create request so Boltz can attribute traffic to the originating integration. `Configure<BoltzClientOptions>` overrides win over the default; setting it to `null` opts out (the field stays null-suppressed on the wire).
 - `BoltzWebsocketClient` -- WebSocket for real-time swap status
 - `ChainSwapMusigSession` -- MuSig2 session for cooperative chain swap claiming
 - `BtcHtlcScripts` / `BtcTransactionBuilder` -- BTC-side HTLC and transaction construction
@@ -52,7 +52,7 @@ NArk.Scratchpad           ← Development scratch area
 
 ### NArk.Storage.EfCore (depends on Core + Swaps)
 - EF Core implementations of all storage interfaces
-- Entities: `VtxoEntity`, `ArkWalletContractEntity`, `ArkIntentEntity`, `ArkSwapEntity`, `ArkWalletEntity`, `ArkPaymentEntity`, `ArkPaymentRequestEntity`
+- Entities: `VtxoEntity`, `ArkWalletContractEntity`, `ArkIntentEntity`, `ArkSwapEntity`, `ArkWalletEntity` (now carries a JSON-serialized `Metadata: Dictionary<string,string>?` column, provider-agnostic — Postgres `jsonb` / SQLite `TEXT` / SQL Server `nvarchar(max)` via a value-converter + custom `ValueComparer` so EF tracks dictionary mutations), `ArkPaymentEntity`, `ArkPaymentRequestEntity`
 - `ModelBuilderExtensions.ConfigureArkEntities()` for core schema; opt-in `ConfigureArkPaymentEntities()` for payment tables
 - `EfCorePaymentStorage` / `EfCorePaymentRequestStorage` for the payment tracking surface
 - A `DateTimeOffsetToBinaryConverter` is wired via `ConfigureConventions` so SQLite can sort/filter `DateTimeOffset` columns
@@ -119,9 +119,29 @@ The submodule provides Bitcoin Core (regtest), Electrs/Esplora, Chopsticks fauce
 
 `samples/NArk.Wallet/NArk.Wallet.Client/` is a Blazor WASM reference wallet exercising the SDK in a browser-only environment (Bit.Besql for SQLite, manual `BoltzClient` / `IIntentScheduler` DI, real QR codes, LNURL helper, dedicated Contracts/Vtxos/Swaps/Intents pages, mnemonic backup, smart Send). It is published to GitHub Pages at `/dotnet-sdk/wallet/` alongside the DocFX docs site (`docfx.json` + `.github/workflows/docs.yml`, ~538 pages: API reference + 11 conceptual articles).
 
+## VTXO Sync Cursor (per-wallet metadata)
+
+`VtxoSynchronizationService` persists a cold-start catch-up cursor through the generic wallet metadata API instead of a dedicated table:
+
+- Constant `VtxoSynchronizationService.LastFullPollAtMetadataKey = "vtxo.lastFullPollAt"`.
+- Cold-start: reads `MIN(per-wallet vtxo.lastFullPollAt)` across `IWalletStorage.LoadAllWallets()` and uses it as the `after` filter on the first `UpdateScriptsView`. If any wallet has no cursor (or an unparseable value), the MIN bails to `null` so a fresh wallet's first-time scripts aren't skipped via someone else's cursor.
+- Routine-poll success (`PollRequest.IsFullSetSnapshot=true`): writes the poll's `StartedAt` to every wallet's `vtxo.lastFullPollAt`. Stream-driven and newly-added-script polls do NOT advance the cursor — they cover only a subset.
+- A `_coldStartCatchupComplete` gate (volatile bool) blocks all cursor writes until the first cold-start catch-up succeeds, so a failed catch-up followed by a successful routine poll cannot advance the cursor past the gap. The cold-start catch-up itself is marked `IsFullSetSnapshot=true`, so success advances the cursor immediately.
+- The service takes `IWalletStorage` as an *optional* constructor parameter — when absent, the gate defaults to `true` and the service falls back to `null`-after on cold start (current behaviour, opt-out preserved).
+
+This design replaces an earlier dedicated `ISyncStateStorage` / `ArkSyncStateEntity` in PR #78. Storage footprint now: one JSON column on an existing entity, written via `IWalletStorage.SetMetadataValue` — no new table, interface, or downstream migration.
+
+## Chain-Time Cache & Fallback
+
+`RPCChainTimeProvider.GetChainTime` caches `(Timestamp, Height)` on every successful Bitcoin Core RPC call. If a subsequent call fails (transient 5xx during reindex / IBD / heavy load) AND a cached value exists, it returns the cache and logs a warning. Cold-start failures (no cache yet) still throw. Prevents a single transient `getblockchaininfo` 500 from forcing controller-bound consumers (e.g. BTCPay's plugin manager) to disable the plugin. `ChainTimeProvider` (NBXplorer wrapper) accepts an optional `ILogger<RPCChainTimeProvider>` so consumers can surface the fallback warning; default-null keeps the change non-breaking.
+
+## Per-Wallet Log Scopes
+
+Per-wallet entry points in `SwapsManagementService` (Initiate*, Pay*, Restore, `PollSwapState` iteration body), `BatchManagementService` (`RouteToBatchSessionsAsync`, `HandleBatchStartedForAllIntentsAsync` per-intent loops), `OnchainService.InitiateCollaborativeExit` (both overloads), `IntentGenerationService` (`GenerateManualIntent` + periodic per-wallet loop), `SpendingService` (`Spend` overloads + `GetAvailableCoins`), `AssetManager.{Issue,Reissue,Burn}Async`, `HdWalletRecoveryService.ScanAsync`, `DelegationMonitorService.ProcessVtxoAsync`, and `SweeperService.Sweep` (per-coin loop) all open `using (logger.BeginScope(("WalletId", id)))` so downstream sinks can route every transitively-emitted log line to the right wallet — including ones whose templates don't already carry `{WalletId}`. `VtxoSynchronizationService` is intentionally *not* scoped: its streams/polls span all active wallets at once.
+
 ## Network Configurations
 
 Pre-configured networks via `ArkNetworkConfig`:
-- **Mainnet**: `arkade.computer` / `arkade.money` / `api.ark.boltz.exchange`
+- **Mainnet**: `arkade.computer` / `arkade.money` / `api.boltz.exchange` (the `ark.` subdomain was dropped in PR #82; mutinynet and regtest endpoints unchanged)
 - **Mutinynet**: `mutinynet.arkade.sh` / `mutinynet.arkade.money`
 - **Regtest**: `localhost:7070` / `localhost:3002` / `localhost:9069`

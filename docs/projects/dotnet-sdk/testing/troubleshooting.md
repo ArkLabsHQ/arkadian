@@ -114,7 +114,26 @@ curl -X POST http://localhost:3000/faucet -H "Content-Type: application/json" \
   -d '{"amount": 1, "address": "YOUR_ADDRESS"}'
 ```
 
+### Plugin disabled by host on transient Bitcoin Core RPC failure
+
+**Symptom**: A controller-bound consumer (e.g. BTCPay's plugin manager) catches an unhandled exception from `RPCChainTimeProvider.GetChainTime` and disables / unloads the SDK-hosting plugin, requiring a manual re-enable. Logs typically show a single 5xx from `getblockchaininfo` during reindex / IBD / heavy load.
+
+**Solution**: `RPCChainTimeProvider` now caches `(Timestamp, Height)` on every successful call and falls back to the cache with a Warning log on subsequent transient failures. Cold-start failures (no cache yet) still throw — there is no chain time to report at that point. Wire an `ILogger<RPCChainTimeProvider>` into `ChainTimeProvider` (the NBXplorer wrapper now takes it on each ctor, default-null) to surface the fallback warning in your own diagnostics.
+
 ## Storage Issues
+
+### EF Core migration needed for `ArkWalletEntity.Metadata` JSON column
+
+**Symptom**: After bumping the SDK pointer, EF queries against `ArkWalletEntity` fail because the new `Metadata` JSON column is missing from the database.
+
+**Solution**: `ArkWalletEntity` gained a generic `Metadata: Dictionary<string,string>?` column in PR #78 (used by `VtxoSynchronizationService` for the `vtxo.lastFullPollAt` cursor and available for any consumer that wants per-wallet bookkeeping). It's added by `ConfigureArkEntities` so consumer apps need a new EF migration:
+
+```bash
+dotnet ef migrations add AddWalletMetadata
+dotnet ef database update
+```
+
+Provider mapping: Postgres `jsonb`, SQLite `TEXT`, SQL Server `nvarchar(max)` — handled transparently via the value converter.
 
 ### EF Core Migration Errors
 

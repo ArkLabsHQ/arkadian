@@ -90,7 +90,7 @@ const WalletComponent = () => {
 
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.22
+### @arkade-os/sdk 0.4.24
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -115,7 +115,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.24
+### @arkade-os/boltz-swap 0.3.28
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:
@@ -125,6 +125,7 @@ interface ArkWallet {
 - Invoice generation and payment
 - HTLC-based atomic execution
 - Submarine recovery API: `scanRecoverableSubmarineSwaps()` returns `SubmarineRecoveryInfo[]` with status `recoverable | pre_cltv | invalid_swap | already_spent | none`; `recoverSubmarineFunds(BoltzSubmarineSwap)` sweeps a single swap (used by Apps → Boltz → Settings bulk recovery)
+- `referralId` constructor option on `BoltzSwapProvider` and the arkadeSwaps service-worker entry — wallet passes `'arkade-money'`
 
 **API Usage**:
 ```typescript

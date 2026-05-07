@@ -72,9 +72,10 @@ NArk.Scratchpad             (dev scratch area)
 - **BatchSession** — Participates in arkd batch rounds: nonce exchange, tree signing (MuSig2), forfeit tx signing
 - **TreeSignerSession** — MuSig2 nonce and partial signature session for VTXO trees
 - **SpendingService** — Builds and submits Ark transactions with automatic coin selection, change handling, server-driven amount bounds + OP_RETURN limits
-- **VtxoSynchronizationService** — Stream + 5 s routine poll + 750 ms / 3 s / 8 s retry schedule with `after`-window filtering for resilient VTXO sync
+- **VtxoSynchronizationService** — Stream + 5 s routine poll + 750 ms / 3 s / 8 s retry schedule with `after`-window filtering for resilient VTXO sync. Persists a per-wallet `vtxo.lastFullPollAt` cursor (via `ArkWalletEntity.Metadata`) to bound cold-start catch-up; gated so a failed catch-up + successful routine poll cannot advance past the gap
+- **ArkWalletEntity.Metadata** — Generic JSON-serialized `Dictionary<string,string>?` column for per-wallet bookkeeping (sync cursors, recovery state, etc.) — provider-agnostic (`jsonb` / `TEXT` / `nvarchar(max)`); written through `IWalletStorage.SetMetadataValue` (sparse-key, concurrent-writer-safe; `value=null` removes)
 - **SweeperService** — Monitors and redeems expired/swept VTXOs on-chain
-- **SwapsManagementService** — Submarine (Ark→Lightning), reverse (Lightning→Ark), and ARK<->BTC chain swaps via Boltz (MuSig2 cross-signatures, VHTLC scripts)
+- **SwapsManagementService** — Submarine (Ark→Lightning), reverse (Lightning→Ark), and ARK<->BTC chain swaps via Boltz (MuSig2 cross-signatures, VHTLC scripts). Holds a single long-lived Boltz websocket with subscribe / unsubscribe ops keyed by swap id; stamps `BoltzClientOptions.ReferralId` (default `"arkade-dotnet-sdk"`) on every swap-create request for Boltz attribution
 - **PaymentTrackingService** — Background service auto-updating payment statuses from VTXO/intent/swap events
 - **OutputDescriptor / SigningRepository** — Vendored NBitcoin.Scripting (parser combinators, descriptor model) in `NArk.Abstractions/Scripting/`
 - **HdWalletRecoveryService** — Gap-limit scanner that rebuilds local contract state after HD wallet re-import by sweeping derivation indices and querying registered `IContractDiscoveryProvider`s (OR semantics). Ships indexer, boarding-UTXO, and Boltz-swap providers; custom sources plug in via DI.

@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.26`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.28`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -107,7 +107,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.23` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.24` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -211,15 +211,12 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.26
+**Version**: 0.3.28
 **Stability**: Stable API, active feature development
 
-**Recent Improvements (0.3.24 → 0.3.26)**:
-- **Unknown-to-Boltz safety net**: `SwapManager` now tracks consecutive `SwapNotFoundError`s per swap (`NOT_FOUND_THRESHOLD = 10`, ≈5-minute grace at the default 30s poll cadence). After the threshold, the swap is transitioned to terminal `swap.expired`, persisted, removed from monitoring, and reported via `onSwapFailed` with `SwapNotFoundError`. Bypasses `handleSwapStatusUpdate` so no claim/refund actions are fired against a Boltz instance that has no record of the swap. Counter is cleared on any successful poll/WS update.
-- **Subscribers receive the terminal transition**: when the safety net trips, `swapUpdateListeners` and per-swap `swapSubscriptions` are now invoked with `(swap, oldStatus)` mirroring `handleSwapStatusUpdate`'s emission shape, so `waitForSwapCompletion` and UI subscribers see the `swap.expired` resolution before the subscription set is dropped.
-- **New `SwapNotFoundError`** (extends `NetworkError`, statusCode 404, exported from `src/index.ts`): thrown by `BoltzSwapProvider.getSwapStatus` when Boltz returns a 404 with body matching `"could not find swap"`. Distinguishes a real "swap unknown to this Boltz instance" from a generic 404 (route change, proxy misconfig) so only the former drives the per-swap counter. Detection is defensive — matches either parsed `errorData.error` JSON field or the raw message text.
-- **Production endpoint switch**: `BASE_URLS.bitcoin` changed from `https://api.ark.boltz.exchange` to `https://api.boltz.exchange` (canonical Boltz mainnet endpoint). Existing swap IDs from the previous endpoint will now naturally trip the safety net rather than hang in monitoring forever.
-- `@arkade-os/sdk` bumped 0.4.22 → 0.4.23.
+**Recent Improvements (0.3.26 → 0.3.28)**:
+- **`referralId` plumbed through ServiceWorker layer**: the existing `BoltzSwapProvider` `referralId` option is now propagated end-to-end when running under a service worker. `SvcWrkArkadeSwapsConfig` (`src/serviceWorker/arkade-swaps-runtime.ts`) and `RequestInitArkSwaps` (`src/serviceWorker/arkade-swaps-message-handler.ts`) gained an optional `referralId?: string` field; `ServiceWorkerArkadeSwaps` forwards it into the `INIT_ARK_SWAPS` message envelope, and the handler instantiates `BoltzSwapProvider` with it. Backwards-compatible — existing SW callers that do not pass the field continue to work.
+- `@arkade-os/sdk` bumped 0.4.23 → 0.4.24.
 
 **Production Features**:
 - Comprehensive error handling with typed errors

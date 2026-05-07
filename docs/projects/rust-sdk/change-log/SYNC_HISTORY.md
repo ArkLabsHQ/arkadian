@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-07 - 0.9.0 Release-Prep Metadata
+**From**: `f12ef0a7494a99f40076ec3ceb3bce9e7737d144`
+**To**: `887cb4a1c87124594c13b4d2a1ffc1c7d89934fc`
+**Synced By**: update-project skill
+**Commits analyzed**: 2 (no merges)
+
+**Summary**: Release-prep sync — no behavior or API changes. Workspace prepared for crates.io publish.
+
+**Changes**:
+- `chore: prepare crate metadata for 0.9.0` (`12e9c11`) — bumps every publishable crate to **v0.9.0** (`ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`); `ark-script` and `ark-introspector-client` jump from `0.1.0` → `0.9.0` to align the workspace. Workspace `Cargo.toml` adds `keywords = ["ark", "arkade", "bitcoin", "wallet"]` and `categories = ["cryptography::cryptocurrencies"]`, inherited by all publishable crates. Adds (or rewrites) `README.md` for each publishable crate (`ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`, `ark-script`, `ark-introspector-client`) — `ark-rest` README trimmed dramatically, others added fresh.
+- `docs: simplify root readme` (`65e0931`) — root `README.md` rewritten as a concise crate index pointing at per-crate docs and `docs.rs`; removed legacy installation/usage walkthrough (now lives in `ark-rs` / `ark-client` READMEs and on `docs.rs`).
+
+**Breaking changes**: None.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` + `version`, workspace crates bumped to v0.9.0, added crates.io metadata note)
+- `docs/projects/rust-sdk/system/project_overview.md` (added 0.9.0 release-prep entry, all `(v0.8.0)` → `(v0.9.0)`, project status line)
+- `docs/INDEX.md` (rust-sdk description — appended v0.9.0 alignment note)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-06 - Arkade Script, Introspector Client & Reverse-Swap Metadata
 **From**: `3abb5df17848079c72d01ba8f2569ef7fa8f85a8`
 **To**: `f12ef0a7494a99f40076ec3ceb3bce9e7737d144`

@@ -1,5 +1,24 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-05-07 - Sync update
+**From**: `ed8bf9079bf182bdbc854022e2cd8b35334f97a7`
+**To**: `1a10171ead42248d8e8183244ea398e78c47f940`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 1
+
+**Upstream commits**:
+- `cb874ac` clean.sh: also remove dangling docker volumes when --prune is used
+
+**Changes**:
+- `testing/troubleshooting.md` — Documented the expanded `clean-env.sh --prune` behavior (now also runs `docker volume prune -f` in addition to `docker image prune -f`) under the Disk space exhaustion section.
+
+**Notes**:
+- Single-line change to `clean-env.sh`: when `--prune` is passed, dangling Docker volumes are now removed alongside dangling images. Non-breaking.
+- The `--prune` and `--build` flags of `clean-env.sh` remain otherwise undocumented in the project overview / SOPs; left as-is to keep this sync minimal.
+- Master `docs/INDEX.md` not updated — no new capabilities, services, ports, or images.
+
+---
+
 ## 2026-05-02 - Sync update
 **From**: `3ac33b66daf03f8641c11da375e477a8a369b83f`
 **To**: `ed8bf9079bf182bdbc854022e2cd8b35334f97a7`

@@ -219,3 +219,45 @@
 - Architecture, module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
 - The BIP68 refactor is a pure internal cleanup: external callers continue to import `timelockToSequence` / `sequenceToTimelock` from `@arkade-os/sdk` exactly as before
 
+---
+
+## 2026-05-07 - Release 0.4.24 + Unilateral Exit Bundle + VTXO Reconciliation + Ownership Gating
+**Previous Commit**: `b9f3466871f5ba1bb31b7f1d8cc99349ebb63227`
+**Current Commit**: `cf09b7277d04c5e68831100f7795d2d356c35ae9`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for 0.4.24 release
+
+**Commits Analyzed**:
+- `cf09b72` fix(wallet): pre-flight VTXO outpoints before settle (proactive) (#478)
+- `8d3e773` fix(wallet): reconcile VTXO_ALREADY_SPENT by outpoint, not full re-scan (#477)
+- `cdc10fd` chore: release 0.4.24
+- `32c4b73` fix(vtxo): gate persisted VTXOs by owning script (Tier 1 of #480) (#481)
+- `6d0b53f` Unilateral exit bundle (#338 + #222 + #416) (#479)
+
+**Documentation Changes**:
+- Bumped SDK version 0.4.23 → 0.4.24 in `INDEX.md`, `system/project_overview.md`, master `docs/INDEX.md`
+- `INDEX.md`: extended VTXO concept to cover surgical `refreshOutpoints` reconciliation + `revalidateBeforeSettle` pre-flight; new "Ownership Gating" concept; unilateral exit concept now describes `prepareUnrollTransaction` / `completeUnroll` split, regtest network fix, and `isScriptValid === true` correctness
+- `system/project_overview.md`: VTXO Operations row covers indexer-by-outpoint reconciliation, service-worker `REFRESH_OUTPOINTS` proxy, and pre-flight settle path; new "VTXO Ownership Gating" feature row; Unilateral Exit row covers split + regtest network arg + `isScriptValid` truthy bug
+- `system/architecture.md`: added `contracts/` directory tree (`contractManager.ts`, `contractWatcher.ts`, `vtxoOwnership.ts`); annotated `wallet/wallet.ts`, `wallet/vtxo-manager.ts`, `wallet/unroll.ts`, `wallet/serviceWorker/wallet-message-handler.ts`, `script/base.ts`, `script/tapscript.ts` with the new behaviour
+
+**Notable Source Changes**:
+- **Unilateral exit bundle (`#479` = `#338` + `#222` + `#416`)**: per-namespace `isScriptValid` helpers returning `true | Error` (`script/tapscript.ts`); `getVerifyIndex` shared between condition tapscripts; `prepareUnrollTransaction` extracted from broadcast in `wallet/unroll.ts` so callers can build + sign without networking; new e2e coverage for `completeUnroll` after unilateral exit delay (`test/e2e/ark.test.ts`). Three latent bugs caught while wiring the e2e: (a) `VtxoScript.exitPaths` used a truthy check on `isScriptValid` but the helper now returns `true | Error` — `Error` objects are truthy, so non-CSV scripts (e.g. `ConditionCSVMultisig`) were routed to CSV's `decode()` and swallowed by the catch instead of falling through to the ConditionCSV branch; (b) `completeUnroll` called `tx.addOutputAddress(addr, value)` without a network arg — `@scure/btc-signer` defaults to mainnet base58 decoding, so regtest `bcrt1...` addresses threw `Unknown letter: "0"`; (c) the e2e's blocks-branch maturity wait used `nigiri rpc --generate` directly — esplora hadn't observed the mined tip yet, so `availableExitPath`'s chainTip read could still return the pre-mining tip (mirrored the seconds-branch `waitFor` chainTip loop)
+- **VTXO ownership gating (`#481`, Tier 1 of `#480`)**: new `src/contracts/vtxoOwnership.ts` with helpers applied at every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup. Background sync writers warn-and-skip; user-initiated wallet write paths throw. `ContractWatcher.seedLastKnownVtxos` now reads through `getContractVtxos` (script-filtered) instead of the raw address bucket — prevents a phantom `vtxo_spent` event on the first poll when a legacy wrong-script row had been seeding the baseline. `wallet.notifyIncomingFunds` warns instead of silently dropping rows that arrive without `.script`. `updateDbAfterOffchainTx` and `updateDbAfterSettle` now group spent rows by owning script (using `annotateVtxos` script tags), validate per group, and route each bucket to its contract's address via `manager.getContracts()`; outer catches now rethrow rather than log-and-swallow (was masking failed saves). `getVtxosFromRepo` no longer silently sets `walletScript = undefined` on decode failure — fail-fast surfaces the structural bug instead of zeroing the user's visible balance
+- **`VTXO_ALREADY_SPENT` reconciliation (`#477`)**: previous recovery was `refreshVtxos()` (cursor-derived `?after=created_at` filter) — couldn't surface a VTXO created before the cursor and spent recently. New `IContractManager.refreshOutpoints(outpoints)` queries the indexer by outpoint, annotates with the owning contract's tapscripts, and upserts at the contract's address; no cursor change, no full re-scan. New `maybeRefreshAfterVtxoSpent(spentOutpoint?)` parses the `metadata.vtxo_outpoint` field on the `ArkError` envelope and routes to `refreshOutpoints([outpoint])`; falls back to `refreshVtxos()` only when no outpoint metadata is available. Both `vtxo-manager` callsites (event-driven renewal + periodic settle) extract the outpoint before triggering recovery. Service-worker proxy: new `REFRESH_OUTPOINTS` message + handler so wallets running behind a worker get the same recovery
+- **Pre-flight before settle (`#478`)**: closes the loop *before* the failed intent flies. `VtxoManager.revalidateBeforeSettle(candidates, threshold)` refreshes the candidate outpoints, re-pulls through `getExpiringVtxos`, then restricts to the original candidate set so a refresh side-effect cannot silently widen the input set. Wired into both settle entry points: `renewVtxos` (event-driven on `vtxo_received`) and `runPeriodicSettle` (boarding-poll auto-settle). Best-effort: a failed refresh falls back to the original candidates and lets `#477`'s reactive recovery handle whatever slipped through
+
+**Tests Added**:
+- `test/contracts/manager.test.ts`: three tests covering `refreshOutpoints` (happy path, silent skip for unowned scripts, no-op on empty input); ownership-gating tests for the wrong-script reject path; updated reconciliation tests acknowledge the extra pre-flight call before recovery
+- `test/contracts/vtxoOwnership.test.ts`: dedicated coverage for `vtxoOwnership` helpers (90 lines)
+- `test/contracts/helpers.ts`: shared script-aware test helpers
+- `test/vtxo-manager.test.ts`: pre-flight ordering test ("pre-flight `refreshOutpoints` runs before settle on the periodic poll path"), pre-flight stale-drop test ("pre-flight drops candidates the indexer reports as spent and skips a fully-stale settle"), and `ArkError`-with-`vtxo_outpoint` routing tests; `flushMicrotasks` bumped from 2 awaits to 8 to drain the longer pre-flight chain
+- `test/wallet.test.ts`: 411 lines of new coverage for per-script persistence in `updateDbAfterOffchainTx` / `updateDbAfterSettle` and the fail-fast `getVtxosFromRepo` decode path; existing tests that mocked `getAddress` with placeholder strings updated to use a real decodable test address
+- `test/wallet-message-handler.test.ts` + `test/worker/expo/processors/contractPollProcessor.test.ts`: cover the `REFRESH_OUTPOINTS` message + the script-gated processor reads
+- `test/e2e/ark.test.ts`: new "should complete unroll after unilateral exit delay" path
+
+**Notes**:
+- No new public exports beyond `IContractManager.refreshOutpoints` / `prepareUnrollTransaction`; module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
+- The ownership-gating change is data-correctness, not schema — no repository or storage migrations
+- `wallet.network` is now mandatory at unroll time (regtest fix) but already present on every `Wallet` instance, so no caller-side change required
+- Tier 1 of `#480` only — further tiers may follow
+

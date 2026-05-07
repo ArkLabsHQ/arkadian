@@ -1,5 +1,31 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-07 - Operational Memory Sync (no doc changes)
+**Commit Range**: `9f70e22f..2a6636a2` (19 commits)
+**Previous Sync**: `9f70e22f1c6d9e6a140e3c335dc2fd16abca264f`
+**Current Sync**: `2a6636a26f4ad34520f7baa12934fa73c330040f`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 11 files changed, all under `memory/` (agent-logs, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity: security-triage (5 runs), release-coordinator (3 runs), repo-sync (3 runs), repo-detector, sdk-parity, slack-monitor, daily-briefing, linear-sync
+- Notable operational events captured in memory only: ts-sdk v0.4.24 + rust-sdk v0.9.0 + introspector v0.0.1 released 2026-05-06; GOV violations #12–#16 logged; 34 ArkLabsHQ repos archived since 2026-05-06; Indexer DoS (#1048) escalated to HIGH
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, or policies
+
+**Files Updated**:
+- `change-log/last-sync.txt` → `2a6636a26f4ad34520f7baa12934fa73c330040f`
+- `change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, and agent count unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per-project `INDEX.md` retains `last_sync_commit: 9f70e22f…` (no agent-roster change since last material sync)
+
+---
+
 ## 2026-05-06 - New Agent: issue-staleness
 **Commit Range**: `317e44ff..9f70e22f` (18 commits)
 **Previous Sync**: `317e44ff5b4978b798472fdc335a4ed76ec5575c`

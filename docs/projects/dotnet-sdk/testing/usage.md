@@ -123,9 +123,21 @@ var txId = await spendingService.Spend("my-wallet", selectedCoins, outputs);
 
 | Network | Ark Server | Boltz | Explorer |
 |---------|------------|-------|----------|
-| Mainnet | `arkade.computer` | `api.ark.boltz.exchange` | `arkade.space` |
+| Mainnet | `arkade.computer` | `api.boltz.exchange` | `arkade.space` |
 | Mutinynet | `mutinynet.arkade.sh` | `api.boltz.mutinynet.arkade.sh` | `explorer.mutinynet.arkade.sh` |
 | Regtest | `localhost:7070` | `localhost:9069` | N/A |
+
+## Boltz Referral Attribution
+
+Every Submarine / Reverse / Chain swap-create request the SDK sends carries a Boltz `referralId`. By default it is `BoltzClientOptions.DefaultReferralId` (`"arkade-dotnet-sdk"`), so consumers who don't configure one show up to Boltz as `arkade-dotnet-sdk` instead of anonymous traffic. Override per-integration:
+
+```csharp
+services.Configure<BoltzClientOptions>(o => o.ReferralId = "btcpay-arkade");
+// or opt out entirely:
+services.Configure<BoltzClientOptions>(o => o.ReferralId = null);
+```
+
+`Configure` delegates run after the property initializer, so the override wins. A `null` value omits the field from the wire (`JsonIgnoreCondition.WhenWritingNull`).
 
 ## Live Sample Wallet
 

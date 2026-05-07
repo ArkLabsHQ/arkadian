@@ -149,6 +149,11 @@ rm -rf _build/
 docker system prune -a --volumes
 ```
 
+For routine cleanup of leftover Docker state after `clean-env.sh`, pass `--prune` to also `docker image prune -f` **and** `docker volume prune -f` in one shot:
+```bash
+./clean-env.sh --prune
+```
+
 ## Getting More Information
 
 ```bash

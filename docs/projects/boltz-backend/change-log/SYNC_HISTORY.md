@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-07 - Documentation Update
+**Commit**: `4bc60b4d` (boltz-backend repository)
+**Previous Sync**: `85fd54d4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Tooling**:
+- chore: `.gitignore` updated to exclude `.boltz-local` (#1392).
+
+**Documentation Impact**: None — `.gitignore`-only change; no public API, capability, dependency, env-var, component, build, or migration changes. Project INDEX, system, and testing docs unchanged.
+
+---
+
 ## 2026-05-06 - Documentation Update
 **Commit**: `85fd54d4` (boltz-backend repository)
 **Previous Sync**: `4a9c282b`

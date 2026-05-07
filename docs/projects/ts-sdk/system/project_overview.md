@@ -9,7 +9,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 ## Package
 
 - **npm**: `@arkade-os/sdk`
-- **Version**: 0.4.23
+- **Version**: 0.4.24
 - **License**: MIT
 
 ## Core Features
@@ -21,13 +21,14 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | HD Identity | BIP39 mnemonics, BIP86 Taproot derivation paths; identities consume wildcard descriptor templates (`tr(.../0/*)`) |
 | Descriptor Providers | `DescriptorProvider` allocator interface — `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation) |
 | HD Receive Rotation | `HDDescriptorProvider.getNextSigningDescriptor()` allocates fresh descriptors via wallet-repo-persisted index, with cross-instance serialization through the shared `updateWalletState` mutex |
-| VTXO Operations | Get balance, send, receive, settle, renew, recover VTXOs |
+| VTXO Operations | Get balance, send, receive, settle, renew, recover VTXOs. Surgical cache reconciliation via `IContractManager.refreshOutpoints(outpoints)` (indexer-by-outpoint upserts, no full re-scan) — wired into `VTXO_ALREADY_SPENT` recovery on both renewal and periodic-settle paths, plus the service-worker `REFRESH_OUTPOINTS` proxy. `VtxoManager.revalidateBeforeSettle` pre-flights settle candidates so stale-cache rows are dropped before the intent flies (closes the 60-second `?after=created_at` blind-spot loop) |
+| VTXO Ownership Gating | `src/contracts/vtxoOwnership.ts` helpers gate every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows. Background sync writers warn-and-skip; user-initiated wallet write paths throw. `updateDbAfterOffchainTx` / `updateDbAfterSettle` group spent rows by owning script and route each bucket to its contract's address (multi-contract spends no longer collapse into the primary bucket). `getVtxosFromRepo` fails fast on undecodable wallet addresses (was silently zeroing balance) |
 | Boarding/Offboarding | On-chain ↔ off-chain fund conversion via `Ramps` |
 | Batch Settlement | Participate in Ark rounds with MuSig2 tree signing |
 | Asset Management | Issue, reissue, burn, and transfer assets on Ark. **Breaking (0.4.23)**: `Asset.amount`, `AssetDetails.supply`, and `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` are now `bigint` (was `number`) — supplies routinely exceed `Number.MAX_SAFE_INTEGER`. Persistence layer (`serializeAssets` / `deserializeAssets`) writes amounts as decimal strings while still accepting legacy `number` / `string` / `bigint` reads |
 | Anchor / Sequence Helpers | `TxWeightEstimator` + `VSize` (fee/weight estimation), `timelockToSequence` / `sequenceToTimelock` (BIP68 sequence ↔ custom `RelativeTimelock`) re-exported from the package root since 0.4.23 |
 | VTXO Delegation | Outsource renewal to delegator services |
-| Unilateral Exit | Exit without server cooperation (unroll + timelock) |
+| Unilateral Exit | Exit without server cooperation (unroll + timelock). Since 0.4.24 split into `prepareUnrollTransaction` (build + sign) and `completeUnroll` (broadcast); regtest-aware `tx.addOutputAddress(..., wallet.network)` so `bcrt1...` outputs no longer fail base58 decode. Centralised per-namespace `isScriptValid` helpers (return `true | Error`); `VtxoScript.exitPaths` correctly compares `=== true` so non-CSV leaves (e.g. ConditionCSVMultisig) route to ConditionCSV's decode rather than throwing in CSV's branch |
 | Service Worker | Background wallet operation via `ServiceWorkerWallet` |
 | Storage Adapters | InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage |
 | Expo/React Native | Dedicated providers for React Native streaming (SSE); peer ranges accept Expo SDK 55 unified majors |

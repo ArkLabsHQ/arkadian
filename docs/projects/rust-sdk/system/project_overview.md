@@ -14,6 +14,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Recent Additions
 
+- **0.9.0 release-prep** — workspace metadata aligned for crates.io publish: workspace `keywords = ["ark", "arkade", "bitcoin", "wallet"]` and `categories = ["cryptography::cryptocurrencies"]`; every publishable crate now inherits these and ships its own `README.md` (`ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`, `ark-script`, `ark-introspector-client`). All publishable crates bumped to **v0.9.0** (including `ark-script` and `ark-introspector-client`, which jumped from `0.1.0`); root `README.md` simplified to a crate index.
 - **`ark-script` crate** — Arkade scripting extension. Defines the 47 Arkade extension opcodes (aliasing the `OP_NOP4`/`OP_RETURN_196..=243` slots so they round-trip through `bitcoin::script::Builder`), arkade-aware ASM helpers (`to_asm`/`from_asm` tolerant of unknown opcodes), `ArkadeScriptHash` / `ArkadeWitnessHash` BIP-340 tagged hashes, `compute_arkade_script_public_key` (`P' = P + H(script)*G`, even-Y enforced to match the Go introspector), and `ArkadeTapscript` / `ArkadeVtxoScript` encoders for the `Multisig` / `CsvMultisig` leaves used by arkade flows. Encodings are byte-for-byte verified against ts-sdk vectors. Lives outside `ark-core` so non-arkade consumers don't pay for its dependencies.
 - **`ark-introspector-client` crate** — HTTP client for the Go introspector co-signer service. Preserves error response bodies and applies a per-request timeout.
 - **`ark-core::introspector::packet`** — introspector packet builder/parser with strict validation: rejects empty asset packets, trailing witness bytes, oversized payloads, and invalid script lengths.
@@ -33,7 +34,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Workspace Crates
 
-### ark-core (v0.8.0)
+### ark-core (v0.9.0)
 Core types and protocol primitives:
 - `ArkAddress`: Ark address encoding/decoding (bech32)
 - `Vtxo`, `VtxoList`: Virtual transaction output management — including delegator (3-of-3) VTXOs and split forfeit / unilateral-exit keys
@@ -48,7 +49,7 @@ Core types and protocol primitives:
 - **Asset support** (Arkade Asset V1): `AssetId`, `Packet`/`AssetGroup` OP_RETURN encoding, asset issuance / reissuance / burn transaction builders, settlement asset preservation
 - **Introspector packet builder** (`introspector::packet`): strict-validating packet construction for the introspector co-signer; appended via the new `extension` module as Ark extensions
 
-### ark-client (v0.8.0)
+### ark-client (v0.9.0)
 High-level client API:
 - `OfflineClient` → `Client` connection lifecycle (delegator pubkey + historical pubkeys configured at OfflineClient layer)
 - `send_vtxo()`: Send off-chain payments (now backed by a generic offchain transaction builder shared with asset sends)
@@ -65,28 +66,28 @@ High-level client API:
 - Boltz submarine and reverse submarine swaps
 - Swap storage (in-memory or SQLite, with new `chain_swaps` table)
 
-### ark-grpc (v0.8.0)
+### ark-grpc (v0.9.0)
 gRPC transport layer (default):
 - tonic-based gRPC client
 - Protobuf message types (prost)
 - Native TLS support
 - Test utilities
 
-### ark-rest (v0.8.0)
+### ark-rest (v0.9.0)
 REST transport layer:
 - reqwest-based HTTP client
 - WASM-compatible (browser builds)
 - OpenAPI-generated client types
 
-### ark-bdk-wallet (v0.8.0)
+### ark-bdk-wallet (v0.9.0)
 Bitcoin Development Kit integration:
 - On-chain wallet operations
 - BDK wallet wrapper for Ark boarding/exit
 
-### ark-fees (v0.8.0)
+### ark-fees (v0.9.0)
 Fee estimation for Ark transactions.
 
-### ark-delegator (v0.8.0)
+### ark-delegator (v0.9.0)
 REST client for Ark delegator services. A delegator is a third-party service (e.g. fulmine) that automatically renews VTXOs before they expire, allowing wallets to stay offline without losing funds.
 - `DelegatorClient::info()` — fetch delegator pubkey, fee, on-chain address (`GET /v1/delegator/info`)
 - `DelegatorClient::delegate()` — submit signed intent + forfeit PSBTs (`POST /v1/delegate`)
@@ -145,7 +146,7 @@ Reference implementation for understanding Ark protocol internals (round signing
 
 ## Project Status
 
-Active development, version 0.8.0 across all crates. MIT licensed.
+Active development, version 0.9.0 across all publishable crates (release-prep with crates.io metadata aligned). MIT licensed.
 
 **Repository**: https://github.com/arkade-os/rust-sdk
 **MSRV**: Rust 1.86

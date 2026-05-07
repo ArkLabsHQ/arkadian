@@ -36,6 +36,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 
 ### Lightning Network Swaps
 - **Boltz integration**: Submarine and reverse submarine swaps via SwapManager
+- **Mainnet endpoint**: Default mainnet Boltz URL switched to `https://api.boltz.exchange` (was `https://api.ark.boltz.exchange`); env-unset fallback now defers to SDK defaults instead of a hard-coded URL
+- **Referral attribution**: `arkade-money` referralId is passed to both `BoltzSwapProvider` and the arkadeSwaps service-worker swaps so Boltz can track wallet-originated swaps
 - **On-chain to Lightning**: Convert Bitcoin to Lightning capacity
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
@@ -70,6 +72,15 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Send redesign**: Pill Paste/Scan QR buttons, Max-tap confirmation, animated Scanner/Keyboard overlays, prefers-reduced-motion support
 - **Fiat symbol prefix**: Amounts render with Unicode symbols (`$100.00`, `€50.00`, `¥1,000`); CHF/CNY keep trailing-code form
 - **Asset-aware tx history**: Top-aligned rows when assets present; max 2 coins shown on right side
+- **PWA safe-area handling**: Top safe-area offset restored after the Ionic migration so installed iOS PWAs no longer render beneath the status bar; pill-navbar clearance and scroll-fade applied to the plain CSS scroll container; legacy `::part(scroll)` selectors removed
+- **Scrollbar hidden**: Cross-browser scrollbar removal moved off the (legacy Ionic) `::part(scroll)` shadow part onto `.content` directly
+- **Scanner button positioning**: `InputWithScanner` adopts a `.label.has-buttons` layout — buttons absolutely positioned right, input gets `padding-right: 36px`
+
+### Asset Amount Precision
+- **bigint-based amount math**: `unitsToCents` / `centsToUnits` operate on `bigint`; `AssetOption.balance` and tx-asset `amount` are now `bigint`. Asset metadata `supply` is `bigint` and serialised via a `JSON.stringify` replacer that converts bigint → string.
+- **`prettyAssetAmount(amount, decimals, useGrouping?)`**: New formatter in `src/lib/assets.ts` that splits whole/fractional via BigInt arithmetic so values like `1.5 USDT` no longer truncate; takes `useGrouping` for numeric inputs. Companion helpers: `prettyAssetNumber`, `prettyAssetAmountHide`, `isValidDecimals` (allows 0–`MAX_DECIMALS=8`).
+- **Non-negative integer clamp**: Burn / Mint / Reissue / Send / Receive QrCode / `InputAmount` all `Math.trunc` non-negative values before constructing BigInts so `BigInt(1.5)` no longer throws RangeError.
+- **Mainnet explorer**: `explorers.bitcoin.api` removed — `getRestApiExplorerURL` now returns `string | undefined` and callers fall back to SDK defaults.
 
 ## Technology Stack
 
@@ -77,8 +88,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Custom component library** (Ionic React removed) — buttons, inputs, modals, sheets built in-tree
 - **react-spring-bottom-sheet** for bottom sheet modals
 - **Vite** for fast builds and development server
-- **@arkade-os/sdk** (0.4.22) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.24) for Lightning swap integration (incl. submarine recovery API)
+- **@arkade-os/sdk** (0.4.24) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.3.28) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
 - **@tanstack/react-virtual** for virtualized swap list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
@@ -173,7 +184,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.22, @arkade-os/boltz-swap 0.3.24
+**Dependencies**: @arkade-os/sdk 0.4.24, @arkade-os/boltz-swap 0.3.28
 
 ## Getting Started
 

@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.2.0
-last_sync_commit: f12ef0a7494a99f40076ec3ceb3bce9e7737d144
+version: 1.3.0
+last_sync_commit: 887cb4a1c87124594c13b4d2a1ffc1c7d89934fc
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -59,18 +59,20 @@ Feature specifications and implementation tracking.
 ## Key Concepts
 
 ### Workspace Crates
-- **ark-core** (v0.8.0): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
-- **ark-client** (v0.8.0): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
-- **ark-grpc** (v0.8.0): gRPC transport for arkd communication (tonic-based)
-- **ark-rest** (v0.8.0): REST transport for arkd (reqwest-based, WASM-compatible)
-- **ark-bdk-wallet** (v0.8.0): BDK integration for on-chain wallet operations
-- **ark-fees** (v0.8.0): Fee estimation utilities
-- **ark-delegator** (v0.8.0): REST client for Ark delegator services (auto-renewal of VTXOs)
-- **ark-script**: Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
-- **ark-introspector-client**: HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
-- **ark-rs**: Umbrella re-export crate
-- **ark-client-sample**: Example client application (with `watch-delegated` command)
-- **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector)
+All publishable crates aligned at **v0.9.0** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish.
+
+- **ark-core** (v0.9.0): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
+- **ark-client** (v0.9.0): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
+- **ark-grpc** (v0.9.0): gRPC transport for arkd communication (tonic-based)
+- **ark-rest** (v0.9.0): REST transport for arkd (reqwest-based, WASM-compatible)
+- **ark-bdk-wallet** (v0.9.0): BDK integration for on-chain wallet operations
+- **ark-fees** (v0.9.0): Fee estimation utilities
+- **ark-delegator** (v0.9.0): REST client for Ark delegator services (auto-renewal of VTXOs)
+- **ark-script** (v0.9.0): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
+- **ark-introspector-client** (v0.9.0): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
+- **ark-rs** (v0.9.0): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
+- **ark-client-sample**: Example client application (with `watch-delegated` command) — not published
+- **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector) — not published
 
 ### Protocol Features
 - Off-chain VTXO payments (send, receive, settle) — unified offchain-send builder for VTXO and asset sends
