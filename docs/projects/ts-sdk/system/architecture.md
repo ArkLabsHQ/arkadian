@@ -61,7 +61,7 @@ src/
 ├── contracts/               # Contract orchestration
 │   ├── contractManager.ts   # IContractManager + impl; refreshOutpoints(outpoints) for surgical indexer-by-outpoint upserts at the contract address
 │   ├── contractWatcher.ts   # SSE-driven watcher; seedLastKnownVtxos baseline now script-gated (legacy wrong-script rows no longer seed phantom vtxo_spent events)
-│   └── vtxoOwnership.ts     # Ownership-gating helpers — applied at every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup; throw on user paths, warn-and-skip on background sync
+│   └── vtxoOwnership.ts     # Ownership-gating helpers — applied at every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup; throw on user paths, warn-and-skip on background sync. Since 0.4.25 (Tier 2 of #480): `getVtxosForContract` / `saveVtxosForContract` dispatch helpers route to optional `getVtxosForScript` / `saveVtxosForScript` when the repo backend implements them, otherwise fall back to Tier 1 address-bucket read + `filterVtxosForScript` (with `validateVtxosForScript` on the save fallback). Used by `wallet.ts` (`updateDbAfterOffchainTx` / `updateDbAfterSettle`), `contractManager.ts` (`fetchContractVtxos`, `reconcilePendingFrontier`, `fetchContractVxosFromIndexer`, `getContractVtxos`), and `contractWatcher.ts` (`seedLastKnownVtxos` baseline)
 │
 ├── musig2/                  # MuSig2 distributed signing
 │   ├── index.ts             # MuSig2 module exports
@@ -88,7 +88,7 @@ src/
 │
 ├── repositories/            # Data access layer
 │   ├── index.ts             # Repository interfaces
-│   ├── walletRepository.ts  # WalletRepositoryImpl (VTXO caching)
+│   ├── walletRepository.ts  # WalletRepository interface — Tier 2 script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript`) marked optional + `VtxoRepositoryKey = { script; address? }` since 0.4.25; backends (`inMemory/`, `indexedDB/`, `realm/`, `sqlite/`) all implement the optional methods natively (IndexedDB uses the `script` index + outpoint dedup with `shouldReplaceVtxo` tiebreaker; SQL uses `WHERE script = ?`; Realm uses `filtered("script == $0", ...)`). DB errors in `getVtxosForScript` are re-thrown rather than swallowed to `[]`
 │   ├── contractRepository.ts # ContractRepositoryImpl (contract data, collections)
 │   └── serialization.ts     # SerializedAsset / serializeAssets / deserializeAssets (bigint→decimal-string round-trip; legacy number/string accepted on read)
 │

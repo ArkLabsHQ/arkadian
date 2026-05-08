@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.28`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.29`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -107,7 +107,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.24` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.25` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -211,12 +211,11 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.28
+**Version**: 0.3.29
 **Stability**: Stable API, active feature development
 
-**Recent Improvements (0.3.26 → 0.3.28)**:
-- **`referralId` plumbed through ServiceWorker layer**: the existing `BoltzSwapProvider` `referralId` option is now propagated end-to-end when running under a service worker. `SvcWrkArkadeSwapsConfig` (`src/serviceWorker/arkade-swaps-runtime.ts`) and `RequestInitArkSwaps` (`src/serviceWorker/arkade-swaps-message-handler.ts`) gained an optional `referralId?: string` field; `ServiceWorkerArkadeSwaps` forwards it into the `INIT_ARK_SWAPS` message envelope, and the handler instantiates `BoltzSwapProvider` with it. Backwards-compatible — existing SW callers that do not pass the field continue to work.
-- `@arkade-os/sdk` bumped 0.4.23 → 0.4.24.
+**Recent Improvements (0.3.28 → 0.3.29)**:
+- `@arkade-os/sdk` bumped 0.4.24 → 0.4.25 (no boltz-swap source changes — release 0.3.29 is the SDK upgrade cut).
 
 **Production Features**:
 - Comprehensive error handling with typed errors

@@ -76,6 +76,12 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Scrollbar hidden**: Cross-browser scrollbar removal moved off the (legacy Ionic) `::part(scroll)` shadow part onto `.content` directly
 - **Scanner button positioning**: `InputWithScanner` adopts a `.label.has-buttons` layout — buttons absolutely positioned right, input gets `padding-right: 36px`
 
+### Design System & Styling (PRs #582, #589)
+- **Design tokens**: `src/tokens.css` provides full color ramps (50–950) for purple, green, red, orange, yellow, and neutral, plus typography and shadow elevation tokens. The neutral ramp uses `color-mix(in oklab)` so it auto-adapts to light/dark with the `html.palette-dark` selector.
+- **Tailwind CSS v4**: `src/app.css` declares the `@theme` block that maps tokens to Tailwind utilities; `@tailwindcss/vite` plugin wired in `vite.config.ts`. Legacy `--darkXX` opacity tokens were migrated to solid `--neutral-XXX` colors across 50+ component files.
+- **`cn()` utility** in `src/lib/utils.ts` combines `clsx` and `tailwind-merge`; `class-variance-authority` is available for variant-driven components.
+- **Toast migration to sonner**: Custom React Context toast replaced by `sonner@^2.0.7`. `Toast.tsx` shrank from ~97 to 35 lines; `useToast()` hook still returns `{ toast }` for call-site compatibility. Toaster is `top-center`, `richColors`, content-hugging width via scoped `Toast.css`. Backup screen no longer reads `VITE_DEV_NSEC` directly — private-key copy still goes through normal password verification.
+
 ### Asset Amount Precision
 - **bigint-based amount math**: `unitsToCents` / `centsToUnits` operate on `bigint`; `AssetOption.balance` and tx-asset `amount` are now `bigint`. Asset metadata `supply` is `bigint` and serialised via a `JSON.stringify` replacer that converts bigint → string.
 - **`prettyAssetAmount(amount, decimals, useGrouping?)`**: New formatter in `src/lib/assets.ts` that splits whole/fractional via BigInt arithmetic so values like `1.5 USDT` no longer truncate; takes `useGrouping` for numeric inputs. Companion helpers: `prettyAssetNumber`, `prettyAssetAmountHide`, `isValidDecimals` (allows 0–`MAX_DECIMALS=8`).
@@ -88,8 +94,11 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Custom component library** (Ionic React removed) — buttons, inputs, modals, sheets built in-tree
 - **react-spring-bottom-sheet** for bottom sheet modals
 - **Vite** for fast builds and development server
-- **@arkade-os/sdk** (0.4.24) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.28) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
+- **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
+- **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
+- **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
+- **@arkade-os/sdk** (0.4.25) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.3.29) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
 - **@tanstack/react-virtual** for virtualized swap list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
@@ -184,7 +193,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.24, @arkade-os/boltz-swap 0.3.28
+**Dependencies**: @arkade-os/sdk 0.4.25, @arkade-os/boltz-swap 0.3.29
 
 ## Getting Started
 

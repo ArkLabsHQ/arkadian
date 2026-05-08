@@ -32,6 +32,7 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Move Bitcoin between different blockchains
 - Supported: Bitcoin mainchain, Liquid sidechain, EVM chains
 - Enables cross-chain liquidity without bridges or wrapped tokens
+- 0-amount EVM commitments accepted for chain swaps so they enter the same renegotiation flow as UTXO lockups when the lockup amount is unknown ahead of time
 
 ### Advanced Features
 

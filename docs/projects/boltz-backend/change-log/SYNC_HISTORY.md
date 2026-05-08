@@ -1,5 +1,27 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-08 - Documentation Update
+**Commit**: `40b0eba4` (boltz-backend repository)
+**Previous Sync**: `4bc60b4d`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits
+
+**Features Added**:
+- EVM 0-amount commitments for chain swaps (#1389): `Commitments` contract wrapper now accepts 0-amount commitment lookups and `EthereumNursery` runs the same amount checks for 0-amount chain-swap lockups, routing them into the existing renegotiation flow used by UTXO lockups. New 176-line `Commitments.spec.ts` integration suite and 95-line `EthereumNursery.spec.ts` unit suite cover the new path.
+
+**Bug Fixes**:
+- Skip commitment lookup for server lockups (#1394): chain-swap server-side EVM refunds (`refundEther` / `refundERC20`) previously failed with `INVALID_LOCKUP_TRANSACTION` whenever a `Commitment` row existed for the swap, because `getIdentifier` returned the user-side commitment's `lockupHash` on every query — a hash computed against the receiving chain's contract that could never match a `Lockup` event on the sending chain. `ContractUtils` now skips the commitment lookup for server lockups, with `DeferredClaimer`, `EipSigner`, and `SwapNursery` updated to pass the correct side, plus a 54-line `ContractUtils.spec.ts` integration test and 117-line `SwapNursery.spec.ts` unit test.
+
+**Tooling / Chores**:
+- chore: fix metrics in `boltzr` sidecar (#1395) — minor `boltzr-cli/src/ws.rs` adjustment plus `Cargo.lock` refresh.
+- chore: bump `ip-address` (transitive) from 10.1.0 to 10.2.0 via dependabot (#1393).
+
+**Documentation Impact**: Minor capability addition — added "0-amount EVM commitments for chain swaps" to the master `docs/INDEX.md` boltz-backend Key Capabilities and to project-level INDEX/`project_overview.md` Chain Swaps sections. The cooperative-refund fix and metrics/dependency chores are internal; no public REST API, env-var, component, build, or migration changes.
+
+---
+
 ## 2026-05-07 - Documentation Update
 **Commit**: `4bc60b4d` (boltz-backend repository)
 **Previous Sync**: `85fd54d4`

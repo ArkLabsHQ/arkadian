@@ -204,3 +204,29 @@ Run `arkadian sync-project boltz-swap` to sync with latest repository changes.
 - `docs/projects/boltz-swap/system/project_overview.md` — bump version to 0.3.28, SDK to 0.4.24; replaced "Recent Improvements" with 0.3.26 → 0.3.28 highlights (SW `referralId`)
 - `docs/INDEX.md` — bumped boltz-swap status row to v0.3.28 + SDK 0.4.24 with new SW `referralId` note; updated boltz-swap **Dependencies** line to SDK 0.4.24
 - `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `4c329835`
+
+---
+
+## 2026-05-08 — Sync 0.3.28 → 0.3.29
+
+**From**: `4c32983560415c0bfa892533c2d5ac88f3cc6a8b` (release 0.3.28)
+**To**: `13cffc1133365a3594fb1d56a25bb20b984070f3` (release 0.3.29)
+**Commits Analyzed**: 2 (non-merge)
+**Status**: ✓ Complete
+
+### Notable Changes
+
+**Versions**
+- `@arkade-os/boltz-swap`: 0.3.28 → 0.3.29
+- `@arkade-os/sdk`: 0.4.24 → 0.4.25
+
+**SDK upgrade** (`a3aabf4` — "Upgrade ts-sdk 0.4.25")
+- Single-line dependency bump in `package.json` from `0.4.24` → `0.4.25`, plus regenerated `pnpm-lock.yaml`. No source changes in `src/`, no test changes, no API surface changes.
+
+**Misc**
+- `chore: release 0.3.29` (`13cffc1`) is a pure version bump in `package.json`. The 0.3.29 cut released the SDK 0.4.25 upgrade.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — bumped version to 0.3.29, SDK to 0.4.25; replaced "Recent Improvements" block with 0.3.28 → 0.3.29 (SDK upgrade only)
+- `docs/INDEX.md` — bumped boltz-swap status row to v0.3.29 + SDK 0.4.25 (release-only cut on top of 0.3.28); updated boltz-swap **Dependencies** line to SDK 0.4.25
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `13cffc11`

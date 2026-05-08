@@ -69,6 +69,7 @@ Boltz offers three types of atomic swaps:
    - User sends Bitcoin on one chain
    - Receives Bitcoin on another chain
    - Use case: Move between Bitcoin mainchain, Liquid, or EVM chains
+   - EVM lockups support 0-amount commitments so renegotiation can populate the actual amount later
 
 ### Atomic Swap Mechanism
 - **HTLCs**: Hash Time-Locked Contracts ensure trustless execution

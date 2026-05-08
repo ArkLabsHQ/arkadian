@@ -100,7 +100,7 @@ When `ARKD_IMAGE` is set, `start-env.sh` stops nigiri's arkd container and start
 | Fulmine          | `ghcr.io/arklabshq/fulmine:v0.3.21`                 | 7002 / 7003 / 7004     | Ark wallet + Boltz integration                   |
 | Boltz Backend    | `boltz/boltz:latest`                                | 9000 / 9001 / 9004     | Submarine / reverse swap orchestrator            |
 | Boltz LND        | `btcpayserver/lnd:v0.19.3-beta`                     | 9736 / 10010           | Lightning node used by Boltz                     |
-| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:main`               | 9090                   | LNURL endpoints for testing                      |
+| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.1.0`              | 9090                   | LNURL endpoints for testing                      |
 | Wallet (PWA)     | `ghcr.io/arkade-os/wallet:latest`                   | 3003                   | Browser wallet                                   |
 | Nginx            | `nginx:alpine`                                      | 9069                   | CORS proxy / static fronting                     |
 | Delegator        | (configurable)                                      | 7010 / 7011 / 7012     | Optional delegated-signing service               |

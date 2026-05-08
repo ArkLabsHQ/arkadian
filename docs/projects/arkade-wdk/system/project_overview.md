@@ -31,6 +31,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 | Transaction History | `getTransactionHistory()` via SDK |
 | Boarding Address | Dedicated `getBoardingAddress()` on read-only base |
 | Asset Transfer | `transfer()` is now wired to the SDK's asset send (instead of throwing) |
+| Incoming Funds Subscription | `WalletAccountArkade.subscribeToIncomingFunds(callback)` exposes the SDK's incoming-VTXO notification (used by the RN provider for auto-refresh) |
 | Read-Only Account | `toReadOnlyAccount()` returns a `WalletAccountReadOnlyArkade` backed by `ReadonlySingleKey` |
 | Secure Key Erasure | `sodium_memzero` wipes private key material on `dispose()` |
 | In-Memory Storage Fallback | Manager defaults to in-memory wallet/contract repos when the consumer doesn't supply storage (RN/Bare have no IndexedDB) |
@@ -65,8 +66,8 @@ The wallet manager exposes account indices over the BIP-86 path `m/86'/<network>
 
 | Dependency | Pinned | Role |
 |------------|--------|------|
-| `@arkade-os/sdk` | `0.4.23` | Underlying Ark protocol wallet |
-| `@arkade-os/boltz-swap` | `0.3.25` | Optional Lightning swap integration |
+| `@arkade-os/sdk` | `0.4.25` | Underlying Ark protocol wallet |
+| `@arkade-os/boltz-swap` | `0.3.29` | Optional Lightning swap integration |
 | `@tetherto/wdk-wallet` | `^1.0.0-beta.5` | WDK base `WalletManager` / `WalletAccountReadOnly` classes |
 | `@scure/bip32` | `^2.0.1` | BIP32 HD key derivation |
 | `@scure/base` | `^2.0.0` | Bech32 / base encoding |
@@ -93,9 +94,9 @@ Each submodule is an independent git repository. Local modifications are kept as
 ## Integration Points
 
 - **`@arkade-os/sdk`**: Underlying wallet, transport to arkd, VTXO management.
-- **arkd**: Reached transitively through the SDK; the RN provider also queries `/v1/indexer/vtxos` directly for balance.
-- **Boltz backend**: Reached through `@arkade-os/boltz-swap` when `swapProviderUrl` is set.
-- **Esplora**: Direct REST calls (configurable via `indexerUrl`) for boarding (on-chain) UTXO lookups.
+- **arkd**: Reached transitively through the SDK (offchain VTXO state, fees, history).
+- **Boltz backend**: Reached through `@arkade-os/boltz-swap` when `swapProviderUrl` is set. The manager forwards `referralId: 'arkade-wdk-sdk'` to the `BoltzSwapProvider`.
+- **Esplora**: Direct REST calls for boarding (on-chain) UTXO lookups; offchain/Lightning balance is no longer fetched via direct REST — the RN provider now uses `WalletAccountArkade.getBalance()` instead.
 - **`@tetherto/wdk-react-native-provider`**: Consumes this package via the worklet/HRPC bridge in submodules.
 
 ## Current Implementation Notes
@@ -104,3 +105,4 @@ Each submodule is an independent git repository. Local modifications are kept as
 - BIP21 URIs are accepted directly by `sendTransaction` / `quoteSendTransaction` — `resolveDestination` in `lib/send.js` extracts the inner address/invoice and any `?amount=` carried in the URI.
 - The package public surface is intentionally narrow: `index.js` only exports the manager (default) plus `WalletAccountArkade` and `WalletAccountReadOnlyArkade`. The `lib/*` helpers are internal.
 - Lightning-only methods on `WalletAccountArkade` throw `Lightning support not configured` when `swapProviderUrl` was not supplied — the `arkadeSwaps` field (renamed from `arkadeLightning`) is `null` in that case.
+- The underlying SDK wallet is **not** publicly exposed on `WalletAccountArkade` (the previous `account.wallet` field is now private). Use `account.getBalance()`, `account.getTransactionHistory()`, and `account.subscribeToIncomingFunds(cb)` instead.

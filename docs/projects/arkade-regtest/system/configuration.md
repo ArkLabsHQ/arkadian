@@ -49,7 +49,7 @@ When set, `start-env.sh` brings up `docker-compose.arkd-override.yml` which prop
 | `FULMINE_IMAGE`    | `ghcr.io/arklabshq/fulmine:v0.3.21`      |
 | `BOLTZ_IMAGE`      | `boltz/boltz:latest`                     |
 | `NGINX_IMAGE`      | `nginx:alpine`                           |
-| `LNURL_IMAGE`      | `ghcr.io/arklabshq/lnurl-server:main`    |
+| `LNURL_IMAGE`      | `ghcr.io/arklabshq/lnurl-server:0.1.0`   |
 | `WALLET_IMAGE`     | `ghcr.io/arkade-os/wallet:latest`        |
 
 Override any of these to test specific upstream versions.

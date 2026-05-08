@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.2
-last_sync_commit: 0b51d64fd09c052e6983c5d0f675adae24f80e81
+version: 1.2.3
+last_sync_commit: 7066839d412a1a06df6880ab225ea72d03a3f1db
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -183,10 +183,14 @@ pnpm run format:check
 - **Vite**: Build tool and dev server
 - **Custom component library**: Hand-rolled components (Ionic React removed)
 - **react-spring-bottom-sheet**: Bottom sheet primitive for SheetModal
+- **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite` ^4.2.2): Utility-first styling, configured via `src/app.css` `@theme` block that maps design tokens to Tailwind utilities
+- **Design token system**: `src/tokens.css` is the single source of truth for color ramps (50–950 for purple/green/red/orange/yellow/neutral), typography, and shadow elevation; neutrals use `color-mix(in oklab)` for automatic light/dark adaptation under the `html.palette-dark` selector
+- **clsx + tailwind-merge** via `cn()` utility in `src/lib/utils.ts` (with `class-variance-authority` for variant-driven components)
+- **sonner** (^2.0.7): Toast notifications (replaces previous custom React Context implementation; `useToast()` hook returns `{ toast }` for backward compatibility)
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.24): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.28): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
+- **@arkade-os/sdk** (0.4.25): Ark protocol SDK (wallet operations, VTXOs)
+- **@arkade-os/boltz-swap** (0.3.29): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography

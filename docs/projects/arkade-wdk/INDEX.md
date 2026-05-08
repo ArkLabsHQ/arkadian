@@ -112,8 +112,8 @@ Analysis and summaries of pull requests.
 │  └── examples/wdk-starter-react-native  (Expo demo app)       │
 ├──────────────────────────────────────────────────────────────┤
 │  Underlying Dependencies                                     │
-│  ├── @arkade-os/sdk          0.4.23  (Ark protocol wallet)    │
-│  ├── @arkade-os/boltz-swap   0.3.25  (optional Lightning)     │
+│  ├── @arkade-os/sdk          0.4.25  (Ark protocol wallet)    │
+│  ├── @arkade-os/boltz-swap   0.3.29  (optional Lightning)     │
 │  ├── @tetherto/wdk-wallet    1.0.0-beta.5 (WDK base classes)  │
 │  ├── sodium-universal        ^5.0.1  (sodium_memzero)         │
 │  └── @scure/bip32, @scure/base, light-bolt11-decoder          │
@@ -126,6 +126,6 @@ Analysis and summaries of pull requests.
 - **Account index**: A small integer that selects one of the three operational modes (boarding/offchain/lightning), all backed by a per-derivation-path SDK wallet (each call to `getAccount(index)` resolves a distinct BIP-86 derivation path).
 - **Destination auto-detection**: `sendTransaction()` inspects the `to` field and routes Ark addresses, BTC addresses, BOLT11 invoices, and BIP21 URIs (which are resolved internally) to the correct path.
 - **HRPC bridge**: React Native provider talks to a bare-kit worklet (`pear-wrk-wdk`) over HRPC, which in turn calls `@arkade-os/sdk`.
-- **Direct indexer / Esplora**: For arkade networks the RN provider hits the Ark indexer (`/v1/indexer/vtxos`) and Esplora REST directly to compute balances and watch incoming funds — this is the in-the-default RN pipeline, not a transient workaround.
+- **RN-side balance resolution**: For arkade networks the RN provider initialises a local `@arkade-os/wdk` account with Expo adapters and asks it for the offchain/Lightning balance via `WalletAccountArkade.getBalance()`. Esplora REST is still queried directly for the boarding (on-chain) balance. The provider also subscribes to incoming Arkade funds via `account.subscribeToIncomingFunds()` to auto-refresh the UI.
 - **Secure key erasure**: Private key material is wiped via `sodium_memzero` on `dispose()`, and the master HDKey is wiped immediately after derivation.
 - **Patch-based submodule overlay**: Local changes to `packages/*` and `examples/*` are tracked as patch files under `./patches/`, applied by `scripts/setup-dev.js`.

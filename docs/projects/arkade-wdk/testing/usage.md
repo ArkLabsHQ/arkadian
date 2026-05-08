@@ -91,6 +91,18 @@ await lightning.getLightningFees()            // fee schedule
 
 All Lightning methods throw `Lightning support not configured. Provide swapProviderUrl in wallet config.` when `arkadeSwaps` is `null`.
 
+## Watch Incoming Funds
+
+```js
+const unsubscribe = await account.subscribeToIncomingFunds(() => {
+  console.log('new VTXOs arrived')
+})
+// later:
+unsubscribe()
+```
+
+Pass-through to the SDK wallet's `notifyIncomingFunds(callback)`. The RN provider uses this to auto-refresh balances on incoming Arkade funds. The underlying SDK wallet is no longer exposed on `WalletAccountArkade`, so use this method instead of reaching for `account.wallet.notifyIncomingFunds(...)`.
+
 ## Read-Only Account
 
 ```js

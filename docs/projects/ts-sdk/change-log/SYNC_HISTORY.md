@@ -261,3 +261,50 @@
 - `wallet.network` is now mandatory at unroll time (regtest fix) but already present on every `Wallet` instance, so no caller-side change required
 - Tier 1 of `#480` only — further tiers may follow
 
+---
+
+## 2026-05-08 - Release 0.4.25 + Tier 2 script-scoped repository methods
+**Previous Commit**: `cf09b7277d04c5e68831100f7795d2d356c35ae9`
+**Current Commit**: `2707b59d87df66f3ea5731150250895d6883e0ae`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for 0.4.25 release
+
+**Commits Analyzed**:
+- `2707b59` chore: release 0.4.25
+- `1727c7f` fix(vtxo): script-scoped repository methods across backends (Tier 2 of #480) (#482)
+
+**Documentation Changes**:
+- Bumped SDK version 0.4.24 → 0.4.25 in `INDEX.md`, `system/project_overview.md`, master `docs/INDEX.md` (status row)
+- `INDEX.md`: extended Ownership Gating Key Concept with the Tier 2 dispatch (optional script-scoped methods, native backend implementations, `VtxoRepositoryKey`, fallback semantics)
+- `system/project_overview.md`: extended VTXO Ownership Gating row with Tier 2 dispatch (optional `getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript`, native backend coverage, `VtxoRepositoryKey`)
+- `system/architecture.md`: rewrote `repositories/walletRepository.ts` annotation to call out the Tier 2 optional methods, `VtxoRepositoryKey`, native backend implementations (IndexedDB script index + outpoint dedup, SQL `WHERE script = ?`, Realm `filtered`), and the re-thrown DB-error policy in `getVtxosForScript`; extended `contracts/vtxoOwnership.ts` annotation to describe the dispatch helpers (`getVtxosForContract` / `saveVtxosForContract`) and the call sites that adopt them (`wallet.ts`, `contractManager.ts`, `contractWatcher.ts`)
+- Master `docs/INDEX.md`: extended ts-sdk VTXO ownership-gating capability bullet for Tier 2; rewrote the 0.4.25 status row to lead with Tier 2
+
+**Notable Source Changes**:
+- **Tier 2 ownership gating (`#482` = Tier 2 of `#480`)**: `WalletRepository` interface gains three optional methods — `getVtxosForScript(script)`, `saveVtxosForScript({ script, address? }, vtxos)`, `deleteVtxosForScript(script)` — plus a new `VtxoRepositoryKey` type (`{ script: string; address?: string }`, address still required by current backends). All SDK-shipped backends implement them natively:
+  - `InMemoryWalletRepository`: scans every address bucket, applies `isVtxoForScript`, dedups by `${txid}:${vout}` (last-write-wins via `mergeByKey`)
+  - `IndexedDBWalletRepository`: uses the `script` IDB index (`store.index("script").getAll(script)`) + a defensive script filter; outpoint dedup runs on the raw rows so the address tiebreaker (`shouldReplaceVtxo`) stays applicable; DB errors are now re-thrown rather than swallowed to `[]`
+  - `SQLiteWalletRepository`: simple `WHERE script = ?` on the vtxos table for read/delete; save validates each VTXO with `isVtxoForScript` before delegating to `saveVtxos(address, vtxos)`
+  - `RealmWalletRepository`: `realm.objects("ArkVtxo").filtered("script == $0", script)` for read/delete; same per-VTXO validation on save
+- New dispatch helpers in `src/contracts/vtxoOwnership.ts`:
+  - `getVtxosForContract(repo, contract)` calls `repo.getVtxosForScript?` if present, else falls back to `filterVtxosForScript(await repo.getVtxos(contract.address), contract.script)`
+  - `saveVtxosForContract(repo, contract, vtxos)` calls `repo.saveVtxosForScript?` if present, else runs `validateVtxosForScript(...)` and delegates to `repo.saveVtxos(contract.address, vtxos)` (the validation is the bug fix from the "validate scripts in saveVtxosForContract fallback path" sub-commit — previously the fallback path could silently persist wrong-script rows)
+- Adopted call sites:
+  - `ContractManager.fetchContractVtxos` per-address upsert loop now finds the `Contract` and routes via `saveVtxosForContract`; previously could throw on `Map.get(...)!` for vtxos whose script wasn't in the contract set — the new loop `continue`s instead
+  - `ContractManager.getContractVtxos` (read path uses `getVtxosForContract` instead of `getVtxos(address) + filterVtxosForScript` inline)
+  - `ContractManager.reconcilePendingFrontier` and `fetchContractVxosFromIndexer` (both saves go through `saveVtxosForContract`)
+  - `ContractWatcher.seedLastKnownVtxos` baseline (read goes through `getVtxosForContract`)
+  - `Wallet.updateDbAfterOffchainTx` and `Wallet.updateDbAfterSettle` (per-script grouping now writes directly via `saveVtxosForContract` instead of building an intermediate `byAddress` map; change VTXOs route through the same helper)
+  - `worker/expo/processors/contractPollProcessor.ts` (script-gated processor reads adopted)
+- `.gitignore`: added `*.idb` (IndexedDB JSON dump artefacts from local development)
+
+**Tests Added**:
+- `test/repositories/walletRepository.test.ts`: +99 lines covering the new script-scoped methods at the interface level (the `each` matrix already runs every test against every backend)
+- `test/sqlite-wallet-repository.test.ts`: +80 lines for the SQL-specific path
+- `test/wallet.test.ts`: +53 lines / −23 lines covering the dispatch helper paths in `updateDbAfterOffchainTx` / `updateDbAfterSettle`
+
+**Notes**:
+- No breaking changes: the new repo methods are optional (`?:`), so external `WalletRepository` implementations that only support Tier 1 keep working through the address-bucket fallback (now with proactive script validation on save)
+- No new public exports beyond the interface widening; module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
+- Tier 2 of `#480`; further tiers may follow
+

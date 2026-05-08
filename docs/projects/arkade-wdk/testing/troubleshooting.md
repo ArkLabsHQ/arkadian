@@ -41,9 +41,9 @@ new WalletManagerArkade(seed, {
 
 **Symptom:** Offchain or Lightning balance reads correctly on web/regtest, but stays at `0` on a physical Android device.
 
-**Cause:** The default `@arkade-os/sdk` Esplora URL (`http://localhost:3000`) is unreachable from a physical device.
+**Cause:** The Arkade wallet config (`arkServerUrl` / `esploraUrl`) is unreachable from the device, or the RN-side Arkade account did not initialise.
 
-**Resolution:** The RN provider hits the Ark indexer + Esplora REST APIs directly from the RN side. Set `indexerUrl` (virtual mempool) and a reachable `esploraUrl` on the Arkade chain config. Confirm `setup:dev` applied the provider patch and that incoming-funds auto-refresh is wired (see `feat(provider): auto-refresh balance on incoming Arkade funds`).
+**Resolution:** The RN provider now runs the Arkade wallet on the RN JS thread and reads offchain/Lightning balances via `WalletAccountArkade.getBalance()` (boarding still uses Esplora REST directly). Make sure `arkServerUrl` and `esploraUrl` are reachable from the device, and confirm `setup:dev` applied the provider patch so the local Arkade account is constructed and the `subscribeToIncomingFunds` hook is wired for auto-refresh. The previous direct `/v1/indexer/vtxos` workaround has been retired in favour of this path.
 
 ---
 

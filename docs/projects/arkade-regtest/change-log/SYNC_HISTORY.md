@@ -1,5 +1,24 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-05-08 - Sync update
+**From**: `1a10171ead42248d8e8183244ea398e78c47f940`
+**To**: `6333e4b889edad99e3651e62c25875d009adc854`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 1
+
+**Upstream commits**:
+- `6333e4b` chore: pin lnurl-server to versioned image 0.1.0
+
+**Changes**:
+- `system/configuration.md` — Updated `LNURL_IMAGE` default from `ghcr.io/arklabshq/lnurl-server:main` to `ghcr.io/arklabshq/lnurl-server:0.1.0` in the Pinned Image Versions table.
+- `INDEX.md` (project) — Updated the LNURL Server image row in the Services / Default Ports table to the pinned `:0.1.0` tag.
+
+**Notes**:
+- Single-line `.env.defaults` change pinning the LNURL server image to a versioned tag (`0.1.0`) instead of the floating `main` tag. Non-breaking; reproducibility improvement.
+- Master `docs/INDEX.md` not updated — no new capabilities, services, ports, or images; the master entry does not reference specific image tags for LNURL.
+
+---
+
 ## 2026-05-07 - Sync update
 **From**: `ed8bf9079bf182bdbc854022e2cd8b35334f97a7`
 **To**: `1a10171ead42248d8e8183244ea398e78c47f940`

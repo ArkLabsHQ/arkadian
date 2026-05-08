@@ -1,5 +1,31 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-08 - Operational Memory Sync (no doc changes)
+**Commit Range**: `2a6636a2..9b6287d8` (18 commits)
+**Previous Sync**: `2a6636a26f4ad34520f7baa12934fa73c330040f`
+**Current Sync**: `9b6287d86ef19de8fb533f1c70b76faa7eab5286`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 14 files changed, all under `memory/` (agent-logs, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity: security-triage (5 runs), release-coordinator (5 runs), repo-detector, repo-sync, sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync, research-monitor
+- Notable operational events captured in memory only: ts-sdk v0.4.25 released 2026-05-07 (integration CI failure flagged); arkd #1048 indexer DoS still unpatched; go-sdk 6 APPROVED PRs backlogged with zero releases (ci_integration red 4+ days); GOV#17 (ts-sdk#482 AI-only merge) and GOV#18 (arkd#1058 self-merged, zero reviews) logged; ARKD_SCHEDULER_TYPE silently ignored flagged ops-critical; Lightspark Grid competitive alert (175M Visa merchants, 33 countries)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, or policies
+
+**Files Updated**:
+- `change-log/last-sync.txt` → `9b6287d86ef19de8fb533f1c70b76faa7eab5286`
+- `change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, and agent count unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per-project `INDEX.md` retains `last_sync_commit: 9f70e22f…` (no agent-roster change since last material sync)
+
+---
+
 ## 2026-05-07 - Operational Memory Sync (no doc changes)
 **Commit Range**: `9f70e22f..2a6636a2` (19 commits)
 **Previous Sync**: `9f70e22f1c6d9e6a140e3c335dc2fd16abca264f`

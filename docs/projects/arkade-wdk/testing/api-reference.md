@@ -110,6 +110,9 @@ class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   transfer(options: { token: string; recipient: string; amount: number | bigint }):
     Promise<{ hash: string; fee: bigint }>
   sign(message: string): Promise<string>              // BIP322 sign
+  subscribeToIncomingFunds(
+    callback: (coins: import('@arkade-os/sdk').IncomingFunds) => void,
+  ): Promise<() => void>                              // returns unsubscribe handle
   toReadOnlyAccount(): Promise<WalletAccountReadOnlyArkade>
   dispose(): void                                     // wipes private key, disposes swaps
 
@@ -153,6 +156,10 @@ Returns `{ hash, fee }`.
 ### `sign(message)`
 
 BIP322 sign using `wallet.identity` from the SDK.
+
+### `subscribeToIncomingFunds(callback)`
+
+Pass-through to the SDK wallet's `notifyIncomingFunds(callback)`. Resolves to an unsubscribe function. The RN provider uses this to fire balance-listener callbacks when new VTXOs arrive. Replaces direct access to `account.wallet.notifyIncomingFunds(...)`, which is no longer available because the underlying SDK wallet is now private.
 
 ### `toReadOnlyAccount()`
 
@@ -234,3 +241,7 @@ Consumers should rely on the WDK contract (`sendTransaction` / `quoteSendTransac
 
 - `TransactionType.EMAIL` routing (the enum value exists but no implementation).
 - WDK `initialize()` is not overridden on the read-only base; signing-only setup happens lazily during `getAccountByPath`.
+
+## Removed / No Longer Public
+
+- `WalletAccountArkade.wallet` (`IWallet`) — the underlying `@arkade-os/sdk` wallet is no longer exposed on the account. Consumers that previously read `account.wallet.getBalance()`, `account.wallet.notifyIncomingFunds(...)`, etc. should switch to `account.getBalance()`, `account.subscribeToIncomingFunds(...)`, and `account.getTransactionHistory()`.

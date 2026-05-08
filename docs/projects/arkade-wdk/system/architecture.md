@@ -86,6 +86,7 @@ Signing account. Extends `WalletAccountReadOnlyArkade` and adds:
   - Dispatch through the SDK or `ArkadeSwaps`.
 - `transfer(options)` — issues an asset-only send via the SDK (`wallet.send({ address, assets: [...] })`) and returns the SDK txid plus an offchain-fee estimate.
 - `sign(message)` — BIP322 sign with `wallet.identity`.
+- `subscribeToIncomingFunds(callback)` — thin pass-through to `wallet.notifyIncomingFunds(callback)` so consumers can react to new VTXOs without reaching into the (now-private) SDK wallet.
 - `toReadOnlyAccount()` — builds an `IReadonlyWallet` projection of the SDK wallet (using `ReadonlySingleKey.fromPublicKey(...)` and a narrowed `assetManager` exposing only `getAssetDetails`) and wraps it in `WalletAccountReadOnlyArkade`.
 - `dispose()` — wipes the private key, disposes `arkadeSwaps`, and forwards to the base if it ever gains a `dispose()`.
 
@@ -119,7 +120,7 @@ All Lightning methods route through `_requireSwaps()`, which throws `Lightning s
 
 ## Lightning Layer
 
-When `swapProviderUrl` is set, the manager builds a `BoltzSwapProvider({ apiUrl, network })` (network resolved from cached `arkInfo`) and constructs `ArkadeSwaps.create({ wallet, swapProvider, swapManager: { autoStart: true, pollInterval: 5_000 } })`. A consumer-supplied `swapRepository` (e.g. SQLite) is forwarded if present in config.
+When `swapProviderUrl` is set, the manager builds a `BoltzSwapProvider({ apiUrl, network, referralId: 'arkade-wdk-sdk' })` (network resolved from cached `arkInfo`) and constructs `ArkadeSwaps.create({ wallet, swapProvider, swapManager: { autoStart: true, pollInterval: 5_000 } })`. A consumer-supplied `swapRepository` (e.g. SQLite) is forwarded if present in config. The `referralId` is hard-coded so Boltz can attribute swaps to the WDK adapter.
 
 This unlocks the Lightning surface listed above: invoice creation, payment waiting/claim, pending-swap queries, swap history, limits/fees.
 
@@ -167,17 +168,16 @@ pear-wrk-wdk                         (packages/pear-wrk-wdk, patched)
 
 The RN provider was refactored (`refactor(provider): run Arkade wallet on RN side, not Bare worklet`) so the Arkade `WalletManagerArkade` is constructed on the RN JS thread — only the bare-kit worklet handles other (non-Arkade) chains.
 
-## Direct Indexer / Esplora Path (RN Balance)
+## RN Balance Path
 
-For arkade networks, the RN provider calls REST endpoints directly to compute balances and watch incoming funds:
+For arkade networks, the RN provider runs the Arkade wallet on the RN JS thread and reads the offchain/Lightning balance from it directly:
 
-- **Offchain/Lightning balance**: `GET ${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true`
-- **Boarding balance**: `GET ${esploraUrl}/address/${addr}/utxo`
-- **Indexer URL**: configurable via `indexerUrl` on the Arkade chain config (virtual-mempool override).
+- **Offchain/Lightning balance**: `await arkadeAccount.getBalance()` (which delegates to the SDK `wallet.getBalance().total` under the hood).
+- **Boarding balance**: `GET ${esploraUrl}/address/${addr}/utxo` against the boarding address resolved from `WalletAccountArkade.getBoardingAddress()`.
 
-A small inline bech32m decoder (`arkAddressToPkScript`) extracts the pkScript from the Ark address without adding a dependency. The cross-checked counterpart lives in `src/lib/bech32m.js`.
+The previous direct `/v1/indexer/vtxos` REST workaround (with the inline bech32m `arkAddressToPkScript` decoder) has been retired from the provider for offchain balances now that the wallet runs on the RN side. The cross-checked `arkAddressToPkScript` still lives in `src/lib/bech32m.js` for any consumer that still needs it.
 
-The provider also auto-refreshes balances on incoming Arkade funds (a recent enhancement; see `feat(provider): auto-refresh balance on incoming Arkade funds`).
+The provider auto-refreshes balances on incoming Arkade funds by subscribing via `arkadeAccount.subscribeToIncomingFunds()` (replacing the previous direct call to the SDK wallet's `notifyIncomingFunds` through the now-private `wallet` field).
 
 ## Submodule + Patch Model
 

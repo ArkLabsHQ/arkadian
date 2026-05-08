@@ -67,7 +67,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.24` |
+| Version | `0.4.25` |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
 | Package Manager | pnpm 10.29.2 |
@@ -131,7 +131,7 @@ Analysis and summaries of pull requests.
 - **Identity**: Key management abstraction — SingleKey, SeedIdentity (HD), MnemonicIdentity. Seed-backed and watch-only identities take a wildcard descriptor template (`tr(.../0/*)`) and expose it as `identity.descriptor`
 - **Descriptor Provider**: Pure rotating allocator (`getNextSigningDescriptor`) — `StaticDescriptorProvider` for single-key, `HDDescriptorProvider` for HD receive rotation
 - **VTXOs**: Virtual transaction outputs managed off-chain via Ark protocol. Cache reconciliation is surgical: `IContractManager.refreshOutpoints(outpoints)` queries the indexer by outpoint, annotates with the owning contract's tapscripts, and upserts at the contract address (no cursor change, no full re-scan). `VtxoManager.revalidateBeforeSettle` pre-flights candidates against the indexer before submitting `renewVtxos` / `runPeriodicSettle` so stale-cache VTXOs are dropped silently rather than driving 60-second `VTXO_ALREADY_SPENT` retry loops. Persisted VTXOs are gated by owning script via `src/contracts/vtxoOwnership.ts` so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup
-- **Ownership Gating**: `vtxoOwnership` helpers run at every contract-scoped read/write site; background sync writers warn-and-skip on unowned scripts, user-initiated wallet write paths throw. `updateDbAfterOffchainTx` / `updateDbAfterSettle` now group spent rows by owning script and route each bucket to its contract's address (multi-contract spends no longer collapse into the primary bucket); `getVtxosFromRepo` fails fast on undecodable wallet addresses (was silently zeroing balance)
+- **Ownership Gating**: `vtxoOwnership` helpers run at every contract-scoped read/write site; background sync writers warn-and-skip on unowned scripts, user-initiated wallet write paths throw. `updateDbAfterOffchainTx` / `updateDbAfterSettle` now group spent rows by owning script and route each bucket to its contract's address (multi-contract spends no longer collapse into the primary bucket); `getVtxosFromRepo` fails fast on undecodable wallet addresses (was silently zeroing balance). Since 0.4.25 (Tier 2 of #480), `WalletRepository` exposes optional script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite); `getVtxosForContract` / `saveVtxosForContract` dispatch helpers in `vtxoOwnership.ts` route to them when present and fall back to Tier 1 address-bucket + filter for custom backends. `VtxoRepositoryKey = { script; address? }` carries both keys (address still required by current backends)
 - **Boarding**: Converting on-chain BTC to off-chain VTXOs
 - **Settlement / Batch**: Participating in Ark rounds to settle VTXOs
 - **Ramps**: Onboard (BTC→VTXO) and offboard (VTXO→BTC) operations

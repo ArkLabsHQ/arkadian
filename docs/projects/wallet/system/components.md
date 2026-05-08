@@ -17,7 +17,7 @@ src/
 │   ├── Checkbox.tsx, Toggle.tsx, Select.tsx, Strength.tsx
 │   ├── Keyboard.tsx           # Custom numeric keyboard
 │   ├── Modal.tsx, SheetModal.tsx (react-spring-bottom-sheet)
-│   ├── Toast.tsx              # Toast notifications
+│   ├── Toast.tsx, Toast.css   # Toast notifications (wraps `sonner`)
 │   ├── Refresher.tsx          # Pull-to-refresh (replaces ion-refresher)
 │   ├── Header.tsx, Content.tsx, Padded.tsx, Grid.tsx
 │   ├── PillNavbarOverlay.tsx  # Bottom nav, root-pages only
@@ -87,7 +87,10 @@ src/
 │   ├── nostr.ts               # Nostr relay operations
 │   ├── utxo.ts                # UTXO/VTXO utilities
 │   ├── vtxo.ts                # VTXO helpers
+│   ├── utils.ts               # `cn()` helper (clsx + tailwind-merge)
 │   └── wallet.ts              # Wallet utilities
+├── tokens.css                 # Design tokens (color ramps, typography, shadows)
+├── app.css                    # Tailwind v4 `@theme` mapping tokens → utilities
 └── icons/                     # SVG icon components
 ```
 
@@ -539,7 +542,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 ### Modals & Feedback
 - **Modal**: Centered modal dialog
 - **SheetModal**: Bottom sheet modal (uses `react-spring-bottom-sheet`)
-- **Toast**: Toast notifications (replaces previous `lib/toast.ts`)
+- **Toast**: Toast notifications, now backed by `sonner@^2.0.7` (PR #589). Re-exports `toast` and a `useToast()` hook returning `{ toast }`; the `<ToastProvider>` mounts a centered, `richColors` `<Toaster>` with project-specific styling. Scoped `Toast.css` centers content so short copy confirmations hug their text.
 - **LoadingLogo**: Full-screen loading state
 - **ErrorBoundary**: React error boundary with fallback UI
 - **BootError**: Boot-time error display

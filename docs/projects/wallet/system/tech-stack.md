@@ -88,9 +88,53 @@ const WalletComponent = () => {
 ### @tanstack/react-virtual 3.13.19
 **Purpose**: Virtualized list rendering — used by `SwapsList` (`useVirtualizer`) for performant scrolling of long swap histories.
 
+### Tailwind CSS v4 (`tailwindcss` ^4.2.2 + `@tailwindcss/vite` ^4.2.2)
+**Purpose**: Utility-first CSS framework, v4 native (CSS-first config, no JS config file)
+
+**Setup**:
+- `@tailwindcss/vite` plugin registered in `vite.config.ts`
+- `src/app.css` declares the `@theme` block, mapping design tokens (colors, typography, shadows) to Tailwind utilities
+- `src/tokens.css` is the single source of truth for color ramps and other tokens
+
+**Token architecture**:
+- Color ramps `50–950` for `purple`, `green`, `red`, `orange`, `yellow`, `neutral`
+- `neutral` ramp built with `color-mix(in oklab)` for automatic light/dark adaptation under the `html.palette-dark` selector
+- Semantic aliases (`--purple`, `--green`, …) reference the ramps; legacy aliases (`--background-color`, `--heading-font`) preserved for backward compatibility
+- All `--darkXX` opacity tokens migrated to solid `--neutral-XXX` colors across 50+ component files (PR #582)
+
+### clsx ^2.1.1 + tailwind-merge ^3.5.0
+**Purpose**: Conditional class composition with Tailwind conflict resolution
+
+**Usage**: Combined into a `cn()` helper in `src/lib/utils.ts`:
+```typescript
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+### class-variance-authority ^0.7.1
+**Purpose**: Type-safe variant-driven component styling — pairs with `cn()` and Tailwind for `Button`, `Badge`, etc.
+
+### sonner ^2.0.7
+**Purpose**: Toast notifications
+
+**Status**: Replaced the previous custom React Context toast in PR #589. `src/components/Toast.tsx` shrank from ~97 to 35 lines and now wraps `<Toaster>` with project-specific defaults; `useToast()` still returns `{ toast }` for call-site compatibility. Scoped CSS in `Toast.css` centers Sonner toasts so short copy confirmations hug their content (instead of using the default fixed-width left-aligned layout).
+
+**Usage**:
+```typescript
+import { toast, useToast } from 'components/Toast'
+
+toast.success('Address copied')
+const { toast: t } = useToast()
+t.error('Invoice rejected')
+```
+
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.24
+### @arkade-os/sdk 0.4.25
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -115,7 +159,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.28
+### @arkade-os/boltz-swap 0.3.29
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:

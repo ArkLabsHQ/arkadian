@@ -1,5 +1,33 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-08 — SDK 0.4.25 / boltz-swap 0.3.29, private SDK wallet, RN balance refactor, Boltz referralId
+**Previous Commit**: `c5b9236ab8692f5c3de620e559913ba0e0776216`
+**Current Commit**: `c5f4bd978b6243eb0653d0c1aa8addda91db5923`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (3):
+- `6922e1b` Upgrade ts-sdk 0.4.24 - boltz-swap 0.3.28 *(actually pinned `@arkade-os/sdk@0.4.25` and `@arkade-os/boltz-swap@0.3.29` after the patch landed)*
+- `b9ddce2` fix: balance and transactions retrieval — drops the public `account.wallet` field and adds `subscribeToIncomingFunds`; refactors RN provider to call `WalletAccountArkade.getBalance()` instead of the inline indexer/Esplora workaround
+- `c5f4bd9` Add referralId — `BoltzSwapProvider` constructor now receives `referralId: 'arkade-wdk-sdk'`
+
+**Changes**:
+- Bumped `@arkade-os/sdk` from `0.4.23` → `0.4.25` and `@arkade-os/boltz-swap` from `0.3.25` → `0.3.29` in `INDEX.md` architecture diagram and `system/project_overview.md` runtime dependency table; reflected version pins in master `docs/INDEX.md` arkade-wdk dependency line
+- **Breaking**: documented removal of `WalletAccountArkade.wallet` (the underlying SDK wallet is now private) in `testing/api-reference.md` (added "Removed / No Longer Public" section) and `system/project_overview.md` (Current Implementation Notes)
+- Added `subscribeToIncomingFunds(callback)` method to `testing/api-reference.md` (`WalletAccountArkade` signature + dedicated section) and to `system/architecture.md` (`WalletAccountArkade` bullet list)
+- Added a "Watch Incoming Funds" section to `testing/usage.md` showing the new subscription API
+- Rewrote the RN balance section in `system/architecture.md` ("RN Balance Path") and the corresponding bullet in `INDEX.md` to describe the new RN-side wallet path: offchain/Lightning balance via `WalletAccountArkade.getBalance()`, boarding still via Esplora REST, indexer workaround retired
+- Updated `testing/troubleshooting.md` "Balance is always zero on a real Android device" entry to reflect the new RN path (config focus on `arkServerUrl` / `esploraUrl` and the `subscribeToIncomingFunds` hook)
+- Documented Boltz `referralId: 'arkade-wdk-sdk'` in `system/architecture.md` (`BoltzSwapProvider` constructor) and `system/project_overview.md` integration points
+- Updated `Key Capabilities` block in master `docs/INDEX.md` for arkade-wdk: replaced the "Direct Ark-indexer + Esplora REST workaround" bullet with the new RN-side `getBalance()` + `subscribeToIncomingFunds` bullets and the Boltz `referralId` capability
+
+**Notes**:
+- `getTransactionReceipt` / `getTransactionHistory` paths were unaffected by this sync (they already routed through SDK methods, not the now-private `wallet` field).
+- New unit test `subscribeToIncomingFunds delegates to wallet notifyIncomingFunds` in `src/__tests__/wdk.test.js`; existing test inventory in `system/architecture.md` Testing Posture section already says "node:test specs in `src/__tests__/`", so no per-file change needed there.
+- The `bech32m.js` cross-checked decoder in `src/lib/` is still shipped, but is no longer load-bearing for the RN provider's balance path.
+
+---
+
 ## 2026-05-05 — Dependency bump (ts-sdk 0.4.23, boltz-swap 0.3.25)
 **Previous Commit**: `f95443f9d3c30436ee9dce98e42f16c992304982`
 **Current Commit**: `c5b9236ab8692f5c3de620e559913ba0e0776216`

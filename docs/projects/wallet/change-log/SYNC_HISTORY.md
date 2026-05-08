@@ -1,5 +1,50 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-08 - Documentation Sync
+**Commit**: `7066839d412a1a06df6880ab225ea72d03a3f1db`
+**Previous Sync**: `0b51d64fd09c052e6983c5d0f675adae24f80e81`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 non-merge commits
+
+**Features Added**:
+- Design token system + Tailwind CSS v4 integration (PR #582)
+  - New `src/tokens.css` — single source of truth for color ramps (50–950 across `purple`/`green`/`red`/`orange`/`yellow`/`neutral`), typography, and shadow elevation. Neutral ramp uses `color-mix(in oklab)` for automatic light/dark adaptation under `html.palette-dark`.
+  - New `src/app.css` — Tailwind v4 `@theme` block mapping tokens to utilities; `@tailwindcss/vite` plugin wired in `vite.config.ts`.
+  - New `src/lib/utils.ts` `cn()` helper combining `clsx` + `tailwind-merge`.
+  - All `--darkXX` opacity tokens migrated to solid `--neutral-XXX` colors across 50+ component files; semantic aliases now reference ramps; legacy aliases (`--background-color`, `--heading-font`) preserved.
+
+**Features Modified**:
+- Toast migration to sonner (PR #589)
+  - `src/components/Toast.tsx` shrank from ~97 to 35 lines; wraps `<Toaster>` with project defaults (`top-center`, `richColors`, content-hugging styling).
+  - `useToast()` hook still returns `{ toast }` for backward compatibility; `toast` re-exported directly.
+  - New scoped `src/components/Toast.css` centers Sonner toasts so short copy confirmations hug their content (instead of the default fixed-width left-aligned layout).
+  - `src/providers/config.tsx` now keeps the configured Arkade server even when stale localhost localStorage is present, as long as `VITE_DEV_NSEC` and `VITE_ARK_SERVER` env are set (for funded local dev wallets).
+  - `src/screens/Settings/Backup.tsx` no longer reads `VITE_DEV_NSEC` directly — private-key display continues to require the normal password verification path (security regression fix during PR #589 review).
+
+**Dependency Updates**:
+- @arkade-os/sdk: 0.4.24 → 0.4.25 (PR #4720cfdc)
+- @arkade-os/boltz-swap: 0.3.28 → 0.3.29 (PR #4720cfdc)
+- Added `tailwindcss@^4.2.2`, `@tailwindcss/vite@^4.2.2`
+- Added `clsx@^2.1.1`, `tailwind-merge@^3.5.0`, `class-variance-authority@^0.7.1`
+- Added `sonner@^2.0.7`
+
+**Configuration Changes**:
+- `vite.config.ts`: registered `@tailwindcss/vite` plugin
+- `src/index.tsx`: imports new design system entry points
+
+**Files Updated**:
+- docs/INDEX.md (wallet capabilities, tags, dependencies — sdk/boltz-swap versions, tailwind/sonner/design-tokens)
+- docs/projects/wallet/INDEX.md (version 1.2.3, last_sync_commit, Core Framework section: Tailwind v4, design tokens, sonner; sdk/boltz-swap versions)
+- docs/projects/wallet/system/project_overview.md (UI/UX section adds Design System & Styling subsection; Technology Stack list updated; sdk/boltz-swap versions)
+- docs/projects/wallet/system/tech-stack.md (new sections for Tailwind v4, clsx + tailwind-merge, class-variance-authority, sonner; sdk/boltz-swap versions)
+- docs/projects/wallet/system/components.md (Toast component now sonner-backed; `tokens.css`, `app.css`, `lib/utils.ts` added to directory listing)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-07 - Documentation Sync
 **Commit**: `0b51d64fd09c052e6983c5d0f675adae24f80e81`
 **Previous Sync**: `7192bdf948d7922dc244abaf928d5496743fd367`
