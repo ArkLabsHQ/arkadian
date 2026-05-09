@@ -1,5 +1,30 @@
 # Boltz Swap Documentation Sync History
 
+## 2026-05-09 — Sync 0.3.29 → 0.3.30
+
+**From**: `13cffc1133365a3594fb1d56a25bb20b984070f3`
+**To**: `e019ba06e7aadf63767bed124a159d5f505e27a5`
+**Version**: 0.3.30
+**Status**: ✓ Complete
+
+### Commits Analyzed
+- `e019ba0` chore: release 0.3.30
+- `3e0cef7` Upgrade ts-sdk 0.4.26
+- `7bb75da` Add default referral ID if not included
+
+### Changes Documented
+- `BoltzSwapProvider` constructor now defaults `referralId` to `"arkade-ts-sdk"` when caller omits it (`src/boltz-swap-provider.ts:1038`); affects every submarine, reverse, and chain swap request unless explicitly overridden.
+- Dependency bump: `@arkade-os/sdk` 0.4.25 → 0.4.26.
+- Version bump: 0.3.29 → 0.3.30.
+
+### Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — version, SDK dep version, BoltzSwapProvider referralId default note, Recent Improvements 0.3.29 → 0.3.30 entry
+- `docs/projects/boltz-swap/testing/api-reference.md` — `BoltzSwapProvider` config `referralId?` default annotation
+- `docs/INDEX.md` — version, SDK dep, status table row
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — new commit hash
+
+---
+
 ## 2026-01-23 — Initial Documentation Sync
 
 **Commit**: `7ba64dd758d341e473e46dc88d51808397d13429`

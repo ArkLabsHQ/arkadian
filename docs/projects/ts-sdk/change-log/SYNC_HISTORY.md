@@ -308,3 +308,32 @@
 - No new public exports beyond the interface widening; module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
 - Tier 2 of `#480`; further tiers may follow
 
+---
+
+## 2026-05-09 - Release 0.4.26 (ESM-compatible declarations + typedoc polish)
+**Previous Commit**: `2707b59d87df66f3ea5731150250895d6883e0ae`
+**Current Commit**: `0c7b4bb8fa2c792bee054a1f6114805e61122c58`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for 0.4.26 release
+
+**Commits Analyzed**:
+- `0c7b4bb` chore: release 0.4.26
+- `b9a6d9b` chore: improve typedoc comments, use `as const` for default constants (#484)
+- `bffa9be` fix(types): emit ESM-compatible declaration imports (#485)
+
+**Documentation Changes**:
+- Bumped SDK version 0.4.25 → 0.4.26 in `INDEX.md`, `system/project_overview.md`, master `docs/INDEX.md` (status row)
+- Master `docs/INDEX.md`: extended ts-sdk status row with the 0.4.26 ESM `.d.ts` import-rewrite fix and the typedoc / `as const` defaults polish
+
+**Notable Source Changes (no architectural redesign, no public-API surface change)**:
+- `scripts/add-extensions.js`: declaration-emit pass now rewrites import specifiers in generated `.d.ts` files alongside `.js` files, so consumers under `"moduleResolution": "node16" / "bundler"` no longer hit `Cannot find module './foo'` errors when they typecheck against the published types. Touched call-sites: `src/extension/index.ts`, `src/script/delegate.ts`, `src/utils/transaction.ts`, `src/wallet/delegator.ts`, `src/wallet/utils.ts` (these are the imports the build script now consistently rewrites; runtime behaviour unchanged)
+- `src/wallet/index.ts`: `DEFAULT_ARKADE_HRP` and `DEFAULT_NETWORK_NAME` now declared `as const` (matching the existing treatment of `DEFAULT_ARKADE_SERVER_URL`); typedoc on `VirtualCoin` reordered and clarified — `script` and `isUnrolled` are now described as positive-knowledge fields ("locking scriptPubKey", "broadcasted onchain via an unroll"), `isSpent` annotated as a boolean helper for `spentBy` that explicitly excludes unrolled/swept states
+- `src/script/address.ts`: typedoc-only refinements (no behaviour change)
+
+**Tests Added**: none (changes are typedoc / build-script / type-level only)
+
+**Notes**:
+- `scripts/add-extensions.js` is the build helper invoked after `tsc` to add explicit `.js` extensions to import paths so the published bundle works in strict ESM resolvers; the 0.4.26 fix extends the same rewrite to `.d.ts` files so types resolve identically
+- No public API was added or removed; runtime semantics are unchanged
+- Consumers seeing `TS2307: Cannot find module …` against `@arkade-os/sdk` types under `node16` / `bundler` resolution should upgrade to 0.4.26
+

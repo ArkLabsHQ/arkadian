@@ -93,4 +93,10 @@ Before requesting review:
 
 ## Release Cadence
 
-`@arkade-os/wdk` is at `0.1.0`. Releases are manual: bump `package.json#version`, then `npm publish` (which triggers `prepublishOnly` → `npm run build:types`) from a maintainer machine. Coordinate version bumps with downstream consumers (notably `wdk-react-native-provider`).
+`@arkade-os/wdk` is at `0.1.1`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org:
+
+1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, creates a tag, and commits.
+2. `git push && git push --tags`.
+3. `npm publish` — `prepublishOnly` runs `npm run build:types` automatically so `types/` is always in sync.
+
+Only `src/` and `types/` are included in the tarball (per the `files` field in `package.json`). Coordinate version bumps with downstream consumers (notably `wdk-react-native-provider`).

@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-09 - Documentation Update
+**Commit**: `42f58837` (arkd repository)
+**Previous Sync**: `2999d666`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `42f58837` Hotfix: prevent failure on SubmitTx to affect finalization of pending tx (#1063)
+
+**Bug Fixes**:
+- `service.SubmitOffchainTx` (`internal/core/application/service.go`): the `defer` that emits a `Fail` event and persists changes via `repoManager.Events().Save(...)` is now registered **after** the initial `OffchainTxRequested` event is appended to `changes`, instead of at function entry. Previously, an error during input validation / `offchain.NewTransaction(...)` could fire the deferred handler and persist a `Fail` event for an offchain-tx aggregate that had no preceding `Requested` event, corrupting the event stream and blocking finalization of subsequent pending txs sharing the same txid space.
+- e2e test (`internal/test/e2e/e2e_test.go`) extended to cover the SubmitTx-failure-during-pending-finalization scenario.
+
+**Files Updated**:
+- docs/projects/arkd/INDEX.md (version 1.3.2 → 1.3.3, sync commit + date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Pure internal bug fix. No changes to capabilities, tags, triggers, dependencies, configuration, env vars, gRPC/REST API surface, build/test workflow, or architecture — `docs/INDEX.md` and the `system/`, `testing/`, `sop/` doc files require no updates.
+
+---
+
 ## 2026-05-08 - Documentation Update
 **Commit**: `2999d666` (arkd repository)
 **Previous Sync**: `216951ee`

@@ -39,7 +39,7 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 |-------|------|----------------------------|
 | 0 | boarding | On-chain BTC deposit address |
 | 1 | offchain | Ark address (Taproot) |
-| 2 | lightning | `''` (empty) — generate invoice via `createLightningInvoice` |
+| 2 | lightning | Ark address (also exposed); for receive use `createLightningInvoice` |
 
 ```js
 const boarding = await wdk.getAccount('bitcoin', 0)
@@ -65,16 +65,19 @@ const { invoice, paymentHash } = await lightning.createLightningInvoice(
 const { txid } = await lightning.waitForLightningPayment(invoice)
 ```
 
-## Pay BOLT11 / BIP21
+## Pay BOLT11 / BIP21 / Lightning Address / LNURL
 
 `sendTransaction` accepts:
 
 - Ark addresses, BTC addresses, BOLT11 invoices (auto-detected).
-- BIP21 URIs — the inner address/invoice and any `?amount=` carried in the URI are extracted automatically.
+- BIP21 URIs — the inner address/invoice/LNURL and any `?amount=` carried in the URI are extracted automatically (priority: lightning > ark > lnurl > bitcoin).
+- Lightning addresses (`user@wallet.com`) and LNURLs — auto-detected and routed through LNURL: an Ark address is tried first via `fetchArkAddress` (offchain fast path), then BOLT11 via `fetchInvoice` + Boltz submarine swap. Requires `swapProviderUrl` and a positive `value`.
 
 ```js
 await account.sendTransaction({ to: 'bitcoin:bc1q...?amount=0.001', value: 100_000n })
 await account.sendTransaction({ to: '<BOLT11 invoice>', value: 50_000n })
+await account.sendTransaction({ to: 'user@wallet.com', value: 1000n })
+await account.sendTransaction({ to: 'lnurl1...', value: 1000n })
 ```
 
 ## Lightning Lifecycle
@@ -171,5 +174,5 @@ The `lib/*` helpers (address detection, BIP21, fees, formatting, LNURL) are **in
 ## Known Caveats
 
 - `transfer()` only handles asset sends; for plain Bitcoin/Ark sends use `sendTransaction`.
-- `TransactionType.EMAIL` is reserved in the routing enum but not implemented.
+- `TransactionType.EMAIL` (Lightning address / LNURL) requires `swapProviderUrl` and a positive `value` — the LNURL Ark-address fast path needs the receiver's LNURL endpoint to advertise an Ark address, otherwise it falls back to BOLT11.
 - `getTokenBalance(...)` returns `0n` unless the asset is present in `wallet.getBalance().assets`.

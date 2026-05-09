@@ -9,7 +9,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 ## Package
 
 - **npm**: `@arkade-os/wdk`
-- **Version**: `0.1.0`
+- **Version**: `0.1.1`
 - **License**: MIT
 - **Repository**: `ArkLabsHQ/arkade-wdk`
 - **Source**: ships `src/*.js` directly (JavaScript with JSDoc); declaration files emitted into `types/` via `tsc -p tsconfig.json`.
@@ -21,8 +21,8 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 | WDK WalletManager | `getAccount`, `getAccountByPath`, `getFeeRates`, `dispose` over per-path SDK wallets |
 | Three Account Indices | Boarding (0), Offchain (1), Lightning (2) — via BIP-86 paths |
 | Send/Sign/Verify/Quote | Standard WDK account methods, plus read-only conversion |
-| Destination Auto-Detection | Ark address, BTC address, BOLT11 invoice, **and BIP21 URIs** routed automatically |
-| LNURL / Lightning Address | `fetchInvoice`, limits, callback resolution helpers (internal) |
+| Destination Auto-Detection | Ark address, BTC address, BOLT11 invoice, Lightning address, LNURL, **and BIP21 URIs** routed automatically |
+| LNURL / Lightning Address | Native routing via `sendTransaction()` (`EMAIL` → LNURL ark-address fast path or BOLT11 fallback); helpers also exported as `lib/lnurl.js` (internal) |
 | BIP21 Helpers | Parse/encode BIP21 URIs (internal `lib/bip21.js`) |
 | Lightning Receive | `createLightningInvoice()` → Boltz reverse swap |
 | Lightning Send | Auto-detect BOLT11 in `sendTransaction()` → Boltz submarine swap |
@@ -44,9 +44,9 @@ The wallet manager exposes account indices over the BIP-86 path `m/86'/<network>
 |-------|-------------|---------|
 | 0 | `boarding` | On-chain BTC deposit address (funds enter the Ark) |
 | 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
-| 2 | `lightning` | Lightning via Boltz swaps (no static address) |
+| 2 | `lightning` | Lightning via Boltz swaps (also exposes the Ark address) |
 
-`getAddress()` returns an empty string for Lightning (index 2). Consumer UIs should detect this and present an amount-input + invoice-generation flow instead of a static QR code. Use `getBoardingAddress()` from the read-only surface to obtain the on-chain deposit address.
+`getAddress()` returns the account's Ark address for **all** indices, including Lightning (index 2). To receive over Lightning, consumer UIs should call `createLightningInvoice()` to generate a BOLT11 invoice instead of treating `getAddress()` as the receive surface. Use `getBoardingAddress()` to obtain the on-chain deposit address.
 
 ## Technology Stack
 
@@ -102,7 +102,8 @@ Each submodule is an independent git repository. Local modifications are kept as
 ## Current Implementation Notes
 
 - `transfer()` is implemented for asset sends; only the read-only `quoteTransfer` returns a fee estimate.
-- BIP21 URIs are accepted directly by `sendTransaction` / `quoteSendTransaction` — `resolveDestination` in `lib/send.js` extracts the inner address/invoice and any `?amount=` carried in the URI.
+- BIP21 URIs are accepted directly by `sendTransaction` / `quoteSendTransaction` — `resolveDestination` in `lib/send.js` extracts the inner address/invoice and any `?amount=` carried in the URI. Resolution priority is `lightning > ark > lnurl > bitcoin`, so explicit Ark parameters take priority over an LNURL fallback.
+- LNURL and Lightning addresses (e.g. `user@wallet.com`) routed through `sendTransaction` / `quoteSendTransaction` map to `TransactionType.EMAIL`. The send path first tries `fetchArkAddress()` to take an offchain Ark fast path; on failure it falls back to `fetchInvoice()` and pays via `arkadeSwaps.sendLightningPayment` (Boltz submarine swap). A non-zero `amount` is required.
 - The package public surface is intentionally narrow: `index.js` only exports the manager (default) plus `WalletAccountArkade` and `WalletAccountReadOnlyArkade`. The `lib/*` helpers are internal.
 - Lightning-only methods on `WalletAccountArkade` throw `Lightning support not configured` when `swapProviderUrl` was not supplied — the `arkadeSwaps` field (renamed from `arkadeLightning`) is `null` in that case.
 - The underlying SDK wallet is **not** publicly exposed on `WalletAccountArkade` (the previous `account.wallet` field is now private). Use `account.getBalance()`, `account.getTransactionHistory()`, and `account.subscribeToIncomingFunds(cb)` instead.

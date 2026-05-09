@@ -16,7 +16,7 @@ Get backend version and supported features.
 **Response**:
 ```json
 {
-  "version": "3.11.0",
+  "version": "3.13.0",
   "gitCommit": "abc123..."
 }
 ```

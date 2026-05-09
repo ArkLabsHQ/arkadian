@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.3
-last_sync_commit: 7066839d412a1a06df6880ab225ea72d03a3f1db
+version: 1.2.4
+last_sync_commit: 582320bdd54fcac021125146556b090484237bb6
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -189,8 +189,8 @@ pnpm run format:check
 - **sonner** (^2.0.7): Toast notifications (replaces previous custom React Context implementation; `useToast()` hook returns `{ toast }` for backward compatibility)
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.25): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.29): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
+- **@arkade-os/sdk** (0.4.26): Ark protocol SDK (wallet operations, VTXOs)
+- **@arkade-os/boltz-swap** (0.3.30): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography

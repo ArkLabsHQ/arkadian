@@ -1,5 +1,48 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-09 — v0.1.1: LNURL/Lightning-address routing, prod Boltz API, CI, npm release flow
+**Previous Commit**: `c5f4bd978b6243eb0653d0c1aa8addda91db5923`
+**Current Commit**: `b2c9f16edbe1f9321ae1286744f80c1c9648d5a7`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (7):
+- `9203da1` fix: use prod Boltz API and code — switches default `swapProviderUrl` examples to `https://api.ark.boltz.exchange`, refactors test/patches to match
+- `3cfd4f3` Update readme and test, obsolete LN code — clarifies that `getAddress()` returns the Ark address for **all** indices (including lightning) and that `swapProviderUrl` is optional; cleans stale README claims about shared SDK wallets
+- `8125479` Version 0.1.1 — `package.json#version` bump
+- `be36e9f` Add release instructions to README — manual `npm version` → `git push --tags` → `npm publish` flow
+- `d8df95b` Implement LNURL payment routing — `TransactionType.EMAIL` is now wired through: `resolveDestination` consumes `decoded.lnurl` from BIP21, `detectTransactionType` recognises Lightning addresses and LNURLs, and `quoteSend` / `send` try `fetchArkAddress` for an Ark fast path before falling back to `fetchInvoice` + `arkadeSwaps.sendLightningPayment`
+- `aeb8be6` Implement CI — replaces the previous stub `.github/workflows/ci.yml` with the real lint+test pipeline
+- `3c47021` Address review — adds `EMAIL`-routing test cases in `phase-0.test.js` and tightens error wording in `send.js`
+
+**Changes**:
+- Bumped documented version `0.1.0` → `0.1.1` in `INDEX.md` (Quick Reference), `system/project_overview.md`, `testing/api-reference.md`, and `sop/development-workflow.md` (Release Cadence)
+- **Feature**: documented LNURL / Lightning-address routing in `sendTransaction` / `quoteSendTransaction`:
+  - Updated send-routing tables in `system/architecture.md`, `testing/api-reference.md` to describe the `EMAIL` path (LNURL `fetchArkAddress` fast path → BOLT11 fallback via `fetchInvoice` + `arkadeSwaps.sendLightningPayment`, requires positive amount, throws on amount mismatch)
+  - Added LNURL/Lightning-address example to `testing/usage.md` "Pay BOLT11 / BIP21 / Lightning Address / LNURL"
+  - Updated `system/project_overview.md` Core Features (`Destination Auto-Detection`, `LNURL / Lightning Address`) and Current Implementation Notes
+  - Documented BIP21 LNURL fallback (`?lnurl=` parameter) and updated resolution priority to `lightning > ark > lnurl > bitcoin` in `system/architecture.md`, `system/project_overview.md`, `testing/usage.md`, `testing/api-reference.md`
+  - Removed `TransactionType.EMAIL` from "Not Implemented" list in `testing/api-reference.md` and "Known Caveats" in `testing/usage.md`
+- **Behaviour change**: documented that `getAddress()` now returns the Ark address for **all** indices including Lightning (was previously documented as `''`):
+  - Updated Account Indices tables in `system/project_overview.md`, `testing/usage.md`, `testing/api-reference.md`
+  - Updated `WalletAccountReadOnlyArkade` JSDoc/typed signature comment in `testing/api-reference.md`
+- Master `docs/INDEX.md`:
+  - Updated arkade-wdk Description (per-path BIP-86 SDK wallets instead of "single underlying SDK wallet")
+  - Refreshed Key Capabilities to mention LNURL routing in `sendTransaction()` and replace the obsolete "single SDK wallet" note
+  - Updated Triggers (added `lightning address routing`, `lnurl payment`, `lnurl routing`, `arkadeSwaps null`, `lnurl payment fails`, `amount mismatch lnurl`; dropped the obsolete `jest setup missing` and `arkadeLightning null` entries)
+  - Removed `npm run build` from test_or_run triggers (no build step) and `apply-patches` (which is not the script name — it's `setup-dev.js`)
+  - Corrected the patch-script reference (`scripts/setup-dev.js` applies; `scripts/generate-patches.js` regenerates)
+- `sop/development-workflow.md`: rewrote "Release Cadence" with the now-documented manual flow (`npm version` → `git push --tags` → `npm publish`, `prepublishOnly` → `npm run build:types`, tarball contains `src/` + `types/` only)
+
+**Notes**:
+- The send pipeline's `EMAIL` path requires `swapProviderUrl` (otherwise `arkadeSwaps` is `null` and `_requireSwaps()` throws). It also requires a positive `value` — the helper `assertPositiveAmount` throws `Amount required for LNURL payment`.
+- New unit tests in `src/__tests__/phase-0.test.js` cover: detect-type for LN addresses, BIP21 with `?lnurl=`, EMAIL routing through `fetchArkAddress` → SDK send, EMAIL routing through `fetchInvoice` → submarine swap, and amount-mismatch with the LNURL invoice.
+- The `pear-wrk-wdk` submodule pin label was corrected (README shows it pinned at "one commit past `v1.0.0-beta.2`" at `ef7a951`, not `1.0.0-beta.4`); local docs already only reference the SHA `ef7a951` in `system/project_overview.md`, so no change was needed there.
+- `--base HEAD` is no longer required when running `node scripts/generate-patches.js` — the script defaults to the parent's pinned SHA. `sop/development-workflow.md` already shows the bare invocation; no change required.
+- CI is now a real workflow (`.github/workflows/ci.yml` carries lint + test only). No new doc surface is needed for CI in this sync — the SOP "Daily Loop" already lists `npm run lint` / `npm test` as the local equivalent.
+
+---
+
 ## 2026-05-08 — SDK 0.4.25 / boltz-swap 0.3.29, private SDK wallet, RN balance refactor, Boltz referralId
 **Previous Commit**: `c5b9236ab8692f5c3de620e559913ba0e0776216`
 **Current Commit**: `c5f4bd978b6243eb0653d0c1aa8addda91db5923`

@@ -1,6 +1,6 @@
 # Arkade WDK — API Reference
 
-Reflects `@arkade-os/wdk` `0.1.0` (post-WDK-conformance refactor). The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
+Reflects `@arkade-os/wdk` `0.1.1` (post-WDK-conformance refactor). The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
 
 ## Public Exports (`src/index.js`)
 
@@ -62,7 +62,7 @@ Extends `WalletAccountReadOnly` from `@tetherto/wdk-wallet`. Backed by an `IRead
 ```ts
 class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
   // address handling inherited from WalletAccountReadOnly
-  getAddress(): Promise<string>                       // '' for lightning (index 2)
+  getAddress(): Promise<string>                       // Ark address for all indices (incl. lightning)
 
   getBoardingAddress(): Promise<string>
   getBalance(): Promise<bigint>                       // total = offchain + onchain
@@ -82,7 +82,7 @@ class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
 |-------|----------|
 | 0 | On-chain BTC boarding address |
 | 1 | Ark address (Taproot) |
-| 2 | `''` (empty string) — UI should switch to invoice flow |
+| 2 | Ark address (Taproot) — for Lightning receive, call `createLightningInvoice` instead of treating this as the receive surface |
 
 ### `getTokenBalance(assetId)`
 
@@ -134,16 +134,16 @@ class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 
 Routes through `lib/send.js#send` / `quoteSend`, which:
 
-1. **Resolve BIP21**: if `tx.to` starts with `bitcoin:` or carries `?ark=` / `?lightning=` / `?amount=`, the inner address/invoice is extracted (priority: lightning > ark > bitcoin).
-2. **Detect type**: Ark / BTC / BOLT11 destinations are dispatched separately.
+1. **Resolve BIP21**: if `tx.to` starts with `bitcoin:` or carries `?ark=` / `?lightning=` / `?lnurl=` / `?amount=`, the inner address/invoice/LNURL is extracted (priority: lightning > ark > lnurl > bitcoin).
+2. **Detect type**: Ark / BTC / BOLT11 / Lightning-address / LNURL destinations are dispatched separately.
 
 | Detected | Implementation |
 |----------|----------------|
 | `ARK_OFFCHAIN` (Ark address) | SDK off-chain send |
 | `BITCOIN_ONCHAIN` (BTC address) | SDK on-chain send |
 | `LIGHTNING` (BOLT11 invoice) | Boltz submarine swap (requires `arkadeSwaps`) |
+| `EMAIL` (Lightning address / LNURL) | LNURL `fetchArkAddress` fast path → SDK off-chain send when an Ark address is returned; else `fetchInvoice` → Boltz submarine swap. Requires `arkadeSwaps` and a positive `value`. Throws on amount mismatch with the LNURL invoice. |
 | BIP21 URI wrapping any of the above | Resolved + re-routed |
-| `EMAIL` (in `TransactionType` enum) | Not implemented |
 
 Returns `{ hash, fee }`.
 
@@ -239,7 +239,6 @@ Consumers should rely on the WDK contract (`sendTransaction` / `quoteSendTransac
 
 ## Not Implemented
 
-- `TransactionType.EMAIL` routing (the enum value exists but no implementation).
 - WDK `initialize()` is not overridden on the read-only base; signing-only setup happens lazily during `getAccountByPath`.
 
 ## Removed / No Longer Public

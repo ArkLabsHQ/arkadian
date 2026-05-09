@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.29`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.30`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -83,7 +83,7 @@ Client for Boltz API server:
 - Status monitoring via REST and WebSocket
 - Fee and limit queries
 - Network-specific endpoints (regtest, mutinynet, mainnet)
-- Referral ID support
+- Referral ID support (defaults to `"arkade-ts-sdk"` when caller does not supply one)
 
 ### SwapManager
 Background service for automated swap monitoring:
@@ -107,7 +107,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.25` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.26` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -211,8 +211,12 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.29
+**Version**: 0.3.30
 **Stability**: Stable API, active feature development
+
+**Recent Improvements (0.3.29 → 0.3.30)**:
+- `BoltzSwapProvider` now defaults `referralId` to `"arkade-ts-sdk"` when the caller does not supply one — every submarine, reverse, and chain swap request is automatically tagged unless explicitly overridden.
+- `@arkade-os/sdk` bumped 0.4.25 → 0.4.26.
 
 **Recent Improvements (0.3.28 → 0.3.29)**:
 - `@arkade-os/sdk` bumped 0.4.24 → 0.4.25 (no boltz-swap source changes — release 0.3.29 is the SDK upgrade cut).

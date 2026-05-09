@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-09 - Documentation Update
+**Commit**: `bd697247` (boltz-backend repository)
+**Previous Sync**: `40b0eba4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Release**:
+- chore: bump version to v3.13.0 (#1396) — `Cargo.toml`, `package.json`, and `swagger-spec.json` bumped from `3.12.1` → `3.13.0`; `Cargo.lock` and `package-lock.json` refreshed accordingly. The accompanying `CHANGELOG.md` entry consolidates the v3.12.1..v3.13.0 history (Ark swaps, EVM chain-swap fixes, cooperative refund/claim hardening, claim-transaction persistence, mempool.space deduplication, dependency bumps, etc.) — all individual items were already captured in prior sync entries (`4bc60b4d`, `85fd54d4`, `4a9c282b`, `ce18517f`, `6ba692ac`, …).
+
+**Documentation Impact**: Minor — refreshed the stale `/version` response example in `testing/api-reference.md` from `3.11.0` → `3.13.0` to match the new release. No public API, capability, dependency-graph, env-var, component, build, or migration changes (this is a release-tagging commit only); project INDEX, system, and remaining testing docs unchanged.
+
+---
+
 ## 2026-05-08 - Documentation Update
 **Commit**: `40b0eba4` (boltz-backend repository)
 **Previous Sync**: `4bc60b4d`

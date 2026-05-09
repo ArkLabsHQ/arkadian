@@ -70,7 +70,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/wdk` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | Language | JavaScript with JSDoc types (Node ESM, ES2022) |
 | Runtime | Node.js >= 18, React Native (via bare-kit worklet `pear-wrk-wdk`) |
 | Package Manager | npm (root); submodules use their own |

@@ -82,7 +82,7 @@ new BoltzSwapProvider(config: SwapProviderConfig)
 **Config**:
 - `network`: "bitcoin" | "mutinynet" | "regtest" (required)
 - `apiUrl?`: Override Boltz API URL
-- `referralId?`: Referral ID for tracking
+- `referralId?`: Referral ID for tracking (defaults to `"arkade-ts-sdk"` when omitted)
 
 ### Key Methods
 

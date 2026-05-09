@@ -81,9 +81,9 @@ Signing account. Extends `WalletAccountReadOnlyArkade` and adds:
 - `keyPair: { publicKey, privateKey }` — `privateKey` is wiped via `sodium_memzero` on `dispose()`.
 - `arkadeSwaps: ArkadeSwaps | null` — present only when the manager was constructed with `swapProviderUrl` (note: renamed from `arkadeLightning`).
 - `sendTransaction(tx)` / `quoteSendTransaction(tx)` — call `lib/send.js#send` / `quoteSend` which:
-  - Resolve BIP21 URIs (extract inner address/invoice + optional `?amount=`).
-  - Detect Ark / BTC / BOLT11 destinations.
-  - Dispatch through the SDK or `ArkadeSwaps`.
+  - Resolve BIP21 URIs (extract inner address/invoice/LNURL + optional `?amount=`).
+  - Detect Ark / BTC / BOLT11 / Lightning-address / LNURL destinations.
+  - Dispatch through the SDK or `ArkadeSwaps` (LNURL tries Ark fast path before falling back to BOLT11).
 - `transfer(options)` — issues an asset-only send via the SDK (`wallet.send({ address, assets: [...] })`) and returns the SDK txid plus an offchain-fee estimate.
 - `sign(message)` — BIP322 sign with `wallet.identity`.
 - `subscribeToIncomingFunds(callback)` — thin pass-through to `wallet.notifyIncomingFunds(callback)` so consumers can react to new VTXOs without reaching into the (now-private) SDK wallet.
@@ -110,11 +110,11 @@ All Lightning methods route through `_requireSwaps()`, which throws `Lightning s
 
 | Detected Type | Path |
 |---------------|------|
-| BIP21 URI (`bitcoin:` / with `?ark=` / `?lightning=` / `?amount=`) | Resolved to inner destination (priority: lightning > ark > bitcoin) and re-routed |
+| BIP21 URI (`bitcoin:` / with `?ark=` / `?lightning=` / `?lnurl=` / `?amount=`) | Resolved to inner destination (priority: lightning > ark > lnurl > bitcoin) and re-routed |
 | Ark address (`TransactionType.ARK_OFFCHAIN`) | `wallet.sendOffChain` via SDK |
 | BTC address (`TransactionType.BITCOIN_ONCHAIN`) | On-chain spend via SDK |
 | BOLT11 invoice (`TransactionType.LIGHTNING`) | Submarine swap via `ArkadeSwaps` |
-| `EMAIL` | Routing enum present; not implemented |
+| Lightning address / LNURL (`TransactionType.EMAIL`) | `fetchArkAddress(...)` fast path → SDK offchain send if a valid Ark address comes back; else `fetchInvoice(...)` → BOLT11 → submarine swap. Requires `arkadeSwaps` and a positive amount. |
 
 `TransactionType` enum values: `ARK_OFFCHAIN`, `BITCOIN_ONCHAIN`, `LIGHTNING`, `EMAIL`, `UNKNOWN`.
 
