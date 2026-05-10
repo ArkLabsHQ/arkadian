@@ -1,5 +1,32 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-10 - Operational Memory Sync (no doc changes)
+**Commit Range**: `7970bc72..fc187a5d` (17 commits)
+**Previous Sync (asserted by caller)**: `7970bc729889ea6dd7670d875b253665dbaefdae`
+**Current Sync**: `fc187a5d1afc0023780d1a0cdd703c7244b48cfc`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed, all under `memory/` (agent-logs/{daily-briefing,executive-digest,linear-sync,release-coordinator,repo-sync,research-monitor,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity: release-coordinator (4 runs), security-triage (5 runs), repo-sync (resolved stale git token, 35/82 repos synced, 1 new repo `ee2e-kv` cloned, 48 skipped — blocked state), sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync, research-monitor
+- Notable operational events captured in memory only: GOV#20 logged (go-sdk#169 auto-settle self-merged 3h after GOV#19 — 20th total governance violation, worst in project history); protocol-critical SubmitTx fund-loss hotfix open on go-sdk; signing-infra monitoring gap (Dependabot disabled on `kms-unlocker`, `arkade-signer`, `threshold-magic`); arkd v0.9.5 carries 7 accumulated PRs + hotfix; `ARKD_SCHEDULER_TYPE` silently ignored persists; wallet#611 BigInt refactor opened; dotnet-sdk CI all-time-record 15 failures; Optech #404 highlights (BOLTs #995 taproot channels, zero-fee commitments, PSBTv2, JIT fraud proofs); Tether WDK locked to Spark; CTV adoption still 0%; Linear unchanged 24th consecutive day (ENG-5 ~52d stale, DES-7 ~67d stale, DES-8 Urgent+unassigned 79d)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, or policies
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: fc187a5d…`, `last_sync_date: 2026-05-10T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `fc187a5d1afc0023780d1a0cdd703c7244b48cfc`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; new ArkLabsHQ repo `ee2e-kv` is a repo-sync clone observation, not a registry addition)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- The skill was invoked with explicit `from=7970bc72…` / `to=fc187a5d…`. The locally tracked previous sync was `c988554795…`; we honour the supplied range and write the new HEAD to `last-sync.txt`
+
+---
+
 ## 2026-05-09 - Operational Memory Sync (no doc changes)
 **Commit Range**: `2cd82f18..c9885547` (17 commits)
 **Previous Sync**: `2cd82f180b915b2aa677307532bbc28bd8ddfee3`
