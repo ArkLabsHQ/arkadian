@@ -43,7 +43,7 @@ Extends `WalletManager` from `@tetherto/wdk-wallet`. Constructed with a seed plu
 ```js
 new WalletManagerArkade(seed, {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange', // optional, enables Lightning
+  swapProviderUrl: 'https://api.boltz.exchange', // optional, enables Lightning
 })
 ```
 

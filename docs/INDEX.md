@@ -354,7 +354,9 @@ WDK (Wallet Development Kit) compatible Bitcoin wallet adapter built on top of `
 - Utility exports: address detection, BIP21 encode/decode, fees, sat formatting
 - RN-side Arkade balance via `WalletAccountArkade.getBalance()` (Esplora REST still used for boarding)
 - Incoming-funds subscription via `WalletAccountArkade.subscribeToIncomingFunds(callback)` for RN auto-refresh
-- Boltz `referralId: 'arkade-wdk-sdk'` forwarded to `BoltzSwapProvider`
+- Boltz `referralId: 'arkade-wdk-sdk'` forwarded to `BoltzSwapProvider` (default Boltz API: `https://api.boltz.exchange`)
+- RN provider `BitcoinArkadeChainConfig.swapProviderUrl?` and starter app `EXPO_PUBLIC_BOLTZ_SWAP_URL` env var wire Lightning into the React Native chain config
+- `npm run release` script (`scripts/release.js`) — tag → `npm publish` → push tag, with tag cleanup on publish failure
 - Transaction history via HRPC → SDK
 - Patch-based submodule overlay (`scripts/setup-dev.js`, `scripts/generate-patches.js`)
 
@@ -365,7 +367,7 @@ WDK (Wallet Development Kit) compatible Bitcoin wallet adapter built on top of `
 **Triggers**:
 - **ask_question**: `wdk`, `wallet development kit`, `tetherto wdk`, `react native ark wallet`, `arkade wdk`, `boarding offchain lightning account`, `lightning address routing`, `lnurl payment`
 - **develop**: `wdk adapter`, `add wdk method`, `walletmanagerarkade`, `walletaccountarkade`, `lnurl helper`, `bip21 helper`, `lightning invoice`, `lnurl routing`, `submodule patch`
-- **test_or_run**: `npm test`, `setup:dev`, `generate-patches`, `expo example`, `wdk-starter-react-native`
+- **test_or_run**: `npm test`, `setup:dev`, `generate-patches`, `npm run release`, `release script`, `expo example`, `wdk-starter-react-native`, `EXPO_PUBLIC_BOLTZ_SWAP_URL`
 - **debug**: `getfeerates zero`, `balance always zero android`, `bip21 not accepted`, `patch does not apply`, `arkadeSwaps null`, `lnurl payment fails`, `amount mismatch lnurl`
 
 **Dependencies**: `ts-sdk` (`@arkade-os/sdk` 0.4.25), `boltz-swap` (`@arkade-os/boltz-swap` 0.3.29, optional for Lightning), `@tetherto/wdk-wallet`, `@tetherto/wdk` (consumer-side)

@@ -20,6 +20,7 @@ scripts:
   lint_fix: "npm run lint:fix"
   format: "npm run format"
   setup_dev: "npm run setup:dev"
+  release: "npm run release"
   generate_patches: "node scripts/generate-patches.js"
   submodules_init: "git submodule update --init --recursive"
 ---

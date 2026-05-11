@@ -93,10 +93,22 @@ Before requesting review:
 
 ## Release Cadence
 
-`@arkade-os/wdk` is at `0.1.1`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org:
+`@arkade-os/wdk` is at `0.1.1`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org.
+
+### Quick path (`scripts/release.js`)
+
+Once `package.json#version` is bumped and committed:
+
+```bash
+npm run release
+```
+
+`scripts/release.js` reads the version from `package.json`, refuses to proceed if `v${version}` already exists, then runs `git tag v${version}` → `npm publish` → `git push origin v${version}`. If `npm publish` fails, the local tag is removed before exiting so a retry can be attempted cleanly. `prepublishOnly` runs `npm run build:types` automatically as part of `npm publish`, so `types/` is always in sync.
+
+### Manual path (equivalent)
 
 1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, creates a tag, and commits.
 2. `git push && git push --tags`.
-3. `npm publish` — `prepublishOnly` runs `npm run build:types` automatically so `types/` is always in sync.
+3. `npm publish` — `prepublishOnly` runs `npm run build:types` automatically.
 
 Only `src/` and `types/` are included in the tarball (per the `files` field in `package.json`). Coordinate version bumps with downstream consumers (notably `wdk-react-native-provider`).

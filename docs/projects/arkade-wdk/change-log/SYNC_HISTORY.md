@@ -1,5 +1,33 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-11 — `npm run release` script, RN-side `swapProviderUrl` wiring, upstream Boltz URL alignment
+**Previous Commit**: `b2c9f16edbe1f9321ae1286744f80c1c9648d5a7`
+**Current Commit**: `cbd56b57c0f035e3813d31a374288b934bee8db5`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (4):
+- `25ac39a` Add release script — adds `scripts/release.js` and the `npm run release` script; reads `package.json#version`, refuses to proceed if `v${version}` already exists, then runs `git tag v${version}` → `npm publish` → `git push origin v${version}` and rolls back the local tag on publish failure
+- `775c92b` Upgrade ts-sdk 0.4.26 - boltz-swap 0.3.30 — bumped `@arkade-os/sdk` and `@arkade-os/boltz-swap` pins
+- `2d7263d` Rollback upgrade - lint issues — reverted the bump back to `@arkade-os/sdk@0.4.25` / `@arkade-os/boltz-swap@0.3.29`. Net: no dependency change in this sync window
+- `7eb1607` Add swapProviderUrl to arkade config for Lightning support — adds `swapProviderUrl?: string` to `BitcoinArkadeChainConfig` in the `wdk-react-native-provider` patch, adds `EXPO_PUBLIC_BOLTZ_SWAP_URL` to the starter app's `.env.example` and wires it into `get-chains-config.ts`, deletes the obsolete `patches/pear-wrk-wdk.patch` (588 lines, no longer needed), and switches the README `swapProviderUrl` example from `https://api.ark.boltz.exchange` to `https://api.boltz.exchange`
+
+**Changes**:
+- `sop/development-workflow.md`: rewrote "Release Cadence" to document the new `scripts/release.js` quick path (`npm run release` performs tag → `npm publish` → push tag, with tag cleanup on `npm publish` failure) and kept the manual `npm version` flow as the equivalent path
+- `INDEX.md` (project): added `release: "npm run release"` to the scripts block
+- `testing/usage.md` and `system/architecture.md`: updated `swapProviderUrl` example URL from `https://api.ark.boltz.exchange` → `https://api.boltz.exchange` to match the upstream Boltz prod API the README now points at (both the quick-start `WdkManager.registerWallet` snippet and the `ArkadeWalletConfig` example)
+- Master `docs/INDEX.md`:
+  - Refreshed Key Capabilities to (a) call out the canonical Boltz API URL `https://api.boltz.exchange` alongside the `referralId`, (b) mention the new RN provider `BitcoinArkadeChainConfig.swapProviderUrl?` + `EXPO_PUBLIC_BOLTZ_SWAP_URL` env var, and (c) add a bullet for the `npm run release` script
+  - Extended `test_or_run` triggers with `npm run release`, `release script`, and `EXPO_PUBLIC_BOLTZ_SWAP_URL`
+
+**Notes**:
+- The reverted dependency bump means `@arkade-os/sdk@0.4.25` and `@arkade-os/boltz-swap@0.3.29` remain the live pins. No doc surface needed updating for that — the rollback restored the previously documented state.
+- `patches/pear-wrk-wdk.patch` was deleted in `7eb1607`. The `system/project_overview.md` Submodules table still lists `packages/pear-wrk-wdk` (the submodule itself remains in the tree); only the local patch overlay is gone. The two remaining patches (`wdk-react-native-provider.patch`, `wdk-starter-react-native.patch`) are the only ones `scripts/setup-dev.js` applies now.
+- The new RN provider `BitcoinArkadeChainConfig.swapProviderUrl?` field's doc-comment notes that when omitted, Lightning transactions throw `Lightning support not configured` — consistent with the adapter's existing `_requireSwaps()` behaviour already documented in `system/architecture.md` and `testing/api-reference.md`.
+- The release script does **not** bump `package.json#version` — operators are still expected to run `npm version <bump>` (or edit manually + commit) before invoking `npm run release`.
+
+---
+
 ## 2026-05-09 — v0.1.1: LNURL/Lightning-address routing, prod Boltz API, CI, npm release flow
 **Previous Commit**: `c5f4bd978b6243eb0653d0c1aa8addda91db5923`
 **Current Commit**: `b2c9f16edbe1f9321ae1286744f80c1c9648d5a7`

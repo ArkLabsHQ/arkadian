@@ -19,7 +19,7 @@ const wdk = new WdkManager(seedPhrase)
 
 wdk.registerWallet('bitcoin', WalletManagerArkade, {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange', // optional: enables Lightning
+  swapProviderUrl: 'https://api.boltz.exchange', // optional: enables Lightning
 })
 
 const account = await wdk.getAccount('bitcoin', 0) // boarding account
@@ -150,7 +150,7 @@ const ok = WalletManagerArkade.isValidSeedPhrase(phrase)
 /** @type {import('@arkade-os/wdk').ArkadeWalletConfig} */
 const config = {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange',
+  swapProviderUrl: 'https://api.boltz.exchange',
   // storage: { walletRepository, contractRepository },
   // swapRepository: <SQLite-backed repo>,
 }

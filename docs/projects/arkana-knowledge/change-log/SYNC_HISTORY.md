@@ -1,5 +1,32 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-11 - Operational Memory Sync (no doc changes)
+**Commit Range**: `8310c1d2..1a438558` (14 commits)
+**Previous Sync (asserted by caller)**: `8310c1d2834da44ed4bff77da290bfa0a9f7885f`
+**Current Sync**: `1a4385584ec9edda9adcbb5beded95baa02d2945`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 11 files changed, all under `memory/` (agent-logs/{daily-briefing,executive-digest,linear-sync,release-coordinator,repo-detector,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity: release-coordinator (4 runs), security-triage (5 runs), repo-detector, sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync
+- Notable operational events captured in memory only: dotnet-sdk CI all-time-record 15 failures (2026-05-09); go-sdk 17th consecutive CI meltdown day; go-sdk release still blocked (3 unreviewed protocol-critical merges, 8 CRITICALs on master, GOV total 20); dotnet-sdk #90 identified and assessed by security-triage; Linear unchanged 25th consecutive day (ENG-5 ~54d stale, DES-7 ~69d stale, DES-8 Urgent+unassigned 80d); root cause of fleet-wide CI wave still unknown 17+ days
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, or policies
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 1a438558…`, `last_sync_date: 2026-05-11T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `1a4385584ec9edda9adcbb5beded95baa02d2945`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=8310c1d2…` / `to=1a438558…`; new HEAD written to `last-sync.txt`
+
+---
+
 ## 2026-05-10 - Operational Memory Sync (no doc changes)
 **Commit Range**: `7970bc72..fc187a5d` (17 commits)
 **Previous Sync (asserted by caller)**: `7970bc729889ea6dd7670d875b253665dbaefdae`
