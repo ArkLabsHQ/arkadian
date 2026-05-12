@@ -71,7 +71,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/wdk` |
-| Version | `0.1.1` |
+| Version | `0.1.2` |
 | Language | JavaScript with JSDoc types (Node ESM, ES2022) |
 | Runtime | Node.js >= 18, React Native (via bare-kit worklet `pear-wrk-wdk`) |
 | Package Manager | npm (root); submodules use their own |
@@ -92,10 +92,11 @@ Analysis and summaries of pull requests.
 │  ├── WalletAccountReadOnlyArkade   (extends WDK ReadOnly)     │
 │  └── WalletAccountArkade           (extends ReadOnlyArkade)   │
 ├──────────────────────────────────────────────────────────────┤
-│  Account Index Model                                         │
-│  ├── Index 0: boarding             (on-chain BTC deposit)     │
-│  ├── Index 1: offchain             (Ark VTXO transfers)       │
-│  └── Index 2: lightning            (Boltz swaps, no address)  │
+│  Account Derivation (BIP-86 leaf, not a role)                │
+│  ├── m/86'/<coin>/0'/0/<index>     (coin = 0 mainnet, 1 else) │
+│  ├── Every account: Ark address + boarding address +          │
+│  │                  createLightningInvoice() (if swapProvider)│
+│  └── getAddress() always returns the Ark address              │
 ├──────────────────────────────────────────────────────────────┤
 │  Internal Helper Layer (src/lib/, NOT re-exported)           │
 │  ├── address.js        (Ark/BTC/BOLT11 detection)             │
@@ -124,7 +125,7 @@ Analysis and summaries of pull requests.
 ## Key Concepts
 
 - **WDK (Wallet Development Kit)**: Tether's framework defining a uniform `WalletManager`/`WalletAccount` API across chains. `arkade-wdk` is the Ark plugin for that framework.
-- **Account index**: A small integer that selects one of the three operational modes (boarding/offchain/lightning), all backed by a per-derivation-path SDK wallet (each call to `getAccount(index)` resolves a distinct BIP-86 derivation path).
+- **Account index**: A BIP-86 path leaf (`m/86'/<coin>/0'/0/<index>`) — not a role identifier. Each call to `getAccount(index)` resolves a distinct derivation path and memoises a per-path SDK wallet. Every account exposes Ark address (`getAddress()`), boarding address (`getBoardingAddress()`), and — when `swapProviderUrl` is set — Lightning invoice creation (`createLightningInvoice()`).
 - **Destination auto-detection**: `sendTransaction()` inspects the `to` field and routes Ark addresses, BTC addresses, BOLT11 invoices, and BIP21 URIs (which are resolved internally) to the correct path.
 - **HRPC bridge**: React Native provider talks to a bare-kit worklet (`pear-wrk-wdk`) over HRPC, which in turn calls `@arkade-os/sdk`.
 - **RN-side balance resolution**: For arkade networks the RN provider initialises a local `@arkade-os/wdk` account with Expo adapters and asks it for the offchain/Lightning balance via `WalletAccountArkade.getBalance()`. Esplora REST is still queried directly for the boarding (on-chain) balance. The provider also subscribes to incoming Arkade funds via `account.subscribeToIncomingFunds()` to auto-refresh the UI.

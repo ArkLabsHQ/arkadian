@@ -1,5 +1,43 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-12 - Documentation Sync
+**Commit**: `982c8bc3e82d9cb7f6af3efc9921964363963040`
+**Previous Sync**: `582320bdd54fcac021125146556b090484237bb6`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+
+**Features Renamed**:
+- Lendaswap → Satora app (PR #612, commit 982c8bc3)
+  - `src/screens/Apps/Lendaswap/` → `src/screens/Apps/Satora/`
+  - `LendaswapIcon.tsx` → `SatoraIcon.tsx` (replaced with new icon)
+  - Env var: `VITE_LENDASWAP_IFRAME_URL` → `VITE_SATORA_IFRAME_URL`
+  - Updated references in providers (announcements, navigation, wallet), Apps Index, Announcement component, Support screen, Dockerfile, docker-entrypoint.sh, README.md
+
+**Files Touched in Repo**:
+- Dockerfile, docker-entrypoint.sh, README.md
+- src/components/Announcement.tsx
+- src/providers/{announcements,navigation,wallet}.tsx
+- src/screens/Apps/Index.tsx
+- src/screens/Apps/Lendaswap/LendaswapIcon.tsx (removed)
+- src/screens/Apps/Satora/{Index.tsx,SatoraIcon.tsx} (added/moved)
+- src/screens/Settings/Support.tsx
+
+**Features Added/Modified/Removed**: Rename only — no new functionality, no removals
+**Configuration Changes**: `VITE_LENDASWAP_IFRAME_URL` env var renamed to `VITE_SATORA_IFRAME_URL`
+**Dependency Updates**: None
+
+**Files Updated**:
+- docs/INDEX.md — checked; no wallet section changes needed (no Lendaswap references in master registry)
+- docs/projects/wallet/INDEX.md (frontmatter version 1.2.5 + last_sync_commit; Apps screens list; DeFi integration entry)
+- docs/projects/wallet/system/project_overview.md (DeFi User use case)
+- docs/projects/wallet/system/components.md (directory tree + Apps Screens section)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-09 - Documentation Sync
 **Commit**: `582320bdd54fcac021125146556b090484237bb6`
 **Previous Sync**: `7066839d412a1a06df6880ab225ea72d03a3f1db`

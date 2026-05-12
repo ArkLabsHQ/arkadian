@@ -62,7 +62,7 @@ src/
 │       │   ├── Settings.tsx
 │       │   └── Swap.tsx
 │       ├── Lendasat/          # Bitcoin lending
-│       └── Lendaswap/         # Lendaswap integration
+│       └── Satora/            # Satora integration (renamed from Lendaswap in PR #612)
 ├── providers/
 │   ├── wallet.tsx             # Core wallet state
 │   ├── lightning.tsx          # SwapManager-based swaps
@@ -514,7 +514,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 - `Swap.tsx`: Create/monitor swaps with description, address display (chain-swap restoration crash fixed in PR #575)
 
 **Lendasat/**: Bitcoin lending/borrowing integration
-**Lendaswap/**: Lendaswap service integration
+**Satora/**: Satora service integration (renamed from Lendaswap in PR #612; uses `VITE_SATORA_IFRAME_URL` env var)
 
 ## Custom Component Library
 

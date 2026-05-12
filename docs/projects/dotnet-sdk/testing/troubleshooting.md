@@ -90,6 +90,34 @@ var limits = await boltzClient.GetPairsAsync();
 
 This bounds the noise but does **not** recover funds — the user must spend the contract via the script-path after CSV expiry. Surface `Metadata["unknownToProvider"]` in your UI so users get a "refund manually after CSV expiry" hint.
 
+### Arkade off-chain spend stuck — server holds inputs hostage
+
+**Symptom**: After a process crash mid-spend, subsequent attempts to spend the affected VTXOs fail with the server reporting the inputs as in-flight. Manually re-submitting the same intent doesn't help — the server only accepts the original pending tx.
+
+**Solution**: `PendingArkTransactionRecoveryService` is registered by `AddArkCoreServices()` and runs automatically on host startup via `ArkHostedLifecycle` (after `VtxoSync`) across every wallet known to `IWalletStorage`. For on-demand recovery (e.g. immediately after user unlock), call `FinalizePendingArkTransactionsAsync(walletId, ct)`. Per-tx failures raise `RecoveryFailed` (`PendingTxRecoveryFailureEventArgs`) without blocking the loop — subscribe to surface a banner / telemetry. The next host start retries any unfinalized leftovers.
+
+If `FinalizePendingArkTransactionsAsync` returns 0 in the same process that just crashed mid-`SubmitTx`, retry for ~1 s — arkd's in-flight projection is async and the same-process E2E reproducer can race it. Production startup never sees this.
+
+### Chain swap funded with wrong amount — stuck Pending
+
+**Symptom**: A BTC→ARK chain swap was funded with an amount that doesn't match the original Boltz quote (over- or under-funded) and the swap sits Pending indefinitely.
+
+**Solution**: `BoltzSwapProvider.PollSwapState` now handles `transaction.lockupFailed` by asking Boltz for a new quote (`GET → POST /v2/swap/chain/{id}/quote`). If Boltz accepts, the swap continues with the renegotiated `ExpectedAmount`. If Boltz refuses (amount outside chain-swap limits, etc.) or the renegotiation fails, the cooperative refund branch runs and spends the user's BTC lockup back to their original BTC refund destination via MuSig2 (`CoopRefundBtcToArkChainSwap`). Symmetric ARK→BTC refund via `CoopRefundArkToBtcChainSwap` for the other direction.
+
+If `swap.expired` fires with no funds locked at the contract, the swap is now marked `Failed` (rather than retrying refund forever) — the lockup never arrived so there is nothing to recover.
+
+### `SwapStatusResponse.FailureDetails` JsonException
+
+**Symptom**: Status polling on a failed swap throws `JsonException` parsing `failureDetails`.
+
+**Solution**: The field is now `JsonElement?` (Boltz returns `{"actual": ..., "expected": ...}` on `transaction.lockupFailed`, not a string). Upgrade past the latest sync — without it, `BoltzSwapProvider.PollSwapState` can't read `transaction.lockupFailed` at all and chain-swap renegotiation never fires.
+
+### Multi-provider swap migration — `AddArkSwaps` renamed
+
+**Symptom**: After upgrading, `services.AddArkSwaps()` no longer exists.
+
+**Solution**: The DI helper was renamed to `services.AddArkSwapServices()` (the multi-provider router registration). It internally calls `AddBoltzProvider()` for backward compatibility, so all existing Boltz-only consumers continue to work. Direct callers of `SwapsManagementService` are unchanged — the public API surface (Initiate* / PayExisting* / Restore*) is preserved by router-→-`BoltzSwapProvider` delegation. Non-Boltz providers can register their own implementation as `ISwapProvider` and the router will dispatch routes accordingly.
+
 ## E2E Test Issues
 
 ### "Aspire host failed to start"

@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-12 - Documentation Update
+**Commit**: `e6397e9a` (boltz-backend repository)
+**Previous Sync**: `bd697247`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Tooling / Chores**:
+- chore: bump vulnerable dependencies (#1398) — `package.json` and `package-lock.json` only. OpenTelemetry suite bumped `0.216.0 → 0.217.0` (`sdk-node`, `exporter-trace-otlp-grpc`, `instrumentation-{grpc,http}`); `instrumentation-express` `0.64.0 → 0.65.0`; `instrumentation-pg` `0.68.0 → 0.69.0`; `instrumentation-winston` `0.60.0 → 0.61.0`. Dev deps: `eslint-plugin-n` `17.24.0 → 18.0.1`, `jest` `30.3.0 → 30.4.2`, `ts-proto` `2.11.7 → 2.11.8`.
+
+**Documentation Impact**: None — pure transitive/dev dependency security bumps; no public API, capability, dependency-graph (no new direct deps), env-var, component, build, or migration changes. The generic "OpenTelemetry tracing" mention in `project_overview.md`/`architecture.md` is version-agnostic, so no edits needed. Project INDEX, system, and testing docs unchanged; master `docs/INDEX.md` unchanged.
+
+---
+
 ## 2026-05-09 - Documentation Update
 **Commit**: `bd697247` (boltz-backend repository)
 **Previous Sync**: `40b0eba4`

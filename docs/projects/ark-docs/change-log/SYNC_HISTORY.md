@@ -191,3 +191,36 @@
 - docs/projects/ark-docs/change-log/last-sync.txt → 1ff89b89d4647757f6f6a460af87e62ffecb65a5
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
 
+## 2026-05-12 - Hidden Reference tab with per-SDK overview pages
+**Commit**: `e315c82be25d3ec8063e5ecf7d286848fa2da100`
+**Previous Sync**: `1ff89b89d4647757f6f6a460af87e62ffecb65a5`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit — `e315c82 Create hidden \`reference\` tab` (single PR).
+
+**Structural Changes**:
+- NEW directory: `reference/` with four per-SDK overview pages:
+  - `reference/typescript/index.mdx` — `@arkade-os/sdk` v0.4 (Latest). Capabilities list (wallets, instant offchain payments, Arkade assets, settlement/boarding/recovery/delegation/collaborative-exit, Tapscript contracts) plus CardGroup linking to [arkade-os/ts-sdk](https://github.com/arkade-os/ts-sdk) and the generated TypeDoc at `arkade-os.github.io/ts-sdk/`. "Related Packages" section mentions `@arkade-os/boltz-swap` and `@arkade-os/wdk`.
+  - `reference/rust/index.mdx` — `ark-rs` v0.9 (Latest). Capabilities include Boltz Lightning/chain-swap integration; links [arkade-os/rust-sdk](https://github.com/arkade-os/rust-sdk) and `docs.rs/ark-rs`.
+  - `reference/go/index.mdx` — `arksdk` v0.9 (Latest). Links [arkade-os/go-sdk](https://github.com/arkade-os/go-sdk), `pkg.go.dev/github.com/arkade-os/go-sdk`, and `fulmine` as a related wallet daemon with built-in delegation API.
+  - `reference/dotnet/index.mdx` — `NArk` NArk/1.0 (Latest). Links [arkade-os/dotnet-sdk](https://github.com/arkade-os/dotnet-sdk) and `arkade-os.github.io/dotnet-sdk/`.
+
+**`docs.json` Changes**:
+- Added a new top-level navigation entry: `{ "tab": "Reference", "hidden": true, "products": [...] }` — `hidden: true` means the tab is not surfaced in the main navigation chrome and is only reachable through a direct URL.
+- Each SDK is registered as its own Mintlify **product** under the tab, with its own `versions[]` array (so the version selector is per-SDK) and a single `Setting Up` group containing the new `reference/<sdk>/index` page.
+- Versions/tags declared in `docs.json`: TypeScript SDK `v0.4` (Latest, default), Rust SDK `v0.9` (Latest, default), Go SDK `v0.9` (Latest, default), .NET SDK `NArk/1.0` (Latest, default).
+
+**Other**: No content moves, deletions, or redirects. No tooling/SEO changes.
+
+**Files Updated in Arkadian Registry**:
+- docs/projects/ark-docs/INDEX.md
+  - Added "Reference Tab (Hidden)" directory section under the Directory Structure listing.
+  - Added "Reference Tab (Hidden) Files" tree under the File Organization section with the per-SDK version/tag metadata.
+- docs/INDEX.md
+  - ark-docs Key Capabilities: added bullet for the hidden Reference tab covering TypeScript v0.4, Rust v0.9, Go v0.9, .NET NArk 1.0 with the per-product version-selector note.
+  - ark-docs Tags: added `sdk-reference`, `ts-sdk`, `rust-sdk`, `go-sdk`, `dotnet-sdk`.
+  - Footer Last Updated 2026-05-07 → 2026-05-12, Version 1.5.8 → 1.5.9.
+- docs/projects/ark-docs/change-log/last-sync.txt → e315c82be25d3ec8063e5ecf7d286848fa2da100
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

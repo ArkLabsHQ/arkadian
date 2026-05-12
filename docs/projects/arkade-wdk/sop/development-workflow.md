@@ -93,21 +93,24 @@ Before requesting review:
 
 ## Release Cadence
 
-`@arkade-os/wdk` is at `0.1.1`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org.
+`@arkade-os/wdk` is at `0.1.2`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org.
 
 ### Quick path (`scripts/release.js`)
 
-Once `package.json#version` is bumped and committed:
+The release script creates the git tag itself, so the version bump must use `--no-git-tag-version` — otherwise `npm version` would also create `v${version}`, and `scripts/release.js` refuses to proceed when that tag already exists.
 
 ```bash
+npm version --no-git-tag-version patch   # or minor / major
+git commit -am "Bump version"
+git push
 npm run release
 ```
 
-`scripts/release.js` reads the version from `package.json`, refuses to proceed if `v${version}` already exists, then runs `git tag v${version}` → `npm publish` → `git push origin v${version}`. If `npm publish` fails, the local tag is removed before exiting so a retry can be attempted cleanly. `prepublishOnly` runs `npm run build:types` automatically as part of `npm publish`, so `types/` is always in sync.
+`scripts/release.js` reads the version from `package.json`, refuses to proceed if `v${version}` already exists, then runs `git tag v${version}` → `npm publish` → `git push origin v${version}`. If `npm publish` fails, the local tag is removed before exiting so a retry can be attempted cleanly against the same commit. `prepublishOnly` runs `npm run build:types` automatically as part of `npm publish`, so `types/` is always in sync.
 
 ### Manual path (equivalent)
 
-1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, creates a tag, and commits.
+1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, creates a tag, and commits in one shot. Use this only if you are **not** going to run `npm run release` afterwards (the tag would clash).
 2. `git push && git push --tags`.
 3. `npm publish` — `prepublishOnly` runs `npm run build:types` automatically.
 

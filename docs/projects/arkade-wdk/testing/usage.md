@@ -33,36 +33,39 @@ const tx = await account.sendTransaction({ to: arkAddress, value: 1000n })
 console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 ```
 
-## Account Indices
+## Accounts and Receive Surfaces
 
-| Index | Mode | Returned by `getAddress()` |
-|-------|------|----------------------------|
-| 0 | boarding | On-chain BTC deposit address |
-| 1 | offchain | Ark address (Taproot) |
-| 2 | lightning | Ark address (also exposed); for receive use `createLightningInvoice` |
+`getAccount(index)` resolves `m/86'/<coin>/0'/0/<index>` (`coin = 0` for bitcoin mainnet, `1` otherwise). The index is a BIP-86 key-derivation leaf — **not** a role. The manager memoises one underlying SDK wallet per path; every resulting account exposes the same three receive surfaces:
+
+| Surface | API | Used when |
+|---------|-----|-----------|
+| Ark address | `account.getAddress()` | Receiving VTXO transfers (always returns the Ark address) |
+| Boarding address | `account.getBoardingAddress()` | Funding the wallet via on-chain BTC deposit |
+| Lightning invoice | `account.createLightningInvoice(amount, description?)` | Receiving Lightning payments via Boltz reverse swap (requires `swapProviderUrl`) |
 
 ```js
-const boarding = await wdk.getAccount('bitcoin', 0)
-const offchain = await wdk.getAccount('bitcoin', 1)
-const lightning = await wdk.getAccount('bitcoin', 2)
-```
+const a0 = await wdk.getAccount('bitcoin', 0)
+const a1 = await wdk.getAccount('bitcoin', 1) // distinct BIP-86 path, distinct SDK wallet
 
-Each index is a distinct BIP-86 derivation path (`m/86'/<network>/0'/0/<index>`). The manager memoises one underlying SDK wallet per path. To get the on-chain deposit address from any account, call `account.getBoardingAddress()`.
+const arkAddr      = await a0.getAddress()           // Ark address
+const onchainAddr  = await a0.getBoardingAddress()   // on-chain BTC deposit
+const { invoice }  = await a0.createLightningInvoice(50_000) // requires swapProviderUrl
+```
 
 ## Lightning Invoices
 
-Requires `swapProviderUrl` to be set on the manager.
+Requires `swapProviderUrl` to be set on the manager. Available on every signing account — there is no dedicated "lightning" index.
 
 ```js
-const lightning = await wdk.getAccount('bitcoin', 2)
+const account = await wdk.getAccount('bitcoin', 0)
 
-const { invoice, paymentHash } = await lightning.createLightningInvoice(
+const { invoice, paymentHash } = await account.createLightningInvoice(
   50_000,
   'Payment for coffee',
 )
 
 // Block until Boltz settles and the VTXO is claimed:
-const { txid } = await lightning.waitForLightningPayment(invoice)
+const { txid } = await account.waitForLightningPayment(invoice)
 ```
 
 ## Pay BOLT11 / BIP21 / Lightning Address / LNURL
@@ -85,11 +88,11 @@ await account.sendTransaction({ to: 'lnurl1...', value: 1000n })
 Available on signing accounts when `swapProviderUrl` was configured:
 
 ```js
-await lightning.getPendingLightningReceives() // PendingReverseSwap[]
-await lightning.getPendingLightningSends()    // PendingSubmarineSwap[]
-await lightning.getSwapHistory()              // reverse + submarine + chain swaps, newest first
-await lightning.getLightningLimits()          // min/max bounds
-await lightning.getLightningFees()            // fee schedule
+await account.getPendingLightningReceives() // PendingReverseSwap[]
+await account.getPendingLightningSends()    // PendingSubmarineSwap[]
+await account.getSwapHistory()              // reverse + submarine + chain swaps, newest first
+await account.getLightningLimits()          // min/max bounds
+await account.getLightningFees()            // fee schedule
 ```
 
 All Lightning methods throw `Lightning support not configured. Provide swapProviderUrl in wallet config.` when `arkadeSwaps` is `null`.

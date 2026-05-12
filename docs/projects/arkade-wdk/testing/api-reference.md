@@ -1,6 +1,6 @@
 # Arkade WDK — API Reference
 
-Reflects `@arkade-os/wdk` `0.1.1` (post-WDK-conformance refactor). The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
+Reflects `@arkade-os/wdk` `0.1.2`. The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
 
 ## Public Exports (`src/index.js`)
 
@@ -33,13 +33,7 @@ class WalletManagerArkade extends WalletManager {
 
 ### `getAccount(index)`
 
-| Index | Mode |
-|-------|------|
-| 0 | boarding (default) |
-| 1 | offchain |
-| 2 | lightning |
-
-Resolves `m/86'/<network>/0'/0/<index>` (network = `0` for mainnet, `1` otherwise) and forwards to `getAccountByPath`.
+Resolves `m/86'/<coin>/0'/0/<index>` (`coin = 0` for bitcoin mainnet, `1` otherwise) and forwards to `getAccountByPath`. The `index` is a BIP-86 path leaf — not a role identifier — and defaults to `0`. Every resulting account exposes the same surfaces: Ark address (`getAddress()`), boarding address (`getBoardingAddress()`), and — when `swapProviderUrl` is set — `createLightningInvoice()`.
 
 ### `getAccountByPath(path)`
 
@@ -78,11 +72,7 @@ class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
 
 ### `getAddress()`
 
-| Index | Returned |
-|-------|----------|
-| 0 | On-chain BTC boarding address |
-| 1 | Ark address (Taproot) |
-| 2 | Ark address (Taproot) — for Lightning receive, call `createLightningInvoice` instead of treating this as the receive surface |
+Always returns the account's **Ark address** (Taproot), regardless of `index`. Use `getBoardingAddress()` for the on-chain deposit address, and `createLightningInvoice()` (signing account only) for the Lightning receive surface — `getAddress()` is never a Lightning QR code.
 
 ### `getTokenBalance(assetId)`
 

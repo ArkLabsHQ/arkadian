@@ -1,8 +1,8 @@
 ---
 project_id: arkana-knowledge
 version: 1.0.0
-last_sync_commit: 1a4385584ec9edda9adcbb5beded95baa02d2945
-last_sync_date: 2026-05-11T00:00:00Z
+last_sync_commit: d847dd2433466b3b1e21fee4d3c2e9d626902beb
+last_sync_date: 2026-05-12T00:00:00Z
 repository_path: ${ARKANA_KNOWLEDGE_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/arkana-knowledge
 commits_behind_upstream: 0

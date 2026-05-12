@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.4
-last_sync_commit: 582320bdd54fcac021125146556b090484237bb6
+version: 1.2.5
+last_sync_commit: 982c8bc3e82d9cb7f6af3efc9921964363963040
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -255,7 +255,7 @@ App
     ├── Init Screens (Connect, Restore, Success)
     ├── Wallet Screens (Home, Send, Receive, Unavailable)
     ├── Settings Screens (Backup, Display, Fiat, Logs, Support, Vtxos, ...)
-    └── Apps Screens (Boltz swaps, Lendasat, Lendaswap)
+    └── Apps Screens (Boltz swaps, Lendasat, Satora)
 ```
 
 ### Data Flow
@@ -289,7 +289,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### DeFi Integration
 - **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
-- **Lendaswap**: Swap service integration
+- **Satora**: Swap service integration (renamed from Lendaswap in PR #612)
 - **PSBT signing**: Sign and finalize PSBTs for DeFi interactions
 
 ### Lightning Integration

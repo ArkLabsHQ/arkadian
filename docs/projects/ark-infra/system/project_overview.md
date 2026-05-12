@@ -100,7 +100,7 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.4`, `ghcr.io/arkade-os/arkd-wallet:v0.9.4`). ECR remains used
+     (`ghcr.io/arkade-os/arkd:v0.9.5`, `ghcr.io/arkade-os/arkd-wallet:v0.9.5`). ECR remains used
      for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services

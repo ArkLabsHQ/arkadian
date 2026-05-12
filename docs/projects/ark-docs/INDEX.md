@@ -92,6 +92,14 @@ Arkade compiler and experimental contract patterns:
 - **arkade-functions.mdx** — Built-in functions
 - **non-interactive-swaps.mdx** — Non-interactive swap protocols
 
+### `${ARKADIAN_DIR}/docs/projects/ark-docs/reference/` — SDK Reference (Hidden Tab)
+Per-SDK overview pages exposed via a `hidden: true` **Reference** tab in `docs.json` — only reachable through a direct link, not from the main navigation. Each page lists the SDK's capabilities and links out to the upstream GitHub repo plus the canonical generated API reference:
+
+- **typescript/index.mdx** — `@arkade-os/sdk` v0.4 (Latest). Cross-links the [arkade-os/ts-sdk](https://github.com/arkade-os/ts-sdk) repo, the generated TypeDoc at `arkade-os.github.io/ts-sdk/`, and related packages `@arkade-os/boltz-swap` and `@arkade-os/wdk`.
+- **rust/index.mdx** — `ark-rs` v0.9 (Latest). Cross-links the [arkade-os/rust-sdk](https://github.com/arkade-os/rust-sdk) repo and `docs.rs/ark-rs`.
+- **go/index.mdx** — `arksdk` v0.9 (Latest). Cross-links the [arkade-os/go-sdk](https://github.com/arkade-os/go-sdk) repo and `pkg.go.dev/github.com/arkade-os/go-sdk`. Also points at `fulmine` as a related wallet daemon.
+- **dotnet/index.mdx** — `NArk` NArk/1.0 (Latest). Cross-links the [arkade-os/dotnet-sdk](https://github.com/arkade-os/dotnet-sdk) repo and `arkade-os.github.io/dotnet-sdk/`.
+
 ### `${ARKADIAN_DIR}/docs/projects/ark-docs/wallets/` — Wallet Development
 Guide for building Ark wallets with the TypeScript SDK.
 
@@ -242,6 +250,16 @@ experimental/
 ├── arkade-functions.mdx
 └── non-interactive-swaps.mdx
 ```
+
+### Reference Tab (Hidden) Files
+```
+reference/
+├── typescript/index.mdx   # @arkade-os/sdk v0.4 (Latest)
+├── rust/index.mdx         # ark-rs v0.9 (Latest)
+├── go/index.mdx           # arksdk v0.9 (Latest)
+└── dotnet/index.mdx       # NArk NArk/1.0 (Latest)
+```
+The Reference tab is declared `hidden: true` in `docs.json`. Each SDK is registered as a separate Mintlify "product" under the tab so the version selector is per-SDK; pages live inside a single **Setting Up** group for now.
 
 ### Shared Snippets (`snippets/`)
 Reusable MDX/JSX snippets imported across pages:

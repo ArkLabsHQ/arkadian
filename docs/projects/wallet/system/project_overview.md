@@ -120,7 +120,7 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - Restore pending swaps from Boltz endpoint
 
 ### DeFi User
-- **Lendaswap**: Swap integration via Lendaswap service
+- **Satora**: Swap integration via Satora service (renamed from Lendaswap in PR #612; uses `VITE_SATORA_IFRAME_URL` env var)
 - **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
 
 ### Ark Protocol Developer

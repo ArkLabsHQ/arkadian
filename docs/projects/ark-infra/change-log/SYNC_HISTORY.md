@@ -1,5 +1,27 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-12 - Documentation Update
+**Commit**: `29b6cb84f86741457a43710cfd090e964d2cbf19`
+**Previous Sync**: `c64a12b7b769c84766b38fbf92b91dc6c6f6584c`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Highlights**:
+- 📦 **arkd release bump** (`29b6cb8`): `compose/docker-compose.ark.prod.yaml` now pins
+  `ghcr.io/arkade-os/arkd:v0.9.5` and `ghcr.io/arkade-os/arkd-wallet:v0.9.5` (previously
+  `v0.9.4`). Production-only change; regtest compose unchanged.
+
+**Files Updated**:
+- docs/INDEX.md (capability line: arkd/arkd-wallet pinned version `v0.9.4` → `v0.9.5`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.3.2)
+- docs/projects/ark-infra/system/project_overview.md (ECR note: GHCR image tags `v0.9.4` → `v0.9.5`)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-05 - Documentation Update
 **Commit**: `c64a12b7b769c84766b38fbf92b91dc6c6f6584c`
 **Previous Sync**: `cf02b85cf224f4c2c2d8025309cc066dec4eb6f7`

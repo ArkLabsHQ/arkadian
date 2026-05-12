@@ -9,7 +9,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 ## Package
 
 - **npm**: `@arkade-os/wdk`
-- **Version**: `0.1.1`
+- **Version**: `0.1.2`
 - **License**: MIT
 - **Repository**: `ArkLabsHQ/arkade-wdk`
 - **Source**: ships `src/*.js` directly (JavaScript with JSDoc); declaration files emitted into `types/` via `tsc -p tsconfig.json`.
@@ -19,7 +19,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 | Feature | Description |
 |---------|-------------|
 | WDK WalletManager | `getAccount`, `getAccountByPath`, `getFeeRates`, `dispose` over per-path SDK wallets |
-| Three Account Indices | Boarding (0), Offchain (1), Lightning (2) — via BIP-86 paths |
+| Per-Index BIP-86 Wallets | `getAccount(index)` resolves `m/86'/<coin>/0'/0/<index>` and memoises a distinct SDK wallet per path. The index is a key-derivation leaf, not a role. |
 | Send/Sign/Verify/Quote | Standard WDK account methods, plus read-only conversion |
 | Destination Auto-Detection | Ark address, BTC address, BOLT11 invoice, Lightning address, LNURL, **and BIP21 URIs** routed automatically |
 | LNURL / Lightning Address | Native routing via `sendTransaction()` (`EMAIL` → LNURL ark-address fast path or BOLT11 fallback); helpers also exported as `lib/lnurl.js` (internal) |
@@ -38,15 +38,17 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 
 ## Account Model
 
-The wallet manager exposes account indices over the BIP-86 path `m/86'/<network>/0'/0/<index>` (`network` is `0` for mainnet, `1` otherwise). A separate underlying `@arkade-os/sdk` wallet is created per derivation path:
+Each call to `getAccount(index)` resolves the BIP-86 path `m/86'/<coin>/0'/0/<index>` (`coin = 0` for bitcoin mainnet, `1` for any other network) and memoises a distinct `@arkade-os/sdk` wallet per path. The index is a key-derivation leaf — there is no per-index role.
 
-| Index | AddressType | Purpose |
-|-------|-------------|---------|
-| 0 | `boarding` | On-chain BTC deposit address (funds enter the Ark) |
-| 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
-| 2 | `lightning` | Lightning via Boltz swaps (also exposes the Ark address) |
+Every account exposes the same three receive surfaces from its underlying wallet:
 
-`getAddress()` returns the account's Ark address for **all** indices, including Lightning (index 2). To receive over Lightning, consumer UIs should call `createLightningInvoice()` to generate a BOLT11 invoice instead of treating `getAddress()` as the receive surface. Use `getBoardingAddress()` to obtain the on-chain deposit address.
+| Surface | API | Used when |
+|---------|-----|-----------|
+| Ark address (offchain) | `getAddress()` | Receiving VTXO transfers from other Ark users |
+| Boarding address (on-chain) | `getBoardingAddress()` | Funding the wallet by depositing on-chain BTC |
+| Lightning invoice | `createLightningInvoice(amount, description?)` | Receiving Lightning payments via Boltz reverse swap |
+
+`getAddress()` **always** returns the account's Ark address — never the boarding address, never a Lightning surface. Use `getBoardingAddress()` for the on-chain deposit address and `createLightningInvoice()` for the Lightning receive surface (the latter throws `Lightning support not configured` when `swapProviderUrl` is not set, since `arkadeSwaps` is `null`).
 
 ## Technology Stack
 

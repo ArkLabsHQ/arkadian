@@ -1,5 +1,41 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-12 - Documentation Update
+**Commit**: `f8aefab4` (arkd repository)
+**Previous Sync**: `42f58837`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `f8aefab4` ci: Remove empty codeql workflow file (#1054)
+- `89d93031` Client-lib: renaming of packages and components (#1064)
+
+**Breaking Changes (client-lib SDK, `pkg/client-lib`)**:
+- Top-level Go package renamed from `arksdk` to `wallet` (all files in `pkg/client-lib/` now declare `package wallet`).
+- `ArkClient` interface renamed to `Wallet`; the entrypoint file moved from `pkg/client-lib/ark_sdk.go` to `pkg/client-lib/wallet.go`. The `Wallet()` accessor on the old interface is now `Identity() identity.Identity`.
+- Sub-package `pkg/client-lib/wallet/` renamed to `pkg/client-lib/identity/`:
+  - `wallet.WalletService` interface → `identity.Identity`
+  - Constant `wallet.SingleKeyWallet` → `identity.SingleKeyIdentity`
+  - `pkg/client-lib/wallet/singlekey/wallet.go` → `pkg/client-lib/identity/singlekey/identity.go`
+  - `pkg/client-lib/wallet/singlekey/store/{store.go,inmemory/store.go,file/store.go}` → `pkg/client-lib/identity/singlekey/store/...`
+- `ServiceOption` rename: `WithWallet(wallet.WalletService)` → `WithIdentity(identity.Identity)` (in `pkg/client-lib/service_opts.go`).
+- Internal `service` struct field `c.wallet` renamed to `c.identity`; all call sites in `service.go`, `funding.go`, `send.go`, `batch_session.go`, `unroll.go`, `init.go`, `utils.go`, `asset.go`, `batch_session_handler.go`, `funding_opts*.go`, `send_opts*.go`, `receiver_opts*.go`, `types.go`, `vtxos_opts.go` updated accordingly.
+- E2E test suite (`internal/test/e2e/*.go`) and example apps (`pkg/client-lib/example/alice_to_bob`, `pkg/client-lib/example/multi_connection_demo`) and `pkg/ark-cli/main.go` updated to import `identity` and call `WithIdentity` / `Identity()`.
+
+**CI**:
+- Removed empty `.github/workflows/codeql.yml` workflow file (single-line cleanup, no behavioural change).
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: `WithWallet` → `WithIdentity`, clarified `Wallet`/`Identity` SDK shape)
+- docs/projects/arkd/INDEX.md (sync commit + date)
+- docs/projects/arkd/system/folder_structure.md (client-lib section: package rename, `ArkClient` → `Wallet`, `wallet/` → `identity/`)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Pure rename/refactor of the embedded client SDK. No new capabilities, no protocol/gRPC/REST/admin surface changes, no env-var / configuration / build-test workflow changes — `testing/`, `sop/`, and other `system/` docs need no updates. Internal arkd uses of `ports.WalletService` (in `internal/core/ports/`) are unrelated to this client-lib rename and remain untouched.
+
+---
+
 ## 2026-05-09 - Documentation Update
 **Commit**: `42f58837` (arkd repository)
 **Previous Sync**: `2999d666`

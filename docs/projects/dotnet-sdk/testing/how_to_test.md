@@ -24,6 +24,7 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 ### Unit Test Files
 
 - `ArkAddressTests.cs` -- Ark address encoding/decoding
+- `ArkBip21Tests.cs` -- BIP21 URI parser + builder (parse / build / roundtrip / rejection / PreferredMethod routing)
 - `BoltzLimitsValidatorTests.cs` -- Swap limit validation
 - `CachingClientTransportTests.cs` -- Transport caching behavior
 - `CheckpointTapScriptTests.cs` -- Tapscript construction
@@ -31,7 +32,11 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 - `DefaultCoinSelectorTests.cs` -- Coin selection algorithm
 - `IntentGenerationServiceTests.cs` -- Intent creation logic
 - `IntentSynchronizationServiceTests.cs` -- Intent sync with server
+- `MergeAssetsTests.cs` -- Asset-amount merger (null / disjoint / sum / duplicate keys)
+- `PendingArkTransactionRecoveryServiceTests.cs` -- Pending-tx recovery loop (per-wallet sweep, BIP-322 proof building, `RecoveryFailed` event, best-effort error handling, single-input checkpoint invariant)
 - `SweeperServiceTests.cs` -- VTXO sweep/recovery
+- `SwapRecoveryTests.cs` -- `InspectSwapRecoveryAsync` + `ScanRecoverableSwapsAsync` (each `SwapRecoveryStatus` branch, bulk skip-Pending, chain-swap renegotiation guard)
+- `SwapRouteTests.cs` / `SwapRoutingTests.cs` -- Multi-provider routing + `SwapRoute` / `SwapAsset` model coverage
 - `VHtlcContractTests.cs` -- VHTLC contract construction
 - `VtxoPollingHandlerTests.cs` -- VTXO polling after events
 

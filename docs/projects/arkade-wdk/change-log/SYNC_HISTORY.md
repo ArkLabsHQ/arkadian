@@ -1,5 +1,37 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-12 — v0.1.2: README reframe (BIP-86 leaves, not roles), release flow uses `--no-git-tag-version`
+**Previous Commit**: `cbd56b57c0f035e3813d31a374288b934bee8db5`
+**Current Commit**: `519d9097d3692a23b04d51ed568e653c3832f124`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (4):
+- `95d9b48` docs: refresh README to match current code — major doc reframe: (a) removed the `Utility Exports` section (BIP21/LNURL/BOLT11/fees/format helpers are **not** re-exported from `src/index.js` — only `WalletManagerArkade`, `WalletAccountArkade`, `WalletAccountReadOnlyArkade` are public); (b) reframed the Account Model — indices are BIP-86 path leaves (`m/86'/<coin>/0'/0/<index>`), not role identifiers; every account exposes Ark address, boarding address, and Lightning invoice creation from the same wallet, gated only by `swapProviderUrl`; (c) refreshed submodule pinning table (`pear-wrk-wdk` at one before `v2.0.0-beta.1` / `ed8cd00`, `wdk-react-native-provider` at one past `v1.0.0-beta.3` / `79462d4`, `wdk-starter-react-native` on `develop` / `f010fda`); (d) rewrote Releasing to use `scripts/release.js` via `npm run release` with `--no-git-tag-version` so the script can manage the tag without colliding; (e) added a CI section documenting `.github/workflows/ci.yml` and the Node 22 lint+test job; (f) added `path` and `index` to the `WalletAccountArkade` API reference and expanded Configuration with `arkProvider`, `storage`, `swapRepository` plus the construction-time `getInfo` retry / 30s wallet-create timeout behaviour; (g) trimmed Current Status
+- `3e35622` Minor amendments — small README polish
+- `542aaa8` Remove duplicated getTransactionHistory — README dedup
+- `519d909` Version v0.1.2 — `package.json#version` bump `0.1.1` → `0.1.2`
+
+**Changes**:
+- Bumped documented version `0.1.1` → `0.1.2` in `INDEX.md` (Quick Reference), `system/project_overview.md`, `testing/api-reference.md`, and `sop/development-workflow.md` (Release Cadence)
+- **Reframe — Account Model**: indices are BIP-86 path leaves, not roles. Every account exposes Ark address / boarding address / Lightning invoice creation (the last gated on `swapProviderUrl`). Updated:
+  - `INDEX.md`: replaced the "Account Index Model" block in the architecture diagram and the "Account index" bullet in Key Concepts
+  - `system/project_overview.md`: rewrote the Account Model section to describe surfaces instead of per-index roles; rephrased the Core Features capability ("Three Account Indices" → "Per-Index BIP-86 Wallets")
+  - `testing/api-reference.md`: replaced the `getAccount(index)` role-table with a BIP-86 path explanation; replaced the `getAddress()` per-index table with "always returns the Ark address"
+  - `testing/usage.md`: replaced the "Account Indices" role-table with an "Accounts and Receive Surfaces" section; rewrote the Lightning Invoices example to use a generic `account` (no dedicated "lightning" index) and updated the Lightning Lifecycle snippet to match
+- **Release flow**: `sop/development-workflow.md` Quick path now shows `npm version --no-git-tag-version patch` followed by an explicit `git commit -am "Bump version"` + `git push`, plus a note in the Manual path warning that plain `npm version` collides with `scripts/release.js` (which creates the tag itself)
+- Master `docs/INDEX.md`:
+  - Updated arkade-wdk Description (version `0.1.2`; reframed three-account model wording to "per-index BIP-86 wallets, every account exposes Ark / boarding / Lightning surfaces")
+  - Refreshed Key Capabilities: "Three-account model (boarding/offchain/lightning)" → "Per-index BIP-86 wallets … every account exposes `getAddress()` (Ark address — always), `getBoardingAddress()`, and `createLightningInvoice()` (gated on `swapProviderUrl`)"; also added `getFeeRates` to the `WalletManagerArkade` capability bullet
+
+**Notes**:
+- Only `README.md` and `package.json` / `package-lock.json` changed in the working tree. The source code under `src/` was unchanged in this window — the README reframe was a documentation correction, not a behaviour change. Local docs that previously echoed the old README's role-based account model (boarding/offchain/lightning) were stale and have been corrected.
+- The `lib/*` helpers were already documented as internal in `system/architecture.md`, `system/project_overview.md`, `testing/api-reference.md`, and `testing/usage.md` (the previous sync had already moved them to the "internal" surface) — no further changes needed for the README's `Utility Exports` removal.
+- Submodule pin SHAs (`ed8cd00`, `79462d4`, `f010fda`) are documented only in the upstream `README.md`. Local docs (`system/project_overview.md` Submodules table, `system/architecture.md` Repository Layout) reference the submodule paths without specific SHAs, so no change was required there — run `git submodule status` to confirm pins.
+- Dependency pins (`@arkade-os/sdk@0.4.25`, `@arkade-os/boltz-swap@0.3.29`, `@tetherto/wdk-wallet ^1.0.0-beta.5`) are unchanged in this window.
+
+---
+
 ## 2026-05-11 — `npm run release` script, RN-side `swapProviderUrl` wiring, upstream Boltz URL alignment
 **Previous Commit**: `b2c9f16edbe1f9321ae1286744f80c1c9648d5a7`
 **Current Commit**: `cbd56b57c0f035e3813d31a374288b934bee8db5`

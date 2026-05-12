@@ -1,5 +1,33 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-12 - Operational Memory Sync (no doc changes)
+**Commit Range**: `50a4d78b..d847dd24` (19 commits)
+**Previous Sync (asserted by caller)**: `50a4d78bcc48be27bfc5a079d1e35522647f2d78`
+**Current Sync**: `d847dd2433466b3b1e21fee4d3c2e9d626902beb`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 15 files changed, all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,research-monitor,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity: security-triage (6 runs), release-coordinator (3 runs), issue-triage (2 runs), repo-detector (1 run + queue update), repo-sync, sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync, research-monitor
+- Notable operational events captured in memory only: CATASTROPHIC executive batch 2026-05-11 — GOV#21–GOV#25 logged in 24h (dotnet-sdk #75/#79/#89/#90, wallet #612 all merged AI-only; #90 protocol-critical reconcile +1181 deployed in arkd v0.9.5 production carrying prior GOV#12+GOV#17); GOV#26 added 20:00Z (dotnet-sdk #91, Kukks 5th PR of day, ~10k lines AI-only — most active single-contributor governance bypass day recorded); 26 governance violations total in crisis window (2026-04-27→present); go-sdk #172 uint64 underflow fix open 24h+ without human review, paired with go-sdk #170 issue (PROTOCOL-CRITICAL, corrupt TxSent records likely in production) — promoted HIGH → CRITICAL; fulmine v0.3.23-rc.1 released (vtxo.Txid → vtxo.ArkTxid fix); repo-detector flagged 3 new repos for executive digest queue (ArkLabsHQ/arkade-x402-facilitator, ArkLabsHQ/layerzero-usdt0-arkade-demo, arkade-os/arkade-wdk moved from ArkLabsHQ); issue-triage processed 8 issues (fulmine#408, explorer#24, go-sdk#170/#171, ts-sdk#483, rust-sdk#205); CI fleet-wide wave Day 19+, no root cause; Linear unchanged 26th consecutive day (ENG-5 ~55d stale, DES-7 ~70d stale, DES-8 Urgent+unassigned 81d)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, or policies
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: d847dd24…`, `last_sync_date: 2026-05-12T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `d847dd2433466b3b1e21fee4d3c2e9d626902beb`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; the 3 newly-detected repos and the arkade-wdk org move are repo-detector observations queued for executive digest, not project-registry additions)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=50a4d78b…` / `to=d847dd24…`; the locally tracked previous sync was `1a438558…`; we honour the supplied range and write the new HEAD to `last-sync.txt`
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-11 - Operational Memory Sync (no doc changes)
 **Commit Range**: `8310c1d2..1a438558` (14 commits)
 **Previous Sync (asserted by caller)**: `8310c1d2834da44ed4bff77da290bfa0a9f7885f`
