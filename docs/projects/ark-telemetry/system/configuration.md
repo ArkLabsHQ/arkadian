@@ -6,28 +6,29 @@ Ark-telemetry is configured through a combination of YAML files, environment var
 
 ## Environment Variables
 
-### Required Variables
+As of PR #9 the Grafana service loads its environment from a `.env.ark-telemetry` file on the telemetry host. A template is checked in as `.env.ark-telemetry.example`.
 
-These must be provided at startup:
+### Slack alerting
 
-**SLACK_API_URL**
-- Purpose: Slack webhook URL for alert notifications
-- Format: `https://hooks.slack.com/services/YOUR/WEBHOOK/PATH`
-- Usage: `export SLACK_API_URL='https://hooks.slack.com/services/...'`
-- Note: Obtained from Slack's "Incoming Webhooks" app
+**SLACK_API_URL** — Slack webhook URL (`https://hooks.slack.com/services/...`)
+**SLACK_CHANNEL** — target Slack channel (`#ark-alerts`)
 
-**SLACK_CHANNEL**
-- Purpose: Target Slack channel for alerts
-- Format: `#channel-name` or `@username`
-- Usage: `export SLACK_CHANNEL='#ark-alerts'`
-- Note: Channel must exist and webhook must have access
+### Grafana
 
-### Optional Variables
+**GF_SECURITY_ADMIN_PASSWORD** — Grafana admin password (no longer the default)
+**GF_SERVER_ROOT_URL** — external URL for Grafana (e.g. `https://grafana.example.com`); the ALB-fronted hostname
 
-**GF_SERVER_ROOT_URL**
-- Purpose: External URL for Grafana (used in links and embeds)
-- Default: `http://localhost:3333`
-- Usage: `export GF_SERVER_ROOT_URL='https://grafana.example.com'`
+### Grafana Google OAuth (PR #9)
+
+Google SSO is enabled by default. Set `GF_AUTH_GOOGLE_ENABLED=false` to disable.
+
+- **GF_AUTH_GOOGLE_CLIENT_ID** / **GF_AUTH_GOOGLE_CLIENT_SECRET** — OAuth credentials
+- **GF_AUTH_GOOGLE_SCOPES** — typically `openid email profile`
+- **GF_AUTH_GOOGLE_AUTH_URL** — `https://accounts.google.com/o/oauth2/v2/auth`
+- **GF_AUTH_GOOGLE_TOKEN_URL** — `https://oauth2.googleapis.com/token`
+- **GF_AUTH_GOOGLE_API_URL** — `https://openidconnect.googleapis.com/v1/userinfo`
+- **GF_AUTH_GOOGLE_ALLOWED_DOMAINS** — restrict sign-in to specific email domains
+- **GF_AUTH_GOOGLE_ALLOW_SIGN_UP** — `true` to auto-provision Grafana users from Google identities
 
 ## Configuration Files
 
@@ -66,6 +67,11 @@ otlp:
 ```yaml
 processors:
   batch: {}  # Batch data before export (reduces overhead)
+  resource/local:                # Tag locally-scraped hostmetrics
+    attributes:
+      - key: host.role
+        value: telemetry
+        action: upsert
 ```
 
 Advanced batch configuration:
@@ -82,6 +88,8 @@ batch:
 prometheus:
   metric_expiration: 30s      # Remove stale metrics after 30s
   endpoint: "0.0.0.0:8889"    # Where Prometheus scrapes
+  resource_to_telemetry_conversion:
+    enabled: true             # Promote resource attrs (host.role, ...) to labels
 ```
 
 **Loki exporter:**
@@ -106,11 +114,17 @@ debug:
 
 #### Pipeline Configuration
 
+As of PR #9 hostmetrics and OTLP metrics are split into two parallel pipelines so the local telemetry-host metrics can be tagged separately:
+
 ```yaml
 service:
   pipelines:
+    metrics/local:
+      receivers: [hostmetrics]
+      processors: [resource/local, batch]
+      exporters: [prometheus]
     metrics:
-      receivers: [hostmetrics, otlp]
+      receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
     traces:
@@ -149,6 +163,8 @@ scrape_configs:
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
+        labels:
+          host_role: 'telemetry'   # PR #9: tag local cadvisor scrape
 ```
 
 Adding custom targets:
@@ -306,17 +322,26 @@ slack_configs:
 
 ### Service Ports
 
-Exposed ports (can be customized in docker-compose.otel.yaml):
+Exposed ports as of PR #9 (standalone EC2 deployment — host security group / ALB enforces access):
 
 ```yaml
 ports:
-  - "4317:4317"           # OTel gRPC
-  - "4318:4318"           # OTel HTTP
-  - "127.0.0.1:3333:3000" # Grafana (localhost-only)
-  - "9090:9090"           # Prometheus
-  - "16686:16686"         # Jaeger UI
-  - "3100:3100"           # Loki
+  - "4317:4317"            # OTel gRPC (publicly exposed for app-host ingest)
+  - "4318:4318"            # OTel HTTP
+  - "127.0.0.1:8889:8889"  # OTel Prometheus exporter (localhost-only)
+  - "3000:3000"            # Grafana — fronted by ALB
+  - "9093:9093"            # Alertmanager
+  - "4040:4040"            # Pyroscope ingestion
 ```
+
+The previously-required external Docker networks (`nigiri` for dev, `ark` for prod) were removed; the stack now runs on its own default compose network.
+
+### Pinned Container Versions (PR #9)
+
+| Service        | Image                                                                                       |
+|----------------|---------------------------------------------------------------------------------------------|
+| otel-collector | `ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.151.0` |
+| cadvisor       | `ghcr.io/google/cadvisor:0.56.2`                                                            |
 
 Example customization (change Grafana port):
 ```yaml

@@ -310,6 +310,43 @@
 
 ---
 
+## 2026-05-13 - ContractWatcher follow-ups + `ExtendedContractVtxo` export + indexer URL deriving fix
+**Previous Commit**: `0c7b4bb8fa2c792bee054a1f6114805e61122c58`
+**Current Commit**: `9e53c73a520e3e39ca826d6914fc2a80af8d8cc5`
+**Synced By**: /update-project ts-sdk
+**Status**: Documentation refreshed for ContractWatcher follow-ups + type-cleanup pass (no version bump — still 0.4.26)
+
+**Commits Analyzed**:
+- `9e53c73` Revert "feat(wallet): HD receive rotation via contract repository (alt to #441) (#473)" (#488)
+- `4eec112` feat(wallet): HD receive rotation via contract repository (alt to #441) (#473)
+- `ab0c67e` fix: ContractWatcher follow-ups from #462 (#464)
+
+**Net delta**: `4eec112` and `9e53c73` cancel out (HD receive rotation feature added then reverted same day). Only `ab0c67e` produces source changes in this range. No HD rotation work shipped; `src/wallet/hdDescriptorProvider.ts` and the surrounding descriptor-provider stack are unchanged from #440.
+
+**Documentation Changes**:
+- `system/architecture.md`: added `contracts/types.ts` to the contracts directory map (`ContractVtxo` vs new `ExtendedContractVtxo` split, the latter is the post-`annotateVtxos` shape used at save/forfeit sites); annotated `contractManager.ts` with the internal `ExtendedContractVtxo[]` return-type tightening; extended `contractWatcher.ts` annotation with the typed `ContractVtxo[]` accumulator + greppable extend-failure log (`txid:vout` + caught error); extended `wallet.ts` annotation with the new `extractArkProviderUrl(provider)` helper that derives the indexer URL from a custom `arkProvider`; annotated `wallet/delegator.ts` with the `isAnnotated` type-guard replacing the unsafe `as ExtendedVirtualCoin` cast in the `.delegate` filter
+- `change-log/last-sync.txt`: bumped to `9e53c73`
+- Master `docs/INDEX.md`: extended the ts-sdk status row with the new `ExtendedContractVtxo` public export, the ContractWatcher / Delegator type-safety hardening, and the indexer URL deriving fix
+
+**Notable Source Changes (no public-API removal, no behaviour change beyond the indexer URL fix)**:
+- **New public type `ExtendedContractVtxo`** (`src/contracts/types.ts`) — `ExtendedVirtualCoin & { contractScript: string }`. Mirrors the `ExtendedVirtualCoin` / `VirtualCoin` split: `ContractVtxo` carries `Partial<TapLeaves & EncodedVtxoScript>` (raw from indexer) while `ExtendedContractVtxo` narrows those fields to required, guaranteeing `annotateVtxos` has run. Exported from the package root via `src/index.ts`. `ContractWithVtxos.vtxos` retyped from `ContractVtxo[]` → `ExtendedContractVtxo[]` so callers can rely on taproot data being present
+- **`ContractWatcher.extendVtxos`** (the internal helper inside the watcher loop): accumulator now typed `ContractVtxo[]` rather than untyped `[]` (compile-time drift catch on the extended shape); the catch branch now logs `failed to extend vtxo ${txid}:${vout}` plus the caught error so production grep can find both the offending vtxo and the underlying cause
+- **`ContractManager` internal returns**: `getVtxosForContracts`, `fetchContractVtxosBulk`, and `fetchContractVxosFromIndexer` now return `Map<string, ExtendedContractVtxo[]>` (was `ContractVtxo[]`). Drops the `as ContractVtxo` cast in `getVtxosForContracts` and the corresponding casts in the bulk-fetch paths — the types now match what `annotateVtxos` actually returns. Pure cleanup, no behaviour change
+- **`DelegatorManagerImpl.delegate`** (`src/wallet/delegator.ts`): the `eligible` filter dropped `.map((v) => v as ExtendedVirtualCoin)` in favour of a real type guard, `isAnnotated(v: ContractVtxo): v is ContractVtxo & ExtendedVirtualCoin`, which checks `tapTree !== undefined && forfeitTapLeafScript !== undefined && intentTapLeafScript !== undefined`. The filter now both verifies a delegate tap leaf exists AND that the vtxo is annotated — wrong-shape rows are silently dropped instead of being cast through to `makeDelegateForfeitTx` where they would have crashed downstream
+- **`Wallet.create` / `ReadonlyWallet.create` indexer URL derivation** (`src/wallet/wallet.ts`): new private helper `extractArkProviderUrl(provider: ArkProvider): string | undefined` does a structural read of `provider.serverUrl` (the built-in `RestArkProvider` / `ExpoArkProvider` expose it; custom implementations may not). When a custom `arkProvider` is supplied without `arkServerUrl`, the indexer is now built from that same URL instead of silently falling back to `getArkadeServerUrl(config)` → `arkade.computer`. Behavioural fix: a wallet built on a custom mainnet/testnet arkd is no longer paired with the public default indexer. The old `(arkProvider as RestArkProvider).serverUrl` unsafe cast + `"Could not determine arkServerUrl from provider"` throw are gone; the new path uses `??` against `extractArkProviderUrl(arkProvider) ?? arkadeServerUrl`, so a custom arkProvider without a discoverable `serverUrl` falls back to the mainnet default rather than throwing
+- **`README.md`** cleanup: `arkServerUrl: 'https://arkade.computer'` removed from every `Wallet.create` / `ReadonlyWallet.create` / `ServiceWorkerWallet.setup` snippet (mainnet-default UX from #460); now reads `await Wallet.create({ identity })` everywhere with an explicit "To use a different network, pass `arkServerUrl` option" callout
+
+**Tests Added**:
+- `test/contracts/watcher.test.ts`: +144 lines covering `emitVtxoEvent` via the public `listenLoop` / subscription iterator — (1) a delegate-contract subscription update yields a vtxo whose `tapTree` equals `DelegateVtxo.Script.encode()` and differs from the default tapscript, proving the delegate handler enriched it; (2) a contract type with no registered handler emits the raw vtxo with `contractScript` set and surfaces a `console.warn` carrying `txid:vout`
+
+**Notes**:
+- The HD-rotation revert (`#488`) means the previously-merged `walletReceiveRotator.ts`, `metadata.source = 'wallet-receive'` tagging, `walletMode` config, and `refreshVtxos({ includeInactive })` escape hatch are NOT in the SDK at HEAD. Existing wallets continue to use the static descriptor path from the boot — `HDDescriptorProvider` is still exported from #440 but is not wired into `Wallet.create` automatically
+- No package version bump (still `0.4.26`); the only additive public surface change is the new `ExtendedContractVtxo` type export
+- The indexer URL deriving fix is a behavioural change for callers who passed a custom `arkProvider` without an explicit `arkServerUrl`: their indexer URL now matches the arkd they pointed at, rather than the public default. Callers who relied on the implicit mainnet pairing should pass `arkServerUrl: 'https://arkade.computer'` explicitly
+- Architecture, module layout, provider/identity/storage patterns, and crypto stack are otherwise unchanged
+
+---
+
 ## 2026-05-09 - Release 0.4.26 (ESM-compatible declarations + typedoc polish)
 **Previous Commit**: `2707b59d87df66f3ea5731150250895d6883e0ae`
 **Current Commit**: `0c7b4bb8fa2c792bee054a1f6114805e61122c58`

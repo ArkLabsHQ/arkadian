@@ -112,9 +112,12 @@ Container metrics:
 
 ### Starting the Stack
 ```bash
-# With Slack notifications
-SLACK_API_URL='https://hooks.slack.com/...' \
-SLACK_CHANNEL='#ark-alerts' \
+# Configure (copy and edit)
+cp .env.ark-telemetry.example .env.ark-telemetry
+# Set SLACK_API_URL, SLACK_CHANNEL, GF_SECURITY_ADMIN_PASSWORD,
+# GF_SERVER_ROOT_URL, and Google OAuth (GF_AUTH_GOOGLE_*) variables
+
+# Production
 make docker-run
 
 # Development mode
@@ -125,23 +128,31 @@ make docker-stop
 ```
 
 ### Service Endpoints
-- **Grafana**: http://localhost:3333 (dashboard visualization)
-- **Prometheus**: http://localhost:9090 (metrics query)
-- **Alertmanager**: http://localhost:9093 (alert management)
-- **Loki**: http://localhost:3100 (log ingestion)
-- **Jaeger**: http://localhost:16686 (trace visualization)
-- **OpenTelemetry Collector**: gRPC :4317, HTTP :4318
-- **cAdvisor**: http://localhost:8081 (container metrics)
+
+As of PR #9 the stack runs on a **standalone EC2 instance**. Ports are exposed publicly (the host's security group / ALB controls access), not bound to localhost:
+- **Grafana**: `:3000` — fronted by an ALB; Google SSO enabled
+- **OpenTelemetry Collector**: gRPC `:4317`, HTTP `:4318` — receives OTLP from the app instance
+- **Alertmanager**: `:9093`
+- **Pyroscope**: `:4040` — profile ingestion endpoint
+- **Prometheus**: `:9090` (internal)
+- **Loki**: `:3100` (internal)
+- **Jaeger**: `:16686` (internal)
+- **cAdvisor**: container-internal `:8080`
+- **OTel Prometheus exporter**: `127.0.0.1:8889` (localhost-only)
 
 ### Available Dashboards
-- **Host Metrics** — CPU, memory, disk, network (default home)
+- **Host Metrics** — CPU, memory, disk, network — segmented by `host_role` (default home)
 - **Ark Go Metrics** — Runtime metrics for Ark services
-- **Container Metrics** — Docker container resource usage (cAdvisor)
+- **Cadvisor Exporter** — Docker container resource usage, filtered by `host_role`
 - **RPC Latency** — gRPC request latencies
 - **RPC Request/Response Size** — Message sizes
 
 ### Alert Rules
-- **HighMachineCPUUsage** — CPU >70% for 2 minutes
+Alerts are split by `host_role` (`app` vs `telemetry`):
+- **HighCPUUsage_App** / **HighCPUUsage_Telemetry** — CPU >70% for 2 min
+- **HighMemoryUsage_App** / **HighMemoryUsage_Telemetry** — RAM >85% for 2 min
+- **RootDiskHighUsage_App** / **RootDiskHighUsage_Telemetry** — `/` >70% for 5 min
+- **DataDiskHighUsage** — `/mnt/data` >70% for 5 min (app only)
 - **ServiceMissing** — Ark service stopped exporting metrics
 
 ---

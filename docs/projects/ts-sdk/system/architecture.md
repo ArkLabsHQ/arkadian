@@ -9,12 +9,12 @@ src/
 ├── forfeit.ts               # Forfeit transaction construction
 │
 ├── wallet/                  # Wallet implementations
-│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo
+│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo; `extractArkProviderUrl(provider)` structurally reads `serverUrl` off the injected ArkProvider so the indexer is built from the same host as a custom arkProvider (no longer silently paired with the public arkade.computer default)
 │   ├── onchain.ts           # OnchainWallet (on-chain fee payment, anchor bumping)
 │   ├── ramps.ts             # Ramps (onboard/offboard)
 │   ├── batch.ts             # Batch session (round participation, tree signing)
 │   ├── vtxo-manager.ts      # VtxoManager (renewal, recovery, expiry monitoring); revalidateBeforeSettle pre-flight + maybeRefreshAfterVtxoSpent reactive recovery on VTXO_ALREADY_SPENT (surgical refreshOutpoints, falls back to refreshVtxos when no outpoint metadata)
-│   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party)
+│   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party); `delegate` filter uses an `isAnnotated` type guard narrowing `ContractVtxo` to `ContractVtxo & ExtendedVirtualCoin` (checks `tapTree`, `forfeitTapLeafScript`, `intentTapLeafScript`) instead of an unsafe `as ExtendedVirtualCoin` cast
 │   ├── asset-manager.ts     # AssetManager (issue, reissue, burn)
 │   ├── asset.ts             # Asset types and helpers
 │   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support
@@ -59,8 +59,9 @@ src/
 │   └── vhtlc.ts             # VHTLC (Virtual Hash Time-Locked Contract)
 │
 ├── contracts/               # Contract orchestration
-│   ├── contractManager.ts   # IContractManager + impl; refreshOutpoints(outpoints) for surgical indexer-by-outpoint upserts at the contract address
-│   ├── contractWatcher.ts   # SSE-driven watcher; seedLastKnownVtxos baseline now script-gated (legacy wrong-script rows no longer seed phantom vtxo_spent events)
+│   ├── types.ts             # ContractVtxo (raw-from-indexer, `Partial<TapLeaves & EncodedVtxoScript>`) and ExtendedContractVtxo (annotated, ExtendedVirtualCoin & { contractScript }) — the latter is the post-`annotateVtxos` shape used at save and forfeit-construction sites; both ContractWithVtxos and the ContractManager internal bulk-fetch helpers now return ExtendedContractVtxo. Public export added in this cycle
+│   ├── contractManager.ts   # IContractManager + impl; refreshOutpoints(outpoints) for surgical indexer-by-outpoint upserts at the contract address. Internal `getVtxosForContracts` / `fetchContractVtxosBulk` / `fetchContractVxosFromIndexer` typed `ExtendedContractVtxo[]` (dropped the unsafe `as ContractVtxo` casts)
+│   ├── contractWatcher.ts   # SSE-driven watcher; seedLastKnownVtxos baseline now script-gated (legacy wrong-script rows no longer seed phantom vtxo_spent events); extend-vtxo accumulator typed `ContractVtxo[]` (compile-time drift catch), extend-failure log now includes `txid:vout` + caught error for production grep-ability
 │   └── vtxoOwnership.ts     # Ownership-gating helpers — applied at every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows or win txid:vout dedup; throw on user paths, warn-and-skip on background sync. Since 0.4.25 (Tier 2 of #480): `getVtxosForContract` / `saveVtxosForContract` dispatch helpers route to optional `getVtxosForScript` / `saveVtxosForScript` when the repo backend implements them, otherwise fall back to Tier 1 address-bucket read + `filterVtxosForScript` (with `validateVtxosForScript` on the save fallback). Used by `wallet.ts` (`updateDbAfterOffchainTx` / `updateDbAfterSettle`), `contractManager.ts` (`fetchContractVtxos`, `reconcilePendingFrontier`, `fetchContractVxosFromIndexer`, `getContractVtxos`), and `contractWatcher.ts` (`seedLastKnownVtxos` baseline)
 │
 ├── musig2/                  # MuSig2 distributed signing

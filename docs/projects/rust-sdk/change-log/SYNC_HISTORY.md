@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-13 - Boltz referralId on swap creation
+**From**: `887cb4a1c87124594c13b4d2a1ffc1c7d89934fc`
+**To**: `0444708fc20a79f551b1a01d2b6ae2d74515a7a8`
+**Synced By**: update-project skill
+**Commits analyzed**: 1 (no merges)
+
+**Summary**: `OfflineClient` now carries a `boltz_referral_id: Option<String>` and injects it as the `referralId` field on Boltz submarine, reverse, and chain swap creation requests. Defaults to `DEFAULT_BOLTZ_REFERRAL_ID` (`"arkade-rs-SDK"`) when the constructor is called with `None`; callers can opt out via `OfflineClient::with_boltz_referral_id(None)`.
+
+**Changes**:
+- `feat(boltz): send referralId on swap requests` (`256b964`) — closes #221. Adds `DEFAULT_BOLTZ_REFERRAL_ID` constant in `ark-client/src/lib.rs`. Adds `boltz_referral_id: Option<String>` positional parameter to `OfflineClient::new`, `OfflineClient::with_kind`, and `OfflineClient::with_keypair`; constructor substitutes the default when `None`. New `with_boltz_referral_id(Option<String>) -> Self` builder method and `boltz_referral_id() -> Option<&str>` getter on both `OfflineClient` and `Client`. `CreateSubmarineSwapRequest` / `CreateReverseSwapRequest` / `CreateChainSwapRequest` gain a `referral_id: Option<String>` field serialized as `referralId` with `skip_serializing_if = "Option::is_none"`. Six new serialization tests cover set/unset cases for each request type. Sample app and e2e harness updated to pass `None`.
+
+**Breaking changes**: `OfflineClient::new` / `with_kind` / `with_keypair` constructors gain a positional `boltz_referral_id: Option<String>` argument — direct callers must thread it through (pass `None` for default behaviour).
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`, Boltz swap capability line)
+- `docs/projects/rust-sdk/system/project_overview.md` (new top entry under Recent Additions)
+- `docs/projects/rust-sdk/system/architecture.md` (new "Boltz Referral ID" sub-section under Key Design Decisions)
+- `docs/projects/rust-sdk/testing/usage.md` (client init example threads the new positional arg)
+- `docs/INDEX.md` (rust-sdk Key Capabilities — appended referralId note)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-07 - 0.9.0 Release-Prep Metadata
 **From**: `f12ef0a7494a99f40076ec3ceb3bce9e7737d144`
 **To**: `887cb4a1c87124594c13b4d2a1ffc1c7d89934fc`

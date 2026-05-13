@@ -232,6 +232,31 @@ Run `arkadian sync-project boltz-swap` to sync with latest repository changes.
 
 ---
 
+## 2026-05-13 — Sync (post-0.3.30, SW handler recovery)
+
+**From**: `e019ba06e7aadf63767bed124a159d5f505e27a5` (release 0.3.30)
+**To**: `d244bc195a842a46280895d2724d879ae3b3884b`
+**Commits Analyzed**: 1 (non-merge)
+**Status**: ✓ Complete
+
+### Notable Changes
+
+**Versions**
+- No version bump — still `@arkade-os/boltz-swap@0.3.30`, `@arkade-os/sdk@0.4.26`.
+
+**ServiceWorker half-initialized handler recovery** (commit `2234ab3` — "Recover from half-initialized ArkadeSwaps handler after SW restart")
+- Closes a gap exposed by the wallet's restart-recovery path: after a SW restart the message bus can be re-initialized (so PING/PONG works and routing happens) before the page-side `ArkadeSwaps` init payload is re-sent, leaving `handler.handler` undefined. Any non-`INIT` request in that window previously surfaced an opaque generic `Error("handler not initialized")` to callers.
+- `src/serviceWorker/arkade-swaps-message-handler.ts`: exports `HANDLER_NOT_INITIALIZED` constant (`"ArkadeSwaps handler not initialized"`) and `HandlerNotInitializedError` class (extends `Error`, `name = "HandlerNotInitializedError"`). The handler now throws the typed error instead of a generic one when `this.handler || this.wallet` is missing.
+- `src/serviceWorker/arkade-swaps-runtime.ts`: new `isHandlerNotInitializedError` predicate (structured-clone-safe — matches by message string). The retry loop in `sendMessage` treats `MESSAGE_BUS_NOT_INITIALIZED` and `HANDLER_NOT_INITIALIZED` as a single `recoverable` class, and the existing reinit-and-retry path re-sends the cached `INIT_ARKADE_SWAPS` payload before retrying the original request. Transparent to callers.
+- Test coverage: new `arkade-swaps-runtime.test.ts` case "retries after re-initializing when SW returns 'ArkadeSwaps handler not initialized'" — simulates the gap (INIT_ARKADE_SWAPS succeeds, all other requests return the typed error until init is replayed), asserts the runtime re-sends INIT and the original `GET_FEES` request was posted twice.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — added "Recent Improvements (post-0.3.30, unreleased)" entry above the 0.3.29 → 0.3.30 block describing the SW handler-recovery fix
+- `docs/INDEX.md` — appended SW handler recovery note to the boltz-swap status table row; added matching capability bullet to the boltz-swap **Key Capabilities** list; added `service-worker` / `sw-recovery` tags; added `handler not initialized` / `service worker restart` / `INIT_ARKADE_SWAPS lost` debug triggers
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `d244bc19`
+
+---
+
 ## 2026-05-08 — Sync 0.3.28 → 0.3.29
 
 **From**: `4c32983560415c0bfa892533c2d5ac88f3cc6a8b` (release 0.3.28)

@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
 version: 1.3.0
-last_sync_commit: 887cb4a1c87124594c13b4d2a1ffc1c7d89934fc
+last_sync_commit: 0444708fc20a79f551b1a01d2b6ae2d74515a7a8
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -81,7 +81,7 @@ All publishable crates aligned at **v0.9.0** with crates.io metadata (`keywords 
 - Round participation with MuSig2 signing — asset-preserving settlement
 - Ark notes (transferable payment proofs)
 - DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`)
 - **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
 - **Arkade Asset V1**: issue, transfer, burn, reissue (rejects empty asset packets)
 - **Arkade Script** (introspector flow): extension opcodes, key-tweaked introspector pubkeys, `ArkadeVtxoScript` taproot encoding, PSBT-driven introspector packet insertion

@@ -3,10 +3,11 @@
 ## Quick Start
 
 ```bash
-# Start stack with Slack alerts
+# Configure (PR #9: stack reads .env.ark-telemetry)
+cp .env.ark-telemetry.example .env.ark-telemetry
+$EDITOR .env.ark-telemetry   # set SLACK_*, GF_SECURITY_ADMIN_PASSWORD, GF_AUTH_GOOGLE_*
+
 cd /path/to/ark-telemetry
-SLACK_API_URL='https://hooks.slack.com/services/YOUR/WEBHOOK' \
-SLACK_CHANNEL='#your-channel' \
 make docker-run
 
 # Stop stack
@@ -15,18 +16,28 @@ make docker-stop
 
 ## Service URLs
 
+In production the telemetry host runs on its own EC2 instance and Grafana is fronted by an ALB at `${GF_SERVER_ROOT_URL}`. Locally, host-bound services are reachable as:
+
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Grafana | http://localhost:3333 | Primary visualization interface |
-| Prometheus | http://localhost:9090 | Metrics query and alert rules |
-| Loki | http://localhost:3100 | Log aggregation API |
-| Jaeger | http://localhost:16686 | Distributed tracing UI |
+| Grafana | http://localhost:3000 | Primary visualization interface (Google SSO in prod) |
+| OTel Collector | grpc://localhost:4317, http://localhost:4318 | OTLP ingest from app host |
 | Alertmanager | http://localhost:9093 | Alert routing and notifications |
-| cAdvisor | http://localhost:8081 | Container metrics UI |
+| Pyroscope | http://localhost:4040 | Profile ingestion endpoint |
+| OTel Prom exporter | http://127.0.0.1:8889 | Internal scrape target (localhost-only) |
+
+Internal-only (compose network):
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Prometheus | http://prometheus:9090 | Metrics query and alert rules |
+| Loki | http://loki:3100 | Log aggregation API |
+| Jaeger | http://jaeger:16686 | Distributed tracing UI |
+| cAdvisor | http://cadvisor:8080 | Container metrics |
 
 ## Grafana Dashboards
 
-**Access**: http://localhost:3333
+**Access**: http://localhost:3000
 
 **Available Dashboards**:
 - Host Metrics (default home) - CPU, memory, disk, network
@@ -64,7 +75,7 @@ docker logs otel-collector | tail -n 20
 curl 'http://localhost:9090/api/v1/query?query=up'
 
 # View in Grafana
-# 1. Open http://localhost:3333
+# 1. Open http://localhost:3000
 # 2. Navigate to "Host Metrics" dashboard
 # 3. Verify panels show recent data
 ```

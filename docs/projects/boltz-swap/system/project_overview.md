@@ -214,6 +214,9 @@ boltz-swap/
 **Version**: 0.3.30
 **Stability**: Stable API, active feature development
 
+**Recent Improvements (post-0.3.30, unreleased)**:
+- **ServiceWorker half-initialized handler recovery** (`src/serviceWorker/arkade-swaps-runtime.ts`, `arkade-swaps-message-handler.ts`): after a SW restart the message bus can be re-initialized (via the wallet's restart-recovery path) before the page-side `ArkadeSwaps` init payload is re-sent, leaving `handler.handler` undefined. The handler now throws a typed `HandlerNotInitializedError` (`HANDLER_NOT_INITIALIZED` = `"ArkadeSwaps handler not initialized"`) for non-`INIT` requests in that window, and the runtime's reinit-retry path treats it as recoverable alongside `MESSAGE_BUS_NOT_INITIALIZED` — re-sends the cached `INIT_ARKADE_SWAPS` payload and retries the original request transparently to callers.
+
 **Recent Improvements (0.3.29 → 0.3.30)**:
 - `BoltzSwapProvider` now defaults `referralId` to `"arkade-ts-sdk"` when the caller does not supply one — every submarine, reverse, and chain swap request is automatically tagged unless explicitly overridden.
 - `@arkade-os/sdk` bumped 0.4.25 → 0.4.26.

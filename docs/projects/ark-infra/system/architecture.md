@@ -135,12 +135,34 @@ VPC: 10.10.0.0/16 (65,536 IPs)
 │    - Fast sync via AssumeUTXO          │
 └────────────────────────────────────────┘
 
-┌─────────────── Telemetry ─────────────┐
-│  otel-collector → prometheus           │
-│  loki → grafana (127.0.0.1:3333)      │
-│  jaeger, alertmanager, cadvisor        │
-└────────────────────────────────────────┘
+┌─────────────── Telemetry (separate EC2 + ALB) ─────────────┐
+│  App host (sidecars in Ark Compose):                        │
+│    otel-agent (0.151.0) + cadvisor (v0.56.2)                │
+│        │ OTLP gRPC :4317 (resolved via AWS Cloud Map)       │
+│        ▼                                                     │
+│  Telemetry EC2 (ASG, t3.medium, IMDSv2):                    │
+│    otel-collector → prometheus, loki, jaeger,               │
+│    alertmanager, pyroscope                                  │
+│    grafana :3000 ◀── ALB (HTTPS, ACM, Google SSO)           │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+**Telemetry architecture (2026-05):**
+- App and telemetry are deployed on **separate EC2 instances**. App hosts run only the
+  local `otel-agent` and `cadvisor` (bundled in the Ark Docker Compose stack); all
+  telemetry storage and UI runs on a dedicated telemetry instance in an Auto Scaling
+  Group provisioned by `modules/ark/telemetry.tf` and bootstrapped via
+  `modules/ark/ansible/playbook.yml`.
+- App ↔ telemetry routing uses **AWS Cloud Map** (`modules/ark/service_discovery.tf`).
+  The telemetry instance registers itself on boot; the app instance dials
+  `${ARK_TELEMETRY_COLLECTOR_ENDPOINT}` (e.g. `telemetry.ark-staging.internal:4317`).
+- A **shared internet-facing ALB** (`modules/ark/alb.tf`) terminates HTTPS with an ACM
+  certificate (`alb_certificate_arn`, `ELBSecurityPolicy-TLS13-1-2-2021-06`) and routes
+  to Grafana's target group on port 3000 (health check `/api/health`). Grafana auth is
+  **Google SSO** (client-id / client-secret stored under
+  `${ssm_prefix}/grafana/google/secure/client-secret`).
+- App SG → telemetry SG ingress is opened for OTLP gRPC (4317), OTLP HTTP (4318),
+  Pyroscope (4040), and Alertmanager (9093). ALB SG → telemetry SG opens Grafana (3000).
 
 ### 4. Data Flow Architecture
 

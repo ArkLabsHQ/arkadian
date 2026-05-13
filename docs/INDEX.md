@@ -123,12 +123,14 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - Design token system (`src/tokens.css`) with full color ramps (50–950) and `color-mix(in oklab)` neutrals for automatic light/dark adaptation under `html.palette-dark`
 - Tailwind CSS v4 (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with token-driven `@theme` block in `src/app.css`; `cn()` helper combining `clsx` + `tailwind-merge`; `class-variance-authority` available for variant-driven components
 - Toast notifications migrated to `sonner` (^2.0.7) — `useToast()` hook still returns `{ toast }` for call-site compatibility; centered top placement with rich colors and project-scoped CSS
+- 55 shadcn/ui primitives available under `src/components/ui/` (PR #590) using `base-nova` style + `lucide` icons; `@/*` path alias in `tsconfig.json` + `vite.config.ts`; existing screens unchanged — primitives available for future migrations
+- Service worker init refactored to AbortController-per-session (PR #613) — replaces the prior generation-counter; lock/reset aborts the current signal with reason `'lock-reset'`, a new init aborts the previous with `'init'`; `initSvcWorkerWallet` now accepts `identity?: SingleKey` (or legacy `privateKey`), returns `Promise<boolean>`, and supports `skipMigration: true` (used by `restartWallet`)
 - E2E testing with Playwright using shared `arkade-regtest` submodule + `nak` Nostr relay
 - Multi-arch Docker build (amd64 + arm64) via GHCR
 - Progressive Web App features (installable, offline-capable)
 - @arkade-os/sdk 0.4.26 and @arkade-os/boltz-swap 0.3.30
 
-**Tags**: `wallet`, `pwa`, `react`, `typescript`, `tailwindcss`, `design-tokens`, `sonner`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `lnurl`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`, `arkade-regtest`
+**Tags**: `wallet`, `pwa`, `react`, `typescript`, `tailwindcss`, `design-tokens`, `sonner`, `shadcn`, `lucide`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `lnurl`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`, `arkade-regtest`, `service-worker`, `abortcontroller`
 
 **Synonyms**: `arkade-wallet`, `web-wallet`, `pwa-wallet`, `client-app`
 
@@ -222,19 +224,22 @@ Simulation tool for testing Ark protocol under various load conditions. Creates 
 **GitHub**: `${ARK_TELEMETRY_GITHUB}`
 
 **Description**:
-OpenTelemetry-based observability stack for Ark protocol monitoring. Provides metrics, traces, and logs collection from arkd and related services. Includes Prometheus for metrics storage, Grafana for visualization, Loki for log aggregation, and Tempo for distributed tracing.
+OpenTelemetry-based observability stack for Ark protocol monitoring. Provides metrics, traces, logs and continuous profiles collection from arkd and related services. Includes Prometheus for metrics storage, Grafana for visualization, Loki for log aggregation, Jaeger for distributed tracing, and Pyroscope for continuous profiling. As of PR #9 (May 2026) the stack is deployed on a **standalone EC2 instance**, separate from the application host, with metrics segmented by `host_role` (`app` vs `telemetry`).
 
 **Key Capabilities**:
 - OpenTelemetry instrumentation for arkd
-- Prometheus metrics collection and alerting
-- Grafana dashboards (rounds, VTXOs, transactions, performance)
+- Prometheus metrics collection and alerting (alerts split per `host_role`: `*_App` vs `*_Telemetry`)
+- Grafana dashboards (host metrics & cAdvisor segmented by `host_role`, rounds, VTXOs, transactions, performance)
 - Loki log aggregation and querying
-- Tempo distributed tracing
+- Jaeger distributed tracing
+- Pyroscope continuous profiling (ingest port 4040)
 - Pre-built dashboards for common monitoring scenarios
-- Alert rules for critical conditions
-- Docker Compose stack for easy deployment
+- Alert rules for critical conditions, routed by `host_role` label
+- Docker Compose stack for easy deployment on a dedicated EC2 telemetry host
+- Grafana Google SSO/OAuth (`GF_AUTH_GOOGLE_*`); ALB-fronted on port 3000
+- Centralized configuration via `.env.ark-telemetry` env file
 
-**Tags**: `observability`, `monitoring`, `metrics`, `logs`, `traces`, `opentelemetry`, `prometheus`, `grafana`, `loki`, `tempo`
+**Tags**: `observability`, `monitoring`, `metrics`, `logs`, `traces`, `profiling`, `opentelemetry`, `prometheus`, `grafana`, `loki`, `jaeger`, `pyroscope`, `ec2`, `google-sso`
 
 **Synonyms**: `monitoring`, `observability-stack`, `telemetry`
 
@@ -443,6 +448,13 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Port forwarding to EC2 services and remote hosts (RDS, Redis)
 - Image pinning script for running container digest collection
 - Deploys arkd / arkd-wallet `v0.9.5` from GHCR (`ghcr.io/arkade-os/arkd*`); Traefik upgraded to `v3.6.14`
+- **Telemetry split (2026-05)**: telemetry stack (Grafana, Prometheus, Loki, Jaeger, Alertmanager, Pyroscope, OTLP collector) now runs on a **dedicated EC2 instance in an Auto Scaling Group** provisioned by `modules/ark/telemetry.tf` (Ansible-based bootstrap via `modules/ark/ansible/playbook.yml`); app hosts run only `otel-agent` (`otel/opentelemetry-collector-contrib:0.151.0`) and `cadvisor` (`v0.56.2`) bundled in the Ark Compose stack
+- **Shared internet-facing ALB** (`modules/ark/alb.tf`) with HTTPS listener (ACM cert, `ELBSecurityPolicy-TLS13-1-2-2021-06`) routes to Grafana target group (`/api/health` health check); Grafana publicly accessible via `telemetry_grafana_host` with **Google SSO**
+- **AWS Cloud Map** service discovery (`modules/ark/service_discovery.tf`) for app → telemetry routing; app `.env.ark` requires `ARK_TELEMETRY_COLLECTOR_ENDPOINT` (e.g. `telemetry.ark-staging.internal:4317`)
+- IMDSv2-only, least-privilege IAM (`ark-telemetry-role-${env}`) with scoped `ssm:GetParameter` on `${ssm_prefix}/*` and `servicediscovery:Register/Deregister/ListInstances`; CloudWatch log streams for `otel-agent` and `cadvisor`
+- SSM parameter convention migrated to **`secure`-at-end naming** (e.g. `/grafana/google/secure/client-secret`); unified `ssm_prefix` shared by app and telemetry modules
+- New `apps/ark/staging/` OpenTofu entry point composes `modules/ark` for the staging stack (S3 backend `ark-dev-terraform-state`, DynamoDB `terraform-state-lock`, VPC/subnet lookups by `Name` tag)
+- Developer sandbox sub-accounts now include `aruokhai` alongside `se7enz` (`aws/dev-438465126741/organizations.tf`), each with scoped `sts:AssumeRole` IAM user policies and an `aws.aruokhai` provider alias bootstrapping an IAM admin user
 - **Google Workspace SAML SSO** per AWS account (prod `982590065524`, dev `438465126741`) with reusable modules `ark-iam-roles` and `ark-gws-sync`
 - Four-tier role model with prefix per account (`ArkProd*` / `ArkDev*`): SuperAdministrator, Administrator, Developer, ReadOnly
 - Layered guardrail policies (`AdminRestrictions`, `DeveloperRestrictions`, `SSMPortForwarding`): deny secrets, Terraform state mutation, security-tooling tampering, sensitive log groups (`/*secure*`, `/aws/ssm/sessions/*`), and SSM shell sessions for non-SuperAdmins
@@ -451,7 +463,7 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Nix devshell (`flake.nix` + `.envrc`) pinning OpenTofu 1.9.1, Node.js 20, and Python 3 for reproducible local tooling
 - Per-developer AWS Organizations sandbox sub-accounts under the dev account (`aws/dev-438465126741/organizations.tf`) with scoped `sts:AssumeRole` IAM user policies for `OrganizationAccountAccessRole`
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`, `aws-organizations`, `sandbox-accounts`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`, `aws-organizations`, `sandbox-accounts`, `alb`, `asg`, `cloud-map`, `service-discovery`, `ansible`, `imdsv2`, `grafana-sso`, `otel-agent`, `cadvisor`, `pyroscope`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 
@@ -567,7 +579,7 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 - Persisted claim transaction tracking for reverse/chain swaps with FK-enforcing Postgres trigger
 - Positive-slippage tolerance via shared `OverpaymentProtector`
 - Hardened mempool.space integration (deduplicated, one-decimal-rounded BTC fee estimations)
-- Fulmine integration via macaroon auth and `ListVHTLCs`
+- Fulmine integration via macaroon auth, `ListVHTLCs`, and `GetVHTLCSpendingTx` (claim Ark tx retrieval for finalized or pending spending txs); configurable periodic vHTLC rescan (`rescanInterval`, default 300s) and manual chain-rescan service path for Ark currencies
 - CLI tool to rotate referral API keys
 - RESTful HTTP API (v1 and v2) with improved HTTP status codes
 - WebSocket real-time swap updates
@@ -613,11 +625,12 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 - VHTLC (Virtual HTLC) creation, monitoring, and refund handling
 - **User-initiated submarine VHTLC recovery** (`inspectSubmarineRecovery`, `scanRecoverableSubmarineSwaps`, `recoverSubmarineFunds`, `recoverAllSubmarineFunds`) — Boltz-amnesia-tolerant inspection and post-CLTV `refundWithoutReceiver` sweep
 - **Unknown-to-Boltz safety net** — SwapManager transitions a swap to terminal `swap.expired` after 10 consecutive Boltz 404s (new `SwapNotFoundError`), notifies subscribers + listeners, and stops polling. Avoids hammering Boltz with requests for swap IDs unknown to the configured endpoint (e.g. after a Boltz endpoint switch)
+- **ServiceWorker half-initialized handler recovery** — runtime detects `HandlerNotInitializedError` from the SW message handler (handler reset after SW restart but bus already re-initialized) and transparently re-sends the cached `INIT_ARKADE_SWAPS` payload before retrying the original request
 - Persistent swap storage using wallet contract repository
 - Event-driven architecture with flexible subscription patterns for swap lifecycle events
 - Support for both standard Wallet, ServiceWorkerWallet, and Expo (React Native) implementations
 
-**Tags**: `lightning-network`, `submarine-swaps`, `chain-swaps`, `boltz`, `arkade`, `typescript`, `swap-manager`, `vhtlc`, `submarine-recovery`, `swap-not-found`, `bitcoin`, `payment-integration`, `event-driven`, `websocket`, `invoice-decoding`
+**Tags**: `lightning-network`, `submarine-swaps`, `chain-swaps`, `boltz`, `arkade`, `typescript`, `swap-manager`, `vhtlc`, `submarine-recovery`, `swap-not-found`, `bitcoin`, `payment-integration`, `event-driven`, `websocket`, `invoice-decoding`, `service-worker`, `sw-recovery`
 
 **Synonyms**: `lightning-swaps`, `arkade-lightning`, `boltz-integration`, `swap-library`
 
@@ -625,7 +638,7 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 - **ask_question**: `lightning swap`, `boltz swap`, `submarine swap`, `reverse swap`, `chain swap`, `arkade lightning`, `vhtlc`, `swap manager`, `lightning invoice`, `lightning payment`, `swap monitoring`, `swap refund`, `swap claim`, `invoice decoding`, `swap fees`, `swap limits`, `submarine recovery`, `recover stranded funds`, `SwapNotFoundError`, `swap unknown to Boltz`
 - **develop**: `add lightning`, `integrate boltz`, `implement swap`, `create invoice`, `send lightning`, `monitor swap`, `handle refund`, `swap provider`, `arkade lightning`, `submarine recovery`, `recoverAllSubmarineFunds`
 - **test_or_run**: `test swap`, `test lightning`, `run swap test`, `integration test`, `e2e swap`, `regtest swap`
-- **debug**: `swap failing`, `invoice expired`, `swap timeout`, `refund failed`, `claim failed`, `vhtlc issue`, `swap stuck`, `websocket disconnect`, `stranded funds`, `pre_cltv`, `swap unknown to provider`, `boltz 404`, `swap.expired after endpoint change`
+- **debug**: `swap failing`, `invoice expired`, `swap timeout`, `refund failed`, `claim failed`, `vhtlc issue`, `swap stuck`, `websocket disconnect`, `stranded funds`, `pre_cltv`, `swap unknown to provider`, `boltz 404`, `swap.expired after endpoint change`, `handler not initialized`, `service worker restart`, `INIT_ARKADE_SWAPS lost`
 
 **Dependencies**: `@arkade-os/sdk` (Arkade Wallet SDK, 0.4.26), Boltz API server, Bitcoin/Lightning infrastructure
 **Depended On By**: Arkade PWA wallet, Arkade-powered applications requiring Lightning integration
@@ -889,7 +902,7 @@ CLI framework + runtime SDK for deploying any plain HTTP server inside **AWS Nit
 **GitHub**: `arkade-os/dotnet-sdk`
 
 **Description**:
-.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, pending-tx recovery (reconciles Arkade txs stranded between Submit and Finalize), payment tracking (assets + explicit Cancelled status), BIP21 / payment-string parsing, and a multi-provider swap architecture with Boltz as the shipped provider (submarine / reverse / chain swaps with renegotiation + cooperative refund in both directions + recovery-state diagnostics). Published as NuGet packages with a fluent builder pattern for DI configuration. Ships a Blazor WASM sample wallet and DocFX-generated docs site, both deployed to GitHub Pages.
+.NET SDK for building Ark protocol wallets and applications. Provides a complete client-side implementation including VTXO management, batch session participation (MuSig2 tree signing), intent-based transaction construction, coin selection, sweeping, on-chain operations, pending-tx recovery (reconciles Arkade txs stranded between Submit and Finalize), payment tracking (assets + explicit Cancelled status), BIP21 / payment-string parsing, a multi-provider swap architecture with Boltz as the shipped provider (submarine / reverse / chain swaps with renegotiation + cooperative refund in both directions + recovery-state diagnostics), and a full unilateral-exit pipeline (stateful with EF Core or in-memory storage; or stateless one-shot `ExitPlan` API) with v3 CPFP 1p1c relay via the new `IFeeWallet` abstraction. Unified `IBitcoinBlockchain` interface collapses the prior split `IChainTimeProvider` / `IBoardingUtxoProvider` / `IOnchainBroadcaster` trio (NBXplorer / Esplora / RPC impls + matching `Add{NBXplorer,Esplora,Rpc}Blockchain` DI helpers). Published as NuGet packages with a fluent builder pattern for DI configuration. Ships a Blazor WASM sample wallet and DocFX-generated docs site, both deployed to GitHub Pages.
 
 **Key Capabilities**:
 - VTXO lifecycle management with resilient sync (stream + 5 s routine poll + retry schedule, time-window `after` filtering); persistent per-wallet `vtxo.lastFullPollAt` cursor (stored via `ArkWalletEntity.Metadata`) bounds cold-start catch-up across process restarts, gated so a failed catch-up + successful routine poll can't advance past the gap
@@ -913,20 +926,22 @@ CLI framework + runtime SDK for deploying any plain HTTP server inside **AWS Nit
 - Payment tracking (`PaymentTrackingService` now `IHostedService`): asset tracking via `ArkPayment.Assets` and `ArkPaymentRequest.ExpectedAsset` / `ReceivedAssets` (JSONB-persisted, accumulated via `MergeAssets`); explicit `Cancelled` terminal status distinct from `Failed`; `SemaphoreSlim` serialises `OnVtxoChanged` against same-request races. Opt-in via `AddArkPaymentTracking()`
 - Vendored NBitcoin.Scripting (`OutputDescriptor`, parsers, `SigningRepository`) in `NArk.Abstractions`
 - HD wallet support with descriptor recycling, plus gap-limit recovery (`HdWalletRecoveryService`) for re-imported mnemonics via pluggable `IContractDiscoveryProvider`s (indexer-VTXO, boarding-UTXO, Boltz-swap, plus custom)
-- EF Core storage package (pluggable DB provider, opt-in payment entities)
+- Unilateral exit pipeline (`UnilateralExitService`) with state machine `Broadcasting` → `AwaitingCsvDelay` → `Claimable` → `Claiming` → `Completed`. Three operating shapes: stateful with EF Core persistence (opt-in `ConfigureArkExitEntities()`), stateful with in-memory storage (`AddInMemoryExitStorage()`), or stateless one-shot API (`BroadcastExitChainAsync` returns an `ExitPlan` the caller persists; `ClaimMaturedExitAsync(plan)` claims once the CSV timelock matures). `VirtualTxService` backs the storage layer (Lite default — txids + expiry, hex fetched on demand at `StartExitAsync`; Full mode stores raw hex at every VTXO arrival; whole-chain incl. `Commitment` root tagged with `ChainedTxType`); `ExitWatchtowerService` auto-starts exits on partial-tree-broadcast detection; opt-in `VtxoChainAutoFetchService` (`AddVirtualTxAutoFetch()`) pre-stores chains for every new VTXO above the worth-threshold. `P2ACpfpBuilder` builds v3 1p1c CPFP children via the new `IFeeWallet` abstraction (`SignFeeUtxoAsync` sighash-callback signing — never holds raw keys; `SelectFeeUtxoAsync` returns `ICoin?`); gracefully falls back to direct broadcast when no fee wallet is registered. `ParseVirtualTx` branches on `ChainedTxType` (Tree → lift `PSBT_IN_TAP_KEY_SIG`, Ark/Checkpoint → `Finalize+ExtractTransaction` with `FinalScriptWitness` fallback, Commitment filtered out)
+- Unified `IBitcoinBlockchain` interface (6 members: `GetChainTime`, `GetUtxosAsync`, `BroadcastAsync`, `BroadcastPackageAsync`, `GetTxStatusAsync`, `EstimateFeeRateAsync`) replaces the prior split `IBoardingUtxoProvider` / `IChainTimeProvider` / `IOnchainBroadcaster` trio. Three concrete impls under `NArk.Core/Blockchain/`: `NBXplorerBlockchain` (preserves cached-fallback chain-time + `submitpackage`/sequential broadcast fallback), `EsploraBlockchain`, `RpcBlockchain` (`GetUtxosAsync` throws `NotSupportedException` — no native address index). DI helpers `AddNBXplorerBlockchain` / `AddEsploraBlockchain` / `AddRpcBlockchain` register every supported member of a backend in one call; `ArkApplicationBuilder.WithBlockchain<T>()` replaces the prior `WithTimeProvider<T>()`
+- EF Core storage package (pluggable DB provider, opt-in payment entities, opt-in unilateral-exit entities, opt-in `StoreDateTimeOffsetAsTicks` for SQLite `ORDER BY` support — scoped to Ark-owned entity types so it can't bleed into consumer columns)
 - gRPC + REST/SSE transports with camelCase, string-encoded int64, and custom-signet (mutinynet) handling
 - Shared regtest E2E environment via the `arkade-os/arkade-regtest` git submodule + .NET Aspire AppHost
 - Blazor WASM sample wallet (`samples/NArk.Wallet/`) deployed to GitHub Pages alongside DocFX docs
 
-**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `multi-provider-swaps`, `swap-provider`, `swap-router`, `chain-swap-renegotiation`, `cooperative-refund`, `swap-recovery-inspection`, `pending-tx-recovery`, `bip21-parser`, `referral-id`, `efcore`, `aspire`, `regtest-submodule`, `grpc-client`, `rest-client`, `sse`, `taproot`, `output-descriptor`, `payment-tracking`, `payment-assets`, `payment-cancelled`, `hd-recovery`, `gap-limit`, `discovery-provider`, `wallet-metadata`, `sync-cursor`, `chain-time-cache`, `wallet-scoped-logs`, `lnurl`, `blazor`, `wasm`, `docfx`
+**Tags**: `sdk`, `dotnet`, `csharp`, `nuget`, `client`, `library`, `vtxo`, `musig2`, `batch`, `intent`, `boltz`, `swap`, `multi-provider-swaps`, `swap-provider`, `swap-router`, `chain-swap-renegotiation`, `cooperative-refund`, `swap-recovery-inspection`, `pending-tx-recovery`, `bip21-parser`, `referral-id`, `efcore`, `aspire`, `regtest-submodule`, `grpc-client`, `rest-client`, `sse`, `taproot`, `output-descriptor`, `payment-tracking`, `payment-assets`, `payment-cancelled`, `hd-recovery`, `gap-limit`, `discovery-provider`, `wallet-metadata`, `sync-cursor`, `chain-time-cache`, `wallet-scoped-logs`, `lnurl`, `blazor`, `wasm`, `docfx`, `unilateral-exit`, `exit-watchtower`, `virtual-tx`, `chained-tx-type`, `p2a-cpfp`, `truc-relay`, `fee-wallet`, `exit-plan`, `in-memory-exit-storage`, `ibitcoinblockchain`, `nbxplorer-blockchain`, `esplora-blockchain`, `rpc-blockchain`, `sqlite-orderby`, `datetimeoffset-ticks`
 
 **Synonyms**: `nark`, `nark-sdk`, `dotnet-client`, `csharp-sdk`, `.net-sdk`
 
 **Triggers**:
-- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`, `nark wasm wallet`, `nark sample wallet`, `hd recovery`, `gap limit scan`, `wallet metadata`, `sync cursor`, `boltz referral id`, `swap provider`, `multi-provider swap`, `ark bip21`, `pending tx recovery`, `inspect swap recovery`
-- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`, `payment tracking`, `payment assets`, `output descriptor`, `blazor wasm wallet`, `contract discovery provider`, `restore from mnemonic`, `walletid log scope`, `wallet metadata column`, `boltz referral id`, `add swap provider`, `iswap provider`, `chain swap renegotiation`, `cooperative refund`, `bip21 builder`, `pending ark tx`
-- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`, `arkade-regtest submodule`, `docfx serve`
-- **debug**: `grpc connection`, `rest sse 501`, `batch session error`, `musig2 mismatch`, `swap failed`, `swap stuck pending`, `chain swap wrong amount`, `mutinynet network`, `bit besql sqlite`, `vtxo 11k cap`, `recovery scan stuck`, `single key recovery throws`, `chain time rpc 500`, `plugin disabled by host`, `cold start refetches all vtxos`, `boltz websocket reconnect storm`, `failure details json exception`, `submit finalize stranded`, `addarkswaps not found`
+- **ask_question**: `dotnet sdk`, `csharp ark`, `.net wallet`, `nark`, `nuget ark`, `nark wasm wallet`, `nark sample wallet`, `hd recovery`, `gap limit scan`, `wallet metadata`, `sync cursor`, `boltz referral id`, `swap provider`, `multi-provider swap`, `ark bip21`, `pending tx recovery`, `inspect swap recovery`, `unilateral exit dotnet`, `nark exit pipeline`, `exit plan`, `virtual tx storage`, `p2a cpfp builder`, `ifeewallet`, `ibitcoinblockchain`, `nbxplorer blockchain`, `esplora blockchain`, `rpc blockchain`
+- **develop**: `dotnet feature`, `csharp wallet`, `.net integration`, `efcore storage`, `payment tracking`, `payment assets`, `output descriptor`, `blazor wasm wallet`, `contract discovery provider`, `restore from mnemonic`, `walletid log scope`, `wallet metadata column`, `boltz referral id`, `add swap provider`, `iswap provider`, `chain swap renegotiation`, `cooperative refund`, `bip21 builder`, `pending ark tx`, `add unilateral exit`, `add virtual tx auto fetch`, `add in memory exit storage`, `configure ark exit entities`, `with blockchain builder`, `add nbxplorer blockchain`, `add esplora blockchain`, `add rpc blockchain`, `implement ifeewallet`, `store datetime offset as ticks`
+- **test_or_run**: `dotnet test`, `aspire apphost`, `nark e2e`, `arkade-regtest submodule`, `docfx serve`, `unilateral exit tests`, `test fee wallet`, `p2a cpfp tests`, `efcore sqlite orderby test`
+- **debug**: `grpc connection`, `rest sse 501`, `batch session error`, `musig2 mismatch`, `swap failed`, `swap stuck pending`, `chain swap wrong amount`, `mutinynet network`, `bit besql sqlite`, `vtxo 11k cap`, `recovery scan stuck`, `single key recovery throws`, `chain time rpc 500`, `plugin disabled by host`, `cold start refetches all vtxos`, `boltz websocket reconnect storm`, `failure details json exception`, `submit finalize stranded`, `addarkswaps not found`, `withtimeprovider not found`, `exit session failed invalid hex`, `truc violation`, `mempool script verify flag failed`, `parse virtual tx`, `psbt no witness utxo`, `tree tx witness empty`, `addunilateralexit missing tables`, `order by datetimeoffset sqlite`
 
 **Dependencies**: `arkd` (server communication via gRPC + REST/SSE), `fulmine` (Boltz-side wallet in E2E), `boltz-backend` (swap provider), `arkade-regtest` (shared regtest env, git submodule)
 **Depended On By**: .NET applications building on Ark protocol
@@ -999,7 +1014,7 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 - gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2
 - MuSig2 cooperative signing for round participation
 - BDK wallet integration for on-chain operations
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap rows now persist BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap rows now persist BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, configurable via `OfflineClient::with_boltz_referral_id`)
 - **Arkade Asset V1**: issue, transfer, burn, reissue with asset-preserving settlement
 - **Arkade Script** (introspector flow): `ark-script` extension opcodes / ASM / tapscript / vtxo-script encoders; `ark-core::introspector::packet` strict-validating packet builder; `ark-introspector-client` HTTP co-signer client
 - **VTXO delegation**: 3-of-3 delegated VTXOs, REST delegator client (`ark-delegator`), background `VtxoWatcher` for auto-renewal
@@ -1305,9 +1320,9 @@ For conceptual questions, prioritize documentation loading order:
 | arkade-explorer | Active Dev | ✓ Beta | Block explorer, production-ready |
 | introspector | Active Dev | → Alpha | Arkade Script co-signer |
 | dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages, DocFX site + Blazor WASM sample wallet on GitHub Pages, HD wallet gap-limit recovery via modular discovery providers, per-wallet `vtxo.lastFullPollAt` cold-start cursor on new `ArkWalletEntity.Metadata` JSON column, persistent Boltz websocket with subscribe/unsubscribe, Boltz `referralId` (default `"arkade-dotnet-sdk"`), `RPCChainTimeProvider` cache + transient-RPC fallback, mainnet Boltz URL switched to `api.boltz.exchange` |
-| boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.30, @arkade-os/sdk 0.4.26; `BoltzSwapProvider` `referralId` now defaults to `"arkade-ts-sdk"` when caller omits it (auto-tags every submarine/reverse/chain swap) |
+| boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.30, @arkade-os/sdk 0.4.26; `BoltzSwapProvider` `referralId` now defaults to `"arkade-ts-sdk"` when caller omits it (auto-tags every submarine/reverse/chain swap); ServiceWorker runtime now recovers from a half-initialized `ArkadeSwaps` handler (typed `HandlerNotInitializedError`) by re-sending the cached `INIT_ARKADE_SWAPS` payload and retrying — closes the gap where a SW restart re-initializes the bus before the page resends its init |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
-| ts-sdk | Active Dev | ✓ Beta | v0.4.26, npm published, multi-platform; 0.4.26 ships ESM-compatible declaration imports (build script `scripts/add-extensions.js` now rewrites `.d.ts` import specifiers, fixing typed consumption under `"moduleResolution": "node16" / "bundler"`) plus typedoc polish and `as const` on `DEFAULT_ARKADE_HRP` / `DEFAULT_NETWORK_NAME`; **Tier 2 ownership gating (0.4.25)**: optional `WalletRepository` script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript` + `VtxoRepositoryKey`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite), with `getVtxosForContract` / `saveVtxosForContract` dispatch helpers and Tier 1 fallback for custom backends; surgical `IContractManager.refreshOutpoints` reconciliation + `VtxoManager.revalidateBeforeSettle` pre-flight (closes 60-second `VTXO_ALREADY_SPENT` retry loop); ownership-gated VTXO persistence via `vtxoOwnership.ts` (legacy address buckets can't leak wrong-script rows; multi-contract spends route per-script); unilateral exit bundle — `prepareUnrollTransaction` / `completeUnroll` split, regtest network arg fix, `isScriptValid === true` correctness; **breaking (0.4.23)**: asset amounts now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
+| ts-sdk | Active Dev | ✓ Beta | v0.4.26, npm published, multi-platform; **post-0.4.26**: new public type `ExtendedContractVtxo` (`ExtendedVirtualCoin & { contractScript }`) exported from the package root — narrows `ContractVtxo`'s `Partial<TapLeaves & EncodedVtxoScript>` to required, used at save/forfeit construction sites and as the `ContractWithVtxos.vtxos` element type; `ContractWatcher` extend path now compile-time-typed and logs `txid:vout` + caught error on extend failure; `DelegatorManager.delegate` filter replaced its unsafe `as ExtendedVirtualCoin` cast with an `isAnnotated` type guard; `Wallet.create` / `ReadonlyWallet.create` now derive the indexer URL from a custom `arkProvider` via the new `extractArkProviderUrl` helper (no more silent pairing with the public `arkade.computer` default when a different arkd is injected); HD receive rotation via the contract repository (#473) was merged then reverted (#488) — not in HEAD; 0.4.26 ships ESM-compatible declaration imports (build script `scripts/add-extensions.js` now rewrites `.d.ts` import specifiers, fixing typed consumption under `"moduleResolution": "node16" / "bundler"`) plus typedoc polish and `as const` on `DEFAULT_ARKADE_HRP` / `DEFAULT_NETWORK_NAME`; **Tier 2 ownership gating (0.4.25)**: optional `WalletRepository` script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript` + `VtxoRepositoryKey`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite), with `getVtxosForContract` / `saveVtxosForContract` dispatch helpers and Tier 1 fallback for custom backends; surgical `IContractManager.refreshOutpoints` reconciliation + `VtxoManager.revalidateBeforeSettle` pre-flight (closes 60-second `VTXO_ALREADY_SPENT` retry loop); ownership-gated VTXO persistence via `vtxoOwnership.ts` (legacy address buckets can't leak wrong-script rows; multi-contract spends route per-script); unilateral exit bundle — `prepareUnrollTransaction` / `completeUnroll` split, regtest network arg fix, `isScriptValid === true` correctness; **breaking (0.4.23)**: asset amounts now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
 | arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 17 active agents (new `issue-staleness` weekly sweep) |
 | bluewallet | Active | ✓ Production | v8.0.0 on RN 0.85 (New Architecture); integrates @arkade-os/sdk 0.4.23 + @arkade-os/boltz-swap 0.3.26; Android 16kb-page-size ready |
 

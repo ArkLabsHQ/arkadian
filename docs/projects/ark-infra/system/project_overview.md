@@ -30,7 +30,16 @@ ark-infra/
 │   ├── README.md                      # SSO setup + per-account deployment guide
 │   ├── dev-438465126741/              # Dev account (ArkDev* roles + organizations.tf for developer sandbox sub-accounts)
 │   └── prod-982590065524/             # Prod account (ArkProd* roles)
+├── apps/                              # Per-app, per-env OpenTofu entry points
+│   └── ark/staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
 ├── modules/                           # Reusable OpenTofu modules
+│   ├── ark/                           # Ark app + telemetry: ALB, telemetry ASG, Cloud Map service discovery, Ansible-based provisioning
+│   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert)
+│   │   ├── telemetry.tf               # Telemetry EC2 ASG + IAM + SGs + Grafana target group
+│   │   ├── service_discovery.tf       # Cloud Map private DNS for telemetry collector
+│   │   ├── scripts/user-data.sh       # Bootstraps Ansible from SSM-stored GitHub token
+│   │   ├── ansible/playbook.yml       # Telemetry instance provisioning (Docker, ark-telemetry clone, systemd)
+│   │   └── agent/otel-agent-config.yaml # Local OTLP collector config used on app hosts
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
 │   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
 └── docker-compose/                    # Docker Compose + OpenTofu automation
@@ -149,12 +158,18 @@ ark-infra/
 
 ### Telemetry Stack
 
-- **Prometheus**: Metrics collection and storage
-- **Grafana**: Dashboards (localhost:3333)
-- **Loki**: Log aggregation
-- **Jaeger**: Distributed tracing
-- **Alertmanager**: Alert routing (Slack integration)
-- **cadvisor**: Container metrics
+As of 2026-05, the telemetry stack is **split across two instances**:
+
+- **Telemetry instance (separate EC2, ASG, fronted by shared ALB)** — provisioned by `modules/ark/telemetry.tf` and bootstrapped by `modules/ark/ansible/playbook.yml`. Hosts:
+  - **Prometheus** (port 9090)
+  - **Grafana** (port 3000, public via ALB on `telemetry_grafana_host`, Google SSO enabled)
+  - **Loki**, **Jaeger** (16686), **Alertmanager** (9093), **Pyroscope** (4040)
+  - **otel-collector** (OTLP gRPC 4317 / HTTP 4318)
+- **App instance (bundled into Ark Compose stack)** — sidecar collectors that forward to the telemetry instance:
+  - **otel-agent** (`otel/opentelemetry-collector-contrib:0.151.0`) — local OTLP receiver, host metrics, exports to central collector via `ARK_TELEMETRY_COLLECTOR_ENDPOINT`
+  - **cadvisor** (`v0.56.2`) — container metrics
+
+App ↔ telemetry resolution uses **AWS Cloud Map** private DNS; the telemetry instance registers/deregisters itself on boot via `servicediscovery:RegisterInstance`.
 
 ## Key Features
 

@@ -63,6 +63,11 @@ Fulmine integrates boltz-backend to provide Lightning swap functionality:
 - Swap Monitoring: WebSocket or polling for swap state updates
 - Configuration: `FULMINE_BOLTZ_URL`, `FULMINE_BOLTZ_WS_URL`
 
+**Boltz Backend → Fulmine (Ark RPC client)** (`lib/chain/ArkClient.ts`, `lib/chain/ArkSubscription.ts`, `lib/swap/ArkNursery.ts`):
+- `ListVHTLCs`: vHTLC discovery on startup
+- `GetVHTLCSpendingTx`: fetch the fully signed claim Ark transaction for a spent vHTLC (works for both finalized and pending spending txs). `ArkNursery` looks up the matching reverse/chain swap by spent-outpoint `(txid, vout)`, then calls this RPC with the swap's reconstructed `vhtlcId` to extract the preimage — replacing the prior pattern of scanning every preimage in any spending tx.
+- Periodic vHTLC rescan: interval set by Ark currency config (`rescanInterval`, seconds, default `300`); a manual rescan is also reachable through the existing chain-rescan service path now that it supports Ark currencies.
+
 See `${ARKADIAN_DIR}/docs/projects/fulmine/INDEX.md` for Fulmine implementation details.
 
 ## Use Cases for Ark Users

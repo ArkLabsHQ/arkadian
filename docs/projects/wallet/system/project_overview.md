@@ -76,11 +76,12 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Scrollbar hidden**: Cross-browser scrollbar removal moved off the (legacy Ionic) `::part(scroll)` shadow part onto `.content` directly
 - **Scanner button positioning**: `InputWithScanner` adopts a `.label.has-buttons` layout — buttons absolutely positioned right, input gets `padding-right: 36px`
 
-### Design System & Styling (PRs #582, #589)
+### Design System & Styling (PRs #582, #589, #590)
 - **Design tokens**: `src/tokens.css` provides full color ramps (50–950) for purple, green, red, orange, yellow, and neutral, plus typography and shadow elevation tokens. The neutral ramp uses `color-mix(in oklab)` so it auto-adapts to light/dark with the `html.palette-dark` selector.
 - **Tailwind CSS v4**: `src/app.css` declares the `@theme` block that maps tokens to Tailwind utilities; `@tailwindcss/vite` plugin wired in `vite.config.ts`. Legacy `--darkXX` opacity tokens were migrated to solid `--neutral-XXX` colors across 50+ component files.
 - **`cn()` utility** in `src/lib/utils.ts` combines `clsx` and `tailwind-merge`; `class-variance-authority` is available for variant-driven components.
 - **Toast migration to sonner**: Custom React Context toast replaced by `sonner@^2.0.7`. `Toast.tsx` shrank from ~97 to 35 lines; `useToast()` hook still returns `{ toast }` for call-site compatibility. Toaster is `top-center`, `richColors`, content-hugging width via scoped `Toast.css`. Backup screen no longer reads `VITE_DEV_NSEC` directly — private-key copy still goes through normal password verification.
+- **shadcn/ui primitives (PR #590)**: 55 shadcn/ui components added under `src/components/ui/` (Accordion, AlertDialog, Button, Card, Combobox, Dialog, Drawer, DropdownMenu, Field, InputOtp, Pagination, Popover, Select, Sheet, Sidebar, Table, Tabs, Toggle, Tooltip, …) using `base-nova` style and `lucide` icon library. Setup files: `components.json` (shadcn CLI config — CLI moved to devDependencies), `@/*` path alias in `tsconfig.json` and `vite.config.ts` `resolve.alias`, plus shadcn theme tokens appended to `src/app.css`. Dark mode selector is `html.palette-dark` (consistent with existing app). `sonner.tsx` was patched to read theme from `ConfigContext` (replaces `next-themes`). `use-mobile` hook added under `src/hooks/`. **No existing code modified** — primitives are available for future component migrations.
 
 ### Asset Amount Precision
 - **bigint-based amount math**: `unitsToCents` / `centsToUnits` operate on `bigint`; `AssetOption.balance` and tx-asset `amount` are now `bigint`. Asset metadata `supply` is `bigint` and serialised via a `JSON.stringify` replacer that converts bigint → string.

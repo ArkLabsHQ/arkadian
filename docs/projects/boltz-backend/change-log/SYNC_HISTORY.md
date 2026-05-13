@@ -1,5 +1,31 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-13 - Documentation Update
+**Commit**: `7ae3002e` (boltz-backend repository)
+**Previous Sync**: `e6397e9a`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Features Added**:
+- chore: make Ark rescan interval configurable (`0c0ea2a0`) — new `rescanInterval` option (seconds, default `300`) on the Ark currency config, surfaced in `docs/boltz.conf` and threaded `ArkConfig.rescanInterval → ArkClient → ArkSubscription`. `ArkSubscription` now stores `rescanIntervalSeconds` (validated `>= 1`, falls back to new `defaultRescanIntervalSeconds = 300`) and switches the timer from a hard-coded 5-minute interval to `rescanIntervalSeconds * 1_000`. `Service.rescanChain` now also handles Ark currencies (`arkNode.subscription.rescan()` + `arkNode.getBlockHeight()`), enabling manual rescans through the existing chain-rescan service path.
+
+**Refactors**:
+- refactor: getting claim tx from Fulmine (`7c4beaa2`) — added Fulmine RPC `GetVHTLCSpendingTx(vhtlc_id) → tx` to `proto/ark/service.proto` (REST: `GET /v1/vhtlc/spendTx/{vhtlc_id}`; PSBT-encoded fully signed Ark transaction, returned whether the vHTLC is spent by a finalized or pending tx). `ArkClient.getVhtlcSpendingTx` wraps it (decodes base64 PSBT). `ArkNursery.checkVHtlcClaim` was restructured: instead of fetching the spending tx by `vHtlc.spentBy` and scanning every preimage against swap candidates, it now (1) finds the matching reverse/chain swap by the spent outpoint `(txid, vout)` via `ReverseSwapRepository.getReverseSwap({ transactionId, transactionVout, ... })` / `ChainSwapRepository.getChainSwapByData(...)`, (2) reconstructs the canonical `vhtlcId` via `ArkClient.createVhtlcId(preimageHash, arkNode.pubkey, receiverPubkey)`, and (3) calls `GetVHTLCSpendingTx` to extract the matching preimage. New helper `fetchClaimPreimage` and `handleClaim` clean up the per-side flow. The `regtest` submodule was advanced to ship the matching Fulmine build.
+
+**Tests**:
+- `test/unit/chain/ArkSubscription.spec.ts` — new coverage for default interval, custom interval, and `RangeError` on `rescanIntervalSeconds < 1`.
+- `test/unit/swap/ArkNursery.spec.ts` — rewritten claim-detection cases against the new outpoint-lookup + `GetVHTLCSpendingTx` flow for both reverse and chain swaps, including the "no matching preimage" warn path.
+
+**Documentation Impact**:
+- `INDEX.md` (project): Fulmine Integration section now lists `GetVHTLCSpendingTx` and the configurable `rescanInterval`.
+- `system/integration-with-arkd.md`: added a "Boltz Backend → Fulmine (Ark RPC client)" subsection covering `ListVHTLCs`, `GetVHTLCSpendingTx`, the outpoint-based swap lookup, and the rescan interval.
+- Master `docs/INDEX.md`: updated boltz-backend Key Capabilities bullet for Fulmine integration to mention `GetVHTLCSpendingTx` and `rescanInterval`.
+- `system/architecture.md`, `system/project_overview.md`, `testing/usage.md`, `testing/api-reference.md`: no edits — changes are confined to the Fulmine/Ark integration layer (no Boltz public REST API, swap-type capability, env-var, build, or DB-migration change).
+
+---
+
 ## 2026-05-12 - Documentation Update
 **Commit**: `e6397e9a` (boltz-backend repository)
 **Previous Sync**: `bd697247`

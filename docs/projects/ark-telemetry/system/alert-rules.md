@@ -29,46 +29,100 @@ Each alert rule consists of:
 
 ## Current Alert Rules
 
-### HighMachineCPUUsage
+> **PR #9 (May 2026)**: alerts that previously fired on a single machine are now split per `host_role` (`app` vs `telemetry`). All resource alerts carry a `host_role` label for routing/silencing.
 
-**Purpose**: Detect sustained high CPU utilization that may impact Ark performance.
+### HighCPUUsage_App / HighCPUUsage_Telemetry
 
-**Configuration:**
+**Purpose**: Detect sustained high CPU utilization on the app host (running arkd) or the telemetry host.
+
+**Configuration (app variant shown — telemetry variant swaps `host_role="app"` → `"telemetry"`):**
 ```yaml
-- alert: HighMachineCPUUsage
-  expr: (1 - sum(rate(system_cpu_time_seconds_total{state="idle"}[1m])) /
-        sum(rate(system_cpu_time_seconds_total[1m]))) * 100 > 70
+- alert: HighCPUUsage_App
+  expr: (1 - sum(rate(system_cpu_time_seconds_total{state="idle",host_role="app"}[1m])) /
+        sum(rate(system_cpu_time_seconds_total{host_role="app"}[1m]))) * 100 > 70
   for: 2m
   labels:
     severity: warning
+    host_role: app
   annotations:
-    summary: "High machine CPU usage (>70%)"
-    description: "The machine's CPU usage has been above 70% for more than 2 minutes."
+    firing_title: "⚠️ High App CPU Usage"
+    resolved_title: "✅ App CPU Usage Normal"
+    summary: "App instance CPU usage (>70%)"
+    description: "The app instance CPU usage has been above 70% for more than 2 minutes."
 ```
 
 **How It Works:**
 
 1. **Expression Breakdown:**
-   - `system_cpu_time_seconds_total`: Total CPU time in different states (idle, user, system, etc.)
-   - `rate(...[1m])`: Calculate rate of change over 1 minute
-   - `sum(rate(system_cpu_time_seconds_total{state="idle"}[1m]))`: Rate of idle CPU time
-   - `1 - (idle_rate / total_rate)`: Calculate percentage of non-idle CPU time
-   - `* 100`: Convert to percentage
-   - `> 70`: Trigger when CPU usage exceeds 70%
+   - `system_cpu_time_seconds_total{host_role="app"}`: CPU time samples filtered to the app host
+   - `rate(...[1m])`: rate over 1 minute
+   - `1 - (idle_rate / total_rate)`: non-idle fraction
+   - `> 70`: trigger when above 70%
 
-2. **Duration**: Alert fires only if condition persists for 2 minutes (avoids transient spikes)
-
-3. **Severity**: Labeled as "warning" (not critical)
-
-**When It Fires:**
-- CPU usage consistently above 70% for 2+ minutes
-- Possible causes: Resource-intensive round execution, inefficient queries, external load
+2. **Duration**: 2 minutes (avoids transient spikes)
+3. **Severity**: warning
+4. **Routing**: `host_role` label distinguishes app vs telemetry pages in Slack
 
 **Response Actions:**
-- Check which process is consuming CPU (top, htop)
-- Review Ark logs for unusual activity
-- Check if round size or participant count increased
-- Consider horizontal scaling or optimization
+- Identify the offending host from the `host_role` label
+- For `app`: review arkd logs, round size/participant count, recent deploys
+- For `telemetry`: check Prometheus/Grafana load (heavy queries, dashboard scrapes)
+
+### HighMemoryUsage_App / HighMemoryUsage_Telemetry
+
+**Purpose**: Detect sustained high RAM usage on the app or telemetry host.
+
+```yaml
+- alert: HighMemoryUsage_App
+  expr: |
+    100 *
+    sum without(state)(system_memory_usage_bytes{state="used",host_role="app"}) /
+    sum without(state)(system_memory_usage_bytes{host_role="app"}) > 85
+  for: 2m
+  labels:
+    severity: warning
+    host_role: app
+  annotations:
+    summary: "High app memory usage (>85%)"
+    description: "App instance RAM has exceeded 85% of total for more than 2 minutes."
+```
+
+The telemetry variant swaps `host_role="app"` → `"telemetry"`.
+
+### RootDiskHighUsage_App / RootDiskHighUsage_Telemetry
+
+**Purpose**: Detect when the root filesystem on either host fills past 70%.
+
+```yaml
+- alert: RootDiskHighUsage_App
+  expr: |
+    100 *
+    sum without(state)(system_filesystem_usage_bytes{state="used",mountpoint="/",host_role="app"}) /
+    sum without(state)(system_filesystem_usage_bytes{mountpoint="/",host_role="app"}) > 70
+  for: 5m
+  labels:
+    severity: warning
+    host_role: app
+```
+
+### DataDiskHighUsage
+
+**Purpose**: Detect when the app instance's `/mnt/data` volume fills past 70% (this alert is **app-only** — the telemetry host does not mount `/mnt/data`).
+
+```yaml
+- alert: DataDiskHighUsage
+  expr: |
+    100 *
+    sum without(state)(system_filesystem_usage_bytes{state="used",mountpoint="/mnt/data",host_role="app"}) /
+    sum without(state)(system_filesystem_usage_bytes{mountpoint="/mnt/data",host_role="app"}) > 70
+  for: 5m
+  labels:
+    severity: warning
+    host_role: app
+  annotations:
+    summary: "Data volume (/mnt/data) usage >70%"
+    description: "App instance /mnt/data is above 70% capacity for 5 minutes."
+```
 
 ### ServiceMissing
 
@@ -180,10 +234,10 @@ Alerts can be in three states:
 2. **Pending**: Condition is true, but waiting for `for` duration to elapse
 3. **Firing**: Condition has been true for longer than `for` duration
 
-Example timeline for HighMachineCPUUsage:
-- T+0s: CPU spikes to 80% → Alert enters Pending state
+Example timeline for `HighCPUUsage_App`:
+- T+0s: app-host CPU spikes to 80% → Alert enters Pending state
 - T+30s: CPU still at 80% → Alert remains Pending
-- T+120s: CPU still at 80% → Alert enters Firing state → Notification sent
+- T+120s: CPU still at 80% → Alert enters Firing state → Notification sent (with `host_role=app` label)
 - T+130s: CPU drops to 50% → Alert enters Inactive state → Resolution notification sent
 
 ## Alert Notification

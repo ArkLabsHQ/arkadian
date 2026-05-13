@@ -1,5 +1,57 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-13 - Documentation Sync
+**Commit**: `e96024dfdf5e90323a6e0673c9a92106f9f9574d`
+**Previous Sync**: `982c8bc3e82d9cb7f6af3efc9921964363963040`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+
+**Features Added**:
+- **shadcn/ui primitives (PR #590, commit 30bdae17)** — 55 shadcn/ui components under `src/components/ui/` using `base-nova` style + `lucide` icons; supporting setup:
+  - `components.json` shadcn CLI config (CLI moved to devDependencies)
+  - `@/*` path alias in `tsconfig.json` and `vite.config.ts` `resolve.alias`
+  - shadcn theme tokens appended to `src/app.css`
+  - `src/hooks/use-mobile.ts` responsive helper
+  - `src/components/ui/sonner.tsx` patched to read theme from `ConfigContext` (replaces `next-themes`)
+  - Dark mode selector remains `html.palette-dark`
+  - **No existing code modified** — primitives available for future component migrations
+- New deps: implicitly via shadcn — `lucide-react`, `recharts ^3.8.0`, plus the existing tailwind/clsx/cva/tailwind-merge stack already added in PRs #582/#589
+
+**Internal Refactors (non-breaking)**:
+- **Service worker init AbortController refactor (PR #613, commit e96024df)** — `src/providers/wallet.tsx`:
+  - Replaces the previous generation-counter with `initAbortRef: AbortController` per init session
+  - `startInitSession()` aborts the prior session with reason `'init'` ("abandon, don't clear"); `abortInitSession()` aborts the current with `'lock-reset'`; `clearIfLockReset(svcWallet, signal)` decides whether to tear down the SW
+  - `runInitAttempt` extracted so retries inherit the same signal
+  - `initSvcWorkerWallet` signature now accepts `InitSvcWorkerWalletParams` with `identity?: SingleKey` (preferred) and legacy `privateKey?: string`; returns `Promise<boolean>`; adds `skipMigration?: boolean` (used by `restartWallet`)
+  - `reinitSvcWalletRef` assignment moved out of render body into a `useEffect`
+
+**Files Touched in Repo (PR #590 + PR #613)**:
+- `components.json` (new)
+- `package.json`, `pnpm-lock.yaml`
+- `src/app.css` (+ shadcn theme tokens)
+- `src/components/ui/*.tsx` (55 new files: accordion, alert-dialog, alert, aspect-ratio, avatar, badge, breadcrumb, button-group, button, calendar, card, carousel, chart, checkbox, collapsible, combobox, command, context-menu, dialog, direction, drawer, dropdown-menu, empty, field, hover-card, input-group, input-otp, input, item, kbd, label, menubar, native-select, navigation-menu, pagination, popover, progress, radio-group, resizable, scroll-area, select, separator, sheet, sidebar, skeleton, slider, sonner, spinner, switch, table, tabs, textarea, toggle-group, toggle, tooltip)
+- `src/hooks/use-mobile.ts` (new)
+- `src/lib/utils.ts` (minor update)
+- `src/providers/wallet.tsx` (+162 / -53 — AbortController refactor)
+- `tsconfig.json`, `vite.config.ts` (`@/*` path alias)
+
+**Features Added/Modified/Removed**: 55 shadcn/ui primitives added; service-worker init refactored. No public/UI behavior changes.
+**Configuration Changes**: `@/*` path alias added in `tsconfig.json` and `vite.config.ts`.
+**Dependency Updates**: shadcn/ui CLI moved to devDependencies; `lucide-react` and `recharts ^3.8.0` added; `next-themes` not added (avoided in favor of `ConfigContext`).
+
+**Files Updated**:
+- docs/INDEX.md (wallet Key Capabilities + Tags)
+- docs/projects/wallet/INDEX.md (frontmatter version 1.2.6 + last_sync_commit; Technology Stack: shadcn entry)
+- docs/projects/wallet/system/project_overview.md (Design System & Styling: PR #590)
+- docs/projects/wallet/system/components.md (directory tree adds `src/components/ui/`, `use-mobile.ts`; shadcn section appended)
+- docs/projects/wallet/system/architecture.md (WalletProvider AbortController init session model)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-12 - Documentation Sync
 **Commit**: `982c8bc3e82d9cb7f6af3efc9921964363963040`
 **Previous Sync**: `582320bdd54fcac021125146556b090484237bb6`

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.5
-last_sync_commit: 982c8bc3e82d9cb7f6af3efc9921964363963040
+version: 1.2.6
+last_sync_commit: e96024dfdf5e90323a6e0673c9a92106f9f9574d
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -187,6 +187,7 @@ pnpm run format:check
 - **Design token system**: `src/tokens.css` is the single source of truth for color ramps (50–950 for purple/green/red/orange/yellow/neutral), typography, and shadow elevation; neutrals use `color-mix(in oklab)` for automatic light/dark adaptation under the `html.palette-dark` selector
 - **clsx + tailwind-merge** via `cn()` utility in `src/lib/utils.ts` (with `class-variance-authority` for variant-driven components)
 - **sonner** (^2.0.7): Toast notifications (replaces previous custom React Context implementation; `useToast()` hook returns `{ toast }` for backward compatibility)
+- **shadcn/ui primitives** (PR #590): 55 components under `src/components/ui/` (Accordion, AlertDialog, Button, Card, Combobox, Dialog, Drawer, DropdownMenu, Form/Field, InputOtp, Pagination, Popover, Select, Sheet, Sidebar, Table, Tabs, etc.) using `lucide` icon library and `base-nova` style. Available for future component migrations; existing in-tree components untouched. `@/*` path alias wired in `tsconfig.json` and `vite.config.ts`; `components.json` holds the shadcn CLI config (CLI in devDependencies).
 
 ### Arkade Integration
 - **@arkade-os/sdk** (0.4.26): Ark protocol SDK (wallet operations, VTXOs)

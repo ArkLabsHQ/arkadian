@@ -45,15 +45,25 @@ services.AddArkSwapServices();      // SwapsManagementService router (internally
 // services.AddBoltzProvider();     // explicit Boltz registration (split out so non-Boltz providers can opt in alone)
 ```
 
-For EF Core consumers, payment tracking also requires the payment tables:
+For EF Core consumers, payment tracking and unilateral exit each have their own opt-in entity bundles so consumers that don't use them carry no schema cost:
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     modelBuilder.ConfigureArkEntities();          // VTXOs, contracts, intents, wallets, swaps
     modelBuilder.ConfigureArkPaymentEntities();   // ArkPayment + ArkPaymentRequest (opt-in)
+    modelBuilder.ConfigureArkExitEntities();      // ExitSession + VirtualTx + VtxoBranch (opt-in)
 }
 ```
+
+SQLite consumers who need `ORDER BY DateTimeOffset` (every paged storage query in the SDK orders by a timestamp column) opt into the ticks converter via `ArkStorageOptions`:
+
+```csharp
+modelBuilder.ConfigureArkEntities(new ArkStorageOptions { StoreDateTimeOffsetAsTicks = true });
+modelBuilder.ConfigureArkPaymentEntities(new ArkStorageOptions { StoreDateTimeOffsetAsTicks = true });
+```
+
+Postgres / MSSQL consumers don't need this — their native `timestamptz` / `datetimeoffset` types sort fine. The flag scopes the converter to Ark-owned entity types only so it can't bleed into the consumer's own `DateTimeOffset` columns; round-trip is UTC (the offset is stripped). See `docs/articles/storage.md` in the repo for migration paths.
 
 ### 4. Custom Signets / Mutinynet
 
@@ -200,6 +210,75 @@ var info = await swaps.InspectSwapRecoveryAsync(walletId, swapId, ct);
 // Bulk version (O(N) sequential arkd round-trip — not for hot UI paths):
 var allRecoverable = await swaps.ScanRecoverableSwapsAsync(walletId, ct);
 ```
+
+## Unilateral Exit
+
+When arkd is unavailable or uncooperative, `UnilateralExitService` drives the full exit pipeline (broadcast tree chain → wait for CSV → claim the leaf). Three operating shapes for different consumer profiles:
+
+### Option A — Stateful with EF Core persistence
+
+```csharp
+services.AddArkCoreServices();
+services.AddNBXplorerBlockchain(explorerClient);   // or AddEsploraBlockchain / AddRpcBlockchain
+services.AddUnilateralExit();
+services.AddVirtualTxAutoFetch();                  // optional: pre-store chains on every new VTXO
+
+// EF DbContext: opt into the three new tables
+protected override void OnModelCreating(ModelBuilder mb)
+{
+    mb.ConfigureArkEntities();
+    mb.ConfigureArkExitEntities();                 // ExitSession + VirtualTx + VtxoBranch
+}
+
+// At exit time:
+var exits = sp.GetRequiredService<UnilateralExitService>();
+await exits.StartExitAsync(walletId, vtxoOutpoint, claimAddress, ct);
+// Drive the state machine on a timer (or rely on ExitWatchtowerBackgroundService):
+await exits.ProgressExitsAsync(ct);
+```
+
+`StartExitAsync` is idempotent — calling it twice for the same outpoint returns the existing session, no duplicates. Sessions in any state (including `Failed` with `FailReason`) are visible via `GetByVtxoAsync`. `VirtualTxOptions.DefaultMode` defaults to `Lite` (txids + expiry stored at every VTXO arrival, hex fetched on demand at `StartExitAsync`); set to `Full` for strict offline-exit requirements.
+
+### Option B — Stateful with in-memory storage (no schema)
+
+```csharp
+services.AddUnilateralExit();
+services.AddInMemoryExitStorage();                  // ConcurrentDictionary-backed, lost on restart
+// Skip ConfigureArkExitEntities() — no tables registered
+```
+
+Same code paths as Option A; right for recovery-tooling CLIs, plugins, sample apps, ephemeral wallets.
+
+### Option C — Stateless one-shot API (caller owns persistence)
+
+```csharp
+services.AddUnilateralExit();
+// No storage registrations — neither ConfigureArkExitEntities nor AddInMemoryExitStorage
+
+var exits = sp.GetRequiredService<UnilateralExitService>();
+ExitPlan plan = await exits.BroadcastExitChainAsync(walletId, vtxoOutpoint, claimAddress, ct);
+// Persist `plan` in whatever form fits your app (JSON blob, settings entry, file on disk).
+
+// Later, after the CSV timelock should have matured:
+string? claimTxid = await exits.ClaimMaturedExitAsync(plan, ct);
+// claimTxid: the broadcast txid on success
+// null: CSV hasn't matured yet — caller polls again later
+// throws: the leaf-tx hasn't even confirmed yet
+```
+
+Trade-off vs. stateful path: no idempotency (re-broadcasts if called twice), no automatic watchtower progression — the SDK is pure pass-through, caller owns time-keeping. Gain: zero exit-specific persistence cost, no schema, no extra DI registrations.
+
+### CPFP (optional)
+
+Tree txs are v3 (TRUC); Bitcoin Core rejects them on direct broadcast unless their parent is also v3 or they ride a 1p1c CPFP package. Provide an `IFeeWallet` to enable CPFP:
+
+```csharp
+services.AddSingleton<IFeeWallet, MyFeeWallet>();
+```
+
+`UnilateralExitService.BroadcastWithCpfpAsync` activates the CPFP path when an `IFeeWallet` is registered; gracefully falls back to direct broadcast when not (regtest `minrelaytxfee=0` makes that acceptable for tree txs).
+
+`IFeeWallet.SignFeeUtxoAsync(outpoint, sighash, sighashType)` is a sighash-callback signing API — the SDK never holds raw key material, so hardware wallets / HSMs / remote signers / BTCPay's internal signer can plug in. `SelectFeeUtxoAsync` returns `ICoin?` (NBitcoin standard).
 
 ## Live Sample Wallet
 

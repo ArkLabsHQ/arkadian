@@ -27,10 +27,26 @@ src/
 │   ├── AssetCard.tsx, Balance.tsx, Details.tsx, Table.tsx
 │   ├── TransactionsList.tsx, SwapsList.tsx, ExpandAddresses.tsx
 │   ├── Paste.tsx, Clipboard.tsx, Text.tsx
+│   ├── ui/                    # shadcn/ui primitives (PR #590, 55 components)
+│   │   ├── accordion.tsx, alert-dialog.tsx, alert.tsx
+│   │   ├── button.tsx, button-group.tsx, badge.tsx, card.tsx
+│   │   ├── checkbox.tsx, switch.tsx, slider.tsx, toggle.tsx, toggle-group.tsx
+│   │   ├── combobox.tsx, command.tsx, dialog.tsx, drawer.tsx, sheet.tsx
+│   │   ├── dropdown-menu.tsx, context-menu.tsx, menubar.tsx, navigation-menu.tsx
+│   │   ├── field.tsx, input.tsx, input-group.tsx, input-otp.tsx, textarea.tsx
+│   │   ├── label.tsx, native-select.tsx, select.tsx, radio-group.tsx
+│   │   ├── popover.tsx, hover-card.tsx, tooltip.tsx, sonner.tsx (ConfigContext-bound)
+│   │   ├── table.tsx, tabs.tsx, pagination.tsx, breadcrumb.tsx
+│   │   ├── sidebar.tsx, scroll-area.tsx, separator.tsx, resizable.tsx
+│   │   ├── carousel.tsx, calendar.tsx, chart.tsx (recharts ^3.8.0)
+│   │   ├── avatar.tsx, aspect-ratio.tsx, collapsible.tsx, item.tsx, empty.tsx
+│   │   ├── kbd.tsx, spinner.tsx, skeleton.tsx, progress.tsx, direction.tsx
+│   │   └── …
 │   └── ...
 ├── hooks/                     # Custom React hooks
 │   ├── useLnurlSession.ts     # LNURL receive SSE session
 │   ├── useBounceMorph.ts, useReducedMotion.ts, useLoadingStatus.ts
+│   └── use-mobile.ts          # shadcn/ui responsive helper (PR #590)
 ├── screens/
 │   ├── Init/
 │   │   ├── Connect.tsx        # Server connection
@@ -519,6 +535,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 ## Custom Component Library
 
 **Note**: As of PR #534, Ionic React (`@ionic/react`, `@ionic/normalize`) has been removed from the wallet. All UI primitives are now hand-rolled React components living under `src/components/`. CSS resets formerly provided by Ionic now live in `src/index.css` and `src/ionic.css`.
+
+**shadcn/ui primitives** (PR #590): 55 shadcn/ui components live under `src/components/ui/` (Tailwind v4 + `base-nova` style, `lucide` icons). They are not yet used by existing screens — available for future component migrations. The shadcn CLI is configured via `components.json` (CLI in devDependencies), aliases are wired via the `@/*` path in `tsconfig.json` and `vite.config.ts` `resolve.alias`, and `ui/sonner.tsx` was patched to read theme from `ConfigContext` (replacing `next-themes`). Dark mode selector remains `html.palette-dark`.
 
 ### Layout & Containers
 - **Header**, **Content**, **Padded**, **Grid**: Page structure primitives

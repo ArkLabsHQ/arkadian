@@ -43,6 +43,10 @@ services.AddArkNetwork(new ArkNetworkConfig("https://my-ark-server.com"));
 | `SubmitTreeSignaturesRequest` | Submit partial MuSig2 signatures |
 | `SubmitSignedForfeitTxsAsync` | Submit signed forfeit transactions |
 | `ConfirmRegistrationAsync` | Confirm intent registration in a batch |
+| `GetPendingTxAsync` | Surfaces server-side pending Arkade txs gated by a BIP-322 ownership proof (consumed by `PendingArkTransactionRecoveryService`) |
+| `GetVtxoChainAsync` | Indexer endpoint — returns the ancestry chain of a VTXO (outpoint → list of `(txid, expiry, type)` rows tagged with `ChainedTxType` of `Commitment` / `Ark` / `Tree` / `Checkpoint`). Consumed by `VirtualTxService` for the unilateral-exit pipeline; gRPC + REST implementations live in `GrpcClient/GrpcClientTransport.Exit.cs` / `RestClient/RestClientTransport.Exit.cs` |
+| `GetVirtualTxsAsync` | Indexer endpoint — returns raw tx hex (as PSBT) for off-chain virtual txs by txid. `Commitment` txs are not included (they're on-chain — fetch from the explorer if needed) |
+| `GetVtxoTreeAsync` | Indexer endpoint — returns the full VTXO tree for a batch; consumed by `ExitWatchtowerService` for partial-tree-broadcast detection |
 
 ## Batch Round Participation
 

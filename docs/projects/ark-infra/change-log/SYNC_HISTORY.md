@@ -1,5 +1,69 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-13 - Documentation Update
+**Commit**: `a981284ec1ad09a66ece6dcf0fa132b86318fd51`
+**Previous Sync**: `29b6cb84f86741457a43710cfd090e964d2cbf19`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Highlights**:
+- 🏗️ **Telemetry migrated to separate EC2 + ALB** (#68, `a981284`): the telemetry stack
+  (Grafana, Prometheus, Loki, Jaeger, Alertmanager, OTLP collector, Pyroscope) is no longer
+  co-located on the app instance. A new reusable module `modules/ark/` provisions:
+  - A telemetry EC2 in an **Auto Scaling Group** (default `t3.medium`) bootstrapped by
+    `modules/ark/scripts/user-data.sh` + `modules/ark/ansible/playbook.yml` (clones
+    `ark-telemetry` from the configurable `ark_telemetry_branch`, default `master`, and
+    runs `docker compose` on the host).
+  - A **shared internet-facing ALB** (`modules/ark/alb.tf`) with HTTPS listener
+    (`ELBSecurityPolicy-TLS13-1-2-2021-06`) terminated by an ACM cert
+    (`alb_certificate_arn` variable). Grafana is now publicly exposed via
+    `telemetry_grafana_host` listener rule on a new target group with `/api/health` health check.
+  - **AWS Cloud Map service discovery** (`modules/ark/service_discovery.tf`) so app
+    instances resolve the telemetry collector by DNS; stale instances are deregistered
+    on boot.
+  - **IMDSv2-only**, least-privilege IAM (`ark-telemetry-role-${env}` with `AmazonSSMManagedInstanceCore`,
+    scoped `ssm:GetParameter` on `${ssm_prefix}/*`, scoped `s3:GetObject`/`ListBucket` on
+    `ark-tmp`, and `servicediscovery:Register/Deregister/ListInstances`).
+  - Security groups opening OTLP gRPC (4317), OTLP HTTP (4318), Pyroscope (4040), and
+    Alertmanager (9093) **from app SGs only**, plus Grafana (3000) **from ALB SG only**.
+  - Systemd one-shot `ark-telemetry.service` with env file for easy access.
+  - **Google SSO for Grafana** (client-id / client-secret from SSM, `secure`-at-end naming
+    convention: `/grafana/google/secure/client-secret`).
+- 🔌 **App-side telemetry sidecars bundled into the Ark Compose stack**:
+  `docker-compose/compose/docker-compose.ark.prod.yaml` now includes `otel-agent`
+  (`otel/opentelemetry-collector-contrib:0.151.0`, config at `modules/ark/agent/otel-agent-config.yaml`)
+  and `cadvisor` (`gcr.io/cadvisor/cadvisor:v0.56.2`) on the `ark` Docker network. Both
+  ship logs to CloudWatch (`awslogs` driver, `/ark/${ARK_ENVIRONMENT}`). Agent exports OTLP
+  to the central telemetry collector via Cloud Map DNS; ports 4317/4318 are now used
+  **locally** on the app host. Requires a new env var in `.env.ark`:
+  - `ARK_TELEMETRY_COLLECTOR_ENDPOINT` (e.g. `telemetry.ark-staging.internal:4317`).
+- 🆕 **`apps/ark/staging/` Terraform layout** introduced as the new staging entry point.
+  Uses the `modules/ark` module with `ssm_prefix = "/ark/staging"`, branches pinned to
+  `master`, and an ACM cert wired in. Backend: S3 `ark-dev-terraform-state` /
+  DynamoDB `terraform-state-lock`. VPC + subnets resolved via `data` lookups by `Name` tag.
+- 🧰 **SSM parameter convention refactor**: app + telemetry now share a single
+  `ssm_prefix` and migrated to **`secure`-at-end naming** (e.g.
+  `/secure/grafana/google/client-secret` → `/grafana/google/secure/client-secret`). The
+  Ansible playbook resolves prefixed paths from `aws ssm get-parameter`.
+- 🧪 **Developer sandbox sub-account** (`29a70d3`): added `aruokhai`
+  (`aaron+aws-dev-aruokhai@arklabs.xyz`) under the dev account in
+  `aws/dev-438465126741/organizations.tf`, plus `aws_iam_user_policy`
+  `AruokhaiAccountAssumeRole` granting `aaron.carlucci` `sts:AssumeRole` on the new
+  sub-account's `OrganizationAccountAccessRole`, and an `aws.aruokhai` provider alias
+  bootstrapping an IAM admin user with login profile.
+
+**Files Updated**:
+- docs/INDEX.md (capability lines: telemetry-on-separate-EC2/ALB, otel-agent + cadvisor sidecars, Grafana Google SSO, ARK_TELEMETRY_COLLECTOR_ENDPOINT; tags: `alb`, `asg`, `cloud-map`, `service-discovery`, `ansible`, `imdsv2`, `grafana-sso`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.4.0; deployed services note for ALB; telemetry split note)
+- docs/projects/ark-infra/system/project_overview.md (repo structure: `apps/ark/staging/`, `modules/ark/`; telemetry stack split; new env var)
+- docs/projects/ark-infra/system/architecture.md (telemetry layer: separate EC2 in ASG, ALB-fronted Grafana, otel-agent/cadvisor on app host)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-12 - Documentation Update
 **Commit**: `29b6cb84f86741457a43710cfd090e964d2cbf19`
 **Previous Sync**: `c64a12b7b769c84766b38fbf92b91dc6c6f6584c`

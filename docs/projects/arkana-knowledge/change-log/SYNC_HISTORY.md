@@ -1,5 +1,33 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-13 - Operational Memory Sync (no doc changes)
+**Commit Range**: `fac67bcf..baf637af` (23 commits)
+**Previous Sync (asserted by caller)**: `fac67bcf278ac57c50942b856ff392b5ef280825`
+**Current Sync**: `baf637afcf18690e3113ac39e539e8e9c736b701`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+494/-154), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,sdk-parity,security-triage,self-improver,slack-monitor}.md, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity: issue-triage (6 runs), release-coordinator (5 runs), security-triage (5 runs), and single runs of repo-detector, sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync, self-improver
+- Notable operational events captured in memory only: executive-digest 2026-05-12 flush surfacing uint64 underflow protocol-critical bugs (arkd + go-sdk), stuck-tx recovery deployed, pr-lifecycle root cause (5-week silence ≈ 27 governance violations) and Linear deprecation decision pending; fulmine v0.3.23 confirmed stable; go-sdk #172 uint64 fix reached day 5 still unreviewed; GOV#27 logged on 5 merges; ts-sdk #473 merged then reverted with CodeRabbit PR closed; ts-sdk #464 cited as "good governance" exemplar; release-coordinator passes at 06:00/10:00/14:00/18:00/22:00Z; self-improver weekly audit run; linear-sync escalation snapshot and state update
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, or the 17-agent roster
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: baf637af…`, `last_sync_date: 2026-05-13T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `baf637afcf18690e3113ac39e539e8e9c736b701`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; today's events are operational observations stored in agent memory, not project-registry changes)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=fac67bcf…` / `to=baf637af…`; the locally tracked previous sync was `d847dd24…`; we honour the supplied range and write the new HEAD to `last-sync.txt`
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-12 - Operational Memory Sync (no doc changes)
 **Commit Range**: `50a4d78b..d847dd24` (19 commits)
 **Previous Sync (asserted by caller)**: `50a4d78bcc48be27bfc5a079d1e35522647f2d78`

@@ -110,6 +110,9 @@ Asset packet types and issuance/reissuance/burn transaction builders live in `ar
 ### Chain Swaps
 ARK ↔ on-chain BTC swaps via Boltz are persisted in a new `chain_swaps` SQLite table (migration `002_chain_swaps.sql`). The flow is `create_chain_swap` → `wait_for_chain_swap_server_lockup` → `claim_chain_swap{,_btc}` (or `refund_chain_swap{,_btc}` on failure). Reverse-swap rows now persist the BOLT11 invoice and `invoice_expiry` so consumers can list/display pending reverse swaps without an external metadata store (**breaking** for direct constructors of `ReverseSwapData`).
 
+### Boltz Referral ID
+`OfflineClient` carries an optional `boltz_referral_id: Option<String>` (defaulting to `DEFAULT_BOLTZ_REFERRAL_ID` = `"arkade-rs-SDK"` when the constructor is called with `None`). It is serialized as `referralId` on submarine, reverse, and chain swap creation requests, and omitted entirely when the field is `None` (override via `OfflineClient::with_boltz_referral_id(None)`). The argument is a positional parameter on `OfflineClient::new` / `with_kind` / `with_keypair` — **breaking** for direct callers.
+
 ### Arkade Script & Introspector
 `ark-script` lives outside `ark-core` so non-arkade consumers don't pay for its dependencies. It defines the 47 Arkade extension opcodes (aliasing the `OP_NOP4` / `OP_RETURN_196..=243` slots so they round-trip through `bitcoin::script::Builder`), arkade-aware ASM helpers, BIP-340 tagged hashes (`ArkadeScriptHash` / `ArkadeWitnessHash`) and `compute_arkade_script_public_key` (`P' = P + H(script)*G`, even-Y enforced to match the Go introspector). `ArkadeTapscript` encodes the `Multisig` / `CsvMultisig` leaves used by arkade flows, and `ArkadeVtxoScript::new` mixes plain taproot leaves with `ArkadeLeaf`s, derives tweaked introspector keys, and emits a flat script list ready for `TaprootBuilder` plus a leaf-index → arkade-script map for downstream PSBT signing.
 

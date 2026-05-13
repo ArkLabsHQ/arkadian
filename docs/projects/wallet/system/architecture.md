@@ -99,7 +99,7 @@ Arkade Wallet follows a **client-side first architecture** where all sensitive o
 
 **Key Providers** (`src/providers/`):
 
-- **WalletProvider** (`wallet.tsx`): Core wallet state — balance, VTXOs, send/receive, settlement
+- **WalletProvider** (`wallet.tsx`): Core wallet state — balance, VTXOs, send/receive, settlement. As of PR #613 ("Fix dead service worker"), service-worker wallet initialization uses an **AbortController-per-session** model rather than a generation counter: each `initSvcWorkerWallet` call mints a new `AbortSignal` (`startInitSession`) and aborts the previous with reason `'init'` ("abandon, don't clear"); lock/reset aborts the current signal with reason `'lock-reset'` so stale paths can decide whether to call `svcWallet.clear()` (`clearIfLockReset`). `runInitAttempt` is extracted so retries inherit the same signal. `initSvcWorkerWallet` accepts `identity?: SingleKey` (preferred) or legacy `privateKey?: string`, returns `Promise<boolean>`, and supports `skipMigration: true` (used by `restartWallet`, since the IndexedDB migration is a no-op after first successful init). The `reinitSvcWalletRef` assignment was moved into a `useEffect` to avoid mutating refs during render.
 - **LightningProvider** (`lightning.tsx`): SwapManager-based Lightning swap orchestration (submarine, reverse, chain swaps)
 - **FeesProvider** (`fees.tsx`): Fee estimation and display for on-chain/collaborative exit
 - **FiatProvider** (`fiat.tsx`): Fiat currency conversion (USD, EUR, CHF, etc.)

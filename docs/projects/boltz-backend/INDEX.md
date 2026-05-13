@@ -156,7 +156,9 @@ npm run dev
 ### Fulmine Integration
 - **Macaroon authentication** for Fulmine RPCs (also exposed by `boltzr-cli`)
 - Uses Fulmine **`ListVHTLCs`** for VHTLC discovery
+- Uses Fulmine **`GetVHTLCSpendingTx`** to fetch the fully signed claim Ark tx for spent vHTLCs (handles both finalized and pending spending txs)
 - Optimized startup call sequence to Fulmine
+- Configurable periodic vHTLC state rescan via `rescanInterval` (seconds, default `300`); manual rescan also reachable via the chain-rescan service path for Ark currencies
 
 ### Observability
 - **Prometheus**: Metrics collection

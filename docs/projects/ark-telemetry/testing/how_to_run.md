@@ -28,13 +28,13 @@ sudo apt-get install gettext-base
 
 ### Port Requirements
 
-Required ports must be available:
-- 3333 (Grafana), 4317/4318 (OTel), 8081 (cAdvisor), 8889 (OTel metrics)
-- 9090 (Prometheus), 9093 (Alertmanager), 3100 (Loki), 16686 (Jaeger)
+As of PR #9 the stack is intended to run on a **standalone EC2 instance**. Required host-bound ports:
+- `3000` (Grafana, fronted by ALB), `4317`/`4318` (OTel ingest), `9093` (Alertmanager), `4040` (Pyroscope ingest), `127.0.0.1:8889` (OTel Prometheus exporter, localhost-only)
+- Internal-only (compose network): `9090` (Prometheus), `3100` (Loki), `16686` (Jaeger), `8080` (cAdvisor)
 
 Check availability:
 ```bash
-lsof -i :3333 -i :9090 -i :4317 -i :16686
+lsof -i :3000 -i :4317 -i :9093 -i :4040
 ```
 
 ## Setup
@@ -55,14 +55,21 @@ ls -la
 #           collector-config.yaml, prometheus-config.yaml, etc.
 ```
 
-### 3. Configure Slack (Optional)
+### 3. Configure `.env.ark-telemetry`
 
-Obtain webhook URL from https://api.slack.com/apps:
-1. Create app → Enable Incoming Webhooks
-2. Create webhook for your channel
-3. Copy URL: `https://hooks.slack.com/services/XXX/YYY/ZZZ`
+PR #9 introduced a single env file (`.env.ark-telemetry`) that the Grafana service reads via Docker `env_file`. Copy the template and fill in real values:
 
-Test webhook:
+```bash
+cp .env.ark-telemetry.example .env.ark-telemetry
+$EDITOR .env.ark-telemetry
+```
+
+Required keys (see `system/configuration.md` for full reference):
+- `SLACK_API_URL`, `SLACK_CHANNEL`
+- `GF_SECURITY_ADMIN_PASSWORD`, `GF_SERVER_ROOT_URL`
+- Google OAuth (`GF_AUTH_GOOGLE_*`) — set `GF_AUTH_GOOGLE_ENABLED=false` to skip SSO
+
+Test the Slack webhook:
 ```bash
 curl -X POST -H 'Content-type: application/json' \
   --data '{"text":"Test from ark-telemetry"}' \
@@ -73,12 +80,10 @@ curl -X POST -H 'Content-type: application/json' \
 
 ### Production Mode
 
-Standalone monitoring deployment:
+Standalone monitoring deployment on its own EC2 instance:
 
 ```bash
-export SLACK_API_URL='https://hooks.slack.com/services/YOUR/WEBHOOK'
-export SLACK_CHANNEL='#ark-alerts'
-make docker-run
+make docker-run   # reads .env.ark-telemetry
 ```
 
 Verify services:
@@ -86,33 +91,22 @@ Verify services:
 # Check containers
 docker ps
 # Expected: 7 containers (otel-collector, prometheus, grafana, loki, jaeger, alertmanager, cadvisor)
+# (+ pyroscope if enabled)
 
 # Check health
-curl http://localhost:8889/metrics  # OTel Collector
-curl http://localhost:9090/-/healthy  # Prometheus
-curl http://localhost:3333/api/health  # Grafana
-curl http://localhost:3100/ready  # Loki
+curl http://127.0.0.1:8889/metrics    # OTel Collector (localhost-bound)
+docker exec prometheus wget -qO- http://localhost:9090/-/healthy
+curl http://localhost:3000/api/health # Grafana (port changed from 3333 → 3000)
+docker exec loki wget -qO- http://localhost:3100/ready
 ```
 
 ### Development Mode
 
-Connects to Nigiri Docker network for local Ark development:
-
 ```bash
-# Start Nigiri first
-nigiri start
-
-# Start telemetry in dev mode
-export SLACK_API_URL='https://hooks.slack.com/services/YOUR/WEBHOOK'
-export SLACK_CHANNEL='#dev-alerts'
-make docker-run-dev
+make docker-run-dev   # uses docker-compose.otel.dev.yaml
 ```
 
-Verify network:
-```bash
-docker network inspect nigiri
-# Should show ark-telemetry containers
-```
+> PR #9 removed the external `nigiri` / `ark` Docker networks from both compose files. The dev stack no longer attaches to a shared network — point your local arkd at the host's exposed OTLP endpoints (`localhost:4317` / `4318`) instead.
 
 ### Without Slack
 

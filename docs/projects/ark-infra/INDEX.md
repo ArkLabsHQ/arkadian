@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.3.2
-last_sync_commit: 29b6cb84f86741457a43710cfd090e964d2cbf19
-last_sync_date: 2026-05-12T00:00:00Z
+version: 1.4.0
+last_sync_commit: a981284ec1ad09a66ece6dcf0fa132b86318fd51
+last_sync_date: 2026-05-13T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -221,15 +221,21 @@ make clean-local-state ENV=prod
 - **Redis** (ElastiCache) — Caching and queues
 
 ### Telemetry Stack
-- **otel-collector** — Metrics collection hub
+
+> **Architecture note (2026-05):** the telemetry stack now runs on a **separate EC2 instance** (Auto Scaling Group, default `t3.medium`) provisioned by `modules/ark/`. Grafana is exposed publicly via a **shared ALB** (HTTPS, ACM cert) using Google SSO. App instances run only `otel-agent` + `cadvisor` (bundled in the Ark Compose stack) and forward OTLP to the telemetry instance via AWS Cloud Map service discovery. New required env var on app hosts: `ARK_TELEMETRY_COLLECTOR_ENDPOINT` (e.g. `telemetry.ark-staging.internal:4317`).
+
+**Telemetry instance (separate EC2 + ALB):**
+- **otel-collector** (4317/4318) — OTLP ingress from app instances
 - **prometheus** (9090) — Metrics storage
-- **grafana** (3333*) — Dashboards and visualization
+- **grafana** (3000, via ALB) — Dashboards (Google SSO)
 - **loki** — Log aggregation
 - **jaeger** (16686) — Distributed tracing
 - **alertmanager** (9093) — Alert routing to Slack
-- **cadvisor** — Container metrics
+- **pyroscope** (4040) — Continuous profiling
 
-**(*) = Localhost-only, access via SSM port forwarding**
+**App instance (bundled with Ark Compose):**
+- **otel-agent** (`otel/opentelemetry-collector-contrib:0.151.0`) — Local OTLP receiver + host metrics; exports to central collector
+- **cadvisor** (`v0.56.2`) — Container metrics (scraped by local otel-agent)
 
 ---
 

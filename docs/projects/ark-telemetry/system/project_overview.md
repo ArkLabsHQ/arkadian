@@ -46,8 +46,8 @@ Grafana dashboards provide immediate insight into system behavior with:
 
 The alerting system detects and notifies operators of issues before they become critical:
 
-- Service availability monitoring (ServiceMissing alert)
-- Resource threshold alerts (HighMachineCPUUsage)
+- Service availability monitoring (`ServiceMissing` alert)
+- Resource threshold alerts split by `host_role`: `HighCPUUsage_App` / `HighCPUUsage_Telemetry`, `HighMemoryUsage_App` / `HighMemoryUsage_Telemetry`, `RootDiskHighUsage_App` / `RootDiskHighUsage_Telemetry`, `DataDiskHighUsage` (app)
 - Slack integration for immediate notification
 - Alert resolution notifications when issues are fixed
 
@@ -99,15 +99,16 @@ Track host resource utilization, plan capacity upgrades, identify container reso
 
 ## Getting Started
 
-The entire stack can be deployed with a single command:
+As of PR #9 the stack runs on a **standalone EC2 instance** and reads configuration from a `.env.ark-telemetry` file:
 
 ```bash
-SLACK_API_URL='https://hooks.slack.com/services/YOUR/WEBHOOK' \
-SLACK_CHANNEL='#your-channel' \
+cp .env.ark-telemetry.example .env.ark-telemetry
+# Fill in SLACK_API_URL, SLACK_CHANNEL, GF_SECURITY_ADMIN_PASSWORD,
+# GF_SERVER_ROOT_URL and GF_AUTH_GOOGLE_* for Grafana SSO
 make docker-run
 ```
 
-This starts all services with proper configuration, sets up Slack alerting, and makes Grafana available on localhost:3333.
+Grafana is exposed on port `3000` (typically fronted by an ALB) with Google OAuth/SSO enabled. OTLP ingestion (4317/4318), Alertmanager (9093), and Pyroscope (4040) are also exposed at the host level so the remote application instance can push telemetry into the stack.
 
 ## Integration with Ark
 

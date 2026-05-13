@@ -4,6 +4,8 @@
 
 Ark-telemetry implements a modern observability architecture with the OpenTelemetry Collector as the central telemetry hub. This design follows the "collector-as-gateway" pattern, where all metrics, logs, and traces flow through a single point before being routed to their appropriate backends.
 
+**Deployment topology (PR #9, May 2026):** the stack runs on a **standalone EC2 instance** ("telemetry host"), separate from the application instance ("app host") that runs arkd and friends. The OTel Collector exposes its OTLP endpoints publicly (port 4317/4318), so the app host pushes telemetry over the network. Local hostmetrics scraped on the telemetry host carry `host.role=telemetry`; OTLP arriving from the app host carries `host.role=app` (set by the app-side instrumentation). All metrics retain this `host_role` label for routing, dashboards, and alerts.
+
 ## Architectural Principles
 
 ### Hub-and-Spoke Design
@@ -35,23 +37,27 @@ This separation allows each tool to excel at its specific task and makes the sys
 ### Metrics Pipeline
 
 ```
-Ark Application (OTLP) ──┐
-                         ├──> OpenTelemetry Collector ──> Prometheus ──> Grafana
-Host System (scrapers) ──┘                                     │
-                                                                └──> Alertmanager ──> Slack
-Container Stats ────────────────────────────────────────> cAdvisor ──> Prometheus
+[App host]
+  Ark Application (OTLP) ───────────────► OpenTelemetry Collector ─┐
+                                          (pipeline: metrics/otlp)  │
+[Telemetry host]                                                    ▼
+  Host System (hostmetrics) ──► resource/local (host.role=telemetry) ► Prometheus ──► Grafana
+                                (pipeline: metrics/local)              │
+  Container Stats ──► cAdvisor (host_role=telemetry) ──────────────────┤
+                                                                       └► Alertmanager ► Slack
 ```
 
 **Flow Description:**
 
 1. **Collection**:
-   - Ark exports metrics via OTLP protocol (gRPC or HTTP) to port 4317/4318
-   - OTel Collector's hostmetrics receiver scrapes host statistics every 10 seconds
-   - cAdvisor monitors Docker container resource usage
+   - Ark on the app host exports metrics via OTLP (gRPC/HTTP) to the telemetry host on port 4317/4318
+   - OTel Collector's hostmetrics receiver scrapes telemetry-host statistics every 10 seconds (tagged `host.role=telemetry` via the `resource/local` processor)
+   - cAdvisor monitors Docker container resource usage on the telemetry host (Prometheus adds `host_role=telemetry` to the scrape)
 
 2. **Aggregation**:
-   - OTel Collector batches incoming metrics
-   - Exposes aggregated metrics on port 8889 in Prometheus format
+   - The collector runs **two parallel metrics pipelines**: `metrics/local` (hostmetrics → telemetry-tagged) and `metrics` (OTLP from app)
+   - Batched output is exposed on port 8889 in Prometheus format
+   - The `prometheus` exporter has `resource_to_telemetry_conversion: true` so resource attributes (including `host.role`) become Prometheus labels
 
 3. **Storage**:
    - Prometheus scrapes OTel Collector (port 8889) and cAdvisor (port 8080) every 10 seconds
@@ -95,18 +101,19 @@ Ark Application (OTLP traces) ──> OpenTelemetry Collector ──> Jaeger ─
 
 ### Network Topology
 
-All services run in a shared Docker network, enabling DNS-based service discovery:
+All services run on the telemetry host in a single Docker compose project (default network — the previously-required external `nigiri`/`ark` networks were removed in PR #9). DNS-based service discovery still works inside the compose network:
 
-- **otel-collector:4317** - OTLP gRPC receiver
-- **otel-collector:4318** - OTLP HTTP receiver
-- **otel-collector:8889** - Prometheus metrics exporter
-- **prometheus:9090** - Prometheus server and UI
-- **loki:3100** - Loki API endpoint
-- **jaeger:16686** - Jaeger query UI
+- **otel-collector:4317** / host `:4317` - OTLP gRPC receiver (publicly exposed for app-host ingest)
+- **otel-collector:4318** / host `:4318` - OTLP HTTP receiver (publicly exposed)
+- **otel-collector:8889** - Prometheus metrics exporter (host-side `127.0.0.1:8889` only)
+- **prometheus:9090** - Prometheus server and UI (compose-internal)
+- **loki:3100** - Loki API endpoint (compose-internal)
+- **jaeger:16686** - Jaeger query UI (compose-internal)
 - **jaeger:14250** - Jaeger gRPC collector
-- **alertmanager:9093** - Alertmanager API and UI
-- **cadvisor:8080** - cAdvisor metrics endpoint
-- **grafana:3000** - Grafana UI (mapped to localhost:3333)
+- **alertmanager:9093** / host `:9093` - publicly exposed
+- **cadvisor:8080** - cAdvisor metrics endpoint (compose-internal)
+- **grafana:3000** / host `:3000` - publicly exposed; fronted by an ALB
+- **pyroscope:4040** / host `:4040` - publicly exposed for profile ingestion
 
 ### Data Storage
 
@@ -155,16 +162,18 @@ For larger deployments, the architecture can be extended:
 
 ### Access Control
 
-- Grafana is bound to localhost (127.0.0.1:3333), requiring SSH or port forwarding for remote access
-- Optional HTTP basic authentication via grafana.htpasswd
-- cAdvisor is localhost-only (127.0.0.1:8081)
+- Grafana is exposed on `:3000` and fronted by an AWS ALB; **Google OAuth/SSO** is the primary authentication method (`GF_AUTH_GOOGLE_*` env vars), with allowed-domain restrictions
+- The `grafana.htpasswd` file is still mounted as a fallback
+- Admin password is provided via `GF_SECURITY_ADMIN_PASSWORD` (loaded from `.env.ark-telemetry`)
 
 ### Network Isolation
 
-All services communicate within a private Docker network. Only essential ports are exposed to the host:
-- Grafana: localhost-only
-- Prometheus: exposed for admin access
-- OTel Collector: exposed for metric ingestion
+The telemetry host is a dedicated EC2 instance. The host's security group / ALB enforces access to publicly bound ports:
+- Grafana `:3000` — via ALB
+- OTel Collector `:4317` / `:4318` — for app-host ingest
+- Alertmanager `:9093`
+- Pyroscope `:4040` — profile ingestion
+- The OTel Prometheus exporter on `:8889` is bound to `127.0.0.1` and stays internal
 
 ### Privileged Access
 

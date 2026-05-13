@@ -35,8 +35,14 @@ let offline_client = OfflineClient::new(
     "https://ark-server.example.com".to_string(),
     swap_storage,          // InMemorySwapStorage or SQLite
     "https://boltz.example.com".to_string(),
+    None,                  // boltz_referral_id (None → DEFAULT_BOLTZ_REFERRAL_ID = "arkade-rs-SDK")
     timeout,
+    None,                  // delegator_pk
+    vec![],                // historical_delegator_pks
 );
+
+// Optionally opt out of the default Boltz referral ID:
+// let offline_client = offline_client.with_boltz_referral_id(None);
 
 // Connect to arkd server
 let client = offline_client.connect().await?;

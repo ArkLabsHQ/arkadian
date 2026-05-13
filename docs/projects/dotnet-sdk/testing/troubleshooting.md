@@ -144,9 +144,50 @@ curl -X POST http://localhost:3000/faucet -H "Content-Type: application/json" \
 
 ### Plugin disabled by host on transient Bitcoin Core RPC failure
 
-**Symptom**: A controller-bound consumer (e.g. BTCPay's plugin manager) catches an unhandled exception from `RPCChainTimeProvider.GetChainTime` and disables / unloads the SDK-hosting plugin, requiring a manual re-enable. Logs typically show a single 5xx from `getblockchaininfo` during reindex / IBD / heavy load.
+**Symptom**: A controller-bound consumer (e.g. BTCPay's plugin manager) catches an unhandled exception from `GetChainTime` and disables / unloads the SDK-hosting plugin, requiring a manual re-enable. Logs typically show a single 5xx from `getblockchaininfo` during reindex / IBD / heavy load.
 
-**Solution**: `RPCChainTimeProvider` now caches `(Timestamp, Height)` on every successful call and falls back to the cache with a Warning log on subsequent transient failures. Cold-start failures (no cache yet) still throw — there is no chain time to report at that point. Wire an `ILogger<RPCChainTimeProvider>` into `ChainTimeProvider` (the NBXplorer wrapper now takes it on each ctor, default-null) to surface the fallback warning in your own diagnostics.
+**Solution**: `NBXplorerBlockchain` (the impl that absorbed the prior `RPCChainTimeProvider` / `ChainTimeProvider` wrappers when the blockchain interfaces were unified into `IBitcoinBlockchain`) caches `(Timestamp, Height)` on every successful call and falls back to the cache with a Warning log on subsequent transient failures. Cold-start failures (no cache yet) still throw — there is no chain time to report at that point. Wire an `ILogger<NBXplorerBlockchain>` to surface the fallback warning in your own diagnostics.
+
+### `WithTimeProvider<T>()` builder method missing
+
+**Symptom**: After upgrading, `ArkApplicationBuilder.WithTimeProvider<T>()` no longer exists.
+
+**Solution**: Renamed to `WithBlockchain<T>()` to reflect the unified `IBitcoinBlockchain` interface (six members: `GetChainTime`, `GetUtxosAsync`, `BroadcastAsync`, `BroadcastPackageAsync`, `GetTxStatusAsync`, `EstimateFeeRateAsync`) that replaced the prior `IChainTimeProvider` / `IBoardingUtxoProvider` / `IOnchainBroadcaster` trio. Ship three concrete impls under `NArk.Core/Blockchain/`: `NBXplorerBlockchain`, `EsploraBlockchain`, `RpcBlockchain`. DI helpers `AddNBXplorerBlockchain` / `AddEsploraBlockchain` / `AddRpcBlockchain` register the right impls in one call (replacing three separate `AddSingleton` lines wrapping the same backend client).
+
+### Unilateral exit session goes `Failed` immediately after `StartExitAsync`
+
+**Symptom**: The session enters `Failed` state with `FailReason="Invalid Hex String"`, `FailReason="No more byte to read"`, or `FailReason="mempool-script-verify-flag-failed (Witness program was passed an empty witness)"`.
+
+**Solution**: Upgrade past `a89d47a`. arkd's `GetVirtualTxs` indexer returns tree txs as **PSBT-encoded** strings (not raw consensus), and tree-tx PSBTs from arkd omit `witness_utxo` / `non_witness_utxo` (which `PSBT.Finalize` would require — they'd be redundant since the receiver always has the parent tx). The fixed `ParseVirtualTx` branches on `ChainedTxType`: **Tree** txs lift `PSBT_IN_TAP_KEY_SIG` (NBitcoin's `psbtInput.TaprootKeySignature`) and assemble `WitScript(new[] { sig.ToBytes() }, true)` — the `true` flag tells NBitcoin these are stack pushes (not a pre-serialized witness — `new WitScript(sig.ToBytes())` would try to read varint-N stack elements out of the 64-byte Schnorr sig). **Ark / Checkpoint** try `Finalize+ExtractTransaction`, falling back to lifting `FinalScriptWitness` on `PSBTException`. **Commitment** rows are filtered out one layer up (they're already on-chain; hex is intentionally null).
+
+### Unilateral exit broadcast keeps failing with `TRUC-violation`
+
+**Symptom**: Repeated `Exceeded 10 broadcast retries` with the underlying RPC error showing `TRUC-violation` from Bitcoin Core.
+
+**Solution**: Tree txs are v3 (TRUC) but their direct parent on-chain may be non-v3, so Bitcoin Core rejects direct broadcast — TRUC-relay assumes parent-and-children are all v3 or all non-v3 in a 1p1c package. Register an `IFeeWallet` so `UnilateralExitService.BroadcastWithCpfpAsync` activates the v3 CPFP child path via `submitpackage` (NBXplorer / RPC) or sequential broadcast (Esplora — no `txs/package` endpoint). On regtest, `minrelaytxfee=0` makes direct broadcast acceptable; on mainnet/signet the CPFP path is required.
+
+### EF Core migration needed for unilateral-exit tables
+
+**Symptom**: After bumping the SDK pointer and calling `AddUnilateralExit()`, queries against `ExitSessionEntity` / `VirtualTxEntity` / `VtxoBranchEntity` fail because the tables are missing.
+
+**Solution**: Exit entities are deliberately opt-in (consumers that don't call `AddUnilateralExit()` shouldn't pay the schema cost). Add `ConfigureArkExitEntities()` to your `DbContext.OnModelCreating` and ship a new EF migration:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder mb)
+{
+    mb.ConfigureArkEntities();
+    mb.ConfigureArkExitEntities();   // new
+}
+```
+
+```bash
+dotnet ef migrations add AddUnilateralExitTables
+dotnet ef database update
+```
+
+If you don't want to add schema, use `AddInMemoryExitStorage()` instead (same code paths, `ConcurrentDictionary`-backed, lost on restart) or skip both and use the stateless `BroadcastExitChainAsync` / `ClaimMaturedExitAsync` API (caller owns persistence of the returned `ExitPlan`).
+
+`VirtualTxEntity.Type` defaults to `Unspecified` (0) so existing rows from any prior SDK pointer are valid without backfill; downstream consumers (BTCPay plugin) only need the additive `Type` column migration when they bump.
 
 ## Storage Issues
 
@@ -179,9 +220,21 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 ### "DateTimeOffset cannot be sorted/filtered" on SQLite
 
-**Symptom**: EF Core LINQ queries that order by or filter on a `DateTimeOffset` column fail on SQLite.
+**Symptom**: EF Core LINQ queries that order by or filter on a `DateTimeOffset` column fail on SQLite with: `SQLite does not support expressions of type 'DateTimeOffset' in ORDER BY clauses`. This breaks every paged storage query in the SDK (`GetVtxos`, `GetContracts`, `GetIntents`, `GetPayments`, `GetPaymentRequests`, `GetSwaps`).
 
-**Solution**: Apply `DateTimeOffsetToBinaryConverter` via `ConfigureConventions` so EF Core stores the value as `long` (sortable) instead of text. This is what the WASM sample wallet does — see `samples/NArk.Wallet/NArk.Wallet.Client/Services/WalletDbContext.cs`.
+**Solution**: Opt into `ArkStorageOptions.StoreDateTimeOffsetAsTicks` when calling `ConfigureArkEntities` / `ConfigureArkPaymentEntities`. Applies a `ValueConverter<DateTimeOffset, long>` to every Ark `DateTimeOffset` column so storage becomes BIGINT (Postgres / MSSQL) or INTEGER (SQLite), both natively sortable.
+
+```csharp
+var opts = new ArkStorageOptions { StoreDateTimeOffsetAsTicks = true };
+modelBuilder.ConfigureArkEntities(opts);
+modelBuilder.ConfigureArkPaymentEntities(opts);
+```
+
+The WASM sample wallet's `WalletDbContext` dogfoods this. Scoped to an explicit `ArkOwnedEntityTypes` set so the converter cannot bleed into consumer-owned entities sharing the same `DbContext` (this is a behaviour change vs. the prior `ConfigureConventions` workaround). Guarded against double-application across `ConfigureArkEntities` + `ConfigureArkPaymentEntities`.
+
+**Trade-offs**:
+- Default is **off** — existing Postgres / MSSQL consumers (native `timestamptz` / `datetimeoffset`) and SQLite consumers willing to live without `ORDER BY` see no behaviour change.
+- Opt-in is a **schema change**: stored values switch from TEXT / `timestamptz` to BIGINT, and round-trip strips the original offset (read-back is always UTC, offset zero). For existing SQLite databases: drop the DB file (fine for local caches), or run a one-off `julianday` SQL migration before enabling the flag (needs SQLite ≥ 3.38.0 for proper timezone handling on TEXT input; see `docs/articles/storage.md` in the repo).
 
 ## WASM / GitHub Pages Sample Wallet
 
