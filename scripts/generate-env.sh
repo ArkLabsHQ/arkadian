@@ -67,6 +67,8 @@ REPO_ENTRIES=(
   "ENCLAVE_GITHUB|ENCLAVE_REPO|ArkLabsHQ/enclave|enclave (AWS Nitro Enclave framework)|optional"
   "BLUEWALLET_GITHUB|BLUEWALLET_REPO|ArkLabsHQ/BlueWallet|BlueWallet (ArkLabs fork, parity reference)|optional"
   "ARKANA_KNOWLEDGE_GITHUB|ARKANA_KNOWLEDGE_REPO|ArkLabsHQ/arkana-knowledge|arkana-knowledge (CTO AI memory: slack-log, research, sdk-parity)|optional"
+  "BANCOD_GITHUB|BANCOD_REPO|ArkLabsHQ/bancod|bancod (offline swap server daemon)|optional"
+  "BANCO_GITHUB|BANCO_REPO|ArkLabsHQ/banco|banco (offline swap frontend)|optional"
 )
 
 # ── Start .env ───────────────────────────────────────────────────
