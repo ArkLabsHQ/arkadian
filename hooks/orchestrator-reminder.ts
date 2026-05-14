@@ -14,7 +14,7 @@ export function getOrchestratorReminder(): string {
         return `
 ⚠️ You are in EXPRESS mode. Do ALL work DIRECTLY — no sub-agents.
 
-Steps: Load INDEX → Classify intent → Select project(s) → Load project INDEX(es) → Write workflow.yaml (execution_mode: "direct") → Do the work yourself using Read/Edit/Write/Bash/Grep/Glob.
+Steps: Load private/CONTEXT.md (if exists) → Load INDEX → Classify intent → Select project(s) → Load project INDEX(es) → Write workflow.yaml (execution_mode: "direct") → Do the work yourself using Read/Edit/Write/Bash/Grep/Glob.
 
 NEVER refuse express mode. The user chose -x explicitly. Do NOT invoke Task/Agent tool.
 `;
@@ -25,6 +25,7 @@ NEVER refuse express mode. The user chose -x explicitly. Do NOT invoke Task/Agen
 ⚠️ STOP. You are NOT following instructions defined from system prompt, re-read your system prompt before responding.
 
 To remind you, you are the ORCHESTRATOR. you MUST follow bellow steps:
+Step 0: Load private/CONTEXT.md (if exists)
 Step 1: Load docs/INDEX.md
 Step 2: Classify intent
 Step 3: Select projects (scoring algorithm)

@@ -35,6 +35,8 @@ If these environment variables are set, you are in RESUME MODE:
 
 When resume mode is detected:
 
+**First**: Load private context if `${ARKADIAN_DIR}/private/CONTEXT.md` exists (same as Step 0 in standard flow).
+
 ### Step 0: Analyze Session State (DO THIS FIRST)
 
 1. **Read workflow.yaml:**
@@ -147,7 +149,7 @@ When express mode is detected, you implement changes DIRECTLY — no sub-agents.
 
 ### What Express Mode Changes
 
-1. **Follow Steps 1-4 normally**: Load INDEX.md, classify intent, select project(s), load project INDEX(es)
+1. **Follow Steps 0-4 normally**: Load private context (Step 0), load INDEX.md, classify intent, select project(s), load project INDEX(es)
 2. **At Step 5**: STOP the normal workflow. Do NOT derive doc sections for agents or create execution specs.
 3. **Write workflow.yaml**: Use the `express_develop.yaml` template. The file MUST contain `execution_mode: "direct"` — the guardrail hook reads this to unlock Bash and project repo access.
 4. **Do the work directly** using Read, Edit, Write, Bash, Grep, Glob tools:
@@ -327,7 +329,11 @@ pre_submit_checklist:
   - rule: "Is ARKADIAN_WORKFLOW_MODE=express?"
     action: "If yes, follow Express Mode Workflow. Do NOT delegate to sub-agents. Execute directly after Steps 1-4 + writing workflow.yaml."
 
-  # Direct Answer Evaluation (check THIRD)
+  # Private Context Check (check THIRD — after resume and express)
+  - rule: "Does ${ARKADIAN_DIR}/private/CONTEXT.md exist?"
+    action: "If yes, Read it and follow its instructions. It contains personal memory loading rules, team member Slack lookup rules, and other private configuration. This file is .gitignored and user-specific."
+
+  # Direct Answer Evaluation (check FOURTH)
   - rule: "Can I answer this from existing conversation context?"
     conditions:
       - "Answer exists in prior agent responses this session"
@@ -932,6 +938,14 @@ Context loading follows a strict 4-tier hierarchy. **This is mandatory.**
 # Request Handling Workflow
 
 Follow these steps in order. **Context loading is mandatory and tiered.**
+
+## Step 0: Load Private Context (ALWAYS — before any other step)
+
+If `${ARKADIAN_DIR}/private/CONTEXT.md` exists, Read it and follow its instructions.
+This file contains user-specific configuration: personal memory files to load,
+team member Slack lookup rules, and other private context. It is .gitignored.
+
+This step runs BEFORE Step 1 in ALL flows: standard, express, and resume.
 
 ## Step 1: Load Master Registry (Tier 1 - ALWAYS)
 
