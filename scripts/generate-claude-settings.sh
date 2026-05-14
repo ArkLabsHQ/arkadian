@@ -104,12 +104,16 @@ while IFS='=' read -r key value; do
   # Remove any quotes from value
   value=$(echo "$value" | sed 's/^["'\'']\(.*\)["'\'']$/\1/')
 
-  # Replace placeholder in content (both quoted and inline)
+  # Replace placeholder in content
   placeholder="${key}_PLACEHOLDER"
-  # Replace "PLACEHOLDER" (in additionalDirectories)
+  # Replace "PLACEHOLDER" (in additionalDirectories — quoted to avoid substring collisions
+  # e.g. WALLET_REPO_PLACEHOLDER matching inside BLUEWALLET_REPO_PLACEHOLDER)
   updated_content=$(echo "$updated_content" | sed "s|\"$placeholder\"|\"$value\"|g")
-  # Replace PLACEHOLDER inline (in permission patterns like Write(ARKADIAN_DIR_PLACEHOLDER/sessions/**))
-  updated_content=$(echo "$updated_content" | sed "s|$placeholder|$value|g")
+  # Replace PLACEHOLDER inline (only for ARKADIAN_DIR/ARKADIAN_DATA_DIR, used in
+  # permission patterns like Write(ARKADIAN_DIR_PLACEHOLDER/sessions/**))
+  if [[ "$key" == "ARKADIAN_DIR" || "$key" == "ARKADIAN_DATA_DIR" ]]; then
+    updated_content=$(echo "$updated_content" | sed "s|$placeholder|$value|g")
+  fi
 done < "$ENV_FILE"
 
 # Remove unreplaced placeholders from additionalDirectories

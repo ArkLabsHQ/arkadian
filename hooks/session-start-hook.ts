@@ -546,11 +546,43 @@ Execution artifacts (explore, implement) go to artifacts/{phase}/.
 Planning artifacts (spec, plan, tasks) go to specs/{project}/{feature-id}/.
 `;
 
+        // Load private memory if it exists (personal context: team dynamics, priorities, etc.)
+        const privateMemoryIndex = join(ARKADIAN_DIR, 'private', 'memory', 'MEMORY.md');
+        let privateContext = '';
+        if (existsSync(privateMemoryIndex)) {
+            try {
+                const memoryIndex = readFileSync(privateMemoryIndex, 'utf-8');
+                // Load each linked file from the index (parse markdown links)
+                const linkedFiles = memoryIndex.match(/\[.*?\]\((.*?\.md)\)/g) || [];
+                let memoryContent = '';
+                for (const link of linkedFiles) {
+                    const match = link.match(/\((.*?\.md)\)/);
+                    if (!match) continue;
+                    const filePath = join(ARKADIAN_DIR, 'private', 'memory', match[1]);
+                    if (existsSync(filePath)) {
+                        try {
+                            const content = readFileSync(filePath, 'utf-8');
+                            // Cap each file at 2000 chars to avoid bloating context
+                            memoryContent += `\n### ${match[1]}\n${content.slice(0, 2000)}\n`;
+                        } catch (e) {
+                            // Skip unreadable files
+                        }
+                    }
+                }
+                if (memoryContent) {
+                    privateContext = `\n# Personal Context (auto-loaded from private/memory/)\n${memoryContent}`;
+                }
+                log(hookInput.session_id, 'private-memory', `Loaded ${linkedFiles.length} memory files`);
+            } catch (e: any) {
+                log(hookInput.session_id, 'private-memory-error', e.message);
+            }
+        }
+
         // ORCHESTRATOR.md is now symlinked to ~/.claude/CLAUDE.md
         // This gives it higher authority than hook-injected context
         // We only need to inject the session-specific context here
         const output = {
-            systemMessage: quickCommands + '\n\n' + sessionContext,
+            systemMessage: quickCommands + '\n\n' + sessionContext + privateContext,
             hookSpecificOutput: {
                 hookEventName: "SessionStart",
                 additionalContext: sessionContext

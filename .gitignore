@@ -26,3 +26,6 @@ benchmarks
 
 # Claude Code per-user local settings (never commit)
 .claude/settings.local.json
+
+# Private personal context (chief of staff, cron scripts, memory)
+private/

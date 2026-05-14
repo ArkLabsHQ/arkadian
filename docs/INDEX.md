@@ -647,6 +647,88 @@ A production-ready TypeScript library that integrates Boltz submarine swaps into
 
 ---
 
+### bancod
+**ID**: `bancod`
+**Name**: Bancod (Banco Solver Bot)
+**Type**: Service/Trading Bot
+**Language**: Go
+**Index**: `${ARKADIAN_DIR}/docs/projects/bancod/INDEX.md`
+**Repository**: `${BANCOD_REPO}`
+**GitHub**: `arkade-os/bancod`
+
+**Description**:
+Go implementation of a banco solver bot for the Arkade virtual mempool. Watches the arkd transaction stream for swap offers posted as VTXOs, matches them against configured trading pairs and price ranges, and fulfills them atomically via introspector-signed Ark transactions. Also supports a stateless preimage-claim plugin using ECIES encryption. Features a plugin-based solver architecture, gRPC+REST API, embedded web UI, CLI client, and SQLite storage.
+
+**Key Capabilities**:
+- Banco swap plugin: automated market-making on Ark virtual mempool
+- Preimage claim plugin: stateless ECIES-encrypted VTXO claims (PacketType 0x04)
+- Plugin-based solver runtime (pkg/solver) with Match+Solve interface
+- TLV-encoded swap offers (PacketType 0x03) with atomic fulfillment
+- Trading pair management (base/quote, min/max amounts, price feed, invert)
+- Pluggable price feed with TTL caching (CoinGecko implementation)
+- gRPC + REST API (grpc-gateway) on ports 7070/7071
+- Embedded web UI for monitoring
+- CLI client (banco) for pair management, status, balance
+- SQLite trade history and pair configuration persistence
+- Docker deployment ready with docker-compose test environment
+- Integration tests with nigiri + arkd + introspector stack
+
+**Tags**: `solver`, `swap`, `banco`, `trading`, `market-maker`, `preimage`, `ecies`, `vtxo`, `tlv`, `arkade`, `introspector`, `grpc`, `rest`, `web-ui`, `sqlite`, `docker`
+
+**Synonyms**: `banco-solver`, `banco-bot`, `swap-solver`, `banco-daemon`
+
+**Triggers**:
+- **ask_question**: `banco swap`, `solver bot`, `swap offer`, `preimage claim`, `trading pair`, `price feed`, `banco protocol`, `PacketType 0x03`, `PacketType 0x04`
+- **develop**: `add solver plugin`, `swap logic`, `pair management`, `price feed`, `fulfillment`, `preimage`, `taker`, `maker`
+- **test_or_run**: `start bancod`, `test swap`, `integration test`, `setup-test-env`, `run solver`
+- **debug**: `swap failed`, `price validation`, `offer not matched`, `introspector error`, `fulfillment failed`, `plugin error`
+
+**Dependencies**: `arkd` (tx stream, wallet), `go-sdk` (ArkClient), `introspector` (signing)
+**Depended On By**: None (standalone service)
+
+---
+
+### banco
+**ID**: `banco`
+**Name**: Banco (TypeScript Swap Library)
+**Type**: Client Library
+**Language**: TypeScript
+**Index**: `${ARKADIAN_DIR}/docs/projects/banco/INDEX.md`
+**Repository**: `${BANCO_REPO}`
+**GitHub**: `arkade-os/banco`
+
+**Description**:
+TypeScript library (`@arkade-os/banco`) implementing the non-interactive banco swap protocol for Ark. Enables trustless atomic swaps between BTC and assets (or asset-to-asset) on the Ark network without requiring both parties to be online. Uses covenant-based VTXO scripts with Arkade Script introspection opcodes to enforce swap conditions at the protocol level. Supports full fills, partial fills with ratio-based pricing, cancellation via CLTV, and unilateral exit via CSV.
+
+**Key Capabilities**:
+- Non-interactive maker/taker swap protocol (maker goes offline after funding)
+- Covenant-based VTXO scripts using Arkade Script introspection opcodes
+- Three swap types: Asset→BTC, BTC→Asset, Asset→Asset
+- Partial fills with ratio-based pricing (ratioNum/ratioDen with GCD reduction)
+- TLV offer encoding as Ark Extension packets (PacketType 0x03)
+- Maker class: createOffer, getOffers, cancelOffer
+- Taker class: fulfill (from hex), fulfillByTxid (from funding tx)
+- CLTV cancel path for maker fund recovery
+- CSV exit path for unilateral exit safety
+- Introspector integration for covenant validation and co-signing
+- Dual module output (ESM + CJS) with TypeScript declarations
+- Published as `@arkade-os/banco` on npm
+
+**Tags**: `swap`, `banco`, `typescript`, `npm`, `covenant`, `arkade-script`, `introspection`, `maker`, `taker`, `tlv`, `vtxo`, `atomic-swap`, `partial-fill`, `asset`
+
+**Synonyms**: `@arkade-os/banco`, `banco-sdk`, `banco-lib`, `banco-swap-lib`
+
+**Triggers**:
+- **ask_question**: `banco swap`, `non-interactive swap`, `maker taker`, `swap offer`, `covenant script`, `partial fill`, `TLV offer`, `PacketType 0x03`
+- **develop**: `swap library`, `maker class`, `taker class`, `offer encoding`, `covenant`, `partial fill`, `ratio`, `fulfill offer`
+- **test_or_run**: `pnpm test`, `test:e2e`, `regtest:start`, `vitest`, `build banco`
+- **debug**: `offer not found`, `insufficient BTC`, `swapPkScript mismatch`, `cancel failed`, `introspector error`
+
+**Dependencies**: `ts-sdk` (`@arkade-os/sdk`), `introspector` (covenant validation), `arkd` (Ark server)
+**Depended On By**: `bancod` (Go solver bot uses equivalent protocol), wallet applications building swap UIs
+
+---
+
 ### compiler
 **ID**: `compiler`
 **Name**: Arkade Compiler
@@ -1102,6 +1184,8 @@ arkd (core)
    fulmine (independent, but can integrate)
    ark-telemetry (monitors arkd)
    introspector (Arkade Script co-signer)
+   bancod (Go solver bot, uses arkd tx stream + go-sdk + introspector)
+   banco (TS swap library, uses @arkade-os/sdk + introspector)
    compiler (Arkade Script compiler, produces contract artifacts)
    ark-infra (deploys arkd + dependencies)
    ark-docs (documents arkd)
@@ -1197,6 +1281,13 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | rust-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
 | rust-sdk | fulmine | Delegator-Integration (VTXO auto-renewal) |
 | rust-sdk | introspector | Co-Signer-Client (arkade-script flows via `ark-introspector-client`; dockerized for e2e) |
+| bancod | arkd | Client-Server (tx stream subscription, wallet) |
+| bancod | go-sdk | Library-Consumer (ArkClient) |
+| bancod | introspector | Client-Server (signing for fulfillment) |
+| banco | ts-sdk | Library-Consumer (@arkade-os/sdk) |
+| banco | introspector | Client-Server (covenant validation + co-signing) |
+| banco | arkd | Client-Server (Ark provider, indexer) |
+| banco | bancod | Protocol-Sibling (TS library vs Go solver bot, same swap protocol) |
 | compiler | introspector | Compiler-Runtime (compiler produces, introspector executes) |
 | compiler | arkd | Compiler-Consumer (arkd uses compiled contract artifacts) |
 | compiler | arkade-assets | Language-Specification (compiler implements Arkade Script) |
@@ -1207,10 +1298,10 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 
 ### Technology Groupings
 
-**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, introspector, enclave (CLI + runtime + supervisor)
+**Go Projects**: arkd, go-sdk, ark-faucet, ark-simulator, kms-unlocker, fulmine, bancod, introspector, enclave (CLI + runtime + supervisor)
 **Rust Projects**: rust-sdk, compiler, enclave (`client-rs/` Cargo workspace member)
 **C#/.NET Projects**: dotnet-sdk
-**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, bluewallet (React Native), boltz-swap, boltz-backend (TypeScript + Rust hybrid)
+**TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, bluewallet (React Native), boltz-swap, banco, boltz-backend (TypeScript + Rust hybrid)
 **Mobile / React Native**: bluewallet (iOS, Android, macOS Catalyst), arkade-wdk (RN-compatible adapter)
 **Bitcoin Wallet Apps**: wallet (PWA), bluewallet (React Native mobile)
 **Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
@@ -1316,6 +1407,8 @@ For conceptual questions, prioritize documentation loading order:
 | ark-infra | Active Dev | →  Beta | IaC, production configurations available |
 | kms-unlocker | Stable |   | Production-ready with AWS |
 | fulmine | Active Dev | →  Alpha | Lightning wallet, under development |
+| bancod | Active Dev | Alpha | Banco solver bot, swap + preimage plugins |
+| banco | Active Dev | Alpha | TS swap library, @arkade-os/banco on npm |
 | ark-docs | Active |   | Documentation site, continuously updated |
 | arkade-assets | Specification | N/A | Protocol spec + reference implementation |
 | arkade-escrow | POC | L Alpha | Escrow platform, proof-of-concept |
@@ -1340,5 +1433,5 @@ This index should be updated when:
 - Project status changes (alpha → beta → stable)
 
 **Last Updated**: 2026-05-14
-**Version**: 1.5.10
+**Version**: 1.6.0
 **Maintained By**: Arkadian Documentation Team
