@@ -1,5 +1,33 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-14 - Operational Memory Sync (no doc changes)
+**Commit Range**: `ab6b87f6..b85affe3` (24 commits)
+**Previous Sync (asserted by caller)**: `ab6b87f6895f5d52d53c0d7be0f97ef47a1baf9e`
+**Current Sync**: `b85affe35c17c98b19ef43b27550db94fd9254de`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 14 files changed (+521/-97), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,research-monitor,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity: issue-triage (~6 runs across 08:00/12:00/16:00/20:00Z/00:00/04:00Z), release-coordinator (~6 runs), security-triage (~6 runs), and single runs of repo-detector (×2: scan + re-activation index), sdk-parity, slack-monitor, daily-briefing, executive-digest, linear-sync, research-monitor
+- Notable operational events captured in memory only: repo-detector re-activated 7 arkade-os repos on 2026-05-14 scan and flagged 4 DoS issues; security-triage tracked go-sdk #172 uint64 fix reaching day 7→8 unreviewed and go-sdk #174 merged with bundled auth changes (then go-sdk "harder blocked"); release-coordinator logged fleet CI root cause identified and fixed during the day, with go-sdk release still blocked; go-sdk #173 merged human-approved; boltz-swap v0.3.31 CI failure flagged 12:00Z and tracked through the day; executive-digest 2026-05-13 flush highlighted: KV store removal risk with 3 unreviewed merges, CodeRabbit autonomy governance gap, go-sdk #174 auth/migration, boltz-swap CI failure, #172 day 7 deprioritization, Chimera Wallet ecosystem signal; GOV#28 logged (go-sdk #140); linear-sync state snapshot refreshed; research-monitor and sdk-parity context updates appended
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, or the 17-agent roster
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: b85affe3…`, `last_sync_date: 2026-05-14T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `b85affe35c17c98b19ef43b27550db94fd9254de`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; today's events — re-activated repos, governance violations, release blockers, CI recovery — are operational observations stored in agent memory, not project-registry changes)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=ab6b87f6…` / `to=b85affe3…`; the locally tracked previous sync was `baf637af…`; per established pattern we honour the supplied range and write the new HEAD to `last-sync.txt`
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-13 - Operational Memory Sync (no doc changes)
 **Commit Range**: `fac67bcf..baf637af` (23 commits)
 **Previous Sync (asserted by caller)**: `fac67bcf278ac57c50942b856ff392b5ef280825`

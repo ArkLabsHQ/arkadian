@@ -75,6 +75,11 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **PWA safe-area handling**: Top safe-area offset restored after the Ionic migration so installed iOS PWAs no longer render beneath the status bar; pill-navbar clearance and scroll-fade applied to the plain CSS scroll container; legacy `::part(scroll)` selectors removed
 - **Scrollbar hidden**: Cross-browser scrollbar removal moved off the (legacy Ionic) `::part(scroll)` shadow part onto `.content` directly
 - **Scanner button positioning**: `InputWithScanner` adopts a `.label.has-buttons` layout — buttons absolutely positioned right, input gets `padding-right: 36px`
+- **Non-blocking boarding settlement (PR #556)**: The full-screen `WaitingForRound` overlay (which blocked all interaction for 1+ minute during boarding settlement) has been removed. Replaced by inline non-blocking UX across three call sites:
+  - **Transaction.tsx** (boarding): inline purple `Info` banner with `LoadingIcon` showing "Processing your boarding transaction..." while settlement runs in the background; guards prevent simultaneous settled + pending banners; stale `setTxInfo` callback removed to avoid corrupting navigation state.
+  - **Vtxos.tsx** (Coin Control): inline "Renewing" `Info` banner during rollover instead of blocking overlay.
+  - **Send/Details.tsx**: `LoadingLogo` for mainnet payments (matches Lightning/Ark payment patterns).
+  - `LoadingIcon` `small` variant resized 32px → 20px to align with other inline icons; settling text contrast improved.
 
 ### Design System & Styling (PRs #582, #589, #590)
 - **Design tokens**: `src/tokens.css` provides full color ramps (50–950) for purple, green, red, orange, yellow, and neutral, plus typography and shadow elevation tokens. The neutral ramp uses `color-mix(in oklab)` so it auto-adapts to light/dark with the `html.palette-dark` selector.

@@ -1,5 +1,25 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-14 - Documentation Update
+**Commit**: `4988987b` (boltz-backend repository)
+**Previous Sync**: `7ae3002e`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits (plus merge `4988987b`)
+
+**Refactors**:
+- refactor: use BIP-69 in boltz-core (#1400) (`105d6d61`) — internal Rust change in `boltz-core/src/{bitcoin,elements}/tx.rs` adopting BIP-69 deterministic input/output ordering for constructed transactions, with matching call-site updates in `boltz-core/src/wrapper.rs`, `boltzr-cli/src/tx/utils.rs`, `boltzr/src/chain/bumper/handlers/refund.rs`, and `boltzr/src/swap/manager.rs`. Library-internal; no public-facing API or capability change.
+- refactor: poll block height instead of subscription (`6bb5430e`) — EVM block notifications in `InjectedProvider` now come from a single internal `setInterval` poll (`blockPollIntervalMs = 2_500`) of `getBlockNumber()` shared across all listeners, instead of per-WebSocket-provider `block` subscriptions and the per-provider injected-listener fan-in. `EthereumManager` correspondingly drops the stale-block / gap-detection block-handler logic and instead wires `provider.onReconnect(...)` to call `scheduleMissedEventChecks()` whenever a WS provider reconnects. Side effects worth flagging: the `NEED_WEBSOCKET_PROVIDER` error and the `InjectedProvider.allowHttpOnly` flag are gone — EVM chains can now run with HTTP-only RPC providers (the WebSocket-reconnect hook just no-ops in that case). New ~760-line unit coverage in `test/unit/wallet/ethereum/{InjectedProvider,ArbitrumProvider,EthereumManagerReconnect}.spec.ts`; integration suites trimmed to drop the WS-only assertions.
+- refactor: derive l1BlockNumber from latest L2 block (`35a1ef7d`) — `ArbitrumProvider.getLatestBlock` now issues a single `eth_getBlockByNumber("latest", false)` call and reads `l1BlockNumber` out of the L2 block payload (hex-decoded), eliminating the second RPC round-trip to the L1 provider. New 87-line integration spec and rewritten 106-line unit spec for the provider.
+
+**Bug Fixes**:
+- fix: unclean shutdowns (`a25adaaa`) — `Boltz.registerExitHandler` now sequences shutdown explicitly (EVM managers → gRPC → DB → Redis → Profiling → Tracing → logger) with per-step timing in debug logs. `Tracing.init` is rewritten to drive the OTLP trace exporter through an explicit `BatchSpanProcessor` with `exportTimeoutMillis: 1_000`, and `logRecordProcessors`/`metricReaders` are explicitly empty so the SDK no longer leaves background work behind on shutdown; OTLP exporter also gains a `timeoutMillis: 1_000`. `WebSocketProvider` shutdown path tightened to match the new manager-first teardown ordering.
+
+**Documentation Impact**: None for user-facing docs — all four commits are internal refactors/fixes (Rust tx-construction ordering, EVM block-notification mechanism, Arbitrum L1 derivation, and TS shutdown sequencing). No change to: public REST API, swap-type capability, env-var / `boltz.conf` schema, dependency graph, components listed in `system/architecture.md`, build pipeline, or DB migrations. The "EVM providers can now be HTTP-only" relaxation is not currently surfaced as a documented constraint anywhere in `docs/projects/boltz-backend/` either, so no doc edit is needed; project INDEX, system, testing, and master `docs/INDEX.md` files unchanged.
+
+---
+
 ## 2026-05-13 - Documentation Update
 **Commit**: `7ae3002e` (boltz-backend repository)
 **Previous Sync**: `e6397e9a`

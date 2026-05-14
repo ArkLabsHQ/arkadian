@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.30`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.31`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -211,11 +211,14 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.30
+**Version**: 0.3.31
 **Stability**: Stable API, active feature development
 
-**Recent Improvements (post-0.3.30, unreleased)**:
-- **ServiceWorker half-initialized handler recovery** (`src/serviceWorker/arkade-swaps-runtime.ts`, `arkade-swaps-message-handler.ts`): after a SW restart the message bus can be re-initialized (via the wallet's restart-recovery path) before the page-side `ArkadeSwaps` init payload is re-sent, leaving `handler.handler` undefined. The handler now throws a typed `HandlerNotInitializedError` (`HANDLER_NOT_INITIALIZED` = `"ArkadeSwaps handler not initialized"`) for non-`INIT` requests in that window, and the runtime's reinit-retry path treats it as recoverable alongside `MESSAGE_BUS_NOT_INITIALIZED` — re-sends the cached `INIT_ARKADE_SWAPS` payload and retries the original request transparently to callers.
+**Recent Improvements (0.3.30 → 0.3.31)**:
+- **Expo background-task subpath isolation** (commit `3039456`, fix for [#136](https://github.com/arkade-os/boltz-swap/issues/136)) — **breaking for Expo callers**. The OS-task helpers (`defineExpoSwapBackgroundTask`, `registerExpoSwapBackgroundTask`, `unregisterExpoSwapBackgroundTask`) moved from `@arkade-os/boltz-swap/expo` to a new dedicated subpath `@arkade-os/boltz-swap/expo/background`. Reason: lazy `require()` inside `/expo` was invisible to Metro's static dependency collector, so `expo-task-manager` / `expo-background-task` never entered the bundle graph and resolution failed at runtime. The new subpath uses static imports, and is the **only** module that pulls in those native packages — keeping it isolated lets react-native-web and Node consumers use `/expo` without them. `ExpoArkadeSwaps.setup()` no longer registers the OS task itself; callers must explicitly invoke `await registerExpoSwapBackgroundTask(taskName, { minimumInterval })` and `await unregisterExpoSwapBackgroundTask(taskName)` on teardown. The `background` config dropped `taskName` and `minimumBackgroundInterval` — TS callers get a compile error, JS callers get a runtime warning via `warnOnRemovedBackgroundFields` (silently ignored otherwise, so the OS task would never run if not migrated).
+- **Optional Expo peerDependencies** (commit `fd75612`) — `expo-task-manager` (`>=3.0.0`) and `expo-background-task` (`>=0.1.0`) are now declared as **optional** `peerDependencies` with `peerDependenciesMeta`, so package managers warn consumers when missing and `tsup` externalises them via the standard route (drops the explicit `--external` flags from the build script). New unit tests cover `warnOnRemovedBackgroundFields` for both removed fields, the combined case, and null / non-object inputs.
+- **ServiceWorker half-initialized handler recovery** (carried over from the post-0.3.30 work, now shipping in 0.3.31): after a SW restart the message bus can be re-initialized (via the wallet's restart-recovery path) before the page-side `ArkadeSwaps` init payload is re-sent, leaving `handler.handler` undefined. The handler throws a typed `HandlerNotInitializedError` (`HANDLER_NOT_INITIALIZED` = `"ArkadeSwaps handler not initialized"`) for non-`INIT` requests in that window, and the runtime's reinit-retry path treats it as recoverable alongside `MESSAGE_BUS_NOT_INITIALIZED` — re-sends the cached `INIT_ARKADE_SWAPS` payload and retries the original request transparently to callers.
+- Version bump 0.3.30 → 0.3.31; `@arkade-os/sdk` unchanged at 0.4.26; `pnpm-lock.yaml` regenerated.
 
 **Recent Improvements (0.3.29 → 0.3.30)**:
 - `BoltzSwapProvider` now defaults `referralId` to `"arkade-ts-sdk"` when the caller does not supply one — every submarine, reverse, and chain swap request is automatically tagged unless explicitly overridden.

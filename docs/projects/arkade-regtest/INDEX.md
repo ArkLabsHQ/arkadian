@@ -97,7 +97,7 @@ When `ARKD_IMAGE` is set, `start-env.sh` stops nigiri's arkd container and start
 | Bitcoin Core     | nigiri-bundled                                      | 18443/18444            | Bitcoin regtest node                             |
 | arkd             | nigiri-bundled (overridable)                        | 7070                   | Ark protocol server                              |
 | arkd-wallet      | nigiri-bundled (overridable)                        | —                      | Signer/wallet for arkd                           |
-| Fulmine          | `ghcr.io/arklabshq/fulmine:v0.3.21`                 | 7002 / 7003 / 7004     | Ark wallet + Boltz integration                   |
+| Fulmine          | `ghcr.io/arklabshq/fulmine:v0.3.23`                 | 7002 / 7003 / 7004     | Ark wallet + Boltz integration                   |
 | Boltz Backend    | `boltz/boltz:latest`                                | 9000 / 9001 / 9004     | Submarine / reverse swap orchestrator            |
 | Boltz LND        | `btcpayserver/lnd:v0.19.3-beta`                     | 9736 / 10010           | Lightning node used by Boltz                     |
 | LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.1.0`              | 9090                   | LNURL endpoints for testing                      |

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.6
-last_sync_commit: e96024dfdf5e90323a6e0673c9a92106f9f9574d
+version: 1.2.7
+last_sync_commit: f2cfa798d49522bf9e843357bade7d1ec711f011
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -92,6 +92,7 @@ Analysis and summaries of pull requests.
 - **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session
 - **Bulk submarine recovery**: Apps → Boltz → Settings scans recoverable submarine swaps and sweeps them via `arkadeSwaps.recoverSubmarineFunds()` (per-row, with `pre_cltv` deferred-locktime guidance)
 - **Invoice limit validation**: Send form rejects Lightning invoices below `minSwapAllowed()` / above `maxSwapAllowed()` before submission
+- **Non-blocking boarding settlement (PR #556)**: `WaitingForRound` component removed — boarding settlement (Transaction.tsx), VTXO rollover (Vtxos.tsx), and mainnet send (Send/Details.tsx) no longer show a full-screen blocking overlay. Boarding shows an inline purple Info banner ("Processing your boarding transaction..."), VTXO rollover shows an inline "Renewing" banner, and mainnet send falls back to `LoadingLogo` matching Lightning/Ark patterns. `LoadingIcon` `small` size reduced from 32px → 20px to match other inline icons.
 
 ---
 

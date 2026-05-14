@@ -1,5 +1,52 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-14 - Documentation Sync
+**Commit**: `f2cfa798d49522bf9e843357bade7d1ec711f011`
+**Previous Sync**: `e96024dfdf5e90323a6e0673c9a92106f9f9574d`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `f2cfa798` fix support (#616) — minor fixes in `src/screens/Settings/Support.tsx`
+- `29b140b3` fix(transaction): non-blocking boarding settlement UX (#556)
+
+**Features Modified**:
+- **Non-blocking boarding settlement UX (PR #556, commit 29b140b3)** — removes the full-screen `WaitingForRound` overlay (1+ minute interaction block) and replaces it with inline non-blocking UI across three call sites:
+  - `src/screens/Wallet/Transaction.tsx`: inline purple `Info` banner with `LoadingIcon` ("Processing your boarding transaction…") while settlement runs; guards added to prevent simultaneous settled + pending banners; stale `setTxInfo` callback removed.
+  - `src/screens/Settings/Vtxos.tsx` (Coin Control): inline "Renewing" `Info` banner during rollover instead of full-screen overlay.
+  - `src/screens/Wallet/Send/Details.tsx`: `LoadingLogo` used for mainnet payments, matching Lightning/Ark payment patterns.
+  - `src/icons/Loading.tsx`: `LoadingIcon` `small` size reduced 32px → 20px to align with other inline icons.
+  - Settling text contrast improved.
+- **Support fixes (PR #616, commit f2cfa798)** — `src/screens/Settings/Support.tsx` minor UX fixes (+16/-5).
+
+**Files Removed**:
+- `src/components/WaitingForRound.tsx` — component deleted after all three usages were migrated to inline banners.
+
+**Configuration / Tooling Updates**:
+- `.env.regtest`: image versions bumped — `arkd` v0.9.4 → v0.9.5, `arkd-wallet` v0.9.4 → v0.9.5, `fulmine` v0.3.21 → v0.3.23; added `BOLTZ_IMAGE=boltz/boltz:latest`.
+- `regtest` submodule: bumped `3ac33b66` → `6333e4b8` (regtest link/image refresh).
+
+**Files Touched in Repo**:
+- `.env.regtest`
+- `regtest` (submodule pointer)
+- `src/components/WaitingForRound.tsx` (deleted)
+- `src/icons/Loading.tsx`
+- `src/screens/Settings/Support.tsx`
+- `src/screens/Settings/Vtxos.tsx`
+- `src/screens/Wallet/Send/Details.tsx`
+- `src/screens/Wallet/Transaction.tsx`
+
+**Dependency Updates**: None (package.json/pnpm-lock.yaml unchanged).
+
+**Files Updated**:
+- docs/INDEX.md (wallet Key Capabilities: non-blocking boarding settlement entry)
+- docs/projects/wallet/INDEX.md (frontmatter version 1.2.7 + last_sync_commit; Lightning Network Swaps section: non-blocking boarding settlement entry)
+- docs/projects/wallet/system/project_overview.md (UI/UX Refresh: non-blocking boarding settlement entry detailing Transaction/Vtxos/Send/Details changes and LoadingIcon resize)
+- docs/projects/wallet/change-log/last-sync.txt → `f2cfa798d49522bf9e843357bade7d1ec711f011`
+- docs/projects/wallet/change-log/SYNC_HISTORY.md (this entry)
+
+---
+
 ## 2026-05-13 - Documentation Sync
 **Commit**: `e96024dfdf5e90323a6e0673c9a92106f9f9574d`
 **Previous Sync**: `982c8bc3e82d9cb7f6af3efc9921964363963040`

@@ -46,7 +46,7 @@ When set, `start-env.sh` brings up `docker-compose.arkd-override.yml` which prop
 | Variable           | Default                                  |
 | ------------------ | ---------------------------------------- |
 | `BOLTZ_LND_IMAGE`  | `btcpayserver/lnd:v0.19.3-beta`          |
-| `FULMINE_IMAGE`    | `ghcr.io/arklabshq/fulmine:v0.3.21`      |
+| `FULMINE_IMAGE`    | `ghcr.io/arklabshq/fulmine:v0.3.23`      |
 | `BOLTZ_IMAGE`      | `boltz/boltz:latest`                     |
 | `NGINX_IMAGE`      | `nginx:alpine`                           |
 | `LNURL_IMAGE`      | `ghcr.io/arklabshq/lnurl-server:0.1.0`   |

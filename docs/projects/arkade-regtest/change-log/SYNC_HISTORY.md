@@ -1,5 +1,24 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-05-14 - Sync update
+**From**: `6333e4b889edad99e3651e62c25875d009adc854`
+**To**: `dc23da2ce658ac3483fa191282f71982f2ffe239`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 1
+
+**Upstream commits**:
+- `0e99ff7` update default fulmine image
+
+**Changes**:
+- `system/configuration.md` — Bumped `FULMINE_IMAGE` default from `ghcr.io/arklabshq/fulmine:v0.3.21` to `ghcr.io/arklabshq/fulmine:v0.3.23` in the Pinned Image Versions table.
+- `INDEX.md` (project) — Bumped Fulmine image tag in the Services / Default Ports table to `v0.3.23`.
+
+**Notes**:
+- Single-line `.env.defaults` bump of the default `FULMINE_IMAGE` from `v0.3.21` to `v0.3.23`. Non-breaking image version refresh.
+- Master `docs/INDEX.md` not updated — no new capabilities, services, ports, or dependencies; the master entry does not reference specific Fulmine image tags.
+
+---
+
 ## 2026-05-08 - Sync update
 **From**: `1a10171ead42248d8e8183244ea398e78c47f940`
 **To**: `6333e4b889edad99e3651e62c25875d009adc854`

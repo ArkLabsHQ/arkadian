@@ -1,5 +1,49 @@
 # Boltz Swap Documentation Sync History
 
+## 2026-05-14 — Sync (post-0.3.30) → 0.3.31
+
+**From**: `d244bc195a842a46280895d2724d879ae3b3884b`
+**To**: `67683b13a44bb58f605a824836883aa1f6eab962` (release 0.3.31)
+**Commits Analyzed**: 4 (non-merge)
+**Status**: ✓ Complete
+
+### Commits Analyzed
+- `67683b1` chore: release 0.3.31
+- `d1ff808` Update lockfile
+- `fd75612` chore: declare optional Expo peers and test removed-field guard
+- `3039456` fix: isolate expo-task-manager/expo-background-task to /expo/background
+
+### Notable Changes
+
+**Versions**
+- `@arkade-os/boltz-swap`: 0.3.30 → 0.3.31
+- `@arkade-os/sdk`: unchanged at 0.4.26
+- `pnpm-lock.yaml` regenerated (~4.7k-line churn)
+
+**Expo background-task subpath isolation** (commit `3039456`, fix for [#136](https://github.com/arkade-os/boltz-swap/issues/136)) — **breaking for Expo callers**
+- Lazy `require()` inside `/expo` was invisible to Metro's static dependency collector, so `expo-task-manager` / `expo-background-task` never entered the bundle graph and resolution failed at runtime.
+- The OS-task helpers (`defineExpoSwapBackgroundTask`, `registerExpoSwapBackgroundTask`, `unregisterExpoSwapBackgroundTask`) moved from `@arkade-os/boltz-swap/expo` to a new dedicated subpath `@arkade-os/boltz-swap/expo/background`, with static imports.
+- `@arkade-os/boltz-swap/expo/background` is the **only** module that pulls in `expo-task-manager` / `expo-background-task` — keeping it isolated lets react-native-web and Node consumers use `/expo` without those native packages.
+- `ExpoArkadeSwaps.setup()` no longer registers the OS task itself. Callers must invoke `await registerExpoSwapBackgroundTask(taskName, { minimumInterval })` explicitly, and `await unregisterExpoSwapBackgroundTask(taskName)` on teardown (`dispose()` no longer does this).
+- The `background` config dropped `taskName` and `minimumBackgroundInterval`. TS callers get a compile error on the removed fields; JS callers get a runtime warning via `warnOnRemovedBackgroundFields` (otherwise the fields are silently ignored and the OS task never runs).
+- New package export entry `./expo/background` (ESM + CJS, with `.d.ts`); `build` script now bundles `src/expo/background.ts` as a fourth entry alongside `src/expo/index.ts`.
+- README gained a "Change since 0.3.30" warning block with a before/after migration table and a new "Important" callout explaining the subpath isolation.
+
+**Optional Expo peerDependencies** (commit `fd75612`)
+- `expo-task-manager` (`>=3.0.0`) and `expo-background-task` (`>=0.1.0`) are now declared as **optional** `peerDependencies` with `peerDependenciesMeta.*.optional = true`, so package managers warn consumers when missing and `tsup` externalises them via the standard route (drops the explicit `--external` flags from the build script).
+- New unit tests in `test/expo/arkade-lightning.test.ts` (~62 added lines) cover `warnOnRemovedBackgroundFields` for both removed fields (`taskName`, `minimumBackgroundInterval`), the combined case, and null / non-object inputs.
+
+**ServiceWorker half-initialized handler recovery** (carried forward from the post-0.3.30 sync — now shipping in 0.3.31)
+- Handler throws a typed `HandlerNotInitializedError` (`HANDLER_NOT_INITIALIZED` = `"ArkadeSwaps handler not initialized"`) when `handler.handler || wallet` is missing.
+- Runtime's reinit-retry path treats it as recoverable alongside `MESSAGE_BUS_NOT_INITIALIZED` — re-sends the cached `INIT_ARKADE_SWAPS` payload and retries the original request transparently.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — bumped version to 0.3.31; replaced the "Recent Improvements (post-0.3.30, unreleased)" block with a unified "Recent Improvements (0.3.30 → 0.3.31)" entry covering Expo subpath isolation, optional Expo peer-deps + removed-field guard, and the now-shipped SW handler recovery
+- `docs/INDEX.md` — bumped boltz-swap status row to v0.3.31; added Expo subpath isolation, optional peer-deps, and breaking-change details; added Expo capability bullet to **Key Capabilities**; added `expo`, `react-native`, `background-task` tags; added `expo background task` / `defineExpoSwapBackgroundTask` / `registerExpoSwapBackgroundTask` ask_question triggers; added `expo background swap` / `react native swap` develop triggers; added `expo background task not running` / `metro static dependency` / `expo-task-manager missing` / `#136` debug triggers; bumped Last Updated to 2026-05-14, registry version to 1.5.10
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `67683b13`
+
+---
+
 ## 2026-05-09 — Sync 0.3.29 → 0.3.30
 
 **From**: `13cffc1133365a3594fb1d56a25bb20b984070f3`
