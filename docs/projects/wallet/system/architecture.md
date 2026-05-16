@@ -76,6 +76,8 @@ Arkade Wallet follows a **client-side first architecture** where all sensitive o
   - `Network.tsx`: Select Bitcoin network (testnet/mainnet)
   - `Server.tsx`: Configure arkd server URL
   - `Security.tsx`: Wallet password, backup
+  - `Advanced.tsx`: Advanced settings list — surfaces the `Contracts` entry when dev mode is on
+  - `Contracts.tsx` (PR #618, dev mode only): Renders all `ContractManager` contracts (active-first) with type/state/shortened+copyable address & script; pull-to-refresh disabled
 
 - **Apps Screens** (`src/screens/Apps/`): Advanced features
   - `Lightning.tsx`: Boltz submarine swaps
@@ -109,6 +111,8 @@ Arkade Wallet follows a **client-side first architecture** where all sensitive o
 - **FlowProvider** (`flow.tsx`): Multi-step flow state management
 - **LimitsProvider** (`limits.tsx`): Swap limits from Boltz
 - **OptionsProvider** (`options.tsx`): User preferences and display options
+- **LnurlProvider** (`lnurl.tsx`, PR #559): App-level owner of the LNURL SSE session. Self-manages start/stop based on wallet identity + Boltz swaps readiness, so the LNURL stays active even when the user leaves the Receive screen. Derives credentials deterministically via `HMAC-SHA256(privateKey, "lnurl-session")` and sends only the `token` to lnurl-server (server computes `sessionId = SHA-256(token).slice(0, 32)`). Handles invoice requests in-provider: create reverse swap, return invoice, claim in background, notify on completion. Exposes `lnurl/active/error` to consumers; the legacy `useLnurlSession` hook is removed.
+- **DevModeProvider** (`devMode.tsx`, PR #618): Global dev mode toggle persisted in `localStorage`; triple-tap on any `LoadingLogo` flips it. Gates dev-only UI such as the Contracts screen under **Settings → Advanced**.
 
 ### 3. Business Logic Layer (@arkade-os/sdk)
 

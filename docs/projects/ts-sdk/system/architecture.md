@@ -9,7 +9,7 @@ src/
 ├── forfeit.ts               # Forfeit transaction construction
 │
 ├── wallet/                  # Wallet implementations
-│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo; `extractArkProviderUrl(provider)` structurally reads `serverUrl` off the injected ArkProvider so the indexer is built from the same host as a custom arkProvider (no longer silently paired with the public arkade.computer default)
+│   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo; `extractArkProviderUrl(provider)` structurally reads `serverUrl` off the injected ArkProvider so the indexer is built from the same host as a custom arkProvider (no longer silently paired with the public arkade.computer default). `WalletConfig.walletMode` (auto|static|hd|DescriptorProvider) drives receive-rotation wiring through WalletReceiveRotator. `offchainTapscript` exposed as a getter over a `protected` backing field; the only sanctioned write is `setOffchainTapscriptForRotation` (@internal, on the RotatableWallet surface). `updateDbAfterOffchainTx` / `_sendImpl` / `sendBitcoin` snapshot `offchainTapscript` synchronously at `_txLock` entry so a concurrent `rotate()` cannot stamp the change VTXO with mixed scripts. `signInputsByOwner` removed in favour of the InputSignerRouter; signing entry points hand the router explicit InputSigningJob[] derived from the source VTXO script. `getVtxoManager` caches the manager only AFTER `_receiveRotator.install` resolves (failing install leaves the cache untouched). `dispose` wraps rotator teardown in try/catch and rethrows after manager + super disposal so a rotator failure can't leak the contract watcher
 │   ├── onchain.ts           # OnchainWallet (on-chain fee payment, anchor bumping)
 │   ├── ramps.ts             # Ramps (onboard/offboard)
 │   ├── batch.ts             # Batch session (round participation, tree signing)
@@ -17,9 +17,12 @@ src/
 │   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party); `delegate` filter uses an `isAnnotated` type guard narrowing `ContractVtxo` to `ContractVtxo & ExtendedVirtualCoin` (checks `tapTree`, `forfeitTapLeafScript`, `intentTapLeafScript`) instead of an unsafe `as ExtendedVirtualCoin` cast
 │   ├── asset-manager.ts     # AssetManager (issue, reissue, burn)
 │   ├── asset.ts             # Asset types and helpers
-│   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support
+│   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support; Math.ceil(feeRate) before BigInt() to tolerate fractional sat/vB
 │   ├── utils.ts             # Wallet utilities
-│   ├── hdDescriptorProvider.ts # HDDescriptorProvider (HD receive rotation, persisted under settings.hd)
+│   ├── hdDescriptorProvider.ts # HDDescriptorProvider — allocator (getNextSigningDescriptor) + ReceiveRotatorFactory (createReceiveRotator delegates to WalletReceiveRotator.defaultBoot); getCurrentSigningDescriptor re-derives last-used index without advancing for stable boot replay
+│   ├── walletReceiveRotator.ts # WalletReceiveRotator — owns DescriptorProvider + vtxo_received subscription + rotation chain + boot pubkey lookup (pickActiveReceive) + contract registration on rotate. WALLET_RECEIVE_SOURCE = 'wallet-receive' tag on the active display contract. ReceiveRotatorFactory / ReceiveRotatorBoot / ReceiveRotatorBootOpts interfaces; hasReceiveRotatorFactory duck-typed guard. resolveDescriptorProvider TODO(hd-maturation) keeps 'auto' === 'static' until soak time builds. Exponential backoff (1s → 60s cap) on consecutive rotate() failures. Pluggable Logger interface. NonRangeableDescriptorError typed error replaces the prior wildcard-descriptor string match
+│   ├── inputSignerRouter.ts # InputSignerRouter — per-input signer dispatch. InputSigningJob { index; lookupScript }. Routes default/delegate contracts with non-baseline owner → DescriptorProvider.signWithDescriptor (uses metadata.signingDescriptor); everything else → Identity; unmatched inputs skipped silently
+│   ├── signingErrors.ts     # DescriptorSigningProviderMissingError, MissingSigningDescriptorError — both re-exported from src/index.ts
 │   └── serviceWorker/       # Service worker wallet
 │       ├── wallet.ts        # ServiceWorkerWallet, ServiceWorkerReadonlyWallet
 │       ├── worker.ts        # Worker (runs in service worker context)
@@ -32,7 +35,7 @@ src/
 │   ├── index.ts             # Identity, ReadonlyIdentity, BatchSignableIdentity interfaces
 │   ├── singleKey.ts         # SingleKey (raw private key), ReadonlySingleKey
 │   ├── seedIdentity.ts      # SeedIdentity, MnemonicIdentity, ReadonlyDescriptorIdentity
-│   ├── hdCapableIdentity.ts # HDCapableIdentity / ReadonlyHDCapableIdentity (capability markers)
+│   ├── hdCapableIdentity.ts # HDCapableIdentity / ReadonlyHDCapableIdentity (capability markers); isHDCapableIdentity(value) structural type guard checks descriptor + isOurs + signWithDescriptor + signMessageWithDescriptor. The four descriptor-aware methods on identity (isOurs, signWithDescriptor, signMessageWithDescriptor) are now @deprecated on both interface and SeedIdentity/ReadonlyDescriptorIdentity — kept only as backing for DescriptorProvider implementations; callers should go through DescriptorProvider
 │   ├── descriptor.ts        # Shared descriptor helpers (isMainnetDescriptor, descriptorIsOurs, parseHDDescriptor)
 │   ├── descriptorProvider.ts # DescriptorProvider interface (getNextSigningDescriptor, isOurs, signWithDescriptor)
 │   ├── staticDescriptorProvider.ts # StaticDescriptorProvider (single-key wrapper)
@@ -152,9 +155,27 @@ Seed-backed and watch-only identities are now conceptually HD wallets and consum
 Implementations:
 
 - `StaticDescriptorProvider` — wraps a legacy `Identity` with a single fixed descriptor.
-- `HDDescriptorProvider` (`src/wallet/`) — backed by `HDCapableIdentity`; persists `{ descriptor, lastIndexUsed }` under `WalletState.settings.hd`. Read-modify-write of the index runs inside the per-repo `updateWalletState` mutex, serializing allocation across multiple provider instances on the same repo. First allocation returns index 0; the descriptor-mismatch guard refuses to reuse HD state written by a different seed.
+- `HDDescriptorProvider` (`src/wallet/`) — backed by `HDCapableIdentity`; persists `{ descriptor, lastIndexUsed }` under `WalletState.settings.hd`. Read-modify-write of the index runs inside the per-repo `updateWalletState` mutex, serializing allocation across multiple provider instances on the same repo. First allocation returns index 0; the descriptor-mismatch guard refuses to reuse HD state written by a different seed. Also implements `ReceiveRotatorFactory.createReceiveRotator` (delegates to `WalletReceiveRotator.defaultBoot`), and exposes `getCurrentSigningDescriptor()` for stable boot replay (re-derives at `lastIndexUsed` without advancing).
 
-The provider has no read-side accessor for "current" — "what addresses am I bound to right now?" is answered by querying the contract repository for active contracts, mirroring the dotnet SDK's `IArkadeAddressProvider` design.
+The provider has no read-side accessor for "current rotation state" — "what addresses am I bound to right now?" is answered by querying the contract repository for active contracts tagged `metadata.source === 'wallet-receive'`, mirroring the dotnet SDK's `IArkadeAddressProvider` design.
+
+### Receive Rotation Pattern
+
+`WalletReceiveRotator` orchestrates the wallet-side receive lifecycle around a `DescriptorProvider`:
+
+- **Boot** — If the provider implements `ReceiveRotatorFactory`, the wallet calls `createReceiveRotator(opts)`; otherwise falls back to `WalletReceiveRotator.defaultBoot(provider, opts)`. The default boot looks up the active default/delegate contract tagged `metadata.source = 'wallet-receive'` matching the current `serverPubKey`; if found, reuses its pubkey (no provider call); else allocates index 0 via `getNextSigningDescriptor()`.
+- **Rotation** — Subscribes to `vtxo_received`. When the event fires for the currently-tagged display contract, the rotator (serialized by an internal `_hdRotationChain` mutex) allocates the next descriptor, rebuilds `offchainTapscript`, registers the new tagged contract, and marks the prior display `inactive` (the watcher's `state === 'active' || lastKnownVtxos.size > 0` filter keeps watching it until its funds clear). The first rotation does NOT deactivate the baseline.
+- **Baseline anchoring** — The multi-timelock baseline matrix (default + delegate × every `walletContractTimelocks` entry) is bound to `identity.xOnlyPublicKey()` (index 0) on every boot, NEVER to the rotated pubkey. Rotated display contracts are intentionally single-timelock-single-pubkey at the current arkd delay.
+- **Failure handling** — Consecutive `rotate()` failures gate future attempts behind exponential backoff (1s → 2s → … → 60s cap, resets on success). Pluggable `Logger` interface (defaults to `console`). `NonRangeableDescriptorError` is the typed signal for the silent-fallback path (replaces a prior string match on `err.message`).
+- **WalletMode** (`'auto' | 'static' | 'hd' | DescriptorProvider`) drives the wiring decision. `'auto'` currently behaves like `'static'` until HD rotation matures — see `TODO(hd-maturation)` in `resolveDescriptorProvider`.
+
+### Per-Input Signing Dispatch
+
+`InputSignerRouter` decouples PSBT signing from the assumption of a single key:
+
+- Callers (`Wallet._sendImpl`, settlement paths, intent proof paths) hand the router explicit `InputSigningJob[]` with `lookupScript` derived from the source VTXO script (not the witnessUtxo — checkpoint scripts in arkTx don't match the source contract).
+- The router groups inputs by owning contract: rotated `default`/`delegate` contracts with a non-baseline owner route to `DescriptorProvider.signWithDescriptor` using `metadata.signingDescriptor` persisted at rotation time; baseline-owned contracts, other contract types, and the boarding script route to `Identity`.
+- Throws `DescriptorSigningProviderMissingError` (no provider wired) or `MissingSigningDescriptorError` (rotated contract on an older build without `metadata.signingDescriptor`). Both are exported from the package root.
 
 ### Storage Adapter Pattern
 

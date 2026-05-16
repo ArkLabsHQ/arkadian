@@ -38,6 +38,14 @@ Each non-internal function compiles to **two variants**:
 1. **Cooperative path** (`serverVariant: true`): Original script + server signature check
 2. **Exit path** (`serverVariant: false`): Original script + timelock OR N-of-N multisig (when introspection opcodes are used)
 
+### Semantic Validation
+A dedicated `validator` module runs two passes around compilation, producing `ValidationIssue` entries with `Error` / `Warning` severity:
+
+1. **AST validation** (`validate_ast`, pre-compilation): catches semantic errors the PEG grammar cannot express — duplicate function/parameter names, empty contract name, missing `options.exit` when `options.server` is set, non-positive literal timelocks, and a CashScript-style **require-guard warning** when a non-internal function contains no `require()` statements.
+2. **Output validation** (`validate_output`, post-compilation): asserts compiler-output invariants — non-empty `contractName`, every function variant has non-empty `asm` and `witnessSchema`, both `serverVariant=true` and `serverVariant=false` exist per function, BSST-style ASM structure analysis (balanced `OP_IF`/`OP_ELSE`/`OP_ENDIF`, well-formed `<placeholder>` tokens, no empty instructions), and CashScript-style placeholder consistency (every `<name>` resolves against `witnessSchema` or `constructorInputs`).
+
+Timelocks (`exit`, `renew`) accept both integer literals (`exit = 144`) and constructor parameter identifiers (`exit = exit`); the latter emits a `<exit>` placeholder resolved at deploy time.
+
 ## Technology Stack
 
 | Component | Technology |
@@ -74,9 +82,17 @@ compiler/
 │   │   └── mod.rs              # AST types (Contract, Function, Statement, Expression)
 │   └── compiler/
 │       └── mod.rs              # AST → JSON compilation (1859 lines)
-├── examples/                   # 12+ .ark contract examples with compiled JSON
-├── tests/                      # 15 test files
-└── docs/                       # Internal documentation (specs, opcodes)
+├── validator/
+│   └── mod.rs              # AST + output validation passes (ValidationIssue, Severity)
+├── typechecker/            # Type system for AST expressions (ArkType)
+├── opcodes/                # Opcode constants module
+├── examples/               # 12+ .ark contract examples with compiled JSON
+│   └── stability/          # BTC-collateralised USD position contracts
+│       ├── price_beacon.ark
+│       ├── stability_vault.ark
+│       └── stability_offer.ark
+├── tests/                  # 21 integration test files
+└── docs/                   # Internal documentation (specs, opcodes, stability-vault-prd.md)
 ```
 
 ## Security Model

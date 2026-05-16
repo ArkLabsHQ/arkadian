@@ -1,5 +1,27 @@
 # Documentation Sync History - Simple Enclave
 
+## 2026-05-16 - Atomic KMSKeyID migration + enclave-owned KMS keys
+**From**: `a008c3fc89f27e9821e5c7bb4f49ee947b2c59dd`
+**To**: `bfb8d9c535dd325455119616703725d2cf99799c`
+**Synced By**: /update-project enclave
+**Status**: Documentation updated — migration model rewritten (9 steps → 7), KMS ownership moved into the enclave, supervisor stripped of KMS calls
+
+**Commits Analyzed** (5):
+- `482ac89` refactor(migration): implement optional SSM parameter retrieval for previous PCR0 and attestation (`readSSMParamOptional` — missing chain params non-fatal)
+- `8fdf883` refactor(migration): add predecessor commitment verification in runtime initialization (`Migrator.VerifyPredecessorCommitment` wired into `Init`)
+- `0638132` refactor(integration-test): update rollback test with correct `previous_pcr0` and `app name` (v3 baked with `my-app-wrong` instead of wrong target PCR0)
+- `20ad777` refactor(kms): enclave owns its KMS keys end-to-end (issue #107) — `EnsureKeyID` mints the primary key on first boot from an `"UNSET"` SSM placeholder; `CreateMigrationKey` mints the migration key with policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time; `SelfApplyPolicy` collapses to `VerifyKeyAuthorization` (`GetKeyPolicy` + `policyAdmitsPCR0`); supervisor loses `acquireMigrationKey` / `applyTransitionalPolicy` / `buildTransitionalPolicy` / `makeKeyRollback` / `getCallerRole`; Tofu drops `null_resource.kms_key` for `aws_ssm_parameter.kms_key_id` placeholder; EC2 role IAM loses `kms:PutKeyPolicy`; test/seed.yaml emptied; `ENCLAVE_KMS_KEY_ID` env var deleted; step constants renumber `9 → 7`
+- `125f312` refactor(migration): atomic KMSKeyID flip; drop `/Migration/*` staging — ciphertexts written to key-scoped paths `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`; `PutParameter` on `/{dep}/{app}/KMSKeyID` is the atomic commit; removed `MigrationKMSKeyID`, `MigrationTargetPCR0`, `MigrationOldKMSKeyID`, `PromoteToPrimary`, `AbortOrphaned`, `CompleteMigration`, `GetMigrationKMSKeyID`, `IsTarget`, `MigrationState`, `pollMigrationCiphertexts`, `waitForMigrationOutcome`, `verifyPCR31Commitment` (PCR31 is now audit-only); `commitPCR31` runs first in `handleStartMigration`; `storePCR0WithAttestation` runs before the `KMSKeyID` flip; supervisor `rollbackMigration` emits under `stepWaitOutcome`; per-secret + DEK ciphertext params runtime-created at boot/migration with a destroy-time `aws ssm delete-parameters-by-path` reaper; IAM scoped via `.../{secret}/Ciphertext/*` and `.../StorageDEK/Ciphertext/*` wildcards
+
+**Documentation Updates**:
+- `system/architecture.md` — Locked-Key Migration section rewritten (9 → 7 steps with named supervisor step constants, atomic `KMSKeyID` commit, no `/Migration/*` staging, no `PromoteToPrimary` / `AbortOrphaned`); new "First-boot Primary-Key Bootstrap" subsection covering `EnsureKeyID` / `VerifyKeyAuthorization` / SSM placeholder; KMS Policy Model intro clarifies the enclave creates and owns its keys end-to-end (no transitional policy); File Map updated for `runtime/kms.go` ownership of `EnsureKeyID` / `VerifyKeyAuthorization` / `CreateMigrationKey`, key-scoped ciphertext paths, and supervisor no longer touching KMS
+- `system/project_overview.md` — Locked-key migration capability rewritten for 7 steps / atomic flip / no staging; new "Enclave-owned KMS keys" capability bullet
+- `testing/api-reference.md` — `/v1/start-migration` row rewritten (inline `CreateMigrationKey`, key-scoped paths, atomic `KMSKeyID` flip, deferred `ScheduleKeyDeletion`); `/v1/enclave-info` no longer lists `migration: {state,reason}` and the dedicated section was removed; `migration` body field on 503 retained; `/migrate` total updated to 7 with the supervisor step constants listed; NDJSON example refreshed with the new step labels; `previous_pcr0` / `previous_pcr0_attestation` noted as optional
+- `testing/troubleshooting.md` — "migration already in progress" rewritten around cooldown; "migration.state == aborted" replaced with "rollback fires at `stepWaitOutcome`" (wrong app name / wrong `new_pcr0` / `VerifyKeyAuthorization` failure); "KMS key compromise / replacement" runbook trimmed from 9 to 7 steps and rewritten around atomic commit; "Migration interruption" rewritten (no resume from `MigrationKMSKeyID` — just retry after fixing inputs)
+- `testing/how_to_test.md` — v3 EIF table updated: `app name = my-app-wrong` (rollback now triggered by `EnsureKeyID` failure on the out-of-IAM-scope SSM path, not by a wrong baked `previous_pcr0`)
+- `INDEX.md` (project) — Architecture-diagram bullet annotated "atomic KMSKeyID flip"
+- `INDEX.md` (master) — enclave Key Capabilities: locked-key migration bullet rewritten for 7 steps / key-scoped paths / atomic commit; new "Enclave-owned KMS keys" bullet
+
 ## 2026-05-06 - Release v0.0.75 + migration outcome + CLI hardening
 **From**: `3ec84838b683c1ebb9da4bac942ba1736db1b8c6`
 **To**: `a008c3fc89f27e9821e5c7bb4f49ee947b2c59dd`

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.4.0
-last_sync_commit: a981284ec1ad09a66ece6dcf0fa132b86318fd51
-last_sync_date: 2026-05-13T00:00:00Z
+version: 1.5.0
+last_sync_commit: 6ec1a7a474f3a98e843224b7b2de604d923426ef
+last_sync_date: 2026-05-16T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -17,12 +17,16 @@ aliases:
   security: ["system/security.md", "sop/secrets-management.md"]
   iam: ["system/security.md"]
   sso: ["system/security.md"]
+  alb: ["system/architecture.md", "system/aws-infrastructure.md"]
+  dbdump: ["testing/operations.md"]
 scripts:
   tofu_init: "cd docker-compose/opentofu && tofu init"
   tofu_plan: "make tofu-plan ENV=<env>"
   tofu_apply: "make tofu-apply ENV=<env>"
   compose_up: "make compose-up-attach ENV=<env>"
   ssm_session: "make ssm-session ENV=<env>"
+  alb_spot_check: "scripts/alb-spot-check.sh <host>"
+  ssm_dump_db: "aws ssm send-command --document-name Ark-DumpDatabase-<env> --instance-ids <i-...> --parameters '{\"DatabaseName\":[\"projection|event|nbxplorer\"]}'"
 ---
 
 # Ark Infra — Project Index
@@ -178,6 +182,19 @@ make compose-logs ENV=prod SERVICE=arkd
 make arkd-wallet-balance ENV=prod
 ```
 
+### Operational SSM Commands
+```bash
+# Dump a PostgreSQL database to s3://ark-tmp-${env}/db-dumps/ (7-day expiry)
+aws ssm send-command --document-name Ark-DumpDatabase-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"DatabaseName":["projection"]}'   # or "event" | "nbxplorer"
+
+# With custom filename
+aws ssm send-command --document-name Ark-DumpDatabase-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"DatabaseName":["event"],"DumpFileName":["event-pre-migration.dump"]}'
+```
+
 ### Maintenance Commands
 ```bash
 # List EC2 snapshots
@@ -213,8 +230,15 @@ make clean-local-state ENV=prod
 - **ark-admin-app** — Go-based web application for managing AWS Ark infrastructure via SSM commands and port forwarding. Provides web UI for service deployment, port forwarding management, infrastructure overview, and health monitoring.
 
 ### Ingress & Routing
-- **cloudflared** — Cloudflare Tunnel for secure ingress
+- **cloudflared** — Cloudflare Tunnel for secure ingress (legacy path; still used on prod)
 - **traefik** (443, 8080*) — Reverse proxy + SSL termination
+- **Shared ALB → arkd** (staging, since 2026-05) — `modules/ark/arkd.tf` adds three target groups on port 7070 fronted by the same ALB that hosts Grafana:
+  - **arkdg-*** (`HTTP/GRPC`, health `/grpc.health.v1.Health/Check` matcher `0`) — listener rule priority 10, host header in `arkd_hosts`, `content-type: application/grpc*`
+  - **arkds-*** (`HTTP1` if `arkd_http1_support=true` else `HTTP2`, health `/v1/info`) — listener rule priority 15, host header + path in `arkd_sse_streaming_endpoint_paths` (`/v1/batch/events`, `/v1/txs`, `/v1/indexer/script/subscription/*`)
+  - **arkdr-*** — REST catch-all on the same host
+  - ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge)
+  - Access + connection logs to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30 days, staging 7)
+  - Spot-check: `scripts/alb-spot-check.sh <host>` exercises gRPC, REST `/v1/info`, and SSE streams over HTTP/1.1 and HTTP/2
 
 ### Data Stores
 - **PostgreSQL** (RDS) — projection, event, nbxplorer databases

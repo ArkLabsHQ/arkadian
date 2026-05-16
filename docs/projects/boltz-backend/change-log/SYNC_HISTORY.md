@@ -1,5 +1,30 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-16 - Documentation Update
+**Commit**: `84ccb074` (boltz-backend repository)
+**Previous Sync**: `4988987b`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits
+
+**Features Added**:
+- feat: disable signers gRPC (#1302) (`1bfbef98`) — new operational signer-control surface on `boltzrpc.Boltz`: `DisableSigners` / `EnableSigners` / `GetDisabledSigners` operating on a new `Signer` enum with 11 variants (`SUBMARINE_REFUND_COOPERATIVE`, `REVERSE_CLAIM_COOPERATIVE`, `CHAIN_REFUND_COOPERATIVE`, `CHAIN_CLAIM_COOPERATIVE`, `DEFERRED_CLAIM_COOPERATIVE`, `EVM_REFUND_COOPERATIVE`, `EVM_COMMITMENT_REFUND_COOPERATIVE`, `REVERSE_LOCKUP`, `CHAIN_LOCKUP`, `SUBMARINE_INVOICE_PAYMENT`). State is persisted via new `disabled_signers` table (Sequelize migration `2026-05-12-000000-0000_disabled_signers`, `DisabledSigner` model, `DisabledSignerRepository`) and enforced by a new in-process `SignerControlRegistry` (with `SignerControlUtils`) consulted from `ChainSwapSigner`, `DeferredClaimer`, `EipSigner`, `MusigSigner`, `PaymentHandler`, `SwapNursery`, and `SelfPaymentClient`. `boltzr-cli` gains `signer {disable,enable,list-disabled} <SIGNER>…` subcommands wrapping the new RPCs. **Removed**: dev-only `DevDisableCooperative` RPC and `boltzr-cli dev toggle-cooperative` command.
+- feat: add CLI flag to enable/disable all signers (`1455ec95`) — `boltzr-cli` startup flag toggling all signers on/off at boot (Rust-side; `boltzr-cli/src/main.rs` only).
+- feat: add 0-conf API WebSocket support (#1402) (`08bb9fb0`) — `boltzr` `zero_conf_tool` module split into transport-agnostic shared types (`shared.rs`), HTTP polling client (`http.rs`, ~52 LoC), and new WebSocket client (`ws.rs`, ~1034 LoC) with a WS connection timeout. Transport is chosen by URL scheme (`http(s)` → REST polling, `ws(s)` → WS push). New `[liquid.chain.zeroConfTool]` config block in `docs/boltz.conf` exposing `endpoint`, HTTP-only `interval` (default `100` ms) / `max_retries` (default `60`), and WS-only `deadline_secs` (default `6`). When configured, lockup transactions are only considered 0-conf-safe once the bridge observation quorum is reached on the API; otherwise the elementsd mempool check is used.
+
+**Bug Fixes**:
+- fix: chain swap confirmation race (#1406) (`84ccb074`) — `SwapNursery` race-condition fix on chain-swap confirmation handling (11-line library change in `lib/swap/SwapNursery.ts`, covered by new 32-line `SwapNursery.spec.ts` unit case).
+- fix: do not crash on rescan failures (`b39e1f94`) — `lib/Boltz.ts` now tolerates rescan failures instead of crashing the daemon (6-line guard).
+
+**Documentation Impact**:
+- `INDEX.md` (project): added a new **Signer Control** subsection under Configuration (gRPC surface, `Signer` enum, `disabled_signers` table + migration, `SignerControlRegistry` enforcement points, `boltzr-cli signer …` and boot-time flag, removal of `DevDisableCooperative`); appended a **Liquid 0-conf observation API** bullet to **Bitcoin / Liquid Nodes** covering the `[liquid.chain.zeroConfTool]` config, scheme-selected HTTP/WS transport, and per-transport tunables.
+- `system/project_overview.md`: added new **Operational Signer Control** and **Liquid 0-Conf Observation API** capability subsections.
+- Master `docs/INDEX.md`: added two boltz-backend Key Capabilities bullets (operational signer control gRPC + 0-conf observation API) and extended tags with `signer-control`, `zero-conf`, `liquid-zero-conf-tool`.
+- `system/architecture.md`, `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — the two confirmation-race / rescan-crash fixes are internal, and the new gRPC surface lives on `boltzrpc.Boltz` (boltzr internal RPC, already covered at a high level), not the public REST API documented in `testing/api-reference.md`.
+
+---
+
 ## 2026-05-14 - Documentation Update
 **Commit**: `4988987b` (boltz-backend repository)
 **Previous Sync**: `7ae3002e`

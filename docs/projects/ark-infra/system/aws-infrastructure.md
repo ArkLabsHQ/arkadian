@@ -201,6 +201,8 @@ effect at the next scheduled maintenance window.
 1. `AmazonSSMManagedInstanceCore` (AWS managed)
 2. `CloudWatchAgentServerPolicy` (AWS managed)
 3. `ark-app-ecr-full` (Custom inline)
+4. `ark-app-s3-dump-upload-{env}` (Custom inline) — `s3:PutObject` on `arn:aws:s3:::ark-tmp-{env}/db-dumps/*` for the SSM `Ark-DumpDatabase` document
+5. `ark-app-ssm-db-params-{env}` (Custom inline) — `ssm:GetParameter*` on `/ark/{env}/db/*` (DB credentials consumed by `pg_dump`)
 
 **Custom Policy (ark-app-ecr-full)**:
 ```json
@@ -247,6 +249,39 @@ effect at the next scheduled maintenance window.
   ]
 }
 ```
+
+## Application Load Balancer (`modules/ark/`)
+
+A single internet-facing ALB (`ark-{env}`) hosts both the telemetry Grafana UI and arkd
+(staging+ since 2026-05).
+
+**Listener** (HTTPS, ACM cert via `alb_certificate_arn`, policy `ELBSecurityPolicy-TLS13-1-2-2021-06`):
+
+| Priority | Rule conditions | Target group | Purpose |
+|----------|-----------------|--------------|---------|
+| 10 | `host_header ∈ arkd_hosts` + `content-type: application/grpc*` | `arkdg-*` (HTTP/GRPC) | arkd gRPC |
+| 15 | `host_header ∈ arkd_hosts` + `path ∈ arkd_sse_streaming_endpoint_paths` | `arkds-*` (HTTP1) | arkd SSE streams |
+| (default for host) | `host_header ∈ arkd_hosts` | `arkdr-*` (HTTP1) | arkd REST |
+| 100 | `host_header = telemetry_grafana_host` | grafana TG (port 3000) | Grafana UI |
+
+Target groups all attach the single `app_instance_id`, port 7070. Health checks: gRPC uses
+`/grpc.health.v1.Health/Check` (matcher `0`); REST/SSE use `/v1/info` (matcher `200`).
+
+**Behavior**:
+- `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeats and Cloudflare 120s edge timeout)
+- Access logs → `s3://ark-logs-{env}-{account_id}/alb/access/` (lifecycle `alb_log_retention_days` days; default 30, staging 7)
+- Connection logs → `s3://ark-logs-{env}-{account_id}/alb/connection/`
+- HTTP/1.1 support gated by `arkd_http1_support` (default `true`); flip to HTTP/2 once clients negotiate it
+
+**Spot-check tool**: `scripts/alb-spot-check.sh <host>` runs gRPC `GetInfo`, REST `/v1/info`,
+and SSE `/v1/batch/events` over both HTTP/1.1 and HTTP/2 and reports per-protocol results.
+
+## S3 Buckets (`modules/ark/s3.tf`)
+
+| Bucket | Purpose | Lifecycle | Notes |
+|--------|---------|-----------|-------|
+| `ark-logs-{env}-{account_id}` | ALB access + connection logs | `alb_log_retention_days` (default 30, staging 7) | AES256, public-access blocked, bucket policy permits `logdelivery.elasticloadbalancing.amazonaws.com` |
+| `ark-tmp-{env}` | Ad-hoc operational storage (DB dumps, etc.) | 7-day expiry on all objects | AES256, public-access blocked, written by `Ark-DumpDatabase` SSM doc under `db-dumps/` |
 
 ## CloudWatch Configuration
 

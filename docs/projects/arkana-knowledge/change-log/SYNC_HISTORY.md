@@ -1,5 +1,48 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-16 - Operational Memory Sync (no doc changes)
+**Commit Range**: `c8dac638..622cc19e` (46 commits)
+**Previous Sync (asserted by caller)**: `c8dac63876a442facb7c8e2f1adcfd85affc0ecb`
+**Current Sync**: `622cc19e25189debbabf8a0bc32f6e5c1b820b75`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+927/-138), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,research-monitor,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity over the 48-hour window: issue-triage (~10 runs across 04:00/08:00/12:00/16:00/20:00/00:00Z slots), release-coordinator (~10 runs), security-triage (~10 runs), and daily runs of slack-monitor, daily-briefing, executive-digest, linear-sync, research-monitor (2026-05-15 only), sdk-parity (2026-05-14 + 2026-05-15)
+- Notable operational events captured in memory only:
+  - **arkd #1065** flagged protocol-critical (round lifecycle bug — intents silently dropped); SDKs placed on hold then hold corrected once ts-sdk CI went green
+  - **CI root-cause breakthrough 2026-05-14**: ~20-day fleet-wide CI wave attributed to boltz/fulmine version mismatch — go-sdk ci_integration restored to green
+  - **meta#14 CRITICAL** identified as mutinynet outage root cause (SQLite DoS)
+  - **7 arkade-os repos re-activated** during 2026-05-14 detector pass
+  - **ts-sdk v0.4.27** readiness window: #491 per-input signing merged with "good governance" trail; #489 HD rotation reopen merged 2026-05-15 with weak review trail, leaving state-desync status unclear
+  - **Enclave KMS** — both autonomy PRs merged without human sign-off (enclave self-bootstraps KMS key, Terraform removed) → protocol-critical unreviewed
+  - **GOV#29**: compiler #28 (StabilityVault) self-merged by tiero with AI-only reviews despite 3 known CRITICAL bugs (integer overflow, re-entrancy, fee underflow) and unverified AI-authored fix — logged as most severe governance violation to date
+  - **GOV#30 candidate**: StabilityVault contract ready_for_review → merged same day (slack-monitor 2026-05-15)
+  - **go-sdk #172** uint64 underflow fix advanced through days 8 → 12 still unreviewed (now with merge conflicts); **go-sdk #176** ListKeys empty-after-create P0 bug added 2026-05-14; 5 open P0 bugs, zero releases
+  - **bancod v0.0.1-rc.4** released with known bugs (release-coordinator 2026-05-15 12:00Z)
+  - **Slack signals 2026-05-15**: auto-settle ↔ user submission race causing `VTXO_ALREADY_SPENT` (real-money risk); pooled-model PRD + FundingBeacon + StabilityPool opened; HTTP2/GRPC Proxy h2c PR opened (4/24 incident fix); HD receive rotation via contracts merged; compiler validation layer merged; compiler Build CI first failure
+  - **Slack signals 2026-05-14**: "Upgrade regtest to master" merged (CI recovery propagating); "Add arkd to ALB" merged (production infra live); OP_ECADD/OP_ECMUL/OP_ECPAIRING PR opened; VTXO filter pagination PR opened; introspector Trivy first failure
+  - **research-monitor 2026-05-15**: Optech #405 (OP_CHECKCONTRACTVERIFY BIN-2026-0002, OP_TEMPLATEHASH on Inquisition, UTXO set P2P BIP, CLN 26.06rc1); Optech #404 recap (BOLTs #995/#1228 taproot channels + zero-fee commitments, PSBTv2 in Core); Spark Q2 roadmap (stablecoins + wallet integrations); CTV still 0% at 12 weeks; Bark beta mainnet pending; Chimera TGE 2026-05-27
+  - **linear-sync**: no changes in Linear — 30th consecutive day (one month). ENG-5 ~59d stale, DES-7 ~74d stale, DES-8 Urgent+unassigned 85d
+  - **Governance running total**: 29+ violations in 18 days (up from 28 at start of window)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, or the 17-agent roster
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 622cc19e…`, `last_sync_date: 2026-05-16T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `622cc19e25189debbabf8a0bc32f6e5c1b820b75`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; today's events — protocol-critical PR backlog, GOV#29/GOV#30, CI recovery, ts-sdk v0.4.27 readiness, bancod RC — are operational observations stored in agent memory, not project-registry changes)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=c8dac638…` / `to=622cc19e…`; the locally tracked previous sync was `b85affe3…`; per established pattern we honour the supplied range and write the new HEAD to `last-sync.txt`
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-14 - Operational Memory Sync (no doc changes)
 **Commit Range**: `ab6b87f6..b85affe3` (24 commits)
 **Previous Sync (asserted by caller)**: `ab6b87f6895f5d52d53c0d7be0f97ef47a1baf9e`

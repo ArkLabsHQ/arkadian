@@ -1,5 +1,70 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-16 - Documentation Update
+**Commit**: `6ec1a7a474f3a98e843224b7b2de604d923426ef`
+**Previous Sync**: `a981284ec1ad09a66ece6dcf0fa132b86318fd51`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+
+**Highlights**:
+- 🌐 **arkd on the shared ALB** (#72, `5feac2c`): `modules/ark/arkd.tf` adds three target
+  groups on port 7070 — `arkdg-*` (`HTTP/GRPC`, health `/grpc.health.v1.Health/Check`
+  matcher `0`, listener priority 10), `arkds-*` (HTTP1 if `arkd_http1_support=true` else
+  HTTP2, health `/v1/info`, priority 15, path-pattern based), and `arkdr-*` (REST
+  fallthrough on the same host). Routing combines host header (`arkd_hosts`),
+  `content-type: application/grpc*` for gRPC, and path patterns
+  (`arkd_sse_streaming_endpoint_paths`, default `/v1/batch/events`, `/v1/txs`,
+  `/v1/indexer/script/subscription/*`) for SSE. ALB `idle_timeout` raised to 180s so SSE
+  survives arkd's 60s heartbeat and Cloudflare's 120s edge idle. ALB access + connection
+  logs ship to a new bucket `ark-logs-${env}-${account_id}` (lifecycle by
+  `alb_log_retention_days`, default 30; staging set to 7). Grafana listener rule
+  deprioritized to 100. New module vars: `app_instance_id`, `alb_log_retention_days`,
+  `app_security_group_id`, `arkd_hosts`, `arkd_http1_support`,
+  `arkd_sse_streaming_endpoint_paths`. New module files: `arkd.tf`, `s3.tf`, `locals.tf`
+  (`account_id` / `region` data locals), `outputs.tf` (`alb_dns_name`, `alb_zone_id`).
+- 🌍 **Staging endpoints + Route53**: `aws/dev-438465126741/route53.tf` creates
+  `aws_route53_zone "staging"` for `staging.arkade.sh`. `apps/ark/staging/ark.tf` now
+  wires `arkd_hosts = ["staging.arkade.sh", "staging-cf.arkade.sh"]`, swaps the ACM cert
+  for one with SANs (`*.staging.arkade.sh`, `staging-cf.arkade.sh`) to enable TLS Full
+  Strict to Cloudflare, moves Grafana to `telemetry.staging.arkade.sh`, sets
+  `alb_log_retention_days = 7`, hardcodes `app_instance_id = "i-0bb28815cb7dc75fe"`
+  temporarily, and adds two A-record aliases to the ALB. App SG is now looked up via
+  `data.aws_security_group.app` instead of being hardcoded.
+- 🧪 **ALB spot-check script**: `scripts/alb-spot-check.sh <host>` builds a buf protoset
+  from a local arkd checkout and probes gRPC `GetInfo`, REST `/v1/info`, and SSE
+  `/v1/batch/events` over both HTTP/1.1 and HTTP/2, reporting per-protocol pass/fail.
+- 🗄️ **SSM DB-dump utility** (#73, `7f8d593`): new SSM document `Ark-DumpDatabase-${env}`
+  runs `pg_dump` on the app instance for one of `projection|event|nbxplorer` and uploads
+  to `s3://ark-tmp-${env}/db-dumps/` (default; `S3Bucket` / `S3Prefix` /
+  `DumpFileName` overridable). Working directory `/mnt` to use the data volume; errors
+  are trapped and surfaced in the SSM output. Scoped IAM: new role policies
+  `ark-app-s3-dump-upload-${env}` (s3:PutObject on the dump prefix) and
+  `ark-app-ssm-db-params-${env}` (ssm:GetParameter* on `/ark/${env}/db/*`). New module
+  bucket `ark-tmp-${env}` (AES256, public-access blocked, 7-day object expiry) defined
+  in `modules/ark/s3.tf`. Console outputs include `ssm_dump_database_command` and
+  ready-to-copy `ssm_deployment_examples` snippets.
+- 🛠️ **VPC-endpoint SG refactor** (within #73): inline ingress/egress on
+  `vpc_endpoints_sg` was extracted into standalone `aws_security_group_rule.vpc_endpoints_*`
+  resources so other stacks can add rules without causing plan drift.
+- 📝 **Docs nit** (`6ec1a7a`): `docker-compose/docs/reference.md` corrects the
+  `arkd_wallet_signer_key` example from a misleading `xprv...` to a 64-char hex value
+  generated with `openssl rand -hex 32`. (Upstream-repo doc only; no Arkadian doc change.)
+
+**Files Updated**:
+- docs/INDEX.md (capability lines: ALB-fronted arkd, staging endpoints, SSM DB-dump; tags: `alb-arkd`, `target-groups`, `grpc-alb`, `sse`, `route53`, `cloudflare-proxy`, `acm`, `alb-access-logs`, `s3-logs`, `pg-dump`, `db-backup`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.5.0; new aliases `alb` / `dbdump`; new scripts `alb_spot_check` / `ssm_dump_db`; Ingress & Routing section adds ALB → arkd path with target groups, health checks, log bucket; new Operational SSM Commands section for dumping DBs)
+- docs/projects/ark-infra/system/project_overview.md (repo structure: `modules/ark/{arkd,s3,locals,outputs}.tf`; Ingress & Routing: ALB → arkd subsection)
+- docs/projects/ark-infra/system/architecture.md (Container Architecture: ALB ingress path with target groups; new ALB-fronted arkd paragraph in Telemetry section)
+- docs/projects/ark-infra/system/aws-infrastructure.md (EC2 role: new `s3-dump-upload` and `ssm-db-params` inline policies; new Application Load Balancer section with listener rules table and behavior; new S3 Buckets section for `ark-logs-*` and `ark-tmp-*`)
+- docs/projects/ark-infra/system/networking.md (ALB ingress flow added; SG note on `vpc_endpoints_sg` refactor)
+- docs/projects/ark-infra/testing/operations.md (Dump-DB SSM recipe with three variants; ALB spot-check usage; ALB log bucket pointer)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-13 - Documentation Update
 **Commit**: `a981284ec1ad09a66ece6dcf0fa132b86318fd51`
 **Previous Sync**: `29b6cb84f86741457a43710cfd090e964d2cbf19`

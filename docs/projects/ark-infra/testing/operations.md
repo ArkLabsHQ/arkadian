@@ -150,6 +150,45 @@ aws ssm send-command --document-name Ark-DeployService-${ENV} \
 /opt/ark-infra/docker-compose/scripts/image-pin.sh
 ```
 
+### Dump a Database to S3 via SSM
+
+`Ark-DumpDatabase-${ENV}` runs `pg_dump` on the app instance (working dir `/mnt` to use
+the data volume) and uploads the result to `s3://ark-tmp-${ENV}/db-dumps/` (objects expire
+after 7 days). Allowed `DatabaseName`: `projection`, `event`, `nbxplorer`. Errors are
+trapped and surfaced in the SSM command output.
+
+```bash
+# Default filename and bucket
+aws ssm send-command --document-name Ark-DumpDatabase-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"DatabaseName":["projection"]}'
+
+# Custom filename (e.g. snapshot a DB before a risky migration)
+aws ssm send-command --document-name Ark-DumpDatabase-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"DatabaseName":["event"],"DumpFileName":["event-pre-migration.dump"]}'
+
+# Override bucket / prefix (defaults: S3Bucket=ark-tmp-${env}, S3Prefix=db-dumps)
+aws ssm send-command --document-name Ark-DumpDatabase-${ENV} \
+  --instance-ids $INSTANCE_ID \
+  --parameters '{"DatabaseName":["nbxplorer"],"S3Prefix":["one-off/2026-05"]}'
+```
+
+The EC2 role has `s3:PutObject` only on `ark-tmp-${env}/db-dumps/*` and `ssm:GetParameter*`
+only on `/ark/${env}/db/*`.
+
+### Spot-check the ALB (staging+)
+```bash
+# Exercises gRPC GetInfo, REST /v1/info, and SSE /v1/batch/events over HTTP/1.1 and HTTP/2
+scripts/alb-spot-check.sh staging.arkade.sh
+# To test the Cloudflare-proxied endpoint with TLS Full Strict
+scripts/alb-spot-check.sh staging-cf.arkade.sh
+```
+
+ALB access + connection logs are available at
+`s3://ark-logs-${env}-${account_id}/alb/{access,connection}/` (retention =
+`alb_log_retention_days`, default 30 / staging 7).
+
 ## Backup Operations
 
 ### Manual RDS Snapshot

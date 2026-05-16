@@ -28,17 +28,21 @@
 
 **Fix:** the supervisor restarted without the enclave restarting. Restart the full stack: `systemctl restart enclave-supervisor`.
 
-### `migration already in progress`
+### `migration already in progress` / `Migration cooldown`
 
-**Cause:** a previous migration is still running or was interrupted without cleanup.
+**Cause:** a `MigrationRequestedAt` SSM parameter exists from an in-flight or recently issued migration; the supervisor is enforcing the cooldown window before proceeding.
 
-**Fix:** the migration is **idempotent** — wait for it to complete, or re-run `enclave migrate` / `POST /migrate`. It resumes from the last checkpoint (`MigrationKMSKeyID` in SSM).
+**Fix:** wait for the cooldown to expire (the NDJSON stream emits `stepCooldown` progress events with the remaining time). To cancel, `POST /migrate/abort` during the cooldown window.
 
-### `migration.state == "aborted"` in `/v1/enclave-info`
+### Migration rollback fires at `stepWaitOutcome`
 
-**Cause:** the new enclave's PCR0 didn't match `MigrationTargetPCR0` (orphan boot — wrong target locked into the migration key, or the wrong EIF was swapped in). `AbortOrphaned` ran, leaving primary state untouched. The `migration.reason` field describes the mismatch.
+**Cause:** the supervisor swapped in the new EIF (step 4) and started polling `/health` (step 5), but the new enclave never became healthy within the timeout. With the new model the most common reasons are:
 
-**Fix:** the supervisor automatically rolls back the swap on seeing `state == "aborted"` (or on `awaitMigrationOutcome` timeout). Confirm the rollback succeeded (`migration.state` returns to `"none"` after a clean reboot), fix the target PCR0 / EIF inputs, and re-trigger `POST /migrate`. No manual SSM cleanup is needed — staging-only writes mean primary was never mutated.
+- `EnsureKeyID` cannot read `/{dep}/{app}/KMSKeyID` (wrong app name baked into the EIF, IAM scope mismatch). This is what the integration test's v3 ("wrong app name") scenario exercises.
+- The migration key's `[ownPCR0, newPCR0]` policy doesn't admit the booting PCR0 (wrong `new_pcr0` supplied to `/v1/start-migration`).
+- `VerifyKeyAuthorization` / `VerifyPredecessorCommitment` failed.
+
+**Fix:** the supervisor automatically rolls back — restores the EIF backup, restarts the old enclave (`stepWaitOutcome` emits `rollback` / `rollback-complete` events). Confirm the old enclave returns to healthy, correct the EIF inputs (app name, target PCR0), and re-run `POST /migrate`. The atomic `KMSKeyID` flip means an unsuccessful migration leaves primary state untouched — no manual SSM cleanup. A deferred `ScheduleKeyDeletion` inside `handleStartMigration` cleans up the migration key on failure.
 
 ### `secret value too large (N bytes, max 65536)`
 
@@ -185,13 +189,12 @@ If the EC2 instance itself fails: the CDK stack creates a new instance from the 
 
 ### KMS key compromise / replacement
 
-`enclave migrate` orchestrates a 9-step locked-key migration:
+`enclave migrate` orchestrates a 7-step locked-key migration:
 
-1. New KMS key is created locked to the new PCR0.
-2. Secrets are exported from the old enclave, re-encrypted under the new key.
-3. EIF is replaced and the new enclave starts.
-4. Old key is scheduled for 7-day deletion.
+1. Old enclave inline-creates a new KMS key with policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time, re-encrypts each secret + storage DEK to key-scoped SSM paths (`/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`), writes the chain proof, then atomically flips `/{dep}/{app}/KMSKeyID` — that `PutParameter` is the commit.
+2. Supervisor downloads + swaps the new EIF, polls `/health` until healthy (rolls back on timeout).
+3. Old key is scheduled for 7-day deletion.
 
-### Migration interruption
+### Migration interruption / rollback
 
-Migration is idempotent. Re-run `enclave migrate` (CLI) or `POST /migrate` (host management API). It resumes from `MigrationKMSKeyID` in SSM. If you need to abandon a migration, manually delete `Migration*` SSM parameters and the orphaned new KMS key (`enclave/.../schedule-key-deletion`).
+If the new enclave fails to come up healthy after the swap, the supervisor restores the EIF backup and restarts the old enclave automatically. Because the `KMSKeyID` flip is atomic — and a `defer ScheduleKeyDeletion` reaps the unused migration key — there is no orphaned state to clean up. Just fix the inputs (correct `new_pcr0`, correct EIF) and re-run `POST /migrate`.

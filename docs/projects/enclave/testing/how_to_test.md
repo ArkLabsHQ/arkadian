@@ -35,11 +35,11 @@ make test-docker         # test-build-docker + test-run (vsock_loopback required
 
 `make test-build` builds three EIF versions to exercise the upgrade chain:
 
-| Version | `previous_pcr0` | Purpose |
-|---------|-----------------|---------|
-| v1 (`0.0.1`) | (none — genesis) | Initial deployment |
-| v2 (`0.0.2`) | PCR0 of v1 (auto-discovered) | Valid upgrade — chain extends |
-| v3 (`0.0.3`) | `0x...ff` (deliberately wrong) | Rollback test — chain rejected |
+| Version | `previous_pcr0` | App name | Purpose |
+|---------|-----------------|---------|---------|
+| v1 (`0.0.1`) | (none — genesis) | `my-app` | Initial deployment |
+| v2 (`0.0.2`) | PCR0 of v1 (auto-discovered) | `my-app` | Valid upgrade — chain extends |
+| v3 (`0.0.3`) | PCR0 of v2 | `my-app-wrong` | Rollback test — `EnsureKeyID` fails because the wrong-name SSM path is not in the IAM scope, the enclave never reaches `/health=200`, the supervisor's `awaitEnclaveReady` times out, and `rollbackMigration` fires. Previously v3 was baked with a deliberately-wrong target PCR0; since the new enclave now self-admits to the migration key after attestation, the wrong-PCR0 vector no longer trips rollback. |
 
 After the build, all three EIFs and PCR JSON files are copied into `test/app/.enclave/artifacts/` (`image-v1.eif`, `pcr-v1.json`, etc., plus `image.eif` = v1 default).
 

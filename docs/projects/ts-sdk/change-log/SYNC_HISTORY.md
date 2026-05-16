@@ -1,5 +1,23 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-16 - HD Receive Rotation Re-Merged (#489) + Regtest Submodule Bump (#490)
+**From**: `9e53c73a520e3e39ca826d6914fc2a80af8d8cc5`
+**To**: `d663d158bdf90354a15fd6878c482026f40ea2a0`
+**Synced By**: update-project skill
+**Status**: HD receive rotation re-introduced after the #488 revert; signing pipeline reorganised around per-input dispatch
+
+**Commits analyzed** (2 non-merge commits):
+- `d663d15` feat(wallet): HD receive rotation via contract repository (reopen of #473) (#489) — bundle of ~25 commits squashed in. Adds `src/wallet/walletReceiveRotator.ts` (~772 lines) owning the `DescriptorProvider`, `vtxo_received` subscription, rotation chain mutex, boot pubkey lookup, contract registration on rotate, exponential backoff (1s → 60s cap) on rotate failures, pluggable `Logger`, and the `NonRangeableDescriptorError` typed fallback signal. `HDDescriptorProvider` now also implements `ReceiveRotatorFactory` (`createReceiveRotator` → `WalletReceiveRotator.defaultBoot`) and exposes `getCurrentSigningDescriptor()`. Adds `src/wallet/inputSignerRouter.ts` to dispatch PSBT inputs to `DescriptorProvider.signWithDescriptor` (rotated `default`/`delegate` contracts using `metadata.signingDescriptor`) or `Identity` (baseline / other / boarding); adds `src/wallet/signingErrors.ts` (`DescriptorSigningProviderMissingError`, `MissingSigningDescriptorError`) re-exported from the package root. `WalletConfig.walletMode: 'auto' \| 'static' \| 'hd' \| DescriptorProvider` (default `'auto'` currently behaves like `'static'` — `TODO(hd-maturation)`). `ServiceWorkerWalletMode = 'auto' \| 'static' \| 'hd'` forwarded through `MessageBus`. `isHDCapableIdentity()` structural type guard added (re-exported from identity barrel). The four descriptor-aware identity methods (`isOurs` / `signWithDescriptor` / `signMessageWithDescriptor`) marked `@deprecated`. `Wallet.offchainTapscript` becomes a getter over a `protected` backing field; only sanctioned writer is `setOffchainTapscriptForRotation` (`@internal`, on `RotatableWallet`). Baseline multi-timelock matrix anchored to `identity.xOnlyPublicKey()` (index 0) on every boot regardless of rotation state. Snapshot `offchainTapscript` synchronously at `_txLock` entry in `_sendImpl` / `sendBitcoin` / `updateDbAfterOffchainTx` to close a rotation/transaction race. `prepareUnrollTransaction` `Math.ceil`s `feeRate` before `BigInt(...)` (fractional sat/vB from Esplora / bitcoind regtest no longer throws `RangeError`).
+- `f20b671` Upgrade regtest to master (#490) — `regtest` submodule bumped.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Architecture Overview gains `WalletReceiveRotator` + `InputSignerRouter` rows; Key Concepts gain Descriptor Provider ReceiveRotatorFactory note + new HD Receive Rotation, WalletMode, Signing Router sections
+- `docs/projects/ts-sdk/system/project_overview.md` — Core Features table refreshed: HD Identity adds the `isHDCapableIdentity` guard, Descriptor Providers adds the opt-in `ReceiveRotatorFactory`, HD Receive Rotation rewritten around the rotator, new Wallet Mode + Per-Input Signing Router rows; Unilateral Exit notes the `Math.ceil(feeRate)` fix
+- `docs/projects/ts-sdk/system/architecture.md` — module tree adds `walletReceiveRotator.ts`, `inputSignerRouter.ts`, `signingErrors.ts`; `hdDescriptorProvider.ts`, `hdCapableIdentity.ts`, `wallet.ts`, `unroll.ts` notes updated; new "Receive Rotation Pattern" + "Per-Input Signing Dispatch" sections under Design Patterns
+- `docs/INDEX.md` — ts-sdk Key Capabilities + Tags refreshed (`hd-receive-rotation`, `wallet-receive-rotator`, `input-signer-router`, `wallet-mode` added); Active Dev row updated — HD rotation no longer described as reverted, now describes the re-merge in #489 with full mechanism summary
+
+---
+
 ## 2026-02-19 - Initial Documentation Setup
 **Commit**: `539cc3490729ba2194672595fe0ef577dc730782`
 **Synced By**: /add-project command

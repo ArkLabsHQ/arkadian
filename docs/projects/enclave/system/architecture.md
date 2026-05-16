@@ -68,7 +68,15 @@ Anyone who builds at the same git rev gets byte-identical artifacts and can ther
 
 ## KMS Policy Model
 
-There are two policy states, applied by the supervisor itself once the enclave reaches the attested boot stage:
+The enclave **creates and owns its own KMS keys** end-to-end. There is no shell-based provisioning step and no transitional policy phase — every key is PCR0-locked at `CreateKey` time.
+
+### First-boot Primary-Key Bootstrap
+
+- Tofu writes `/{dep}/{app}/KMSKeyID = "UNSET"` (a `aws_ssm_parameter` placeholder with `ignore_changes=[value]`).
+- The runtime's `EnsureKeyID` (in `runtime/kms.go`) reads that parameter on `Init`. If it sees the `"UNSET"` placeholder, it calls `kms:CreateKey` with a PCR0-locked policy already in the `Policy` argument — no external principal ever holds authority over the key.
+- Race-safe: after `CreateKey` the runtime does an SSM `PutParameter` of the new key ID, then re-reads to confirm; if a peer won the race it `ScheduleKeyDeletion`s the losing key.
+- Any read error (`ParameterNotFound`, `AccessDenied`) is fatal — the placeholder **must** exist so a misconfigured deployment cannot silently mint a key under the wrong SSM namespace.
+- `VerifyKeyAuthorization` (the slimmed-down successor to `SelfApplyPolicy`) calls `kms:GetKeyPolicy` and runs `policyAdmitsPCR0` to confirm the key's policy permits the live PCR0 — boot fails fast if not.
 
 ### Default (Recovery-Capable) Policy
 
@@ -87,23 +95,23 @@ Recovery: rewrite the policy to authorise a new PCR0 → redeploy → new enclav
 
 > **The choice is permanent at first lock.**
 
-## Locked-Key Migration (9 steps)
+## Locked-Key Migration (7 steps, atomic commit)
 
-Triggered by host management API `POST /migrate` (NDJSON streaming). Resumable — `MigrationKMSKeyID` parameter in SSM is the resume gate.
+Triggered by host management API `POST /migrate` (NDJSON streaming). The new model **drops the two-phase `/Migration/*` staging namespace** in favour of an atomic `KMSKeyID` flip: re-encrypted secrets and the storage DEK are written to **key-scoped** SSM paths `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}` and `/{dep}/{app}/StorageDEK/Ciphertext/{kmsKeyId}`, then the single `PutParameter` on `/{dep}/{app}/KMSKeyID` is the commit point.
 
-1. Read current KMS key ID from SSM.
-2. Create a new KMS key with a policy allowing the **new PCR0** to decrypt.
-3. Apply transitional KMS policy (Encrypt + PutKeyPolicy for EC2 role, no Decrypt).
-4. Store migration parameters in SSM (`MigrationKMSKeyID`, `MigrationOldKMSKeyID`, `MigrationTargetPCR0`).
-5. Call `POST /v1/start-migration` on the **running old enclave**. The enclave reads `MigrationKMSKeyID` from SSM (the only gate), decrypts each secret with the old key, re-encrypts with the new key, and writes ciphertexts plus the chain proof to **staging-only** SSM paths (`/Migration/{secretName}/Ciphertext`, `/Migration/PreviousPCR0`, `/Migration/PreviousPCR0Attestation`). Primary is never touched here.
-6. Poll SSM for migration ciphertexts (60s timeout).
-7. Stage the new EIF on disk (downloaded from S3) and swap it in: stop old enclave, replace `image.eif`, start new enclave.
-8. New enclave's `Init` classifies its role from `MigrationTargetPCR0`. **Target boot** runs `PromoteToPrimary` (copies staged ciphertexts + chain proof to permanent paths, updates `KMSKeyID`); **orphan boot** (own PCR0 ≠ target) runs `AbortOrphaned` (clears staging only, primary intact).
-9. Supervisor polls `/v1/enclave-info` for a terminal `migration.state` (`committed` or `aborted`). On `committed` it cleans up migration SSM parameters and schedules the old key for 7-day deletion; on `aborted` (or timeout) it rolls back.
+Supervisor steps (`supervisor/migrate.go`, plus step `0 = stepCooldown`):
 
-The new enclave self-applies a PCR0-locked policy on boot, so confidentiality is preserved at every step. Re-running `POST /migrate` after a mid-flight failure resumes from the staged state — primary data is mutated only when `PromoteToPrimary` succeeds end-to-end.
+1. **`stepReadCurrentKey`** — Read current KMS key ID from SSM.
+2. **`stepStartMigration`** — `POST /v1/start-migration` on the running old enclave with body `{"new_pcr0": "<hex>"}`. The enclave inline-creates the migration key via `CreateMigrationKey` (policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time — EC2 role never holds `kms:PutKeyPolicy`), `commitPCR31` runs first so a retry at a different target fails before any external write, then secrets + DEK are re-encrypted to the key-scoped ciphertext paths, `storePCR0WithAttestation` writes the chain proof to `MigrationPreviousPCR0[Attestation]`, and finally the atomic flip of `/{dep}/{app}/KMSKeyID` to the new key ID commits the migration. A deferred `ScheduleKeyDeletion` cleans up the new key if anything before the flip fails.
+3. **`stepDownloadEIF`** — Back up the old EIF on disk, download the new EIF from S3.
+4. **`stepSwapAndStart`** — Stop old enclave, replace `image.eif`, start new enclave.
+5. **`stepWaitOutcome`** — Poll `/health` on the new enclave until healthy. On timeout the supervisor calls `rollbackMigration` (restores the EIF backup, restarts the old enclave). The new enclave self-admits to the migration key via `kms:PutKeyPolicy` after attestation, which is why a wrong-PCR0 target no longer trips rollback at this step — the v3 rollback integration test now uses a wrong `app name` (so `EnsureKeyID` fails on first SSM read instead).
+6. **`stepHostCleanup`** — Schedule the old KMS key for 7-day deletion.
+7. **`stepSupervisorUpdate`** — Update the supervisor binary (warning, not fatal, if this fails — old supervisor stays running).
 
-**Endpoint rename:** `/v1/export-key` was renamed to `/v1/start-migration` (verb-noun parity with `/v1/extend-pcr`, `/v1/lock-pcr`).
+PCR31 is **audit-only** — `verifyPCR31Commitment` was removed; boot no longer verifies the handoff. The supervisor no longer touches KMS at all (the old `acquireMigrationKey` / `applyTransitionalPolicy` / `buildTransitionalPolicy` helpers were deleted along with the transitional-policy phase). The new enclave additionally runs `Migrator.VerifyPredecessorCommitment` during `Init` to confirm the recorded predecessor PCR0 + attestation match its own commitment chain.
+
+**Endpoint rename (prior release):** `/v1/export-key` was renamed to `/v1/start-migration` (verb-noun parity with `/v1/extend-pcr`, `/v1/lock-pcr`).
 
 ## Response Signing (Schnorr middleware)
 
@@ -148,7 +156,7 @@ The runtime no longer validates a baked-in `previous_pcr0` against the live chai
 | Package | Files | Role |
 |---------|-------|------|
 | `cli/` | `aws.go`, `build.go`, `config.go`, `init.go`, `setup.go`, `template.go`, `tofu.go`, `verify.go`, `lifecycle.go`, `migration_status.go` | CLI subcommands, OpenTofu scaffold, CDK stack, attestation verify |
-| `runtime/` | `runtime.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime, KMS, secrets, storage, migration export (`PromoteToPrimary` / `AbortOrphaned`), observability. SSM read/write paths take a typed `ParamPrefix` (`PrimaryPrefix` / `MigrationPrefix`) instead of magic-string prefixes. |
-| `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 9-step migration) |
+| `runtime/` | `runtime.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime, KMS, secrets, storage, observability. `runtime/kms.go` owns `EnsureKeyID`, `VerifyKeyAuthorization`, `CreateMigrationKey`. `runtime/migrate.go` runs `handleStartMigration` (atomic `KMSKeyID` flip) + `VerifyPredecessorCommitment`. SSM ciphertext paths are key-scoped: `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`. |
+| `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 7-step migration orchestrator — no KMS calls; just cooldown / start-migration / EIF swap / health poll / rollback / cleanup) |
 | `client/` | `client.go`, `verify.go` | Verified Go HTTP client |
 | `client-rs/` (Cargo workspace member) | `Cargo.toml` | Verified Rust HTTP client |

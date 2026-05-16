@@ -29,7 +29,7 @@ scripts:
 Core documentation about the Arkade Compiler architecture and design:
 
 - **system/project_overview.md** — What the compiler is, language features, contract types, and use cases
-- **system/architecture.md** — Three-stage pipeline (Parser → AST → Compiler), PEG grammar, code generation
+- **system/architecture.md** — Four-stage pipeline (Parser → AST + `validate_ast` → Compile → `validate_output`), PEG grammar, code generation, validator and typechecker modules
 
 ### `${ARKADIAN_DIR}/docs/projects/compiler/testing/` — Usage & Operations
 Practical guides for using and operating the compiler:
@@ -106,17 +106,21 @@ contract Name(pubkey user) {
 ### Example Contracts
 | Contract | Description |
 |----------|-------------|
-| `bare.ark` | Basic single-signature VTXO |
+| `single_sig.ark` | Basic single-signature VTXO |
 | `htlc.ark` | Hash Time-Locked Contract |
 | `fuji_safe.ark` | DeFi lending with oracle, liquidation, and renewal |
 | `nft_mint.ark` | NFT minting with asset introspection |
 | `token_vault.ark` | Token vault with asset group validation |
 | `fee_adapter.ark` | Fee adapter with value introspection |
-| `beacon.ark` | Beacon contract |
 | `controlled_mint.ark` | Controlled asset minting |
 | `non_interactive_swap.ark` | Non-interactive atomic swap |
+| `payment_auth.ark` | Authenticated payment authorisation |
 | `arkade_kitties.ark` | CryptoKitties-style collectibles |
 | `threshold_oracle.ark` | Multi-oracle threshold signing |
+| `threshold_multisig_htlc.ark` | Threshold multisig HTLC |
+| `stability/price_beacon.ark` | BTC/USD price oracle with timestamp `clock` asset |
+| `stability/stability_vault.ark` | BTC-collateralised USD position (transfer, split, seekerRedeem, providerExit) |
+| `stability/stability_offer.ark` | StabilityVault offer with configurable collateral ratio |
 
 ## Technology Stack
 

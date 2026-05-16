@@ -152,6 +152,13 @@ npm run dev
 ### Bitcoin / Liquid Nodes
 - **Bitcoin Core**: **v31.0**
 - **Elements (Liquid)**: **v23.3.3**
+- **Liquid 0-conf observation API** (`[liquid.chain.zeroConfTool]` in `boltz.conf`, optional): when configured, lockup transactions are only considered 0-conf-safe once the bridge observation quorum is reached. Transport is selected by URL scheme — `http(s)://…` uses REST polling (`interval` ms, default `100`; `max_retries`, default `60`), `ws(s)://…` uses WebSocket with a per-tx `deadline_secs` wall-time (default `6`). Falls back to the elementsd mempool check when not configured.
+
+### Signer Control
+- **gRPC signer-control surface** on `boltzrpc.Boltz`: `DisableSigners` / `EnableSigners` / `GetDisabledSigners` operate on a `Signer` enum covering submarine-refund, reverse-claim, chain-refund, chain-claim, deferred-claim, EVM-refund, EVM-commitment-refund, reverse-lockup, chain-lockup, and submarine-invoice-payment signers
+- Disabled signers are persisted in the new `disabled_signers` table (Sequelize migration `2026-05-12-000000-0000_disabled_signers`) and enforced by an in-process `SignerControlRegistry` consulted from `ChainSwapSigner`, `DeferredClaimer`, `EipSigner`, `MusigSigner`, `PaymentHandler`, and `SwapNursery`
+- `boltzr-cli signer {disable,enable,list-disabled} <SIGNER>…` wraps the new RPCs (and `boltzr` boots accept a CLI flag to enable/disable all signers at startup)
+- **Replaces** the previous dev-only `DevDisableCooperative` RPC and `boltzr-cli dev toggle-cooperative` command, which have been removed
 
 ### Fulmine Integration
 - **Macaroon authentication** for Fulmine RPCs (also exposed by `boltzr-cli`)

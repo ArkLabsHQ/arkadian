@@ -3,15 +3,15 @@
 ## High-Level Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  .ark Source     │────▶│  PEG Parser      │────▶│  AST             │────▶│  JSON Output     │
-│  (Arkade Lang)   │     │  (pest grammar)  │     │  (models/)       │     │  (ContractJson)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
-     Input                   Stage 1                 Stage 2                  Stage 3
-                          Tokenize+Parse          Type-safe AST           Code Generation
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│  .ark Source │──▶│  PEG Parser  │──▶│  AST + Valid │──▶│  Compile +   │──▶│  JSON Output │
+│  (Arkade)    │   │  (pest)      │   │  (validator) │   │  Output Valid│   │  (Contract)  │
+└──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+     Input            Stage 1             Stage 2            Stage 3            Stage 4
+                   Tokenize+Parse     AST + validate_ast  Codegen + validate_output
 ```
 
-## Three-Stage Pipeline
+## Four-Stage Pipeline
 
 ### Stage 1: Parsing (`src/parser/`)
 
@@ -36,6 +36,17 @@ The AST is a fully typed Rust representation:
 | `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, GroupFind, CurrentInput, introspection, crypto ops |
 | `Requirement` | CheckSig, CheckSigFromStack, CheckMultisig, After, HashEqual, Comparison |
 
+### Stage 2.5: AST Validation (`src/validator/`)
+
+Before compilation, `validate_ast()` runs over the parsed `Contract`:
+- Non-empty contract name; at least one non-internal function.
+- Unique function names; unique constructor and per-function parameter names.
+- `options.exit` is required whenever `options.server` is set.
+- Literal timelock values must be positive (warning for `renew`, error for `exit`); identifier-valued timelocks are deferred to deploy-time resolution.
+- **Require-guard warning** (CashScript-style): a non-internal function with no `require()` statements (directly or inside `if/else`/`for` branches) would trivially succeed for any spend — emits a warning.
+
+Issues are collected as `Vec<ValidationIssue>`; `has_errors()` decides whether compilation halts.
+
 ### Stage 3: Compilation (`src/compiler/`)
 
 Transforms AST to `ContractJson` (the output ABI):
@@ -47,6 +58,15 @@ Transforms AST to `ContractJson` (the output ABI):
    - **Cooperative**: Original ASM + `<SERVER_KEY> <serverSig> OP_CHECKSIG`
    - **Exit**: Original ASM + timelock OR N-of-N CHECKSIG chain (if introspection detected)
 5. **Serialize** to JSON with contract metadata
+
+### Stage 4: Output Validation (`src/validator/`)
+
+After compilation, `validate_output()` runs structural invariant checks on the emitted `ContractJson`:
+- `contractName` non-empty; `functions` array non-empty.
+- Every function variant has non-empty `asm` and `witnessSchema`.
+- Every function name has both `serverVariant=true` and `serverVariant=false` entries.
+- **BSST-style ASM structure**: `OP_IF`/`OP_ELSE`/`OP_ENDIF` balance, syntactically well-formed `<placeholder>` tokens, no empty instructions.
+- **Placeholder consistency** (CashScript-style): every `<name>` in ASM resolves to a `witnessSchema` element or a `constructorInputs` entry — otherwise reported as a compiler bug.
 
 ## Key Design Decisions
 
@@ -77,17 +97,24 @@ src/
 │   └── mod.rs           # AST types: Contract, Function, Statement (4 variants),
 │                        # Expression (30+ variants), Requirement (6 variants),
 │                        # ContractJson, AbiFunction
-└── compiler/
-    └── mod.rs           # compile(), generate_function(), generate_asm_from_statements(),
-                         # emit_*_asm() functions, loop unrolling, introspection detection
-                         # (1859 lines)
+├── compiler/
+│   └── mod.rs           # compile(), generate_function(), generate_asm_from_statements(),
+│                        # emit_*_asm() functions, loop unrolling, introspection detection
+├── validator/
+│   └── mod.rs           # validate_ast() + validate_output(); BSST-style ASM analysis;
+│                        # CashScript-style placeholder consistency check
+├── typechecker/
+│   └── mod.rs           # ArkType-based expression typing
+└── opcodes/
+    └── mod.rs           # OP_* opcode constants (extracted from compiler)
 ```
 
 ## Testing Architecture
 
-15 dedicated test files cover individual contract types and language features:
-- Contract compilation: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`
-- Introspection: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
-- New opcodes: `new_opcodes_test`
-- Asset groups: `group_properties_test`
-- Complex contracts: `arkade_kitties_test`, `token_vault_test`, `threshold_oracle_test`
+21 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
+- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`
+- **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
+- **New opcodes**: `new_opcodes_test`
+- **Asset groups**: `group_properties_test`
+- **Complex contracts**: `arkade_kitties_test`, `token_vault_test`, `threshold_oracle_test`, `threshold_multisig_test`, `epoch_limiter_test`
+- **Validation & structure**: `asm_structural_test` (BSST-style ASM checks), `validation_error_test` (AST/output validator errors), `type_system_test` (typechecker behaviour), `compilation_roundtrip_test` (compile-then-re-parse round-trip), `contract_import_instantiation_test` (cross-contract imports)

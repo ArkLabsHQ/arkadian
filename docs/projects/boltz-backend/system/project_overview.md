@@ -67,6 +67,13 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Excludes paid swaps from invoice expiry; expiry never overwrites paid swaps
 - Bounded swap-restore pagination during recovery
 
+**Operational Signer Control**
+- Persisted gRPC surface (`DisableSigners` / `EnableSigners` / `GetDisabledSigners`) and `boltzr-cli signer …` commands let operators disable individual cooperative/lockup signer paths (submarine-refund, reverse-claim, chain-refund, chain-claim, deferred-claim, EVM-refund, EVM-commitment-refund, reverse-lockup, chain-lockup, submarine-invoice-payment) at runtime
+- State lives in the `disabled_signers` table and is enforced by an in-process `SignerControlRegistry`; the legacy dev-only `DevDisableCooperative` toggle has been removed
+
+**Liquid 0-Conf Observation API**
+- Optional `[liquid.chain.zeroConfTool]` configuration enables an external bridge-observation quorum for Liquid 0-conf safety; transport (`http(s)` polling vs `ws(s)` push) is selected by URL scheme, with separate tunables per transport (`interval` / `max_retries` for HTTP, `deadline_secs` for WS)
+
 ## Technology Stack
 
 ### TypeScript/Node.js

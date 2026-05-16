@@ -20,7 +20,9 @@ Ark infrastructure uses a multi-layered networking approach:
 1. **app_sg**: EC2 instance (self-referential + VPC endpoints)
 2. **rds_sg**: PostgreSQL (port 5432 from app_sg only)
 3. **redis_sg**: ElastiCache (port 6379 from app_sg only)
-4. **vpc_endpoints_sg**: Private endpoints (port 443 from app_sg)
+4. **vpc_endpoints_sg**: Private endpoints (port 443 from app_sg) — rules defined as
+   standalone `aws_security_group_rule` resources (since #73) so that other stacks can
+   add their own rules without causing plan drift
 
 ## VPC Endpoints
 **Interface Endpoints** (~$50/mo, span all 3 private AZs):
@@ -33,7 +35,9 @@ Ark infrastructure uses a multi-layered networking approach:
 
 ## Traffic Flow
 
-**Ingress**: Internet → Cloudflare → cloudflared → traefik → arkd
+**Ingress (cloudflared path, prod)**: Internet → Cloudflare → cloudflared → traefik → arkd
+
+**Ingress (ALB path, staging+ since 2026-05)**: Internet (or Cloudflare proxy for `staging-cf.*`) → shared ALB → arkd target groups (`arkdg-*` gRPC, `arkds-*` SSE, `arkdr-*` REST) on port 7070. ALB idle timeout 180s (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge). ALB access + connection logs ship to `ark-logs-${env}-${account_id}` S3 bucket.
 
 **Egress**: 
 - AWS services → VPC endpoints (private, no NAT)

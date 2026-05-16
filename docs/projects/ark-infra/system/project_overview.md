@@ -33,9 +33,13 @@ ark-infra/
 ├── apps/                              # Per-app, per-env OpenTofu entry points
 │   └── ark/staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
 ├── modules/                           # Reusable OpenTofu modules
-│   ├── ark/                           # Ark app + telemetry: ALB, telemetry ASG, Cloud Map service discovery, Ansible-based provisioning
-│   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert)
-│   │   ├── telemetry.tf               # Telemetry EC2 ASG + IAM + SGs + Grafana target group
+│   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning
+│   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert, 180s idle, access+conn logs)
+│   │   ├── arkd.tf                    # arkd target groups (gRPC/REST/SSE) + listener rules (since 2026-05)
+│   │   ├── s3.tf                      # ALB log bucket (ark-logs-${env}-${account_id}) + ark-tmp-${env} (7d expiry)
+│   │   ├── locals.tf                  # account_id / region from data sources
+│   │   ├── outputs.tf                 # alb_dns_name, alb_zone_id (consumed by Route53 aliases)
+│   │   ├── telemetry.tf               # Telemetry EC2 ASG + IAM + SGs + Grafana target group (priority 100)
 │   │   ├── service_discovery.tf       # Cloud Map private DNS for telemetry collector
 │   │   ├── scripts/user-data.sh       # Bootstraps Ansible from SSM-stored GitHub token
 │   │   ├── ansible/playbook.yml       # Telemetry instance provisioning (Docker, ark-telemetry clone, systemd)
@@ -144,17 +148,24 @@ ark-infra/
 
 ### Ingress & Routing
 
-1. **cloudflared** (Tunnel)
+1. **cloudflared** (Tunnel) — legacy ingress, still used on prod
    - Secure ingress via Cloudflare Tunnel
    - No public IP required
    - DDoS protection at edge
    - Encrypted tunnel connection
 
-2. **traefik** (Reverse Proxy)
+2. **traefik** (Reverse Proxy) — fronts cloudflared path
    - TLS termination (Let's Encrypt)
    - Request routing (REST vs gRPC)
    - Server-Sent Events (SSE) handling
    - Dashboard on localhost:8080
+
+3. **Shared ALB → arkd** (new in 2026-05, staging-first)
+   - Three target groups on port 7070: `arkdg-*` (gRPC), `arkds-*` (SSE), `arkdr-*` (REST)
+   - Listener rules route by host header (`arkd_hosts`), `content-type: application/grpc*`, and SSE path patterns
+   - HTTP/1.1 default (`arkd_http1_support = true`); idle timeout 180s (exceeds arkd 60s heartbeat + Cloudflare 120s edge)
+   - Access + connection logs to `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`)
+   - Staging endpoints: `staging.arkade.sh` (direct A record), `staging-cf.arkade.sh` (Cloudflare proxied, TLS Full Strict)
 
 ### Telemetry Stack
 

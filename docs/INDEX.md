@@ -106,7 +106,7 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - Redesigned Send (pill Paste/Scan, Max-tap confirmation, animated overlays) and Receive v2 (styled QR, tap-to-copy)
 - VTXO management, coin control, and expiry threshold handling
 - Lightning Network swaps via SwapManager (submarine, reverse submarine, chain swaps via Boltz)
-- LNURL receive via lnurl-server SSE session (amountless Lightning receives)
+- LNURL receive via lnurl-server SSE session (amountless Lightning receives); session owned by app-level `LnurlProvider` so it survives navigation away from Receive (PR #559); credentials derived deterministically via `HMAC-SHA256(privateKey, "lnurl-session")` — only `token` sent to lnurl-server, server computes `sessionId = SHA-256(token).slice(0, 32)`
 - Swap restoration from Boltz endpoint
 - Bulk submarine recovery in Apps → Boltz → Settings (scan + per-row sweep via `@arkade-os/boltz-swap` recovery API)
 - Lightning invoice limit validation in Send form (rejects below-min / above-max from `LimitsContext`)
@@ -129,7 +129,9 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - E2E testing with Playwright using shared `arkade-regtest` submodule + `nak` Nostr relay
 - Multi-arch Docker build (amd64 + arm64) via GHCR
 - Progressive Web App features (installable, offline-capable)
-- @arkade-os/sdk 0.4.26 and @arkade-os/boltz-swap 0.3.30
+- Dev mode toggle (triple-tap loading logo, `DevModeProvider` + `localStorage`) + Contracts screen under Settings → Advanced (lists `ContractManager` contracts with type/state/shortened address+script; PR #618)
+- BIP21 unified copy: Receive QR copy button copies the unified BIP21 URI immediately (PR #617); BIP21 asset-amount validation + integer-clamp on Burn/Mint/Reissue/Send/Receive asset inputs and new `prettyAssetAmount(amount, decimals, useGrouping?)` formatter from PR #611 (bigint whole/fractional split fixes `1.5 USDT` truncation)
+- @arkade-os/sdk 0.4.26 and @arkade-os/boltz-swap 0.3.31
 
 **Tags**: `wallet`, `pwa`, `react`, `typescript`, `tailwindcss`, `design-tokens`, `sonner`, `shadcn`, `lucide`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `lnurl`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`, `arkade-regtest`, `service-worker`, `abortcontroller`
 
@@ -140,7 +142,7 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - **develop**: `add wallet feature`, `fix ui bug`, `update sdk version`, `playwright test`, `swap manager`, `lnurl session`, `pill navbar`
 - **test_or_run**: `start wallet dev server`, `build pwa`, `test components`, `playwright`, `e2e test`, `arkade-regtest`, `regtest:start`
 
-**Dependencies**: `@arkade-os/sdk` (0.4.26, JavaScript SDK), `@arkade-os/boltz-swap` (0.3.30), `@tanstack/react-virtual` (^3.13.19), `tailwindcss` (^4.2.2, with `@tailwindcss/vite`), `clsx` (^2.1.1), `tailwind-merge` (^3.5.0), `class-variance-authority` (^0.7.1), `sonner` (^2.0.7), `arkd` (server connection), `nostr-tools`
+**Dependencies**: `@arkade-os/sdk` (0.4.26, JavaScript SDK), `@arkade-os/boltz-swap` (0.3.31), `@tanstack/react-virtual` (^3.13.19), `tailwindcss` (^4.2.2, with `@tailwindcss/vite`), `clsx` (^2.1.1), `tailwind-merge` (^3.5.0), `class-variance-authority` (^0.7.1), `sonner` (^2.0.7), `arkd` (server connection), `nostr-tools`
 **Depended On By**: None (end-user application)
 
 ---
@@ -456,6 +458,9 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - SSM parameter convention migrated to **`secure`-at-end naming** (e.g. `/grafana/google/secure/client-secret`); unified `ssm_prefix` shared by app and telemetry modules
 - New `apps/ark/staging/` OpenTofu entry point composes `modules/ark` for the staging stack (S3 backend `ark-dev-terraform-state`, DynamoDB `terraform-state-lock`, VPC/subnet lookups by `Name` tag)
 - Developer sandbox sub-accounts now include `aruokhai` alongside `se7enz` (`aws/dev-438465126741/organizations.tf`), each with scoped `sts:AssumeRole` IAM user policies and an `aws.aruokhai` provider alias bootstrapping an IAM admin user
+- **arkd on shared ALB (2026-05)**: `modules/ark/arkd.tf` adds three target groups (gRPC `arkdg-*` with `/grpc.health.v1.Health/Check`, SSE streaming `arkds-*`, REST `arkdr-*`) on port 7070; routed by host header (`arkd_hosts`), `content-type: application/grpc*`, and SSE path patterns (`arkd_sse_streaming_endpoint_paths` default `/v1/batch/events`, `/v1/txs`, `/v1/indexer/script/subscription/*`). HTTP/1.1 default (`arkd_http1_support`) to keep ALB negotiation simple; Grafana rule deprioritized to 100. ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeats and Cloudflare's 120s edge timeout); ALB access + connection logs ship to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30, staging 7)
+- Staging now reachable at `staging.arkade.sh` (Route53 zone in `aws/dev-438465126741/route53.tf`, A-record aliases to ALB) and `staging-cf.arkade.sh` (Cloudflare-proxied, TLS Full Strict via new ACM cert with SANs `*.staging.arkade.sh`, `staging-cf.arkade.sh`); Grafana moved to `telemetry.staging.arkade.sh`; `scripts/alb-spot-check.sh` probes gRPC/REST/SSE over HTTP/1.1 and HTTP/2
+- **SSM DB-dump utility** (`Ark-DumpDatabase-${env}`): `aws ssm send-command` runs `pg_dump` on the app instance for `projection|event|nbxplorer`, uploads to `s3://ark-tmp-${env}/db-dumps/` (7-day expiry, AES256, public-access blocked); scoped IAM (`s3:PutObject` on dump prefix, `ssm:GetParameter` on `/ark/${env}/db/*`); dump path `/mnt` to use the data volume. New module S3 bucket `ark-tmp-${env}` lives in `modules/ark/s3.tf`; VPC-endpoint SG refactored to standalone `aws_security_group_rule`s to avoid cross-stack plan drift
 - **Google Workspace SAML SSO** per AWS account (prod `982590065524`, dev `438465126741`) with reusable modules `ark-iam-roles` and `ark-gws-sync`
 - Four-tier role model with prefix per account (`ArkProd*` / `ArkDev*`): SuperAdministrator, Administrator, Developer, ReadOnly
 - Layered guardrail policies (`AdminRestrictions`, `DeveloperRestrictions`, `SSMPortForwarding`): deny secrets, Terraform state mutation, security-tooling tampering, sensitive log groups (`/*secure*`, `/aws/ssm/sessions/*`), and SSM shell sessions for non-SuperAdmins
@@ -464,7 +469,7 @@ Infrastructure-as-Code (IaC) for deploying and managing Ark protocol infrastruct
 - Nix devshell (`flake.nix` + `.envrc`) pinning OpenTofu 1.9.1, Node.js 20, and Python 3 for reproducible local tooling
 - Per-developer AWS Organizations sandbox sub-accounts under the dev account (`aws/dev-438465126741/organizations.tf`) with scoped `sts:AssumeRole` IAM user policies for `OrganizationAccountAccessRole`
 
-**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`, `aws-organizations`, `sandbox-accounts`, `alb`, `asg`, `cloud-map`, `service-discovery`, `ansible`, `imdsv2`, `grafana-sso`, `otel-agent`, `cadvisor`, `pyroscope`
+**Tags**: `infrastructure`, `iac`, `terraform`, `opentofu`, `aws`, `docker-compose`, `deployment`, `devops`, `postgres`, `redis`, `vpc`, `multi-az`, `nat-per-az`, `ssm`, `port-forwarding`, `admin-dashboard`, `cloudwatch-logs`, `awslogs`, `performance-insights`, `traefik`, `ghcr`, `iam`, `sso`, `saml`, `google-workspace`, `federation`, `abac`, `guardrails`, `nix`, `direnv`, `aws-organizations`, `sandbox-accounts`, `alb`, `asg`, `cloud-map`, `service-discovery`, `ansible`, `imdsv2`, `grafana-sso`, `otel-agent`, `cadvisor`, `pyroscope`, `alb-arkd`, `target-groups`, `grpc-alb`, `sse`, `route53`, `cloudflare-proxy`, `acm`, `alb-access-logs`, `s3-logs`, `pg-dump`, `db-backup`
 
 **Synonyms**: `infrastructure-as-code`, `deployment`, `iac`, `terraform-stack`
 
@@ -581,6 +586,8 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 - Positive-slippage tolerance via shared `OverpaymentProtector`
 - Hardened mempool.space integration (deduplicated, one-decimal-rounded BTC fee estimations)
 - Fulmine integration via macaroon auth, `ListVHTLCs`, and `GetVHTLCSpendingTx` (claim Ark tx retrieval for finalized or pending spending txs); configurable periodic vHTLC rescan (`rescanInterval`, default 300s) and manual chain-rescan service path for Ark currencies
+- Operational signer control (`DisableSigners` / `EnableSigners` / `GetDisabledSigners` gRPC + `boltzr-cli signer …`) persisted in `disabled_signers` table for granular runtime disable of cooperative and lockup signer paths (replaces `DevDisableCooperative`)
+- Optional Liquid 0-conf observation API (`[liquid.chain.zeroConfTool]`) with scheme-selected HTTP polling or WebSocket transport for bridge-quorum-gated lockup acceptance
 - CLI tool to rotate referral API keys
 - RESTful HTTP API (v1 and v2) with improved HTTP status codes
 - WebSocket real-time swap updates
@@ -588,7 +595,7 @@ Backend infrastructure for Boltz Exchange enabling non-custodial atomic swaps be
 - LND and CLN (v26.04.1) integration; Bitcoin Core v31.0; Elements v23.3.3
 - Hybrid TypeScript v6 + Rust stack
 
-**Tags**: `swap`, `lightning`, `submarine-swap`, `atomic-swap`, `htlc`, `taproot`, `cooperative-claim`, `bitcoin`, `liquid`, `evm`, `rest-api`, `typescript`, `rust`, `postgres`, `bolt12`, `fulmine-integration`, `mempool-space`, `claim-tracking`
+**Tags**: `swap`, `lightning`, `submarine-swap`, `atomic-swap`, `htlc`, `taproot`, `cooperative-claim`, `bitcoin`, `liquid`, `evm`, `rest-api`, `typescript`, `rust`, `postgres`, `bolt12`, `fulmine-integration`, `mempool-space`, `claim-tracking`, `signer-control`, `zero-conf`, `liquid-zero-conf-tool`
 
 **Synonyms**: `boltz`, `swap-backend`, `swap-provider`, `boltz-exchange`
 
@@ -683,7 +690,7 @@ Go implementation of a banco solver bot for the Arkade virtual mempool. Watches 
 - **test_or_run**: `start bancod`, `test swap`, `integration test`, `setup-test-env`, `run solver`
 - **debug**: `swap failed`, `price validation`, `offer not matched`, `introspector error`, `fulfillment failed`, `plugin error`
 
-**Dependencies**: `arkd` (tx stream, wallet), `go-sdk` (ArkClient), `introspector` (signing)
+**Dependencies**: `arkd` (tx stream, wallet), `go-sdk` (Wallet), `introspector` (signing)
 **Depended On By**: None (standalone service)
 
 ---
@@ -739,11 +746,11 @@ TypeScript library (`@arkade-os/banco`) implementing the non-interactive banco s
 **GitHub**: `${COMPILER_GITHUB}`
 
 **Description**:
-Rust-based compiler for the Arkade Script language that transforms `.ark` smart contract source files into JSON artifacts containing Bitcoin Taproot script assembly (ASM). Uses a three-stage pipeline: PEG parsing (pest) → typed AST → JSON output with dual-variant compilation (cooperative server path + unilateral exit path). Supports transaction and asset introspection, 64-bit arithmetic, and compile-time loop unrolling.
+Rust-based compiler for the Arkade Script language that transforms `.ark` smart contract source files into JSON artifacts containing Bitcoin Taproot script assembly (ASM). Uses a four-stage pipeline: PEG parsing (pest) → typed AST + semantic validation → code generation → output validation. Produces dual-variant output (cooperative server path + unilateral exit path) and supports transaction and asset introspection, 64-bit arithmetic, compile-time loop unrolling, and identifier-valued timelocks (e.g. `exit = exit`).
 
 **Key Capabilities**:
 - Compiles `.ark` source files to JSON with Bitcoin Taproot ASM
-- Three-stage pipeline: PEG parser (pest) → typed AST → JSON output
+- Four-stage pipeline: PEG parser (pest) → AST + `validate_ast` → compiler → `validate_output`
 - Dual-variant compilation: cooperative (server signature) + exit (timelock or N-of-N)
 - 8 data types: pubkey, signature, bytes, bytes20, bytes32, int, bool, asset
 - Cryptographic primitives: checkSig, checkMultisig, checkSigFromStack, sha256
@@ -751,17 +758,19 @@ Rust-based compiler for the Arkade Script language that transforms `.ark` smart 
 - Asset introspection: assetLookup, assetCount, assetAt, group operations
 - Compile-time loop unrolling and array flattening
 - 64-bit arithmetic with OP_*64 opcodes
+- Semantic validation: duplicate-name detection, required-`options.exit` check, CashScript-style require-guard warning, BSST-style ASM structure analysis, placeholder consistency check
+- Identifier-valued timelocks (`exit = exit`, `renew = renew`) bound to constructor `int` parameters
 - CLI tool (`arkadec`) and Rust library (`arkade_compiler`)
 
-**Tags**: `compiler`, `arkade-script`, `rust`, `pest`, `peg`, `bitcoin`, `taproot`, `asm`, `smart-contract`, `introspection`, `opcodes`, `json`
+**Tags**: `compiler`, `arkade-script`, `rust`, `pest`, `peg`, `bitcoin`, `taproot`, `asm`, `smart-contract`, `introspection`, `opcodes`, `json`, `validator`, `typechecker`
 
 **Synonyms**: `arkadec`, `arkade-compiler`, `ark-compiler`, `script-compiler`
 
 **Triggers**:
-- **ask_question**: `arkade script`, `compiler`, `ark language`, `.ark files`, `contract syntax`, `opcode`, `introspection`, `asset group`
-- **develop**: `add opcode`, `new language feature`, `update grammar`, `compiler bug`, `expression type`
+- **ask_question**: `arkade script`, `compiler`, `ark language`, `.ark files`, `contract syntax`, `opcode`, `introspection`, `asset group`, `stability vault`
+- **develop**: `add opcode`, `new language feature`, `update grammar`, `compiler bug`, `expression type`, `validator rule`
 - **test_or_run**: `compile contract`, `cargo test`, `test compilation`, `example contract`
-- **debug**: `parse error`, `compilation error`, `unexpected rule`, `asm output wrong`
+- **debug**: `parse error`, `compilation error`, `unexpected rule`, `asm output wrong`, `validation error`, `validation warning`
 
 **Dependencies**: None (standalone tool)
 **Depended On By**: `introspector` (executes compiled Arkade Script), `arkd` (uses compiled contract artifacts)
@@ -950,7 +959,8 @@ CLI framework + runtime SDK for deploying any plain HTTP server inside **AWS Nit
 - PCR0-locked KMS policy — `kms:Decrypt` only when `RecipientAttestation:PCR0` matches; optional irreversible lockdown (`is_kms_key_locked: true` / `enclave lock`) where even AWS root cannot rewrite the policy
 - BIP-340 Schnorr response-signing middleware — every HTTP response carries `X-Attestation-Signature` + `X-Attestation-Pubkey` bound to the attestation document's `UserData` via `appKeyHash`
 - PCR16+ extension on boot with `SHA256(compressed_secp256k1_pubkey)` per configured secret
-- Locked-key migration — 9-step in-place re-encryption flow (`POST /migrate`, NDJSON streaming, idempotent) for rotating PCR0 even when the KMS policy is permanently frozen; old enclave writes ciphertexts + chain proof to `/Migration/...` staging paths via `POST /v1/start-migration` (renamed from `/v1/export-key`), and the new enclave's boot decides commit vs abort (`PromoteToPrimary` / `AbortOrphaned`), surfaced to the supervisor via the `migration: {state, reason}` block in `/v1/enclave-info`
+- Locked-key migration — 7-step in-place re-encryption flow (`POST /migrate`, NDJSON streaming) for rotating PCR0 even when the KMS policy is permanently frozen; old enclave inline-creates a migration key (policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time), re-encrypts each secret + storage DEK to **key-scoped** SSM paths `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}` via `POST /v1/start-migration`, and the atomic `PutParameter` on `/{dep}/{app}/KMSKeyID` is the commit point. No two-phase `/Migration/*` staging, no `PromoteToPrimary` / `AbortOrphaned`. Supervisor rolls back via EIF backup if the new enclave never reaches `/health=200`.
+- Enclave-owned KMS keys — both the primary key (first-boot via `EnsureKeyID`, gated by an `"UNSET"` SSM placeholder written by Tofu) and the migration key (via `CreateMigrationKey`) are minted by the enclave with PCR0-locked policies sealed at `CreateKey` time. The EC2 role no longer holds `kms:PutKeyPolicy`; the supervisor makes no KMS calls.
 - PCR0 attestation chain — each version records its predecessor's PCR0 + an NSM signed proof (`previous_pcr0` is `"genesis"` on first boot); `enclave verify` walks the chain against the AWS Nitro root. Runtime no longer enforces a baked-in predecessor PCR0 — that value is still measured into PCR0 for external auditors but is not validated at startup
 - Encrypted persistent storage — `PUT/GET/DELETE/LIST /v1/storage/{key}` backed by S3 + AES-256-GCM with a KMS-protected DEK (up to 10 MB per object)
 - Dynamic secrets API — runtime-mutable secrets persisted encrypted in S3 (reuses storage DEK), optional `env_var` boot binding, max 64 KB per secret
@@ -1047,8 +1057,12 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 **Key Capabilities**:
 - Wallet creation and management (Wallet, ReadonlyWallet, ServiceWorkerWallet, OnchainWallet)
 - Mainnet defaults: `arkServerUrl` defaults to `DEFAULT_ARKADE_SERVER_URL` (`https://arkade.computer`); `OnchainWallet.create` defaults to `DEFAULT_NETWORK_NAME` (`bitcoin`); `ArkAddress` and `contractFromArkContractWithAddress` default HRP to `DEFAULT_ARKADE_HRP` (`ark`); `getArkadeServerUrl({ arkServerUrl })` helper resolves the URL
-- HD identity with BIP39 mnemonic and BIP86 Taproot derivation; identities consume wildcard descriptor templates and expose them via `identity.descriptor`
-- DescriptorProvider allocator interface with `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation, persisted under `settings.hd`, cross-instance serialized via shared `updateWalletState` mutex)
+- HD identity with BIP39 mnemonic and BIP86 Taproot derivation; identities consume wildcard descriptor templates and expose them via `identity.descriptor`; `isHDCapableIdentity()` structural type guard for capability-based branching without coupling to a concrete identity class. The four descriptor-aware identity methods (`isOurs`, `signWithDescriptor`, `signMessageWithDescriptor`) are now `@deprecated` on the interface and on `SeedIdentity` / `ReadonlyDescriptorIdentity` — kept only as backing for descriptor providers
+- DescriptorProvider allocator interface with `StaticDescriptorProvider` (single-key) and `HDDescriptorProvider` (HD receive rotation, persisted under `settings.hd`, cross-instance serialized via shared `updateWalletState` mutex; also implements opt-in `ReceiveRotatorFactory`; new `getCurrentSigningDescriptor()` re-derives at last-used index without advancing for stable boot replay)
+- HD receive rotation via the contract repository (re-merged in #489 after the #488 revert): `WalletReceiveRotator` (`src/wallet/walletReceiveRotator.ts`) owns the `vtxo_received` subscription, rotation chain mutex, boot pubkey lookup, and contract registration on rotate. Tags the active display contract `metadata.source = 'wallet-receive'`; marks the prior display `inactive` on rotation so the watcher keeps it while `lastKnownVtxos.size > 0`. Baseline multi-timelock matrix anchored to `identity.xOnlyPublicKey()` (index 0) every boot — never re-registered at the rotated pubkey. Failed rotations gate retries behind exponential backoff (1s → 60s cap). Typed `NonRangeableDescriptorError` for the silent-fallback path; pluggable `Logger` interface (defaults to `console`)
+- `WalletMode = 'auto' | 'static' | 'hd' | DescriptorProvider` on `WalletConfig` — `'auto'` (default) is **explicitly short-term identical to `'static'`** until HD soak time builds (`TODO(hd-maturation)` flip-back criteria recorded in `resolveDescriptorProvider`); `'hd'` requires an HD-capable identity with a rangeable descriptor (no silent fallback); object form forwards rotation through a custom provider. `ServiceWorkerWalletMode = 'auto' | 'static' | 'hd'` (string-only because the provider object can't cross postMessage)
+- Per-input signing via `InputSignerRouter` (`src/wallet/inputSignerRouter.ts`) — `InputSigningJob[]` derived from each source VTXO's script; rotated `default`/`delegate` contracts with non-baseline owners route to `DescriptorProvider.signWithDescriptor` using `metadata.signingDescriptor` persisted at rotation time; everything else routes to `Identity`. Typed errors `DescriptorSigningProviderMissingError` / `MissingSigningDescriptorError` exported from the package root. `Wallet.offchainTapscript` now a getter over a `protected` backing field; the only sanctioned writer is `setOffchainTapscriptForRotation` (@internal, on the `RotatableWallet` surface)
+- `prepareUnrollTransaction` `Math.ceil`s the fee rate before `BigInt(...)` so fractional sat/vB from Esplora / bitcoind regtest no longer throws `RangeError`
 - VTXO operations (send, receive, settle, renew, recover) — surgical cache reconciliation via `IContractManager.refreshOutpoints(outpoints)` (indexer-by-outpoint upserts at the contract's address, no cursor change, no full re-scan); `VtxoManager.revalidateBeforeSettle` pre-flights candidates before `renewVtxos` / `runPeriodicSettle`; reactive `maybeRefreshAfterVtxoSpent` parses `metadata.vtxo_outpoint` from the `ArkError` envelope; service-worker `REFRESH_OUTPOINTS` proxy
 - VTXO ownership gating (`src/contracts/vtxoOwnership.ts`) at every contract-scoped read/write site — background sync writers warn-and-skip on unowned scripts, user-initiated wallet write paths throw; `updateDbAfterOffchainTx` / `updateDbAfterSettle` group spent rows by owning script and route each bucket to its contract's address; `getVtxosFromRepo` fails fast on undecodable wallet addresses. **Tier 2 (0.4.25)**: `WalletRepository` exposes optional script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript`, `VtxoRepositoryKey = { script; address? }`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite); `getVtxosForContract` / `saveVtxosForContract` dispatch helpers route there when present and fall back to Tier 1 address-bucket + filter for custom backends
 - Batch settlement with MuSig2 tree signing
@@ -1064,7 +1078,7 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 - Expo/React Native support with SSE-compatible providers
 - ArkNote serializable payment format
 
-**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `hd-wallet`, `descriptor-provider`, `electrum`, `esplora`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`, `mainnet-default`, `bigint-assets`, `vtxo-ownership-gating`, `unilateral-exit`, `refresh-outpoints`
+**Tags**: `typescript`, `sdk`, `wallet`, `vtxo`, `bitcoin`, `taproot`, `musig2`, `bip39`, `bip86`, `hd-wallet`, `hd-receive-rotation`, `wallet-receive-rotator`, `input-signer-router`, `descriptor-provider`, `wallet-mode`, `electrum`, `esplora`, `service-worker`, `react-native`, `expo`, `storage-adapters`, `npm`, `mainnet-default`, `bigint-assets`, `vtxo-ownership-gating`, `unilateral-exit`, `refresh-outpoints`
 
 **Synonyms**: `@arkade-os/sdk`, `ark-ts-sdk`, `typescript-sdk`, `js-sdk`
 
@@ -1282,7 +1296,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | rust-sdk | fulmine | Delegator-Integration (VTXO auto-renewal) |
 | rust-sdk | introspector | Co-Signer-Client (arkade-script flows via `ark-introspector-client`; dockerized for e2e) |
 | bancod | arkd | Client-Server (tx stream subscription, wallet) |
-| bancod | go-sdk | Library-Consumer (ArkClient) |
+| bancod | go-sdk | Library-Consumer (Wallet) |
 | bancod | introspector | Client-Server (signing for fulfillment) |
 | banco | ts-sdk | Library-Consumer (@arkade-os/sdk) |
 | banco | introspector | Client-Server (covenant validation + co-signing) |
@@ -1417,7 +1431,7 @@ For conceptual questions, prioritize documentation loading order:
 | dotnet-sdk | Active Dev | Beta | .NET SDK, 1.0-beta, NuGet packages, DocFX site + Blazor WASM sample wallet on GitHub Pages, HD wallet gap-limit recovery via modular discovery providers, per-wallet `vtxo.lastFullPollAt` cold-start cursor on new `ArkWalletEntity.Metadata` JSON column, persistent Boltz websocket with subscribe/unsubscribe, Boltz `referralId` (default `"arkade-dotnet-sdk"`), `RPCChainTimeProvider` cache + transient-RPC fallback, mainnet Boltz URL switched to `api.boltz.exchange` |
 | boltz-swap | Active Dev | ✓ Beta | TypeScript Boltz swap library, v0.3.31, @arkade-os/sdk 0.4.26; **breaking for Expo callers** — OS-task helpers (`defineExpoSwapBackgroundTask`, `registerExpoSwapBackgroundTask`, `unregisterExpoSwapBackgroundTask`) moved from `@arkade-os/boltz-swap/expo` to a new `@arkade-os/boltz-swap/expo/background` subpath (static imports fix Metro static-dependency-collector miss, #136); `ExpoArkadeSwaps.setup()` no longer registers the OS task itself, callers must call `register*`/`unregister*` explicitly; `background` config dropped `taskName` + `minimumBackgroundInterval` (TS compile error, JS runtime warn via `warnOnRemovedBackgroundFields`); `expo-task-manager` (`>=3.0.0`) + `expo-background-task` (`>=0.1.0`) now declared as optional `peerDependencies`; `BoltzSwapProvider` `referralId` defaults to `"arkade-ts-sdk"` (auto-tags every submarine/reverse/chain swap); ServiceWorker runtime recovers from a half-initialized `ArkadeSwaps` handler (typed `HandlerNotInitializedError`) by re-sending the cached `INIT_ARKADE_SWAPS` payload and retrying |
 | compiler | Active Dev | Alpha | Arkade Script compiler, Rust CLI + library |
-| ts-sdk | Active Dev | ✓ Beta | v0.4.26, npm published, multi-platform; **post-0.4.26**: new public type `ExtendedContractVtxo` (`ExtendedVirtualCoin & { contractScript }`) exported from the package root — narrows `ContractVtxo`'s `Partial<TapLeaves & EncodedVtxoScript>` to required, used at save/forfeit construction sites and as the `ContractWithVtxos.vtxos` element type; `ContractWatcher` extend path now compile-time-typed and logs `txid:vout` + caught error on extend failure; `DelegatorManager.delegate` filter replaced its unsafe `as ExtendedVirtualCoin` cast with an `isAnnotated` type guard; `Wallet.create` / `ReadonlyWallet.create` now derive the indexer URL from a custom `arkProvider` via the new `extractArkProviderUrl` helper (no more silent pairing with the public `arkade.computer` default when a different arkd is injected); HD receive rotation via the contract repository (#473) was merged then reverted (#488) — not in HEAD; 0.4.26 ships ESM-compatible declaration imports (build script `scripts/add-extensions.js` now rewrites `.d.ts` import specifiers, fixing typed consumption under `"moduleResolution": "node16" / "bundler"`) plus typedoc polish and `as const` on `DEFAULT_ARKADE_HRP` / `DEFAULT_NETWORK_NAME`; **Tier 2 ownership gating (0.4.25)**: optional `WalletRepository` script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript` + `VtxoRepositoryKey`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite), with `getVtxosForContract` / `saveVtxosForContract` dispatch helpers and Tier 1 fallback for custom backends; surgical `IContractManager.refreshOutpoints` reconciliation + `VtxoManager.revalidateBeforeSettle` pre-flight (closes 60-second `VTXO_ALREADY_SPENT` retry loop); ownership-gated VTXO persistence via `vtxoOwnership.ts` (legacy address buckets can't leak wrong-script rows; multi-contract spends route per-script); unilateral exit bundle — `prepareUnrollTransaction` / `completeUnroll` split, regtest network arg fix, `isScriptValid === true` correctness; **breaking (0.4.23)**: asset amounts now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
+| ts-sdk | Active Dev | ✓ Beta | v0.4.26, npm published, multi-platform; **post-0.4.26**: new public type `ExtendedContractVtxo` (`ExtendedVirtualCoin & { contractScript }`) exported from the package root — narrows `ContractVtxo`'s `Partial<TapLeaves & EncodedVtxoScript>` to required, used at save/forfeit construction sites and as the `ContractWithVtxos.vtxos` element type; `ContractWatcher` extend path now compile-time-typed and logs `txid:vout` + caught error on extend failure; `DelegatorManager.delegate` filter replaced its unsafe `as ExtendedVirtualCoin` cast with an `isAnnotated` type guard; `Wallet.create` / `ReadonlyWallet.create` now derive the indexer URL from a custom `arkProvider` via the new `extractArkProviderUrl` helper (no more silent pairing with the public `arkade.computer` default when a different arkd is injected); **HD receive rotation via contract repository re-merged in #489** (reopen of #473 after the #488 revert) — `WalletReceiveRotator` owns the `vtxo_received` subscription, rotation chain mutex, contract-repo-backed boot pubkey lookup (tagged `metadata.source = 'wallet-receive'`), and contract registration on rotate; baseline multi-timelock matrix anchored to `identity.xOnlyPublicKey()` (index 0) every boot regardless of rotation state; exponential backoff (1s → 60s cap) on consecutive `rotate()` failures; typed `NonRangeableDescriptorError` for silent-fallback path; `WalletConfig.walletMode = 'auto' \| 'static' \| 'hd' \| DescriptorProvider` makes the wiring explicit (**`'auto'` currently behaves like `'static'`** until HD has more soak time — `TODO(hd-maturation)` flip-back criteria recorded in `resolveDescriptorProvider`); `ServiceWorkerWalletMode` is `'auto' \| 'static' \| 'hd'` (no object form, can't cross postMessage); `InputSignerRouter` dispatches each PSBT input to `DescriptorProvider.signWithDescriptor` (rotated default/delegate contracts using `metadata.signingDescriptor`) or `Identity` (everything else), with typed errors `DescriptorSigningProviderMissingError` + `MissingSigningDescriptorError` exported from the package root; `Wallet.offchainTapscript` becomes a getter over a `protected` backing field (only sanctioned writer is `setOffchainTapscriptForRotation`, `@internal`); `isHDCapableIdentity()` structural type guard replaces the old `looksLikeVanillaHDDescriptor` + `instanceof SeedIdentity` check; the four descriptor-aware identity methods (`isOurs` / `signWithDescriptor` / `signMessageWithDescriptor`) are now `@deprecated` — kept only as backing for `DescriptorProvider`; `prepareUnrollTransaction` `Math.ceil`s the fee rate before `BigInt(...)` so fractional sat/vB no longer throws `RangeError`. 0.4.26 ships ESM-compatible declaration imports (build script `scripts/add-extensions.js` now rewrites `.d.ts` import specifiers, fixing typed consumption under `"moduleResolution": "node16" / "bundler"`) plus typedoc polish and `as const` on `DEFAULT_ARKADE_HRP` / `DEFAULT_NETWORK_NAME`; **Tier 2 ownership gating (0.4.25)**: optional `WalletRepository` script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript` + `VtxoRepositoryKey`) implemented natively by all SDK backends (InMemory, IndexedDB, Realm, SQLite), with `getVtxosForContract` / `saveVtxosForContract` dispatch helpers and Tier 1 fallback for custom backends; surgical `IContractManager.refreshOutpoints` reconciliation + `VtxoManager.revalidateBeforeSettle` pre-flight (closes 60-second `VTXO_ALREADY_SPENT` retry loop); ownership-gated VTXO persistence via `vtxoOwnership.ts` (legacy address buckets can't leak wrong-script rows; multi-contract spends route per-script); unilateral exit bundle — `prepareUnrollTransaction` / `completeUnroll` split, regtest network arg fix, `isScriptValid === true` correctness; **breaking (0.4.23)**: asset amounts now `bigint`; new exports `TxWeightEstimator` / `VSize` / `timelockToSequence` / `sequenceToTimelock` |
 | arkana-knowledge | Active | ✓ Production | AI assistant config + KB for Arkana on Hetzner CPX32 VPS, 17 active agents (new `issue-staleness` weekly sweep) |
 | bluewallet | Active | ✓ Production | v8.0.0 on RN 0.85 (New Architecture); integrates @arkade-os/sdk 0.4.23 + @arkade-os/boltz-swap 0.3.26; Android 16kb-page-size ready |
 

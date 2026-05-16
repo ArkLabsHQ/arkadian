@@ -42,7 +42,7 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
 - **Swap restoration**: Restore pending swaps from Boltz endpoint
-- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session (`useLnurlSession` hook)
+- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session. PR #559 moved the SSE lifecycle out of the receive-screen-scoped `useLnurlSession` hook (removed) into an app-level `LnurlProvider` (`src/providers/lnurl.tsx`), so the LNURL remains active and can keep serving invoice requests even when the user navigates away from the Receive screen. Credentials are derived deterministically from the wallet identity via `HMAC-SHA256(privateKey, "lnurl-session")` (the resulting `token` is a true secret — knowing the public address is not enough to compute it), and the wallet only sends `token` to lnurl-server, which computes `sessionId = SHA-256(token).slice(0, 32)`. The provider self-manages start/stop based on identity + Boltz swaps readiness and exposes `lnurl/active/error`; invoice requests are handled in the provider (create reverse swap, return invoice, claim in background, notify on completion).
 - **Bulk submarine recovery**: Apps → Boltz → Settings scans pending submarine swaps via `arkadeSwaps.scanRecoverableSubmarineSwaps()` and sweeps each via `recoverSubmarineFunds()`. Categorises results as `recoverable` (sweep now), `pre_cltv` (deferred until locktime), and `invalid_swap`.
 - **Invoice limit validation**: Send form rejects Lightning invoices outside `[minSwapAllowed(), maxSwapAllowed()]` from `LimitsContext` (guarded against unloaded zero limits).
 
@@ -92,7 +92,13 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **bigint-based amount math**: `unitsToCents` / `centsToUnits` operate on `bigint`; `AssetOption.balance` and tx-asset `amount` are now `bigint`. Asset metadata `supply` is `bigint` and serialised via a `JSON.stringify` replacer that converts bigint → string.
 - **`prettyAssetAmount(amount, decimals, useGrouping?)`**: New formatter in `src/lib/assets.ts` that splits whole/fractional via BigInt arithmetic so values like `1.5 USDT` no longer truncate; takes `useGrouping` for numeric inputs. Companion helpers: `prettyAssetNumber`, `prettyAssetAmountHide`, `isValidDecimals` (allows 0–`MAX_DECIMALS=8`).
 - **Non-negative integer clamp**: Burn / Mint / Reissue / Send / Receive QrCode / `InputAmount` all `Math.trunc` non-negative values before constructing BigInts so `BigInt(1.5)` no longer throws RangeError.
+- **BIP21 asset amount validation** (PR #611): `src/lib/bip21.ts` now validates asset amounts against their declared decimals; `encodeBip21Asset` is passed asset decimals so the URI uses the right precision. `unitsToCents` is hardened against empty strings, `parseInt` calls always pass an explicit radix, fractional millisatoshis are guarded against, and `prettyAssetNumber` no longer renders `-0`. New `src/test/e2e/bip21.test.ts` exercises the round-trip.
 - **Mainnet explorer**: `explorers.bitcoin.api` removed — `getRestApiExplorerURL` now returns `string | undefined` and callers fall back to SDK defaults.
+
+### Developer / Diagnostics (PR #618, PR #617)
+- **Dev mode**: Triple-tapping the loading logo toggles a global dev mode persisted in `localStorage`. The tap logic was lifted out of `LoadingLogo` into a new `DevModeProvider` (`src/providers/devMode.tsx`), so every loading logo in the app shares the same state.
+- **Contracts screen** (`src/screens/Settings/Contracts.tsx`): A "Contracts" entry appears in **Settings → Advanced** only when dev mode is active. It renders all contracts from `ContractManager` sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled (static view on `ContractManager` data).
+- **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI immediately (no submenu).
 
 ## Technology Stack
 
@@ -104,7 +110,7 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
 - **@arkade-os/sdk** (0.4.26) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.30) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
+- **@arkade-os/boltz-swap** (0.3.31) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
 - **@tanstack/react-virtual** for virtualized swap list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
@@ -199,7 +205,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.26, @arkade-os/boltz-swap 0.3.30
+**Dependencies**: @arkade-os/sdk 0.4.26, @arkade-os/boltz-swap 0.3.31
 
 ## Getting Started
 

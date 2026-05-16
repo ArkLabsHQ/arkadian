@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.7
-last_sync_commit: f2cfa798d49522bf9e843357bade7d1ec711f011
+version: 1.2.8
+last_sync_commit: 1cfdb1661f57e1852c828038303d0ee5234457d3
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -89,7 +89,7 @@ Analysis and summaries of pull requests.
 - **On-chain to Lightning**: Convert Bitcoin to Lightning capacity
 - **Lightning to on-chain**: Drain Lightning channels to Bitcoin
 - **Atomic swaps**: Trustless via HTLCs
-- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session
+- **LNURL receive**: Amountless Lightning receives via lnurl-server SSE session. As of PR #559 the SSE connection is owned by an app-level `LnurlProvider` (`src/providers/lnurl.tsx`) so the session survives navigation away from the Receive screen. Credentials are derived deterministically via `HMAC-SHA256(privateKey, "lnurl-session")`; only the `token` is sent to lnurl-server (server computes `sessionId = SHA-256(token).slice(0, 32)`). The `useLnurlSession` hook is removed; the Receive screen reads `lnurl/active/error` from context.
 - **Bulk submarine recovery**: Apps → Boltz → Settings scans recoverable submarine swaps and sweeps them via `arkadeSwaps.recoverSubmarineFunds()` (per-row, with `pre_cltv` deferred-locktime guidance)
 - **Invoice limit validation**: Send form rejects Lightning invoices below `minSwapAllowed()` / above `maxSwapAllowed()` before submission
 - **Non-blocking boarding settlement (PR #556)**: `WaitingForRound` component removed — boarding settlement (Transaction.tsx), VTXO rollover (Vtxos.tsx), and mainnet send (Send/Details.tsx) no longer show a full-screen blocking overlay. Boarding shows an inline purple Info banner ("Processing your boarding transaction..."), VTXO rollover shows an inline "Renewing" banner, and mainnet send falls back to `LoadingLogo` matching Lightning/Ark patterns. `LoadingIcon` `small` size reduced from 32px → 20px to match other inline icons.
@@ -192,7 +192,7 @@ pnpm run format:check
 
 ### Arkade Integration
 - **@arkade-os/sdk** (0.4.26): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.30): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
+- **@arkade-os/boltz-swap** (0.3.31): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography
@@ -293,6 +293,11 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **LendaSat**: Bitcoin lending/borrowing with on-chain and Arkade collateral
 - **Satora**: Swap service integration (renamed from Lendaswap in PR #612)
 - **PSBT signing**: Sign and finalize PSBTs for DeFi interactions
+
+### Developer / Diagnostics
+- **Dev mode toggle** (PR #618): Triple-tapping the loading logo toggles a global dev mode persisted in `localStorage`. The tap logic lives in the new `DevModeProvider` (`src/providers/devMode.tsx`) so every `LoadingLogo` in the app shares the same state.
+- **Contracts screen** (PR #618, `src/screens/Settings/Contracts.tsx`): When dev mode is enabled, a "Contracts" entry appears in **Settings → Advanced**. It renders all `ContractManager` contracts sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled.
+- **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI (with Lightning fallback) immediately, no submenu.
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning via SwapManager

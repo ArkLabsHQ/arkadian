@@ -26,7 +26,7 @@ cargo test htlc_claim
 cargo test asset_introspection
 ```
 
-## Test Files (15 total)
+## Test Files (21 total)
 
 ### Contract Compilation Tests
 | Test File | Covers |
@@ -34,12 +34,13 @@ cargo test asset_introspection
 | `bare_vtxo_test.rs` | Basic single-signature VTXO contract |
 | `htlc_test.rs` | Hash Time-Locked Contract (together, refund, claim paths) |
 | `fuji_safe_test.rs` | DeFi lending with oracle, liquidation, renewal, introspection exit paths |
-| `beacon_test.rs` | Beacon contract compilation |
+| `beacon_test.rs` | Beacon contract compilation (loop fixture + production `PriceBeacon` 4-param design) |
 | `arkade_kitties_test.rs` | CryptoKitties-style collectibles with asset groups |
 | `token_vault_test.rs` | Token vault with group sum validation |
 | `controlled_mint_test.rs` | Controlled asset minting |
 | `fee_adapter_test.rs` | Fee adapter with value introspection |
 | `threshold_oracle_test.rs` | Multi-oracle threshold signing with for loops |
+| `threshold_multisig_test.rs` | Threshold multisig HTLC contracts |
 
 ### Feature Tests
 | Test File | Covers |
@@ -50,6 +51,15 @@ cargo test asset_introspection
 | `new_opcodes_test.rs` | New opcodes: streaming SHA256, neg64, le64/le32 conversion, ecMulScalarVerify, tweakVerify |
 | `group_properties_test.rs` | Asset group properties, sums, delta, control, isFresh |
 | `epoch_limiter_test.rs` | Epoch-based contract limiting |
+| `contract_import_instantiation_test.rs` | Cross-contract imports and `new Contract(...)` instantiation |
+
+### Validation & Structural Tests
+| Test File | Covers |
+|-----------|--------|
+| `asm_structural_test.rs` | BSST-style structural checks: balanced `OP_IF`/`OP_ELSE`/`OP_ENDIF`, well-formed `<placeholder>` tokens, no empty instructions |
+| `validation_error_test.rs` | AST validator errors and warnings (duplicate names, missing `options.exit`, require-guard warning) |
+| `type_system_test.rs` | Typechecker behaviour and `ArkType` resolution |
+| `compilation_roundtrip_test.rs` | Compile-then-re-parse round-trip parity across example contracts |
 
 ## What Tests Verify
 
@@ -70,8 +80,8 @@ use arkade_compiler::compile;
 #[test]
 fn test_my_contract() {
     let source = r#"
-    options { server = server; exit = 144; }
-    contract MyContract(pubkey user, pubkey server) {
+    options { server = server; exit = exit; }
+    contract MyContract(pubkey user, pubkey server, int exit) {
         function spend(signature userSig) {
             require(checkSig(userSig, user));
         }

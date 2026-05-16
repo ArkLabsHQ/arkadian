@@ -105,14 +105,27 @@ VPC: 10.10.0.0/16 (65,536 IPs)
 
 #### Container Architecture
 ```
-┌─────────────── Ingress ───────────────┐
-│  cloudflared (Cloudflare Tunnel)      │
-│      ↓                                  │
-│  traefik (Reverse Proxy + SSL)        │
-│      ├──→ /v1/* → arkd:7070 (REST)    │
-│      ├──→ grpc → arkd:7070 (gRPC)     │
-│      └──→ SSE → arkd:7070 (events)    │
-└────────────────────────────────────────┘
+┌─────────────── Ingress (legacy path: prod) ──┐
+│  cloudflared (Cloudflare Tunnel)             │
+│      ↓                                         │
+│  traefik (Reverse Proxy + SSL)               │
+│      ├──→ /v1/* → arkd:7070 (REST)           │
+│      ├──→ grpc → arkd:7070 (gRPC)            │
+│      └──→ SSE → arkd:7070 (events)           │
+└───────────────────────────────────────────────┘
+
+┌─── Ingress (shared ALB path: staging+ since 2026-05) ───┐
+│  Internet / Cloudflare proxy                            │
+│      ↓ HTTPS (ACM cert: *.staging.arkade.sh)           │
+│  ALB (idle 180s, access+conn logs → S3)                │
+│      ├─[host + content-type=application/grpc*]→         │
+│      │   arkdg-* TG (HTTP/GRPC) → arkd:7070 (gRPC)     │
+│      ├─[host + path in arkd_sse_streaming_endpoint_paths]│
+│      │   arkds-* TG (HTTP1) → arkd:7070 (SSE)          │
+│      └─[host + REST fallthrough]→                       │
+│          arkdr-* TG (HTTP1) → arkd:7070 (REST)         │
+│  (Grafana TG remains, listener priority 100)            │
+└──────────────────────────────────────────────────────────┘
 
 ┌─────────────── Core Services ─────────┐
 │  arkd (Main Daemon)                    │
@@ -163,6 +176,18 @@ VPC: 10.10.0.0/16 (65,536 IPs)
   `${ssm_prefix}/grafana/google/secure/client-secret`).
 - App SG → telemetry SG ingress is opened for OTLP gRPC (4317), OTLP HTTP (4318),
   Pyroscope (4040), and Alertmanager (9093). ALB SG → telemetry SG opens Grafana (3000).
+
+**ALB-fronted arkd (2026-05):** the same shared ALB now also fronts arkd via three target
+groups in `modules/ark/arkd.tf` — gRPC (`arkdg-*`, `HTTP/GRPC` protocol, listener priority 10),
+SSE streaming (`arkds-*`, `HTTP1` if `arkd_http1_support=true`, priority 15), and REST
+(`arkdr-*`). Routing combines host header (`arkd_hosts`), `content-type: application/grpc*`
+for gRPC, and path patterns (`arkd_sse_streaming_endpoint_paths`) for SSE. ALB
+`idle_timeout` raised to 180s so SSE streams survive both arkd's 60s heartbeat and
+Cloudflare's 120s edge idle. ALB access + connection logs ship to
+`ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`, default 30,
+staging 7). Grafana listener rule was deprioritized to 100 so it remains the fallback.
+Staging: A-record `staging.arkade.sh` → ALB (Route53 zone in `aws/dev-438465126741/route53.tf`)
+plus `staging-cf.arkade.sh` (Cloudflare-proxied, TLS Full Strict via ACM SANs).
 
 ### 4. Data Flow Architecture
 
