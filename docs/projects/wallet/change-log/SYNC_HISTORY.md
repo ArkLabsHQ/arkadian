@@ -1,5 +1,56 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-16 - Documentation Sync
+**Commit**: `1cfdb1661f57e1852c828038303d0ee5234457d3`
+**Previous Sync**: `f2cfa798d49522bf9e843357bade7d1ec711f011`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 non-merge commits
+- `0d98677c` Upgrade boltz-swap 0.3.31 (#615)
+- `e84af680` Fix qrcode copy button (#617) — copy button copies the unified BIP21 URI immediately
+- `9a3a0b08` Add contracts view (#618) — `DevModeProvider`, dev-mode gated `Contracts` screen under Settings → Advanced
+- `787bf2e2` fix: extract LNURL session into app-level provider with reusable sessions (#559) — new `LnurlProvider`, HMAC-SHA256 credential derivation, `useLnurlSession` hook removed
+- `1cfdb166` Fix assets values (#611) — BIP21 asset-amount validation, bigint hardening, asset-decimals fixes
+
+**Features Added / Modified**:
+- **LNURL provider lifecycle (PR #559)** — `src/providers/lnurl.tsx` (new, ~242 lines) owns the SSE session at the app level so the LNURL remains active across navigation. Credentials are derived deterministically via `HMAC-SHA256(privateKey, "lnurl-session")`; only `token` is sent to lnurl-server, which computes `sessionId = SHA-256(token).slice(0, 32)`. Provider self-manages start/stop based on identity + Boltz swaps readiness and handles invoice flows internally (create reverse swap → return invoice → claim in background → notify). Receive screen (`QrCode.tsx`) now reads `lnurl/active/error` from context. `src/hooks/useLnurlSession.ts` deleted (190 lines removed).
+- **Dev mode + Contracts view (PR #618)** — new `src/providers/devMode.tsx` exposes a global dev-mode flag persisted in `localStorage`; triple-tapping `LoadingLogo` toggles it. New `src/screens/Settings/Contracts.tsx` renders `ContractManager` contracts (active-first) with type/state/shortened address+script and copy. `Advanced.tsx` shows the Contracts row only when dev mode is on. Tap logic lifted out of `LoadingLogo` into `DevModeProvider` so all loading logos share state. Test coverage added for `DevModeProvider`, `Advanced`, and `Contracts`.
+- **QR code copy button (PR #617)** — `src/screens/Wallet/Receive/QrCode.tsx` copy button now immediately copies the unified BIP21 URI (no submenu); new component test.
+- **Asset values + BIP21 hardening (PR #611)** — `src/lib/assets.ts`, `src/lib/bip21.ts`, `src/lib/format.ts`, `src/providers/limits.tsx`, `src/providers/fiat.tsx`, Asset Burn/Mint/Reissue, Receive QrCode/Success, Send Details/Form, and shared inputs (`InputAmount`, `Keyboard`, `Input`, `Balance`, `TransactionsList`) updated. Fixes: stale closure in fiat provider, BIP21 asset-amount validation, missing asset decimals on `encodeBip21Asset`, `unitsToCents` crash on empty string, missing radix on `parseInt`, guard against fractional millisatoshis, default decimals = 0, `-0` rendering in `prettyAssetNumber`. Type cleanup in `src/lib/types.ts`. Extensive new/expanded e2e tests (`asset.test.ts`, new `bip21.test.ts`, `keyboard.test.ts`, `receive.test.ts`, `send.test.ts`, `utils.ts`) and unit tests (`asset.test.ts`).
+- **Dependency bump (PR #615)** — `@arkade-os/boltz-swap` 0.3.30 → 0.3.31; large `pnpm-lock.yaml` churn (PR #611).
+
+**Files Touched in Repo** (49 files, +3369 / −2077):
+- `package.json`, `pnpm-lock.yaml`, `regtest`
+- `src/components/{Balance,Content,Input,InputAmount,Keyboard,LoadingLogo,TransactionsList}.tsx`
+- `src/hooks/useLnurlSession.ts` (deleted)
+- `src/index.tsx`
+- `src/lib/{asp,assets,bip21,format,lnurl,types}.ts`
+- `src/providers/{devMode,fees,fiat,flow,limits,lnurl,options,swaps}.tsx`
+- `src/screens/Apps/Assets/{Burn,Mint,Reissue}.tsx`
+- `src/screens/Apps/Boltz/Swap.tsx`
+- `src/screens/Settings/{Advanced,Contracts,Delegates,Index}.tsx`
+- `src/screens/Wallet/Receive/{QrCode,Success}.tsx`
+- `src/screens/Wallet/Send/{Details,Form}.tsx`
+- `src/test/e2e/{asset,bip21 (new),keyboard,receive,send,utils}.test.ts`
+- `src/test/lib/asset.test.ts`
+- `src/test/providers/devMode.test.tsx`, `src/test/screens/settings/{advanced,contracts}.test.tsx`
+- `src/test/screens/wallet/receive-qrcode.test.tsx`
+- `src/test/screens/mocks.ts`
+
+**Dependency Updates**:
+- `@arkade-os/boltz-swap`: 0.3.30 → 0.3.31
+
+**Files Updated**:
+- `docs/INDEX.md` (wallet — LNURL session capability rewritten; new dev-mode + Contracts capability; BIP21 unified copy + asset-amount validation note; `@arkade-os/boltz-swap` 0.3.30 → 0.3.31 in Key Capabilities + Dependencies)
+- `docs/projects/wallet/INDEX.md` (frontmatter version 1.2.7 → 1.2.8 + `last_sync_commit`; LNURL section rewritten with `LnurlProvider` + HMAC-SHA256 derivation details; new "Developer / Diagnostics" Features subsection; `@arkade-os/boltz-swap` 0.3.30 → 0.3.31)
+- `docs/projects/wallet/system/project_overview.md` (LNURL receive entry rewritten with `LnurlProvider` lifecycle; new "Developer / Diagnostics" subsection; BIP21 asset-amount validation entry under Asset Amount Precision; boltz-swap version bumped in Tech Stack + Dependencies footer)
+- `docs/projects/wallet/system/architecture.md` (added `LnurlProvider` and `DevModeProvider` entries under State Management Layer; added `Advanced.tsx` + `Contracts.tsx` under Settings Screens)
+- `docs/projects/wallet/change-log/last-sync.txt` → `1cfdb1661f57e1852c828038303d0ee5234457d3`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+---
+
 ## 2026-05-14 - Documentation Sync
 **Commit**: `f2cfa798d49522bf9e843357bade7d1ec711f011`
 **Previous Sync**: `e96024dfdf5e90323a6e0673c9a92106f9f9574d`
