@@ -1,5 +1,42 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-17 - Operational Memory Sync (no doc changes)
+**Commit Range**: `622cc19e..c1eb16a4` (21 commits)
+**Previous Sync (asserted by caller)**: `622cc19e25189debbabf8a0bc32f6e5c1b820b75`
+**Current Sync**: `c1eb16a46f7df4bb356bb9b79d8b83864f791a2c`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 12 files changed (+334/-68), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-sync,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity over the ~28-hour window: issue-triage (~5 runs across 08:00/12:00/16:00/20:00/00:00Z slots), release-coordinator (~5 runs incl. 04:00Z 2026-05-17), security-triage (~5 runs incl. 04:00Z 2026-05-17), repo-sync (2026-05-17 completion run), and daily-briefing, executive-digest, linear-sync, sdk-parity, slack-monitor (all dated 2026-05-16)
+- Notable operational events captured in memory only:
+  - **compiler CI fleet-wide breakage** persists — gates merges; logged at 12:00Z, 16:00Z, 20:00Z, 00:00Z, and 04:00Z by all triage agents
+  - **compiler #29** still open and bot-approved; release-coordinator + security-triage flag it as at-risk of GOV#30 self-merge (pre-merge bot-APPROVAL pattern observed)
+  - **GOV#30 alert delivered** by release-coordinator 2026-05-17T00:00:00Z run
+  - **go-sdk #172** uint64 underflow fix advanced day 12 → 13 still unreviewed (now with merge conflicts since prior sync)
+  - **repo-sync 2026-05-17**: auth restored, 45/84 repos synced (partial — token expiry window during run)
+  - **executive-digest 2026-05-16 critical follow-up flush**: auto-settle ↔ user-submission VTXO race (protocol-critical, real-money risk), StabilityVault governance escalation, GOV#30 at-risk flagged imminent
+  - **linear-sync 2026-05-16**: state snapshot refreshed — no changes in Linear, extending the consecutive-no-change streak past 30 days
+  - **sdk-parity 2026-05-16**: parity check appended; no new gaps recorded
+  - **slack-monitor 2026-05-16**: daily scan appended
+  - Overnight 04:00Z 2026-05-17 triage triple-run: all three agents independently confirm "quiet overnight, compiler CI still broken"
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, or the 17-agent roster
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: c1eb16a4…`, `last_sync_date: 2026-05-17T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `c1eb16a46f7df4bb356bb9b79d8b83864f791a2c`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; today's events — compiler CI break, GOV#30 imminence, go-sdk #172 day 13, auto-settle VTXO race — are operational observations stored in agent memory, not project-registry changes)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=622cc19e…` / `to=c1eb16a4…`; per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-16 - Operational Memory Sync (no doc changes)
 **Commit Range**: `c8dac638..622cc19e` (46 commits)
 **Previous Sync (asserted by caller)**: `c8dac63876a442facb7c8e2f1adcfd85affc0ecb`
