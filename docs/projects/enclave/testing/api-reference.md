@@ -15,6 +15,14 @@ Every response from the enclave-facing API includes:
 
 Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyHash` field in the attestation document's `UserData`.
 
+### gRPC / gRPC-Web bypass
+
+`Runtime.Middleware` short-circuits to `next.ServeHTTP` (no buffering, no signing headers) when the request `Content-Type` is `application/grpc*` (native gRPC over HTTP/2) or `application/grpc-web*` (gRPC-Web over HTTP/1.1 or HTTP/2). Without this bypass, the Schnorr signer would buffer streaming responses and native gRPC would lose its trailers. Trust for gRPC clients is anchored at the TLS handshake instead, via the attestation document's `tlsKeyHash` — see `client.GRPCConn(ctx)` in the Verified Clients section.
+
+### HTTP/2 / ALPN
+
+`pubSrv` advertises `h2, http/1.1` (and `acme-tls/1` when ACME is enabled) in ALPN with `MinVersion = TLS 1.2`. The internal `revProxy` dials the user app with `http2.Transport{AllowHTTP: true}` and `FlushInterval = -1`, so HTTP/2 streams and gRPC trailers survive the loopback hop unchanged.
+
 ---
 
 ## Enclave-Facing API (`:443`)
@@ -125,5 +133,6 @@ The supervisor steps are: `0=stepCooldown`, `1=stepReadCurrentKey`, `2=stepStart
 
 ## Verified Clients
 
-- **Go** — `client/` package (`client.New(...)` or `client.NewFromManifest(...)`). Verifies attestation chain on first call, then verifies Schnorr signatures on every response.
+- **Go (HTTP)** — `client/` package (`client.New(...)` or `client.NewFromManifest(...)`). Verifies attestation chain on first call, then verifies Schnorr signatures on every response.
+- **Go (gRPC)** — `client.GRPCConn(ctx, ...grpc.DialOption)` returns a `*grpc.ClientConn` whose TLS handshake pins the leaf-cert SHA-256 fingerprint to the attestation document's `tlsKeyHash` (decoded from `UserData` bytes `7:39`; `appKeyHash` is bytes `47:79`). The attestation chain (PCR0, optional secret PCRs, attestation-key binding) is verified before dialling and the result is cached for `CacheTTL`. Native gRPC bypasses response signing — trust is established at handshake, so a wrong PCR0 or a TLS cert that doesn't match `tlsKeyHash` makes the handshake fail.
 - **Rust** — `client-rs/` Cargo workspace member.

@@ -1,5 +1,42 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-18 - Operational Memory Sync (no doc changes)
+**Commit Range**: `c1eb16a4..11205eb6` (23 commits, all `memory(*)` agent logs)
+**Previous Sync (effective)**: `c1eb16a46f7df4bb356bb9b79d8b83864f791a2c`
+**Caller-Asserted From**: `94bb36df1d7ab4ae187b357798a3fc52f27653dc` (within already-synced history; effective unsynced range is `c1eb16a4..11205eb6`)
+**Current Sync**: `11205eb64123cc702c01e7a6bc60e183d8d77666`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 14 files changed (+502/-107), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-sync,research-monitor,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity spanning 2026-05-17 04:00Z → 2026-05-18 04:00Z (~24h): issue-triage, release-coordinator, security-triage at 04:00/08:00/12:00/16:00/20:00/00:00Z slots; daily-briefing, executive-digest, linear-sync, sdk-parity, slack-monitor, research-monitor, repo-sync logged 2026-05-17 runs
+- Notable operational events captured in memory only:
+  - **GOV#30/31/32 — enclave v0.0.76 RELEASED with ZERO human review on protocol-critical KMS** flagged as ABSOLUTE CATASTROPHE by executive-digest (permanent lockout risk, 3 self-merged KMS PRs in production); audit trail gap noted; 32+ governance violations in 21 days
+  - **ts-sdk #493** elevated to CRITICAL — VTXO persistence bugs (storage layer) — escalated by security-triage 2026-05-18T00:00:00Z and called out by issue-triage 2026-05-17T20:00Z
+  - **arkd #1066** ListKeys bug surfaced by issue-triage 2026-05-17T20:00Z
+  - **compiler CI Build broken** — day 2 morning → all-day → finally cleared in 2026-05-18 morning observations; daily-briefing 2026-05-17 still records the break
+  - **go-sdk #172** uint64 underflow fix advanced day 13 → day 14 (two full weeks unreviewed)
+  - **issue-triage scope expansion** — `introspector` and `arkd-pentester` repos added to the scan set (no new tracking issues found on first pass)
+  - **Trivy / pentest CI failing** noted by security-triage 2026-05-18T00:00:00Z
+  - **research-monitor** ran 2026-05-17 update (research-updates.md +48 lines)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 11205eb6…`, `last_sync_date: 2026-05-18T04:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `11205eb64123cc702c01e7a6bc60e183d8d77666`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Master INDEX Updates**: None (capabilities, tags, dependencies, depended-on-by, dependency graph, and 17-agent roster unchanged; the `introspector` / `arkd-pentester` scope expansion is covered by the existing "All ArkLabsHQ + arkade-os repos" entry in the dependency graph; today's operational events — GOV#30/31/32, ts-sdk#493, arkd#1066, compiler CI break, go-sdk#172 day 14 — are state observations stored in agent memory, not project-registry changes)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Invoked with explicit `from=94bb36df…` / `to=11205eb6…`; the caller-asserted "from" sits inside the previously-synced range (last effective sync was `c1eb16a4…`), so the effective unsynced range used for analysis is `c1eb16a4..11205eb6`
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-17 - Operational Memory Sync (no doc changes)
 **Commit Range**: `622cc19e..c1eb16a4` (21 commits)
 **Previous Sync (asserted by caller)**: `622cc19e25189debbabf8a0bc32f6e5c1b820b75`

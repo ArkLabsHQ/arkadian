@@ -94,7 +94,7 @@ enclave-cli build
 
 ## SDK Release (manual GitHub Actions)
 
-The "Release SDK Version" workflow (`.github/workflows/sdk-hashes.yml`) is triggered manually with a version input (e.g. `v0.0.29`):
+The "Release SDK Version" workflow (`.github/workflows/sdk-hashes.yml`) is triggered manually with a version input (e.g. `v0.0.76`):
 
 1. Validates version format (`vX.Y.Z`) and that the tag doesn't already exist.
 2. Computes vendor hash via a trial Nix build of `runtime/`.
@@ -110,6 +110,30 @@ make vendor-hash
 ```
 
 After release, downstream apps refresh by either upgrading the CLI (`go install ...@latest`) or rebuilding from source (`make build`) — the hashes are baked at build time.
+
+### Test-rig image release (GHCR — manual)
+
+`enclave test init` pulls two prebuilt images from GHCR, pinned to the SDK version. They are **not** built by `sdk-hashes.yml` — a maintainer must build and push them manually after each SDK release so they stay in lock-step with `cli/runtime-hashes.json::rev`. The canonical procedure lives in `test/RELEASE.md`; summary:
+
+```sh
+TAG=0.0.X   # strip the leading `v` from cli/runtime-hashes.json::rev
+
+# awsmocks — kms-proxy + mock-imds (~20 MB). Self-contained.
+docker buildx build --platform linux/amd64 \
+  -f awsmocks/Dockerfile \
+  -t ghcr.io/arklabshq/enclave-awsmocks:$TAG \
+  -t ghcr.io/arklabshq/enclave-awsmocks:latest \
+  --push awsmocks/
+
+# test-runner — QEMU + vsock + supervisor + runner (~2 GB). Build context = repo root.
+docker buildx build --platform linux/amd64 \
+  -f runner/Dockerfile \
+  -t ghcr.io/arklabshq/enclave-test-runner:$TAG \
+  -t ghcr.io/arklabshq/enclave-test-runner:latest \
+  --push .
+```
+
+Prerequisites: Docker with buildx, a GitHub PAT with `write:packages` scope (`docker login ghcr.io -u <user> -p <PAT>`). After the **first** push of each image, flip its visibility to Public in GHCR (Org → Packages → package → Settings → Change visibility) so users can pull anonymously.
 
 ## Pull Request Checklist
 

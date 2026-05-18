@@ -1,6 +1,8 @@
 # How to Test
 
-Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + KMS proxy + mock IMDS), then runs 15 integration tests followed by a full locked-key migration with post-migration verification.
+Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + the combined `awsmocks` binary, which bundles kms-proxy and mock-imds in one container), then runs 33 integration tests followed by a full locked-key migration with post-migration verification. The new test cases at the tail (29 – 33) cover end-to-end HTTP/2 (ALPN h2 negotiation, HTTP/1.1 backward compat) and gRPC (unary `Health/Check`, server-streaming `Health/Watch`, middleware bypass) added with issue #85.
+
+> **Upstream-app testing (image-based).** As of v0.0.76, upstream apps don't build the test rig from source. The CLI ships an `enclave test` subcommand suite (`build` / `init` / `start` / `down`) that scaffolds `enclave/test/docker-compose.yml`, pulls the prebuilt GHCR images (`ghcr.io/arklabshq/enclave-awsmocks:<rev>` and `ghcr.io/arklabshq/enclave-test-runner:<rev>` where `<rev>` matches `cli/runtime-hashes.json::rev` with the leading `v` stripped), and brings the stack up. See **Upstream-app workflow** below. The framework's own self-test (this page) still builds everything from source.
 
 ## Quick Start
 
@@ -45,25 +47,36 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 
 ## What Gets Tested
 
-15 integration tests run after enclave boot (`test/integration-test.sh`):
+33 integration tests run after enclave boot (`test/integration-test.sh`), grouped roughly as: core (1–17), telemetry (20–28), runtime metrics (29), final attestation stability (30), and HTTP/2 + gRPC (29–33 — note: numbering restarts within the gRPC block per the script's own comments):
 
 | # | Test |
 |---|------|
 | 1 | `/health` returns HTTP 200 |
 | 2 | `/v1/enclave-info` JSON is valid |
 | 3 | Init completed without errors |
-| 4 | BIP-340 Schnorr signature verification |
-| 5 | SDK version field present |
-| 6 | App proxy works (request reaches user app via nitriding) |
+| 4 | BIP-340 Schnorr signature verification (end-to-end inside enclave) |
+| 5 | Runtime version present |
+| 6 | App endpoint responds through the nitriding-fronted catch-all proxy |
 | 7 | KMS secrets loaded (SIGNING_KEY decrypted, correct length) |
-| 8 | Encrypted storage round-trip (PUT/GET/DELETE) |
-| 9 | `previous_pcr0` field present |
+| 8 | Encrypted storage round-trip (PUT/GET/DELETE via S3+KMS) |
+| 9 | `previous_pcr0 == "genesis"` on first boot |
 | 10 | Dynamic secrets round-trip (PUT/GET/LIST/DELETE) |
-| 11 | PCR16 extended with SHA256(compressed secp256k1 pubkey) |
-| 12 | Storage persistence write (for migration verification) |
-| 13 | Dynamic secret persistence write (for migration verification) |
-| 14 | Attestation persistence write (pubkey + PCR16 hash) |
-| 15 | Pre-migration Schnorr signature baseline |
+| 11 | PCR16 extended with SHA256(compressed secp256k1 pubkey) per configured secret |
+| 12 | Full attestation document structure verification |
+| 13 | Storage persistence write (for migration verification) |
+| 14 | Dynamic secret persistence write (for migration verification) |
+| 15 | Attestation persistence write (pubkey + PCR16 hash) |
+| 16 | Pre-migration Schnorr signature baseline |
+| 17 | Attestation binding (pubkey → `appKeyHash` in attestation doc UserData) |
+| 20–23 | Log POST (app → supervisor) + GET, level filtering, auth-token requirement, CloudWatch history |
+| 24–26 | Tracing: trigger app spans → query `/enclave-traces`; supervisor init spans; shared buffer |
+| 27–29 | Metric snapshot via supervisor, supervisor counters, runtime metrics (goroutines, heap) |
+| 30 | Final attestation works after the full suite (NSM stability) |
+| 29 (HTTP/2) | HTTP/2 negotiated end-to-end via ALPN |
+| 30 (HTTP/2) | HTTP/1.1 still works (backward compatibility) |
+| 31 | gRPC unary — `grpc.health.v1.Health/Check` returns `SERVING` |
+| 32 | gRPC server-streaming — `grpc.health.v1.Health/Watch` yields ≥ 1 message |
+| 33 | gRPC bypasses response-signing middleware (no `X-Attestation-*` headers, trailers preserved) |
 
 **Migration verification** then runs a full locked-key migration and confirms:
 
@@ -77,13 +90,22 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 
 | Component | Port | Purpose |
 |-----------|------|---------|
-| Enclave (QEMU via gvproxy) | 8443 | TLS-terminated enclave |
+| Enclave (QEMU via gvproxy) | 8443 | TLS-terminated enclave (ALPN: `h2`, `http/1.1`) |
 | Supervisor (host-side) | 8444 | Migration orchestration |
 | LocalStack | 4566 | S3, SSM, STS mocks |
-| KMS proxy | 4000 | Custom KMS mock |
-| Mock IMDS | 1338 | EC2 instance metadata mock |
+| `awsmocks` (single container) | 4000 + 1338 | Combined kms-proxy (`:4000`) + mock-imds (`:1338`); replaces the prior separate `local-kms-proxy` and `mock-imds` services |
+| local-kms | 8080 | `nsmithuk/local-kms` upstream (proxied by awsmocks for attestation-based Decrypt) |
 
-The test runner image (`test/Dockerfile.runner`) builds **QEMU 9.2.4** (first version with the `nitro-enclave` machine type), `vhost-device-vsock 0.3.0`, `gvproxy 0.8.6`, and the CLI/supervisor binaries in a multi-stage build.
+The test runner image (`test/Dockerfile.runner`) builds **QEMU 9.2.4** (first version with the `nitro-enclave` machine type), `vhost-device-vsock 0.3.0`, `gvproxy 0.8.6`, **grpcurl 1.9.1** (for the gRPC test cases added in v0.0.76), and the CLI/supervisor binaries in a multi-stage build. The `awsmocks` image (`awsmocks/Dockerfile`, ~20 MB) is built from `awsmocks/` at the repo root; for upstream-app testing it is pulled prebuilt from `ghcr.io/arklabshq/enclave-awsmocks`.
+
+### Test-rig images for upstream apps
+
+| Image | Source | Purpose |
+|-------|--------|---------|
+| `ghcr.io/arklabshq/enclave-awsmocks:<rev>` | `awsmocks/Dockerfile` | Combined kms-proxy + mock-imds (~20 MB). Self-contained. |
+| `ghcr.io/arklabshq/enclave-test-runner:<rev>` | `runner/Dockerfile` (build context = repo root) | Bundles QEMU + vhost-device-vsock + supervisor + the `runner` binary (~2 GB). |
+
+`<rev>` matches `cli/runtime-hashes.json::rev` with the leading `v` stripped (e.g. tag `v0.0.76` → image tag `0.0.76`). When a new framework version is cut, a maintainer **manually** builds and pushes both images so they stay in lock-step with the CLI — see `test/RELEASE.md` and `sop/development-workflow.md`.
 
 ## Test Environment Variables
 
@@ -137,6 +159,25 @@ cd runtime && go test ./...
 cd supervisor && go test ./...
 cd client && go test ./...
 ```
+
+## Upstream-app workflow (`enclave test`)
+
+Apps consuming the framework run integration tests against their own EIF without depending on the framework's Nix flake or `test/run.sh`. The CLI provides a four-step workflow that maps onto Docker Compose:
+
+```sh
+enclave test build    # build the test EIF from enclave/enclave_test.yaml
+                      #   (falls back to enclave/enclave.yaml; -c overrides)
+enclave test init     # scaffold enclave/test/docker-compose.yml on first run.
+                      # Hand-edit it to add app-specific mock services below the
+                      # `# === user services below this line ===` marker.
+enclave test start    # docker compose up -d --build the whole stack
+                      # (under project name `enclave-test`) and poll
+                      # https://127.0.0.1:8443/health until ready
+                      # (or until 5 min elapses).
+enclave test down     # docker compose down -v
+```
+
+The scaffolded `docker-compose.yml` pulls `ghcr.io/arklabshq/enclave-awsmocks` and `ghcr.io/arklabshq/enclave-test-runner` at the version pinned in `cli/runtime-hashes.json`. The `# === user services below this line ===` marker sits inside the `services:` map at 4-space indent so user-appended blocks nest correctly — don't add a second `services:` key. Wire boot ordering by appending the service name to `test-runner.depends_on`.
 
 ## SDK Release Verification
 

@@ -14,12 +14,15 @@ Confidential computing on AWS Nitro requires a substantial amount of glue: TLS t
 
 | Component | Role | Code |
 |-----------|------|------|
-| `cli/` | `enclave` CLI (init, setup, build, deploy, verify, lock, migrate, …) | Go |
-| `runtime/` | In-enclave library + binary — secret loading, attestation, response signing, storage API, dynamic secrets, migration | Go |
-| `supervisor/` | Host-side single-process supervisor — gvproxy, viproxy/IMDS, nitro-cli watchdog, management API | Go |
-| `client/` | Verified Go HTTP client — verifies attestation document + Schnorr signatures on every response | Go |
+| `cli/` | `enclave` CLI (init, setup, build, deploy, verify, lock, migrate, **test**, …). The `enclave test` subcommand suite (`build` / `init` / `start` / `down`) scaffolds and runs `enclave/test/docker-compose.yml` for upstream-app local QEMU testing. | Go |
+| `runtime/` | In-enclave binary — owns the TLS edge, attestation routes (`/enclave/*`), admin routes (`/v1/*`), response-signing + gRPC-bypass middleware, the catch-all HTTP/2 reverse proxy to the user app, KMS, storage, secrets, migration, OTEL metrics/traces/logs. The standalone `nitriding.Enclave` struct was folded into `runtime.Runtime` in v0.0.76 — `cmd/runtime/main.go` constructs a single `*runtime.Runtime` via `New(cfg)`. | Go |
+| `runtime/nitriding/` | Leaf utilities (`Cache`, `BufPool`, `CertCache`, `SetFdLimit`, `ConfigureLoIface`, `RunNetworking`, `Attest`, `NewLimitReader`, `InEnclave`, `/dev/nsm` entropy seeding via `package_init`). No longer owns the TLS edge or admin handlers. | Go |
+| `supervisor/` | Host-side single-process supervisor — gvproxy, viproxy/IMDS, nitro-cli watchdog, management API. Proxies enclave OTEL metrics → Prometheus text on `:8443/metrics`. | Go |
+| `client/` | Verified Go HTTP client — verifies attestation document + Schnorr signatures on every response. `GRPCConn(ctx)` returns a `*grpc.ClientConn` whose TLS handshake pins the leaf cert fingerprint to the attestation `tlsKeyHash` (gRPC bypasses response-signing). | Go |
 | `client-rs/` | Verified Rust HTTP client (workspace `Cargo.toml` member) | Rust |
-| `test/` | QEMU-based local integration test harness (`-M nitro-enclave`, mock KMS/SSM/S3/IMDS) | Bash + Go + Docker Compose |
+| `awsmocks/` | Combined kms-proxy (`:4000`) + mock-imds (`:1338`) in one Go binary, published as `ghcr.io/arklabshq/enclave-awsmocks:<version>` per release. Replaces the former `test/local-kms-proxy/` + `test/mock-imds/` directories. | Go + Docker |
+| `runner/` | Test-runner entrypoint baked into `ghcr.io/arklabshq/enclave-test-runner:<version>`: seeds SSM, brings up vhost-device-vsock + heartbeat, then spawns the supervisor whose watchdog re-invokes the runner with `--boot-only <eif>` to fire QEMU. Replaces `test/heartbeat.py` (inlined as `runner/heartbeat.go`). Used by upstream apps via `enclave test start`. | Go + Docker |
+| `test/` | QEMU-based local integration test harness for the framework itself (`-M nitro-enclave`, mock KMS/SSM/S3/IMDS via `awsmocks` + LocalStack). `test/run.sh` is the framework's own self-test orchestrator. | Bash + Go + Docker Compose |
 
 ## Supported Application Languages
 
@@ -43,7 +46,11 @@ Confidential computing on AWS Nitro requires a substantial amount of glue: TLS t
 - **Build-time vs deploy-time env** — `app.env` baked into PCR0; `env_values` (TF_VAR / .auto.tfvars.json / -var) overlay at boot without rebuilding the EIF (schema attested, values not).
 - **Two artifact-source modes** — Tofu uploads local artifacts (default) or curls them from a published GitHub Release at apply time (`enclave tofu --remote`).
 - **CI scaffolding** — `enclave init`/`generate template` writes `deploy-enclave.yml`, `destroy-enclave.yml`, `verify-enclave.yml` with OIDC, GitHub artifact attestations, and an attestation status page on `gh-pages`.
-- **Local QEMU test harness** — `test/run.sh` boots the EIF inside QEMU `-M nitro-enclave` (vhost-device-vsock), runs 15 integration tests, then exercises a full locked-key migration.
+- **Inbound HTTP/2 + gRPC end-to-end** (issue #85) — `pubSrv`'s TLS configs advertise `h2` in ALPN (MinVersion TLS 1.2); the internal `revProxy` uses `http2.Transport{AllowHTTP: true}` with `FlushInterval = -1` so gRPC trailers and server-streaming responses survive the loopback hop. `Runtime.Middleware` short-circuits for `application/grpc*` and `application/grpc-web*` so signing/buffering doesn't break streams. The Go client exposes `client.GRPCConn(ctx)` whose TLS handshake pins the leaf cert fingerprint to the attestation document's `tlsKeyHash` (no per-response Schnorr — trust at handshake).
+- **Single-hop in-enclave request path** — the legacy intermediate `:7073` runtime-proxy hop is gone. `external client → gvproxy → pubSrv :443 → revProxy (h2c) → user app :7074` is one hop; admin `/v1/*` and attestation `/enclave/*` mount on the same chi mux and are also exposed on `privSrv :8080` (loopback) for user-app callbacks. The user app gets `ENCLAVE_PROXY_PORT = cfg.IntPort` injected.
+- **Listener-error propagation** — `Runtime.ListenErr()` surfaces the first bind/serve failure on either listener; `cmd/runtime/main.go` exits non-zero rather than leaving an enclave with no working external endpoint.
+- **Local QEMU test harness** — `test/run.sh` boots the EIF inside QEMU `-M nitro-enclave` (vhost-device-vsock), runs 33 integration tests (now incl. ALPN h2 negotiation, HTTP/1.1 compat, gRPC unary `Health/Check`, gRPC server-streaming `Health/Watch`, and gRPC middleware-bypass), then exercises a full locked-key migration with post-migration verification.
+- **Upstream-app test rig (image-based)** — `enclave test {init,build,start,down}` CLI subcommands scaffold and run `enclave/test/docker-compose.yml`. The compose file pulls two GHCR images per release: `ghcr.io/arklabshq/enclave-awsmocks` (combined KMS proxy + mock IMDS) and `ghcr.io/arklabshq/enclave-test-runner` (QEMU + vhost-device-vsock + supervisor + runner). Upstream apps append their own mock services below the `# === user services below this line ===` marker without editing framework-owned blocks.
 
 ## Use Cases
 
@@ -61,11 +68,16 @@ Confidential computing on AWS Nitro requires a substantial amount of glue: TLS t
 ```
 .
 ├── cli/                  # enclave CLI (Cobra) — entry: cli/cmd/enclave/main.go
-├── runtime/              # in-enclave library + standalone runtime binary (own go.mod)
+├── runtime/              # in-enclave runtime binary (own go.mod) — owns TLS edge, /v1/*, /enclave/*, revProxy
+│   └── nitriding/        # leaf utilities only (Cache, BufPool, CertCache, RunNetworking, Attest, …)
 ├── supervisor/           # host-side supervisor binary
-├── client/               # Verified Go HTTP client
+├── client/               # Verified Go HTTP client (client.go, verify.go, grpc.go)
 ├── client-rs/            # Verified Rust HTTP client (Cargo workspace)
-├── test/                 # QEMU + Docker Compose integration harness
+├── awsmocks/             # Combined kms-proxy + mock-imds binary, published as ghcr.io/arklabshq/enclave-awsmocks
+├── runner/               # Test-runner entrypoint baked into ghcr.io/arklabshq/enclave-test-runner
+├── test/                 # Framework's own QEMU + Docker Compose self-test (run.sh, integration-test.sh, app/)
+│   ├── README.md         # Local QEMU testing guide
+│   └── RELEASE.md        # GHCR image release flow for awsmocks + test-runner
 ├── ARCHITECTURE.md       # 18-section detailed flow diagrams (build → boot → migration)
 ├── OPERATIONS.md         # Monitoring, scaling, recovery, migration runbook
 ├── TROUBLESHOOTING.md    # Common errors, log locations, debug procedures

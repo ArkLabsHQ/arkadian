@@ -1,11 +1,13 @@
 # Architecture
 
-Simple Enclave is a three-process system: a host-side **supervisor**, an in-enclave **runtime**, and your **app**. The runtime exposes management endpoints and reverse-proxies user traffic; the supervisor owns lifecycle, networking, and admin endpoints.
+Simple Enclave is a two-process system inside the enclave: a single in-enclave **Runtime** (owns the TLS edge, attestation routes, response-signing middleware, and the catch-all reverse proxy) plus your **app**. Outside the enclave, the host-side **supervisor** owns lifecycle, networking, and admin endpoints.
+
+> **v0.0.76 collapse (issue #85 follow-up):** the standalone `nitriding.Enclave` struct was folded into `runtime.Runtime`. The legacy intermediate `:7073` runtime-proxy hop is gone — `external client → gvproxy → pubSrv :443 (TLS, ALPN h2) → revProxy (h2c) → user app :7074` is now a single hop inside the enclave. The same chi mux serves `/enclave/*` attestation routes and `/v1/*` admin routes; it is also mounted on `privSrv` (internal loopback `:IntPort`, default `:8080`) so the user app reaches the admin handlers via plain-HTTP loopback for its storage / secrets / spans / logs callbacks.
 
 ## Topology
 
 ```
-                    Client (HTTPS :443)
+                    Client (HTTPS :443, ALPN: h2 / http/1.1)
                             │
                             ▼
 ┌───────────────────────────────────────────────────────┐
@@ -19,9 +21,14 @@ Simple Enclave is a three-process system: a host-side **supervisor**, an in-encl
 │                            │ vsock                    │
 │  ┌─────────────────────────▼─────────────────────────┐│
 │  │              AWS Nitro Enclave (EIF)              ││
-│  │  ├── nitriding   (TLS :443 → :7073)               ││
-│  │  ├── runtime     (:7073 reverse proxy → :7074)    ││
-│  │  └── your-app    (plain HTTP :7074)               ││
+│  │  ├── runtime.Runtime                              ││
+│  │  │   ├── pubSrv (TLS :443, ALPN h2 / http/1.1)    ││
+│  │  │   │   ├── /enclave/* attestation handlers     ││
+│  │  │   │   ├── /v1/* admin handlers                ││
+│  │  │   │   └── catch-all revProxy (h2c → :7074)    ││
+│  │  │   └── privSrv (127.0.0.1:8080 — plain HTTP)   ││
+│  │  │       same chi mux for user-app callbacks     ││
+│  │  └── your-app    (plain HTTP/2-or-1.1 :7074)     ││
 │  └───────────────────────────────────────────────────┘│
 └───────────────────────────────────────────────────────┘
 ```
@@ -32,28 +39,37 @@ Simple Enclave is a three-process system: a host-side **supervisor**, an in-encl
 |---------|------|
 | `192.168.127.1` | gvproxy gateway/DNS (TAP interface) |
 | `192.168.127.2` | Enclave virtual IP |
-| `vsock:1024` | gvproxy outbound TCP proxy |
+| `vsock:1024` | gvproxy outbound TCP proxy (configurable via `ENCLAVE_NITRIDING_HOST_PROXY_PORT`) |
 | `vsock:3:8002` | IMDS forwarder target (host) |
 | `127.0.0.1:80` | IMDS endpoint inside enclave (via viproxy) |
-| `:443` | Public TLS (terminated by nitriding) |
-| `:7073` | Internal: runtime reverse proxy + management API |
-| `:7074` | Internal: user app |
+| `:443` | Public TLS — Runtime's `pubSrv` (terminated by `runtime.Runtime`; ALPN advertises `h2`, `http/1.1`). Default via `ENCLAVE_NITRIDING_EXT_PORT`. |
+| `127.0.0.1:8080` | Internal: Runtime's `privSrv` loopback admin/attestation mux for user-app callbacks. Default via `ENCLAVE_NITRIDING_INT_PORT` (was `:7073` pre-v0.0.76). The user app gets it injected as `ENCLAVE_PROXY_PORT`. |
+| `:7074` | Internal: user app (`ENCLAVE_APP_PORT`) |
 | `127.0.0.1:8443` | Host supervisor management API (loopback only) |
+
+## HTTP/2 + gRPC End-to-End (issue #85)
+
+The enclave terminates HTTP/2 alongside HTTP/1.1 and forwards both transports to the user app without buffering:
+
+- `pubSrv`'s TLS configs (self-signed + ACME) advertise `h2` in ALPN with `MinVersion = TLS 1.2`. Existing HTTP/1.1 clients still negotiate `http/1.1`.
+- The internal `revProxy` dials the user app with `http2.Transport{AllowHTTP: true}` and `FlushInterval = -1`, so gRPC trailers and long-lived server-streaming responses survive the loopback hop.
+- `Runtime.Middleware` short-circuits to `next.ServeHTTP` when the request `Content-Type` is `application/grpc*` (native gRPC over HTTP/2) or `application/grpc-web*` (gRPC-Web over HTTP/1.1 or HTTP/2). Without this bypass, the Schnorr response-signing middleware would buffer streams (gRPC clients also lose trailers). Trust for native-gRPC clients is established at TLS handshake time via the attestation document's `tlsKeyHash` — see `client.GRPCConn(ctx)`.
+- `LoggingMiddleware`'s `statusWriter.Flush()` delegates to the underlying writer so streaming responses still flow through.
 
 ## Boot Sequence
 
 1. **EC2 user_data** (`tofu/modules/enclave/templates/user_data.sh.tftpl`) installs `nitro-cli`, configures vsock loopback, downloads the supervisor + EIF, and starts `enclave-supervisor.service`.
 2. **Supervisor** starts gvproxy + IMDS forwarder, then `nitro-cli run-enclave` launches the EIF.
-3. **nitriding** terminates TLS on `:443` and forwards to `:7073`.
-4. **runtime** (in-enclave):
-   - Loads encrypted secret ciphertexts from SSM (path `/{prefix}/{appName}/{secretName}/Ciphertext`).
+3. **runtime.Runtime** (in-enclave; single process owning the TLS edge):
+   - `Start` binds `pubSrv` on `:ExtPort` (default `:443`, TLS with ALPN `h2, http/1.1`) and `privSrv` on `127.0.0.1:IntPort` (default `:8080`).
+   - `Init` loads encrypted secret ciphertexts from SSM (`/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`).
    - Calls `kms:Decrypt` with a fresh Nitro attestation document — KMS verifies `RecipientAttestation:PCR0` matches policy.
    - Sets decrypted secrets as env vars (plaintext only inside enclave memory).
-   - Generates an ephemeral secp256k1 attestation key.
-   - Registers `SHA256(attestationPubkey)` with nitriding (embedded as `appKeyHash` in attestation `UserData`).
+   - Generates an ephemeral secp256k1 attestation key. The TLS cert's SHA-256 fingerprint (`tlsKeyHash`) and `SHA256(attestationPubkey)` (`appKeyHash`) are both embedded in the NSM attestation document's `UserData`.
    - Extends PCR16+ with `SHA256(compressed_secp256k1_pubkey)` for each configured secret.
-   - Starts the reverse proxy on `:7073` with Schnorr response-signing middleware.
-5. **Your app** is launched as a child process on `:7074`, inheriting the secret env vars and `ENCLAVE_RUNTIME_TOKEN`.
+   - Wires the catch-all `revProxy` (HTTP/2 h2c upstream, `FlushInterval=-1`) onto the same chi mux that serves `/enclave/*` and `/v1/*`. Response-signing middleware is bypassed for `application/grpc*` and `application/grpc-web*`.
+4. **Your app** is launched as a child process on `:7074`, inheriting the secret env vars, `ENCLAVE_RUNTIME_TOKEN`, and `ENCLAVE_PROXY_PORT` (= `cfg.IntPort`, e.g. `8080`) so its callbacks reach the admin mux over plain loopback HTTP.
+5. **Listener-error propagation:** `Runtime.ListenErr()` exposes the first bind/serve failure on either listener; `cmd/runtime/main.go` selects on it alongside the child-process wait so a broken TLS listener `os.Exit(1)`s instead of leaving an enclave with no external endpoint.
 
 ## Build Flow (reproducible)
 
@@ -155,8 +171,11 @@ The runtime no longer validates a baked-in `previous_pcr0` against the live chai
 
 | Package | Files | Role |
 |---------|-------|------|
-| `cli/` | `aws.go`, `build.go`, `config.go`, `init.go`, `setup.go`, `template.go`, `tofu.go`, `verify.go`, `lifecycle.go`, `migration_status.go` | CLI subcommands, OpenTofu scaffold, CDK stack, attestation verify |
-| `runtime/` | `runtime.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime, KMS, secrets, storage, observability. `runtime/kms.go` owns `EnsureKeyID`, `VerifyKeyAuthorization`, `CreateMigrationKey`. `runtime/migrate.go` runs `handleStartMigration` (atomic `KMSKeyID` flip) + `VerifyPredecessorCommitment`. SSM ciphertext paths are key-scoped: `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`. |
-| `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 7-step migration orchestrator — no KMS calls; just cooldown / start-migration / EIF swap / health poll / rollback / cleanup) |
-| `client/` | `client.go`, `verify.go` | Verified Go HTTP client |
+| `cli/` | `aws.go`, `build.go`, `config.go`, `init.go`, `setup.go`, `template.go`, `tofu.go`, `verify.go`, `lifecycle.go`, `migration_status.go`, `test_init.go`, `test_boot.go`, `test_compose.go` | CLI subcommands, OpenTofu scaffold, CDK stack, attestation verify. New `enclave test` subcommand suite (`build` / `init` / `start` / `down`) scaffolds and runs `enclave/test/docker-compose.yml` for upstream-app local QEMU testing. |
+| `runtime/` | `runtime.go`, `runtime_handlers.go`, `config.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `utils.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime. `runtime.go` owns the `Runtime` struct, lifecycle (`New`/`Start`/`Init`/`Stop`), routing, response-signing + logging + gRPC-bypass middleware, TLS cert management, and NSM helpers (`configureHTTPServers` coordinates shared setup and dispatches to `configureExternalHttpServer` + `configureInternalHttpServer`). `runtime/config.go` holds `Config` + `Validate` + `String`. `runtime/attestation.go` holds `AttestationHashes`. `runtime/runtime_handlers.go` (renamed from `server_handlers.go`) holds every `/enclave/*` and admin handler as a factory returning `http.HandlerFunc`. `runtime/kms.go` owns `EnsureKeyID`, `VerifyKeyAuthorization`, `CreateMigrationKey`. `runtime/migrate.go` runs `handleStartMigration` (atomic `KMSKeyID` flip) + `VerifyPredecessorCommitment`. SSM ciphertext paths are key-scoped: `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`. |
+| `runtime/nitriding/` | `cache.go`, `bufferpool.go`, `certcache.go`, `proxy.go`, `attestation.go`, `system{,_linux}.go`, `constants.go`, `keysync_initiator.go`, `keysync_shared.go`, `package_init.go` | Leaf utilities shared with the upstream nitriding fork: `Cache`, `BufPool`, `CertCache`, `SetFdLimit`, `ConfigureLoIface`, `RunNetworking`, `Attest`, `NewLimitReader`, `InEnclave`, and `/dev/nsm`-backed entropy seeding via `package_init`. The previous `Enclave` struct, its `/enclave/sync` keysync responder, and the `/enclave/nonce` handler were removed in v0.0.76 — `Runtime` owns the TLS edge and admin mux directly. |
+| `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 7-step migration orchestrator — no KMS calls; just cooldown / start-migration / EIF swap / health poll / rollback / cleanup). `observability.go` proxies enclave OTEL metrics to Prometheus text on `:8443/metrics`; the dead `http.Get("localhost:9090/metrics")` scrape and the corresponding `:9090` vsock forward were dropped along with the runtime's chi-middleware Prometheus exposition. |
+| `client/` | `client.go`, `verify.go`, `grpc.go` | Verified Go HTTP client (NSM chain + PCR0 + Schnorr per-response). `grpc.go` exposes `GRPCConn(ctx, ...DialOption)` for native gRPC over HTTP/2: TLS handshake pins the leaf cert fingerprint to the attestation document's `tlsKeyHash` (no per-response Schnorr — middleware bypasses gRPC). |
 | `client-rs/` (Cargo workspace member) | `Cargo.toml` | Verified Rust HTTP client |
+| `awsmocks/` | `Dockerfile`, `main.go`, `go.mod` | Combined kms-proxy (`:4000`) + mock-imds (`:1338`) in one Go binary, published as `ghcr.io/arklabshq/enclave-awsmocks:<version>` per release. Replaces the prior `test/local-kms-proxy/` and `test/mock-imds/` directories. |
+| `runner/` | `Dockerfile`, `main.go`, `heartbeat.go`, `go.mod` | Test-runner entrypoint baked into `ghcr.io/arklabshq/enclave-test-runner:<version>`: seeds SSM, starts vhost-device-vsock + heartbeat, then execs supervisor whose watchdog re-invokes the runner with `--boot-only <eif>` to launch QEMU. Replaces `test/heartbeat.py` (inlined as `runner/heartbeat.go`) and the per-release `test/Dockerfile.supervisor` build path for upstream-app testing. The framework's own integration-test suite still uses `test/run.sh`. |

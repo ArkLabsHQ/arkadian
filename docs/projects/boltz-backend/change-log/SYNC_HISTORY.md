@@ -1,5 +1,21 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-18 - Documentation Update
+**Commit**: `ee271552` (boltz-backend repository)
+**Previous Sync**: `84ccb074`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Bug Fixes**:
+- fix: do not refund chain swaps with pending claims (#1407) (`ee271552`) — `ChainSwapRepository.refreshChainSwaps` now also excludes `SwapUpdateEvent.TransactionClaimPending` from the set of refundable chain swaps (added alongside `FinalChainSwapEvents` in the `Op.notIn` filter). `TransactionClaimPending` is set only after the preimage is received from the user's claim of our sending leg, so the receiving-leg refund path has nothing to do — those swaps are left to the deferred claimer instead of being prematurely refunded. Covered by an additional fixture entry in `test/unit/db/repositories/ChainSwapRepository.spec.ts`.
+- fix: harden EVM broadcasts (#1408) (`07b6748c`) — `InjectedProvider.sendTransaction` now distinguishes nonce-conflict broadcast rejections (`NONCE_EXPIRED`, `REPLACEMENT_UNDERPRICED`, or messages containing "nonce too low" / "nonce has already been used" / "already known" / "replacement transaction underpriced") via a new `isNonceConflictError` helper in `EthereumUtils.ts`. When any fan-out rejection looks like a nonce conflict, the provider calls `lookupBroadcastedTransactionWithRetry` (a per-provider `getTransaction(hash)` race with 5 s timeouts, retried at `[250, 750, 1_500, 3_000, 5_000, 8_000, 11_500]` ms delays via `racePromise` / `sleep`) and returns the on-chain `TransactionResponse` as a successful broadcast if it lands — this avoids treating Arbitrum-sequencer races (and ethers' documented `NONCE_EXPIRED` semantics) as broadcast failures. Only when the lookup never sees the tx is the original rejection surfaced. New unit coverage: 52-line `test/unit/wallet/ethereum/EthereumUtils.spec.ts` for the matcher and 254-line `test/unit/wallet/ethereum/InjectedProvider.spec.ts` for the recovery path.
+
+**Documentation Impact**: None — both changes are internal robustness fixes. (#1407) is confined to the chain-swap refund query in `ChainSwapRepository`; the public REST API, swap-update event vocabulary, env-var / `boltz.conf` schema, DB migrations, and component list in `system/architecture.md` are unchanged. (#1408) is internal to `InjectedProvider` / `EthereumUtils` and only affects how nonce-conflict broadcast errors are handled (silently recovered when the tx is on chain); no new env var, config knob, RPC, or component is introduced — the existing "Chain Layer (EVM)" wording in `system/architecture.md` and the operational notes in `INDEX.md` remain accurate. Project INDEX, system, testing docs and master `docs/INDEX.md` unchanged.
+
+---
+
 ## 2026-05-16 - Documentation Update
 **Commit**: `84ccb074` (boltz-backend repository)
 **Previous Sync**: `4988987b`

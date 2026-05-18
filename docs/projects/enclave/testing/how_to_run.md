@@ -154,3 +154,20 @@ enclave metrics --instance-id <i-...> --region <region>
 ```
 
 A strict `runCommand` helper now surfaces SSM errors and non-zero exit codes from `log`/`trace`/`metrics` (the previous `curl ... || echo '[]'` fallback that masked supervisor-reachability failures as "no data" was removed).
+
+### Local integration testing (`enclave test`)
+
+Run the upstream app's EIF inside a local QEMU enclave on `localhost:8443` with mock AWS services. Four subcommands map onto Docker Compose:
+
+```sh
+enclave test build    # build the test EIF (auto-discovers enclave/enclave_test.yaml,
+                      # falls back to enclave/enclave.yaml; -c flag overrides)
+enclave test init     # scaffold enclave/test/docker-compose.yml on first run.
+                      # Append app-specific mock services below the
+                      # `# === user services below this line ===` marker.
+enclave test start    # docker compose up -d --build, then poll
+                      # https://127.0.0.1:8443/health for up to 5 min.
+enclave test down     # docker compose down -v
+```
+
+The compose file pulls prebuilt GHCR images pinned to `cli/runtime-hashes.json::rev`: `ghcr.io/arklabshq/enclave-awsmocks` (combined KMS proxy + mock IMDS on a single container) and `ghcr.io/arklabshq/enclave-test-runner` (QEMU + vhost-device-vsock + supervisor + the `runner` orchestrator). See `testing/how_to_test.md` for details, and `sop/development-workflow.md` for how those images are released.
