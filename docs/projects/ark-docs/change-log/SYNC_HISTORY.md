@@ -224,3 +224,28 @@
 - docs/projects/ark-docs/change-log/last-sync.txt → e315c82be25d3ec8063e5ecf7d286848fa2da100
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
 
+## 2026-05-19 - AI context menu expansion (AI Studio, MCP, Add-MCP)
+**Commit**: `dd33677c8cb5f2397ad4af43484908bf71ea1507`
+**Previous Sync**: `e315c82be25d3ec8063e5ecf7d286848fa2da100`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit — `dd33677 Update AI context menu items` (single file change in `docs.json`).
+
+**`docs.json` Changes** (`contextual.options`):
+- Added: `aistudio` (Google AI Studio), `mcp` (generic MCP client open), `add-mcp` (one-click MCP server install).
+- Reordered: `chatgpt` now precedes `claude`; `devin` moved later in the list to sit next to `devin-mcp`; `cursor` and `vscode` kept together.
+- Net option list now: `copy`, `view`, `chatgpt`, `claude`, `grok`, `aistudio`, `mcp`, `add-mcp`, `cursor`, `vscode`, `devin`, `devin-mcp` (11 destinations + 2 utility actions).
+
+**Other**: No content, structural, redirect, tooling, or SEO changes. Pure `docs.json` config tweak (+5 / −2 lines).
+
+**Files Updated in Arkadian Registry**:
+- docs/projects/ark-docs/INDEX.md
+  - Rewrote the "LLM Context Menu" subsection to list the full option set in nav-menu order and flag the three newly added destinations.
+- docs/INDEX.md
+  - ark-docs Key Capabilities: extended the LLM context menu bullet with Google AI Studio, generic MCP, and Add-MCP one-click install.
+  - ark-docs Tags: added `aistudio`, `mcp`.
+  - Footer Last Updated 2026-05-14 → 2026-05-19, Version 1.6.0 → 1.6.1.
+- docs/projects/ark-docs/change-log/last-sync.txt → dd33677c8cb5f2397ad4af43484908bf71ea1507
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

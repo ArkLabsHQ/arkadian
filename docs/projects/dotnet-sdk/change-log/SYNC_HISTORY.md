@@ -1,5 +1,30 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-19 - `AddBoltzProvider` is now self-contained (registers typed `BoltzClient` HttpClient itself)
+**From**: `a89d47aa06b93fe1136c0b5b52a78dcf99317f71`
+**To**: `0f8ba7fa6551a387f4d8f01143e7a4c86f15f3da`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge PR (#93).
+
+**Highlights**:
+- **`AddBoltzProvider` self-contained (PR #93)** — `BoltzSwapProvider` depends on `BoltzClient`, but the typed `HttpClient` registration (`services.AddHttpClient<BoltzClient>()`) only happened in `ArkApplicationBuilder.EnableSwaps`, one layer up. Consumers wiring DI directly (apps that don't use `ArkApplicationBuilder`) hit an opaque `Unable to resolve service for type 'BoltzClient' while attempting to activate 'BoltzSwapProvider'` the first time `SwapsManagementService` / `BoltzSwapProvider` was resolved. Fix moves `AddHttpClient<BoltzClient>()` into `AddBoltzProvider` itself so `AddArkSwapServices` (which calls `AddBoltzProvider` internally) and direct `AddBoltzProvider` calls are both self-contained. `AddHttpClient<T>` is idempotent, so the duplicate call kept in `EnableSwaps` is a no-op safety net for callers relying on prior ordering. No public API change.
+- **Tests** — New `NArk.Tests/SwapServiceRegistrationTests.cs` pins the self-contained invariant: `AddBoltzProvider` alone resolves `BoltzClient`, and `AddArkSwapServices` resolves it transitively. Regression tests guard against re-splitting the registration in the future.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/system/architecture.md` — `AddBoltzProvider()` "Opt-in Feature Wiring" entry now spells out that the typed `BoltzClient` HttpClient is registered here (with the idempotency note), and that direct-DI consumers don't need any companion call to make `BoltzSwapProvider` resolvable.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `0f8ba7fa6551a387f4d8f01143e7a4c86f15f3da`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/INDEX.md` — bug fix, no new capability / API surface / tag / trigger. The existing `multi-provider-swaps` / `swap-provider` framing already covers the consumer-visible behaviour.
+- `docs/projects/dotnet-sdk/INDEX.md` — no Key Concept change (BoltzSwapProvider description unchanged).
+- `docs/projects/dotnet-sdk/system/project_overview.md` — no new NuGet package, no new core feature; the swap-services entry is unchanged from a consumer's perspective.
+- `docs/projects/dotnet-sdk/testing/usage.md` — DI snippet at line 44-45 already presents `AddArkSwapServices` / `AddBoltzProvider` as standalone entry points (no companion `AddHttpClient` call shown); the snippet is now accurate without modification.
+- `docs/projects/dotnet-sdk/testing/troubleshooting.md` — the previous opaque-error scenario is fixed at the source; not a recurring troubleshooting case worth documenting after the fix lands.
+- `docs/projects/dotnet-sdk/testing/how_to_test.md`, `sop/development-workflow.md`, `testing/how_to_run.md`, `system/integration-with-arkd.md` — no impact.
+
 ## 2026-05-13 - Unilateral exit pipeline (state machine, watchtower, virtual-tx storage, P2A CPFP, ExitPlan stateless API), unified IBitcoinBlockchain interface (NBXplorer/Esplora/RPC impls), opt-in `StoreDateTimeOffsetAsTicks` for SQLite ORDER BY
 **From**: `74b8c8a0495b8879d6c9ca12fb8655025122bec2`
 **To**: `a89d47aa06b93fe1136c0b5b52a78dcf99317f71`

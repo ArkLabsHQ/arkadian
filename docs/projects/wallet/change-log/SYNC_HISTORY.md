@@ -1,5 +1,58 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-19 - Documentation Sync
+**Commit**: `98f2ef09c9b232d85a9d894c22c80a94484adae4`
+**Previous Sync**: `1cfdb1661f57e1852c828038303d0ee5234457d3`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 non-merge commits
+- `b9068d57` make lnurl trigger paste button in input address (#620)
+- `edfaf66a` Optional HTTP Basic Authorization configuration (#619)
+- `98f2ef09` feat(ui): migrate core components to shadcn primitives (3/3) (#593)
+
+**Features Added / Modified**:
+- **Core components migrated to shadcn (PR #593, commit 98f2ef09)** — `Modal`, `Checkbox`, `Select`, `Toggle` now sit on shadcn primitives.
+  - `src/components/Modal.tsx` (+34/-64): Framer Motion `AnimatePresence` with `EASE_OUT_QUINT_TUPLE` enter/exit (fade + scale); new controlled props `open`/`onOpenChange`/`onExitComplete`.
+  - `src/components/Checkbox.tsx` (+34/-25): wraps shadcn `Checkbox`; label-bound activation; same-state event guard; haptic feedback preserved. New `src/test/components/Checkbox.test.tsx`.
+  - `src/components/Select.tsx` (+25/-27): migrated to shadcn `RadioGroup`; arrow-key navigation preserved; legacy `FlexRow` wrapper dropped.
+  - `src/components/Toggle.tsx`: shadcn `Switch` with new `lg` size variant.
+  - `src/components/ui/switch.tsx` (+27/-11): adds `lg` size with iOS-like three-layer shadow and 44 px minimum tap target.
+  - Usage sites updated: `Burn.tsx` (+33/-15), `Reissue.tsx` (+27/-19), `Mint.tsx` (+8/-2), `Backup.tsx`, `Announcement.tsx` (Try restores direct close so parent state clears even if navigation unmounts the modal).
+  - `MAX_DECIMALS` raised to 8 and used everywhere (Burn/Mint/Reissue, `src/lib/assets.ts`, `Receive/QrCode.tsx`).
+  - `vitest.config.ts` (new) split from `vite.config.ts`; `tsconfig.json` cleaned; `bun.lock` restored at repo root for Cloudflare Pages deploys; `cmdk-base`/`vaul-base` replace `cmdk`/`vaul`; `@base-ui/react` added.
+- **Optional HTTP Basic Authorization (PR #619, commit edfaf66a)** — new middleware layer activated by `BASIC_AUTH_USERNAME` + `BASIC_AUTH_PASSWORD` env vars (both must be set).
+  - `functions/_middleware.ts` (new, 43 lines): Cloudflare Pages edge middleware with inlined `EventContext` interface (avoids a new Cloudflare dependency); `crypto.subtle.timingSafeEqual` comparison on equally-sized encoded buffers; `WWW-Authenticate: Basic realm="Restricted"` 401 on mismatch.
+  - `plugins/vite-plugin-basic-auth.ts` (new, 51 lines): dev/preview equivalent using Node `crypto.timingSafeEqual` via `configureServer`/`configurePreviewServer`.
+  - `vite.config.ts`: `basicAuth()` registered first in the `plugins` array so it short-circuits unauthenticated requests.
+- **LNURL paste detection (PR #620, commit b9068d57)** — `src/components/InputAddress.tsx` now imports `isValidLnUrl` from `src/lib/lnurl` and adds it to the `isValidData` predicate so LNURLs trigger the paste button alongside addresses, invoices, BIP21 URIs, email and Ark notes. `src/lib/address.ts` `isEmailAddress` regex made case-insensitive (`/i`). New LNURL unit tests in `src/test/lib/address.test.ts` (+30 lines); `src/test/e2e/bip21.test.ts` imports adjusted.
+
+**Configuration Changes**:
+- New env vars: `BASIC_AUTH_USERNAME`, `BASIC_AUTH_PASSWORD` (both optional; both required to enable HTTP basic auth on dev/preview/Cloudflare Pages).
+
+**Dependency Updates**:
+- `package.json`/`pnpm-lock.yaml`/`bun.lock`: minor stack churn from the shadcn migration (`cmdk-base`/`vaul-base` replace `cmdk`/`vaul`; `@base-ui/react` added). No protocol-SDK version changes.
+
+**Files Touched in Repo** (31 files, +4077 / −3132):
+- `bun.lock` (restored, +2047), `package.json`, `pnpm-lock.yaml`
+- `functions/_middleware.ts` (new), `plugins/vite-plugin-basic-auth.ts` (new)
+- `src/components/{Announcement,Button,Checkbox,Input,InputAddress,Modal,Select,SheetModal,Toggle}.tsx`
+- `src/components/ui/{command,drawer,switch}.tsx`
+- `src/index.css`, `src/lib/{address,assets}.ts`
+- `src/screens/Apps/Assets/{Burn,Mint,Reissue}.tsx`
+- `src/screens/Settings/Backup.tsx`, `src/screens/Wallet/Receive/QrCode.tsx`
+- `src/test/components/Checkbox.test.tsx` (new), `src/test/e2e/bip21.test.ts`, `src/test/lib/address.test.ts`
+- `tsconfig.json`, `vite.config.ts`, `vitest.config.ts` (new)
+
+**Files Updated**:
+- `docs/INDEX.md` (wallet Key Capabilities: shadcn core-component migration, HTTP Basic Auth, LNURL paste recognition)
+- `docs/projects/wallet/INDEX.md` (frontmatter version 1.2.8 → 1.2.9 + `last_sync_commit`; Technology Stack: new shadcn-core-migration entry; Configuration: `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` env vars)
+- `docs/projects/wallet/system/project_overview.md` (Design System & Styling: added "Core components migrated to shadcn"; new "Hosting & Access Control" subsection; new "Address Input Recognition" subsection)
+- `docs/projects/wallet/change-log/last-sync.txt` → `98f2ef09c9b232d85a9d894c22c80a94484adae4`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+---
+
 ## 2026-05-16 - Documentation Sync
 **Commit**: `1cfdb1661f57e1852c828038303d0ee5234457d3`
 **Previous Sync**: `f2cfa798d49522bf9e843357bade7d1ec711f011`

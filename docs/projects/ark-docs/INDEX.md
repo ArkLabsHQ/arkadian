@@ -375,7 +375,7 @@ All wallet code samples in the docs use pnpm (`pnpm add @arkade-os/sdk`, `pnpm d
 
 ### LLM Context Menu
 
-`docs.json` `contextual.options` exposes the documentation to the following destinations: `claude`, `chatgpt`, `grok`, `devin`, `cursor`, `vscode`, **`devin-mcp`** (newly added).
+`docs.json` `contextual.options` exposes the documentation to the following destinations (in nav-menu order): `copy`, `view`, `chatgpt`, `claude`, `grok`, **`aistudio`**, **`mcp`**, **`add-mcp`**, `cursor`, `vscode`, `devin`, `devin-mcp`. The `aistudio` (Google AI Studio), generic `mcp` (open in any MCP-aware client), and `add-mcp` (one-click MCP server install) options were added in 2026-05.
 
 ### Publishing
 

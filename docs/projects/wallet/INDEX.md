@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.8
-last_sync_commit: 1cfdb1661f57e1852c828038303d0ee5234457d3
+version: 1.2.9
+last_sync_commit: 98f2ef09c9b232d85a9d894c22c80a94484adae4
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -167,6 +167,8 @@ pnpm run format:check
 | `VITE_MAX_PERCENTAGE` | Maximum fee percentage (default: 10) | `10` |
 | `CI` | CI environment flag | `true` |
 | `GENERATE_SOURCEMAP` | Generate source maps | `false` |
+| `BASIC_AUTH_USERNAME` | Optional HTTP Basic Auth user (dev/preview + Cloudflare Pages). When unset, auth is a no-op. (PR #619) | `arkade` |
+| `BASIC_AUTH_PASSWORD` | Optional HTTP Basic Auth password — paired with `BASIC_AUTH_USERNAME`. (PR #619) | `s3cret` |
 
 ### Default Configuration
 - **Dev server port**: 3002
@@ -189,6 +191,7 @@ pnpm run format:check
 - **clsx + tailwind-merge** via `cn()` utility in `src/lib/utils.ts` (with `class-variance-authority` for variant-driven components)
 - **sonner** (^2.0.7): Toast notifications (replaces previous custom React Context implementation; `useToast()` hook returns `{ toast }` for backward compatibility)
 - **shadcn/ui primitives** (PR #590): 55 components under `src/components/ui/` (Accordion, AlertDialog, Button, Card, Combobox, Dialog, Drawer, DropdownMenu, Form/Field, InputOtp, Pagination, Popover, Select, Sheet, Sidebar, Table, Tabs, etc.) using `lucide` icon library and `base-nova` style. Available for future component migrations; existing in-tree components untouched. `@/*` path alias wired in `tsconfig.json` and `vite.config.ts`; `components.json` holds the shadcn CLI config (CLI in devDependencies).
+- **shadcn migration of core components (PR #593)**: `Modal`, `Checkbox`, `Select`, and `Toggle` now sit on shadcn primitives. `Modal` uses Framer Motion `AnimatePresence` with new `open`/`onOpenChange`/`onExitComplete` controlled-modal props (Burn/Reissue use `onExitComplete` for async coordination; Backup/Announcement use controlled props). `Checkbox` wraps shadcn `Checkbox` with label-bound control path and same-state event guard. `Select` migrates to shadcn `RadioGroup` (preserves arrow-key navigation). `Toggle` uses shadcn `Switch` with a new `lg` size variant (iOS-like three-layer shadow, 44 px minimum tap target). `MAX_DECIMALS` raised to 8. New `vitest.config.ts` split out from `vite.config.ts`. Uses `cmdk-base` / `vaul-base` and `@base-ui/react`. `bun.lock` restored at repo root for Cloudflare Pages deploys.
 
 ### Arkade Integration
 - **@arkade-os/sdk** (0.4.26): Ark protocol SDK (wallet operations, VTXOs)

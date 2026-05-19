@@ -15,6 +15,11 @@
 # Build
 make build
 
+# Build and run bancod locally against the fulmine test stack
+# (arkd@7070, introspector@7273; preimage plugin enabled, banco disabled).
+# Uses a temp BANCOD_DATADIR unless one is exported.
+make run
+
 # Run unit tests
 make test
 

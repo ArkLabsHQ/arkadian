@@ -67,7 +67,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.26` |
+| Version | `0.4.27` |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
 | Package Manager | pnpm 10.29.2 |

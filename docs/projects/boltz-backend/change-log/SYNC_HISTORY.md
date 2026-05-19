@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-19 - Documentation Update
+**Commit**: `00aa3d96` (boltz-backend repository)
+**Previous Sync**: `ee271552`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Tooling / Chores**:
+- chore: add USDC to library section (#1409) (`00aa3d96`) — single-line edit to upstream `docs/libraries.md`: `boltz-core` TypeScript library's documented supported-currencies list extended from `LN, BTC, LBTC, RBTC, TBTC, USDT` to `… USDT, USDC`. This is a Boltz-side docs page; no `boltz-backend` source, schema, REST API, swap-type, env-var, DB-migration, build, or dependency change.
+
+**Documentation Impact**: None — upstream documentation listing only. No public REST API, capability, dependency-graph, env-var, component, build, or migration changes in `boltz-backend` itself; supported-currency wording in `docs/projects/boltz-backend/` (e.g. `system/project_overview.md`, project `INDEX.md`, master `docs/INDEX.md`) is unaffected because it tracks `boltz-backend`'s own chain support (BTC mainchain, Lightning, Liquid, EVM) rather than the `boltz-core` library's stablecoin tokens.
+
+---
+
 ## 2026-05-18 - Documentation Update
 **Commit**: `ee271552` (boltz-backend repository)
 **Previous Sync**: `84ccb074`

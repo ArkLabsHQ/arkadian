@@ -1,5 +1,26 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-18 - Release 0.4.27 (version bump only)
+**From**: `d663d158bdf90354a15fd6878c482026f40ea2a0`
+**To**: `07785478edf31f2d0683f5664c1b5aa002d9eb6e`
+**Synced By**: update-project skill
+**Status**: Documentation refreshed for 0.4.27 release — package.json-only bump, no source changes
+
+**Commits analyzed** (1 non-merge commit):
+- `0778547` chore: release 0.4.27 — `package.json` `version` 0.4.26 → 0.4.27 (single-line change, no other files touched)
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Quick Reference `Version` row 0.4.26 → 0.4.27
+- `docs/projects/ts-sdk/system/project_overview.md` — Package block `Version` 0.4.26 → 0.4.27
+- `docs/INDEX.md` — ts-sdk status row leads with `v0.4.27` (was `v0.4.26`); reframed the previously "post-0.4.26" feature paragraph as the 0.4.27 release contents (package.json-only bump, no source changes since 0.4.26)
+
+**Notes**:
+- Pure release-tag commit: only `package.json` `"version"` changed (0.4.26 → 0.4.27), no source / scripts / docs / tests / lockfile touched
+- All public surface descriptions in master `docs/INDEX.md` (the long ts-sdk status row covering `ExtendedContractVtxo`, `ContractWatcher` extend-path typing, `DelegatorManager.delegate` `isAnnotated` guard, `extractArkProviderUrl`, HD receive rotation via `WalletReceiveRotator`, `InputSignerRouter`, `WalletConfig.walletMode`, `ServiceWorkerWalletMode`, baseline multi-timelock anchoring, exponential rotate backoff, `NonRangeableDescriptorError`, signing-router typed errors, `Wallet.offchainTapscript` getter, `isHDCapableIdentity`, `prepareUnrollTransaction` fee-rate ceiling, ESM `.d.ts` import rewrites, `as const` defaults, Tier 2 ownership gating, asset bigint amounts, etc.) carry forward unchanged — those features are already in the SDK; this commit just stamps the published version that contains them
+- No new tags, capabilities, dependencies, or correlation rows needed for the master index
+
+---
+
 ## 2026-05-16 - HD Receive Rotation Re-Merged (#489) + Regtest Submodule Bump (#490)
 **From**: `9e53c73a520e3e39ca826d6914fc2a80af8d8cc5`
 **To**: `d663d158bdf90354a15fd6878c482026f40ea2a0`

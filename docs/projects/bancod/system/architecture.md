@@ -61,12 +61,13 @@ Bancod follows a hexagonal (ports & adapters) architecture similar to arkd and f
 
 ## Data Flow
 
-1. `bancod` boots and creates an arkd subscription via `banco.SubscribeArkd()`
-2. arkd streams PSBT packets over gRPC
-3. `Solver.Run()` drains the channel, calling `Plugin.Match()` on each packet
-4. For banco: decodes TLV offer → checks pair config → validates price → calls `contract.FulfillOffer()`
-5. For preimage: decodes TLV packet → ECIES decrypts → validates arkade-script → claims VTXO
-6. Fulfillment events are emitted to listeners (trade persistence to SQLite)
+1. `bancod` boots, initializes a single-key identity (file-backed store in `BANCOD_DATADIR`) and loads/creates the ark wallet with `WithIdentity(...)`
+2. Each enabled plugin owns its own `Solver` and arkd subscription — there is no shared multiplexer
+3. arkd streams PSBT packets over gRPC; `Solver.Run()` drains the channel and calls `Plugin.Match()` sequentially, then spawns a goroutine per matched `Solve()`
+4. Panics in `Match` or `Solve` are recovered so one buggy plugin can't take the bot down; `Run` waits for in-flight solves to drain on shutdown
+5. For banco: decodes TLV offer → checks pair config → validates price → calls `contract.FulfillOffer()`
+6. For preimage: decodes TLV packet → ECIES decrypts → validates arkade-script → claims VTXO
+7. Fulfillment events are emitted to listeners (trade persistence to SQLite)
 
 ## Key Interfaces
 
