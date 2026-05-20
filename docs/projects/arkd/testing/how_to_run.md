@@ -4,7 +4,7 @@ Guide for setting up and running arkd in development environments.
 
 ## Prerequisites
 
-- Go 1.24.6 or later
+- Go 1.26.3 or later
 - Docker and Docker Compose
 - [Nigiri](https://nigiri.vulpem.com/) for local Bitcoin regtest
 

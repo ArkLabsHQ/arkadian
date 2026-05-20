@@ -1,5 +1,46 @@
 # Boltz Swap Documentation Sync History
 
+## 2026-05-20 — Sync 0.3.31 → 0.3.32
+
+**From**: `67683b13a44bb58f605a824836883aa1f6eab962` (release 0.3.31)
+**To**: `57ac89165bfb4680efad6706f1e8783b56f32733` (release 0.3.32)
+**Commits Analyzed**: 6 (non-merge)
+**Status**: ✓ Complete
+
+### Commits Analyzed
+- `57ac891` chore: release 0.3.32
+- `983cf62` Fix VtxoManager-enabled receive test for gocron scheduler
+- `499c4a0` Update .env based on wallet
+- `5f4eed1` Pin fulmine to 0.3.15 (removes prior 0.3.15 pin block; reintroduced as v0.3.23 in 499c4a0)
+- `ad4d175` Update regtest submodule (`3ac33b6` → `dc23da2`)
+- `e0837db` Upgrade ts-sdk 0.4.27
+
+### Notable Changes
+
+**Versions**
+- `@arkade-os/boltz-swap`: 0.3.31 → 0.3.32
+- `@arkade-os/sdk`: 0.4.26 → 0.4.27
+- Release 0.3.32 is the SDK upgrade cut — no `src/` changes.
+
+**Regtest harness realigned to wallet's arkd config** (commits `499c4a0` + `983cf62`)
+- Image pins moved forward: `arkd` / `arkd-wallet` `v0.9.1 → v0.9.5`, `fulmine` `v0.3.15 → v0.3.23`, new explicit `BOLTZ_IMAGE=boltz/boltz:latest`.
+- Scheduler switched `ARKD_SCHEDULER_TYPE=block` → `ARKD_SCHEDULER_TYPE=gocron`; the `ARKD_ALLOW_CSV_BLOCK_TYPE=true` override is dropped.
+- CSV delays restored to **seconds-typed** values: `ARKD_VTXO_TREE_EXPIRY=200 → 5120`, `ARKD_BOARDING_EXIT_DELAY=1024 → 7200`. Under gocron, mixing block-typed and seconds-typed CSV delays is rejected without `ARKD_ALLOW_CSV_BLOCK_TYPE=true`; reverting to seconds matches the wallet's existing arkd config and lets arkd v0.9.5 accept the values cleanly.
+- New keys: `ARKD_SESSION_DURATION=10`, `ARKD_LOG_LEVEL=6`. `BITCOIN_LOW_FEE` flipped `false → true` (start-env.sh's nbxplorer guard now handles the missing-container case gracefully, so the prior Bitcoin-Core-restart workaround is no longer needed).
+- `regtest` git submodule pointer bumped `3ac33b6` → `dc23da2`.
+
+**VtxoManager-enabled receive test stabilised for gocron** (commit `983cf62`)
+- With the gocron scheduler, settlement rounds tick on a timer and can consume / re-register a just-claimed VTXO before an immediate `getBalance()` snapshot.
+- `test/e2e/arkade-swaps.test.ts` (~11 added lines) replaces the single-snapshot assertion `expect(balance.available).toBeGreaterThan(0)` with `await waitForBalance(() => defaultWallet.getBalance(), 1, 10_000)` — the polling helper already used elsewhere in the suite.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — bumped version to 0.3.32, SDK to 0.4.27; new "Recent Improvements (0.3.31 → 0.3.32)" block covering the SDK upgrade, regtest harness realignment (arkd v0.9.5 / fulmine v0.3.23 / gocron scheduler / seconds-typed CSV delays / new env vars), and the `waitForBalance` test stabilisation
+- `docs/projects/boltz-swap/testing/how_to_run.md` — refreshed "Services" pinned versions (arkd / arkd-wallet v0.9.5, fulmine v0.3.23, Boltz `boltz/boltz:latest`) and the "Configuration (`.env.regtest`)" bullets (gocron scheduler, seconds-typed `ARKD_VTXO_TREE_EXPIRY=5120` / `ARKD_BOARDING_EXIT_DELAY=7200`, new `ARKD_SESSION_DURATION=10` / `ARKD_LOG_LEVEL=6` / `BITCOIN_LOW_FEE=true` notes)
+- `docs/INDEX.md` — bumped boltz-swap status row to v0.3.32 + SDK 0.4.27 with regtest harness realignment summary (image pins, scheduler switch, seconds-typed CSV delays, new env vars, regtest submodule bump) and the `waitForBalance` test note; updated boltz-swap **Dependencies** line to SDK 0.4.27; bumped registry **Last Updated** to 2026-05-20 and **Version** to 1.6.2
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `57ac8916`
+
+---
+
 ## 2026-05-14 — Sync (post-0.3.30) → 0.3.31
 
 **From**: `d244bc195a842a46280895d2724d879ae3b3884b`

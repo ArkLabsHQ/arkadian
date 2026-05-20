@@ -25,7 +25,7 @@ Complete guide for setting up arkd environments, running tests, and troubleshoot
 
 ## Prerequisites
 
-- **Go 1.25.7 or later**
+- **Go 1.26.3 or later**
 - **Docker and Docker Compose**
 - **Nigiri** for Bitcoin regtest
 - **grpcurl** (optional, for gRPC testing)

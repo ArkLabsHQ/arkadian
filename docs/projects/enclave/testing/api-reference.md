@@ -32,7 +32,7 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Supervisor health (`ready` / `degraded`) |
-| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `metrics` |
+| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `metrics`, and — when the Tofu module's PCR0-signing block was applied — a `pcr0_signature: { pubkey_pem, pcr0_hex, signature_b64 }` sub-object (`omitempty`; absent on deployments where signing isn't provisioned). |
 | `GET` | `/enclave/attestation` | NSM attestation document (served by nitriding, COSE Sign1) |
 | `*` | `/*` | All other requests reverse-proxied to user app on `:7074` |
 
@@ -89,6 +89,50 @@ curl -X PUT https://your-enclave/v1/secrets/api-token \
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/v1/start-migration` | Re-encrypt secrets and storage DEK for locked-key migration. Body: `{"new_pcr0": "<hex>"}`. Called by the host supervisor. Inline-creates the migration key via `CreateMigrationKey` (policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time), runs `commitPCR31` first (audit-only) so a retry at a different target fails before any external write, re-encrypts each secret + storage DEK to key-scoped SSM paths `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}` and `/{dep}/{app}/StorageDEK/Ciphertext/{kmsKeyId}`, then `storePCR0WithAttestation` writes the chain proof to `MigrationPreviousPCR0[Attestation]`, and finally the atomic `PutParameter` on `/{dep}/{app}/KMSKeyID` commits the migration. A deferred `ScheduleKeyDeletion` cleans up the new key if anything before the flip fails. Renamed from `/v1/export-key` in a prior release. |
+
+### Telemetry ingest vs introspection
+
+POST routes follow the OTLP/HTTP spec so that a standard OTEL SDK exporter can target the enclave with no URL overrides. GET routes (introspection) keep the `enclave-` prefix to make them visually distinct from OTLP ingest.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/metrics` | OTLP-protobuf metric ingest from the user app (`Content-Type: application/x-protobuf`). Token-gated. |
+| `POST` | `/v1/traces` | OTLP-protobuf trace-span ingest from the user app. Token-gated. |
+| `POST` | `/v1/logs`   | OTLP-protobuf log-record ingest from the user app. Token-gated. |
+| `GET`  | `/v1/enclave-metrics` | JSON snapshot of cumulative counters + heap/goroutine gauges (see "`metrics` field in `/v1/enclave-info`" below — same numbers also embedded there). |
+| `GET`  | `/v1/enclave-traces`  | JSON history of recently-seen spans. |
+| `GET`  | `/v1/enclave-logs`    | JSON history of recently-seen log lines. |
+
+The supervisor's `:8443/metrics` Prometheus exposition is still the textfile that scrapers should consume from outside the enclave — it proxies the runtime's JSON snapshot.
+
+### PCR0 Signing (Tofu-provisioned, served via `/v1/enclave-info`)
+
+When `enclave tofu` is applied, the module mints a dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`), runs a local-exec at apply time that signs the live PCR0 with `ECDSA_SHA_384` via `aws kms sign`, and writes three SSM parameters under `/{dep}/{app}/Signing/`:
+
+| SSM Parameter | Content |
+|---------------|---------|
+| `/{dep}/{app}/Signing/PubkeyPEM` | ECC NIST P-384 public key in PEM form (`openssl ec -pubin -inform DER -outform PEM`) |
+| `/{dep}/{app}/Signing/PCR0` | The signed PCR0 hex string |
+| `/{dep}/{app}/Signing/Signature` | Base64-encoded raw signature bytes from `aws kms sign --signing-algorithm ECDSA_SHA_384` |
+
+The runtime's `Signature.Load` reads those three parameters during `Init` (non-fatal — missing parameters just log a warning), and `Signature.Snapshot` surfaces them as the `pcr0_signature` sub-object on `GET /v1/enclave-info` (`omitempty` — entirely absent for deployments that didn't provision signing). There is **no dedicated endpoint** (an earlier draft mounted `GET /enclave/signature`, but it was folded into `/v1/enclave-info` so all attestation metadata travels in one round-trip).
+
+Verification recipe (the integration test's `[35/35]` check):
+
+```sh
+# Pull the three fields
+curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.pubkey_pem' > pubkey.pem
+curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.pcr0_hex'    \
+  | python3 -c "import sys,binascii; sys.stdout.buffer.write(binascii.unhexlify(sys.stdin.read().strip()))" > pcr0.bin
+curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.signature_b64' \
+  | base64 -d > sig.bin
+
+# Verify with OpenSSL
+openssl pkeyutl -verify -pubin -inkey pubkey.pem -in pcr0.bin -sigfile sig.bin
+# → Signature Verified Successfully
+```
+
+There is no `signing:` field in `enclave.yaml` — provisioning is entirely a property of the Tofu module. The Tofu output `pcr0_signing_key_arn` lets you grant `kms:Sign` + `kms:GetPublicKey` to the identity running `tofu apply`.
 
 ---
 

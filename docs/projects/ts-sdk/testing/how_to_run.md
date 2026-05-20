@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** 18+
+- **Node.js** 24 LTS (`.nvmrc` → `24.15.0`; `engines.node` allows `>=22.12.0 <25`)
 - **pnpm** 10.29.2+
 - **Docker** (for integration tests)
 - **nigiri** (local Bitcoin regtest) — `curl https://getnigiri.vulpem.com | bash`

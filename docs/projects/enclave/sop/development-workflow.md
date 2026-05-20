@@ -53,7 +53,7 @@ cd client && go test ./...
 Existing test files (use as templates for new tests):
 
 - `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go`
-- `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/tracing_test.go`
+- `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/signature_test.go`, `runtime/tracing_test.go`
 - `supervisor/gvproxy_test.go`
 - `client/verify_test.go`
 

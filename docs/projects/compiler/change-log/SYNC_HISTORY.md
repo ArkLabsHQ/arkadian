@@ -1,5 +1,55 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-05-20 — Oracle-Signed Price Witness, OP_CAT, One-Shot SHA256
+**Commit Range**: `b479765b` → `86d9b047`
+**Synced By**: /update-project compiler
+**Status**: Language feature + StabilityVault redesign
+
+**Commits Analyzed** (1, squash-merge of PR #31):
+- `86d9b04` feat(stability): replace on-chain beacon with oracle-signed price witness (#31)
+
+**Changes**:
+
+**PR #31 — Oracle-signed price witness + type-dispatched `+`**
+- **Language: `OP_CAT` via type-dispatched `+`**
+  - `src/opcodes/mod.rs`: added `OP_CAT` constant.
+  - `src/models/mod.rs`: new `Expression::Concat { left, right, coerce_left, coerce_right }` and `Expression::Sha256 { data }` variants. The `coerce_*` flags tell the emitter to insert `OP_SCRIPTNUMTOLE64` on a side that is an integer, so mixed `bytes + int` writes the int as fixed 8-byte LE before `OP_CAT` (on-chain and off-chain hashing remain byte-identical).
+  - `src/parser/grammar.pest`: `sha256_func` now accepts `additive_expr` so concatenation chains parse inside the one-shot hash form (`sha256(a + b + c)`).
+  - `src/parser/mod.rs`: `Rule::sha256_func` in expression context now produces a real `Expression::Sha256 { data }` (was a placeholder `Expression::Property`).
+  - `src/compiler/mod.rs`: bottom-up AST rewrite pass walks each function with a `Scope`, converting `BinaryOp { op: "+" }` into `Concat` whenever either operand resolves to bytes-like. Pure `int + int` stays as `OP_ADD64`.
+  - `src/typechecker/mod.rs`: `Scope` and `build_scope` promoted to `pub`. `infer_type` recognises `Concat`/`Sha256` and the bytes-aware `+` rule. New `is_bytes_like` and `needs_scriptnum_to_le64` helpers.
+- **Contracts: PriceBeacon UTXO retired**
+  - `examples/stability/price_beacon.ark` and `price_beacon.json` **deleted**.
+  - `stability_vault.ark` and `stability_offer.ark` rewritten to consume an **oracle-signed price witness** at settlement time. Oracle signs `sha256(ticker || price || timestamp)` (price/time as 8-byte LE unsigned ints); contract verifies with `checkSigFromStack(oracleSig, oraclePk, sha256(ticker + oraclePrice + oracleTime))` — reconstructed on-stack via the new bytes-aware `+`.
+  - Freshness: `tx.time - oracleTime <= 144` blocks (≈24 h) **and** `oracleTime - tx.time <= 0` (rejects future-dated signatures) — added in `seekerExit`, `providerExit`, and `StabilityOffer.take`.
+  - StabilityVault function renames: `seekerRedeem` → `seekerExit` (parity with `providerExit`).
+  - `transfer` and `split` confirmed pure key-swaps (no oracle call); `test_vault_transfer_is_pure_keyswap` and `test_vault_split_is_pure_keyswap` guard the invariant.
+- **Docs in repo**
+  - `docs/stability-vault-prd.md` **deleted**; replaced by `docs/stability.md` (concise "How It Works" with oracle model section).
+  - `CLAUDE.md`: 2026-05-19 decisions added — oracle-signed price witness pattern, type-dispatched `+` semantics, and the directive not to restore `price_beacon.ark`.
+- **CI**
+  - `.github/workflows/deploy-playground.yml`, `pr-preview.yml`: switched from `cargo install wasm-pack` (compiles from source, >1 min) to `jetli/wasm-pack-action` (prebuilt binary, seconds).
+- **Tests**
+  - New `tests/concat_op_test.rs`: bytes-vs-int dispatch, `OP_SCRIPTNUMTOLE64` coercion, pure `int + int` stays `OP_ADD64`.
+  - New `tests/stability_vault_test.rs`: asserts `OP_CAT` + `OP_SHA256` instead of streaming opcodes; covers settlement paths and the no-oracle invariant for `transfer`/`split`.
+  - `tests/compilation_roundtrip_test.rs` updated for the new contract shapes.
+
+**Documentation Updates**:
+- `system/project_overview.md` — added a **Byte-string Operations** section; rewrote SHA256 entry to highlight one-shot `sha256(data) → OP_SHA256` accepting concatenation chains; removed `stability/price_beacon.ark` from project structure; test count 21 → 23; doc folder note updated (`stability.md` replaces `stability-vault-prd.md`).
+- `system/architecture.md` — AST table now lists `Concat` and one-shot `Sha256` variants; added a new pipeline step "Bytes-aware `+` rewrite pass" before code generation, describing the bottom-up walk with `Scope` and the per-side `coerce_left`/`coerce_right` flags; testing architecture updated with `concat_op_test` and `stability_vault_test`; total test count 21 → 23.
+- `testing/how_to_test.md` — total count 21 → 23; added `concat_op_test.rs` and `stability_vault_test.rs` rows; `beacon_test.rs` description trimmed (no longer references the deleted production `PriceBeacon` file).
+- `sop/development-workflow.md` — stale PR checklist count corrected from 15 → 23.
+- `docs/projects/compiler/INDEX.md` — Supported Operations now lists one-shot `sha256(...)` with concat support and a new **Byte-string ops** entry for the type-dispatched `+`; example contracts table drops `stability/price_beacon.ark`; `stability_vault.ark` and `stability_offer.ark` rows updated to mention the oracle-signed witness model and `seekerExit`/`providerExit` naming.
+- Master `docs/INDEX.md` — compiler entry: description expanded to mention the bytes-aware `+` rewrite pass and oracle-signed witness use case; added Key Capabilities rows for type-dispatched `+` and one-shot `sha256`; tags add `op-cat`, `byte-concat`, `oracle-witness`; new triggers (`op_cat`, `byte concatenation`, `oracle signed`, `oracle witness`, `concat`).
+
+**Notes**:
+- Existing `int + int` arithmetic semantics unchanged. Compilation is backward-compatible for contracts that never mix bytes with `+`.
+- StabilityVault ABI changed: `seekerRedeem` is gone (renamed to `seekerExit`). Consumers of the compiled JSON must update by function name.
+- The on-chain PriceBeacon UTXO is no longer required for stability flows — operators do not need to maintain or pass through a beacon output.
+- `playground/contracts.js` is regenerated from `examples/**/*.ark` via `./playground/generate_contracts.sh`; the playground build now uses the prebuilt `wasm-pack` action.
+
+---
+
 ## 2026-05-16 - Validation Layer, Generalised Testing & StabilityVault Contracts
 **Commit Range**: `c6ab1589` → `b479765b`
 **Synced By**: /update-project compiler

@@ -25,6 +25,8 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 
 - `ArkAddressTests.cs` -- Ark address encoding/decoding
 - `ArkBip21Tests.cs` -- BIP21 URI parser + builder (parse / build / roundtrip / rejection / PreferredMethod routing)
+- `AssetPacketBuilderTests.cs` -- Asset packet construction (includes the new order-independence test pinning the deterministic `(AssetId, GroupIndex)` group ordering that survived `HashSet` enumeration randomization)
+- `Assets/FixtureTests.cs` -- Cross-SDK conformance vectors imported verbatim from `arkade-os/ts-sdk@master` (`asset_ref` / `asset_input` / `asset_output` / `metadata` JSON fixtures under `Assets/Fixtures/`). Valid vectors assert byte-exact serialization against the canonical fixture; invalid vectors assert rejection (not exact error message — that's per-SDK impl detail). Includes the `MetadataList` Merkle-hash vectors — the strongest cross-SDK check
 - `BoltzLimitsValidatorTests.cs` -- Swap limit validation
 - `CachingClientTransportTests.cs` -- Transport caching behavior
 - `CheckpointTapScriptTests.cs` -- Tapscript construction

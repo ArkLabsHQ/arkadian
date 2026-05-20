@@ -23,6 +23,11 @@ src/
 │   ├── walletReceiveRotator.ts # WalletReceiveRotator — owns DescriptorProvider + vtxo_received subscription + rotation chain + boot pubkey lookup (pickActiveReceive) + contract registration on rotate. WALLET_RECEIVE_SOURCE = 'wallet-receive' tag on the active display contract. ReceiveRotatorFactory / ReceiveRotatorBoot / ReceiveRotatorBootOpts interfaces; hasReceiveRotatorFactory duck-typed guard. resolveDescriptorProvider TODO(hd-maturation) keeps 'auto' === 'static' until soak time builds. Exponential backoff (1s → 60s cap) on consecutive rotate() failures. Pluggable Logger interface. NonRangeableDescriptorError typed error replaces the prior wildcard-descriptor string match
 │   ├── inputSignerRouter.ts # InputSignerRouter — per-input signer dispatch. InputSigningJob { index; lookupScript }. Routes default/delegate contracts with non-baseline owner → DescriptorProvider.signWithDescriptor (uses metadata.signingDescriptor); everything else → Identity; unmatched inputs skipped silently
 │   ├── signingErrors.ts     # DescriptorSigningProviderMissingError, MissingSigningDescriptorError — both re-exported from src/index.ts
+│   ├── expo/                # Expo / React Native wallet
+│   │   ├── index.ts         # Foreground entrypoint — re-exports ExpoWallet, ExpoWalletConfig, ExpoBackgroundConfig only (no background helpers — these moved to /wallet/expo/background in #487)
+│   │   ├── wallet.ts        # ExpoWallet (foreground polling, AsyncStorage-persisted config for background rehydration); setup() no longer registers the OS scheduler; dispose() no longer unregisters it (caller responsibility)
+│   │   ├── background.ts    # /wallet/expo/background subpath — defineExpoBackgroundTask / registerExpoBackgroundTask / unregisterExpoBackgroundTask, DefineBackgroundTaskOptions / PersistedBackgroundConfig; uses static `import * from "expo-task-manager"` / `"expo-background-task"` so Metro sees them in the static dependency graph (lazy require() in the previous shape was invisible to the collector, #486). Only module in the package that imports the two expo-* optional peer deps
+│   │   └── expo-modules.d.ts # Ambient declarations for expo-task-manager + expo-background-task (the subset of APIs background.ts uses) so tsc type-checks without pulling the optional peer packages into the build
 │   └── serviceWorker/       # Service worker wallet
 │       ├── wallet.ts        # ServiceWorkerWallet, ServiceWorkerReadonlyWallet
 │       ├── worker.ts        # Worker (runs in service worker context)
@@ -220,3 +225,5 @@ interface StorageAdapter {
 - **Strict mode**: Enabled
 - **Output**: `dist/esm/`, `dist/cjs/`, `dist/types/`
 - **Separate adapter entry points**: Each adapter in `adapters/` has its own export path
+- **Expo subpath split**: `/wallet/expo` (foreground) and `/wallet/expo/background` (OS-task helpers) are separate export entries; only the `/background` subpath imports `expo-task-manager` / `expo-background-task`, keeping them invisible to Metro's static dependency collector on the foreground subpath (#487)
+- **Node engines**: `engines.node` = `>=22.12.0 <25`; `.nvmrc` pins development to Node `24.15.0` (CI runs Node 24, #495)

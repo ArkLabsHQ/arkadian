@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. **Node.js** 18+
+1. **Node.js** 24 LTS (pinned via `.nvmrc` → `24.15.0`; `engines.node` allows `>=22.12.0 <25` for downstream consumption — local dev should track `.nvmrc`, CI runs Node 24)
 2. **pnpm** 10.29.2+ — `npm install -g pnpm`
 3. **Docker** (for integration tests)
 4. **nigiri** — `curl https://getnigiri.vulpem.com | bash`

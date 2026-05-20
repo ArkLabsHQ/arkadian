@@ -1,5 +1,33 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-20 - Documentation Update
+**Commit**: `e91269df` (boltz-backend repository)
+**Previous Sync**: `00aa3d96`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits
+
+**Features / Behaviour Changes**:
+- fix: allow committing underpaid chain swaps (`ef82d25f`) — `Commitments.checkExpectedAmount` (in `lib/wallet/ethereum/contracts/Commitments.ts`) now short-circuits and accepts underpaid EVM commitments for `SwapType.Chain`. The commitment row is written so the lockup transaction can be recorded, then the swap is taken to `transaction.lockup.failed` via the normal nursery path and resumed through renegotiation. Submarine Swaps still throw `insufficient amount: …` when the locked amount is below the expected amount. `docs/commitment-swaps.md` step 4 was updated upstream to call out the per-swap-type distinction. This extends the previously-shipped "0-amount EVM commitments accepted for chain swaps" capability to the broader "0-or-underpaid" envelope.
+
+**Refactors**:
+- refactor: bump `boltz-core` to v4 (#1410) (`1b93bc79`) — dependency migration touching ~90 files. `boltz-core` bumped from `3.1.0` to `^4.0.5`. The legacy `bitcoinjs-lib` / `bip32` / `bip39` / `ecpair` / `slip77` / `tiny-secp256k1` and dev-only `@boltz/bitcoin-ops` packages were removed and replaced with `@scure/bip32 ^2.2.0`, `@scure/bip39 ^2.2.0`, `@noble/curves ^2.2.0`, and `@noble/hashes ^2.2.0`. Call-sites across `lib/Core.ts`, `lib/AddressUtils.ts` (new file), `lib/TxView.ts` (new file), `lib/Utils.ts`, `lib/wallet/Slip77.ts` (new local implementation), `lib/wallet/Wallet.ts`, `lib/wallet/WalletLiquid.ts`, `lib/wallet/WalletManager.ts`, `lib/wallet/ethereum/EthereumManager.ts`, `lib/wallet/ethereum/contracts/ContractHandler.ts`, `lib/wallet/providers/CoreWalletProvider.ts`, `lib/wallet/providers/WalletProviderInterface.ts`, `lib/chain/ArkClient.ts`, `lib/chain/ChainClient.ts`, `lib/db/Migration.ts`, `lib/db/models/ReverseRoutingHint.ts`, `lib/lightning/SelfPaymentClient.ts`, `lib/service/{EventHandler,Service,TransactionFetcher,cooperative/{CoopSignerBase,Utils}}.ts`, `lib/swap/{LightningNursery,PaymentHandler,RefundWatcher,ReverseRoutingHints,SwapManager,SwapNursery,UtxoNursery}.ts`, `lib/consts/BitcoinNetworks.ts`, `lib/ECPairHelper.ts`, and `lib/Boltz.ts` were updated to the new crypto APIs (Schnorr signatures, ECDSA, base58/bech32 codecs, BIP32/BIP39 derivation, SLIP-77 blinding). New `lib/AddressUtils.ts`, `lib/TxView.ts`, and `lib/wallet/Slip77.ts` provide the previously-external behaviour locally. Solidity-deploy script `regtest:solidity:deploy` now runs `./tools/install-boltz-core-solidity-libs.sh` (a new repo script) and passes `PERMIT2_ADDRESS=0x000000000022D473030F116dDEE9F6B43aC78BA3` explicitly. Test suite extensively rewritten — new `test/unit/{AddressUtils,TxView,wallet/{Bip32,Bip39,Slip77},consts/BitcoinNetworks}.spec.ts`; the snapshot-heavy `test/integration/__snapshots__/Core.spec.ts.snap` (1088 lines) and the `test/unit/chain/FakeChainClient.ts` shim (282 lines) were removed. No public REST API, swap-type capability, env-var, `boltz.conf` schema, DB migration, or service-component change — Bitcoin/Liquid/EVM/Lightning behaviour stays as documented.
+
+**Bug Fixes**:
+- fix: flaky gRPC server test (#1412) (`e91269df`) — `test/unit/grpc/GrpcServer.spec.ts` stabilisation only (`+55/-51`); no library, RPC, or behaviour change.
+
+**Tooling / Chores**:
+- chore: make missing backup dependencies clearer (`dd6fbb74`) — `boltz-backup/src/lib.rs` now wraps the `pg_dump` `Command::spawn()` call so an `ErrorKind::NotFound` returns `anyhow!("pg_dump binary not found in PATH; install PostgreSQL client tools or disable the backup section in the config")` instead of a generic IO error. Operational diagnostics improvement; no config schema, capability, env-var, dependency-graph, component, or migration change.
+
+**Documentation Impact**:
+- `INDEX.md` (project): extended the **Chain Swaps** Key Concept bullet to call out that underpaid EVM commitments are now accepted (alongside the existing 0-amount allowance) and routed through `transaction.lockup.failed` → renegotiation, with Submarine Swaps still rejecting underpaid commitments.
+- `system/project_overview.md`: same extension to the **Three Swap Types → Chain Swaps** bullet.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** chain-swap bullet updated for the 0-amount **and underpaid** EVM commitments behaviour.
+- `system/architecture.md`, `system/integration-with-arkd.md`, `testing/usage.md`, `testing/api-reference.md`: no edits — the `boltz-core` v4 bump and `@scure`/`@noble` crypto migration are internal dependency swaps with no public-API, env-var, build-pipeline (still `npm run compile` / `npm run dev`), or DB-migration change; the `pg_dump` error-message improvement is internal to `boltz-backup`; the gRPC-server flake fix is test-only.
+
+---
+
 ## 2026-05-19 - Documentation Update
 **Commit**: `00aa3d96` (boltz-backend repository)
 **Previous Sync**: `ee271552`

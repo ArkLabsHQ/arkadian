@@ -26,7 +26,7 @@ cargo test htlc_claim
 cargo test asset_introspection
 ```
 
-## Test Files (21 total)
+## Test Files (23 total)
 
 ### Contract Compilation Tests
 | Test File | Covers |
@@ -34,7 +34,8 @@ cargo test asset_introspection
 | `bare_vtxo_test.rs` | Basic single-signature VTXO contract |
 | `htlc_test.rs` | Hash Time-Locked Contract (together, refund, claim paths) |
 | `fuji_safe_test.rs` | DeFi lending with oracle, liquidation, renewal, introspection exit paths |
-| `beacon_test.rs` | Beacon contract compilation (loop fixture + production `PriceBeacon` 4-param design) |
+| `beacon_test.rs` | Beacon contract compilation (loop fixture + production 4-param design) |
+| `stability_vault_test.rs` | StabilityVault settlement paths (`seekerExit`, `providerExit`) with oracle-signed price witness; asserts `OP_CAT` + `OP_SHA256` reconstruction of `sha256(ticker + price + time)`; regression guards `test_vault_transfer_is_pure_keyswap` and `test_vault_split_is_pure_keyswap` for no-oracle paths |
 | `arkade_kitties_test.rs` | CryptoKitties-style collectibles with asset groups |
 | `token_vault_test.rs` | Token vault with group sum validation |
 | `controlled_mint_test.rs` | Controlled asset minting |
@@ -49,6 +50,7 @@ cargo test asset_introspection
 | `tx_introspection_test.rs` | Transaction-level introspection (version, locktime, etc.) |
 | `io_introspection_test.rs` | Input/output introspection (value, scriptPubKey, etc.) |
 | `new_opcodes_test.rs` | New opcodes: streaming SHA256, neg64, le64/le32 conversion, ecMulScalarVerify, tweakVerify |
+| `concat_op_test.rs` | Type-dispatched `+`: bytes + bytes → `OP_CAT`; `bytes + int` and `int + bytes` insert `OP_SCRIPTNUMTOLE64` on the int side; pure `int + int` stays `OP_ADD64`; one-shot `sha256(a + b + c)` lowers to chained `OP_CAT` then a single `OP_SHA256` |
 | `group_properties_test.rs` | Asset group properties, sums, delta, control, isFresh |
 | `epoch_limiter_test.rs` | Epoch-based contract limiting |
 | `contract_import_instantiation_test.rs` | Cross-contract imports and `new Contract(...)` instantiation |

@@ -32,7 +32,7 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Move Bitcoin between different blockchains
 - Supported: Bitcoin mainchain, Liquid sidechain, EVM chains
 - Enables cross-chain liquidity without bridges or wrapped tokens
-- 0-amount EVM commitments accepted for chain swaps so they enter the same renegotiation flow as UTXO lockups when the lockup amount is unknown ahead of time
+- 0-amount **and underpaid** EVM commitments accepted for chain swaps — the commitment is recorded, the lockup transitions to `transaction.lockup.failed` via the normal nursery path, and the swap moves into the same renegotiation flow used by UTXO lockups (Submarine Swaps still reject underpaid commitments)
 
 ### Advanced Features
 

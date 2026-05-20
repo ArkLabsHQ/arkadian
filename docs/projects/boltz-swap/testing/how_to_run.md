@@ -82,10 +82,10 @@ pnpm test:setup-docker  # Initialize wallets
 ### Services
 - **Bitcoin (Nigiri)**: Port 18443 (RPC), 3000 (Esplora)
 - **NBXplorer**: Port 32838
-- **arkd-wallet**: Port 6060 (pinned to `v0.9.1` via `.env.regtest`)
-- **arkd**: Port 7070 (pinned to `v0.9.1`, block scheduler with CSV block type)
-- **Boltz Backend**: Port 9001
-- **fulmine** (optional): pinned to `v0.3.15`
+- **arkd-wallet**: Port 6060 (pinned to `v0.9.5` via `.env.regtest`)
+- **arkd**: Port 7070 (pinned to `v0.9.5`, gocron scheduler with seconds-typed CSV delays)
+- **Boltz Backend**: Port 9001 (`boltz/boltz:latest`)
+- **fulmine** (optional): pinned to `v0.3.23`
 
 ### Stop Regtest
 ```bash
@@ -94,10 +94,11 @@ pnpm regtest:stop
 
 ### Configuration (`.env.regtest`)
 The repo's `.env.regtest` overrides arkade-regtest defaults:
-- Pins arkd / arkd-wallet / fulmine image tags to known-good versions
-- Forces `ARKD_SCHEDULER_TYPE=block` and CSV block type for VHTLC compatibility
-- Sets `ARKD_VTXO_TREE_EXPIRY=200`, `ARKD_BOARDING_EXIT_DELAY=1024`, `ARKD_ROUND_INTERVAL=3`
-- Zeroes Ark on/off-chain input/output fees (boltz-swap tests don't account for intent fees)
+- Pins arkd / arkd-wallet to `v0.9.5`, fulmine to `v0.3.23`, Boltz to `boltz/boltz:latest`
+- Uses `ARKD_SCHEDULER_TYPE=gocron` (matches the wallet's existing arkd config); the previous `block` scheduler + `ARKD_ALLOW_CSV_BLOCK_TYPE=true` override is gone. Under gocron, mixing block-typed and seconds-typed CSV delays is rejected, so the timelock-related vars below are **seconds-typed**.
+- Sets `ARKD_VTXO_TREE_EXPIRY=5120` (seconds), `ARKD_BOARDING_EXIT_DELAY=7200` (seconds), `ARKD_SESSION_DURATION=10`, `ARKD_ROUND_INTERVAL=3`, `ARKD_LOG_LEVEL=6`
+- `BITCOIN_LOW_FEE=true` (the regtest `start-env.sh` nbxplorer guard handles the missing container case gracefully)
+- Zeroes Ark on/off-chain input/output fees — `faucetOffchain` uses `wallet.settle()` without a fee budget
 
 ---
 

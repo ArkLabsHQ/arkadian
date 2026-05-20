@@ -96,7 +96,7 @@ cargo doc --open
 ## PR Checklist
 
 - [ ] `cargo build` succeeds
-- [ ] `cargo test` passes (all 15 test files)
+- [ ] `cargo test` passes (all 23 test files)
 - [ ] `cargo clippy` clean (no warnings)
 - [ ] `cargo fmt` applied
 - [ ] New features have test coverage

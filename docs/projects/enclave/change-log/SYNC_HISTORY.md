@@ -1,5 +1,25 @@
 # Documentation Sync History - Simple Enclave
 
+## 2026-05-20 - PCR0 signing + OTLP/HTTP ingest paths + supervisor KMS env-leak fix
+**From**: `c6055bee5b2985d78a7ecd50698c39b184382f8b`
+**To**: `c173a68f955b83aa3b01ed736dc64826bc468394`
+**Synced By**: /update-project enclave
+**Status**: Documentation updated — new PCR0-signing capability, telemetry POSTs renamed to OTLP/HTTP spec, supervisor KMS endpoint env inlined
+
+**Commits Analyzed** (3):
+- `8ed7847` feat(signing): implement PCR0 signing functionality and expose endpoint — new `runtime/signature.go` (`Signature.Load` + `Signature.Snapshot`), `runtime/signature_test.go`; `cli/tofu_files.go` mints `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY` / `prevent_destroy=true` / 30-day deletion window), aliases it, and runs a `terraform_data.sign_pcr0` local-exec (`bash` + `openssl` + `aws kms get-public-key` + `aws kms sign --signing-algorithm ECDSA_SHA_384`) on every `effective_pcr0` / key-id change, writing `/{dep}/{app}/Signing/{PubkeyPEM,PCR0,Signature}` to SSM; EC2-role `ssm:GetParameter` IAM policy extended; new tofu output `pcr0_signing_key_arn`. Integration test grew from 33 → 35 (PCR0 endpoint + `openssl pkeyutl -verify`). Originally a draft mounted `GET /enclave/signature`, kept here for chronological accuracy
+- `4c104e2` refactor(runtime): update metric and trace endpoint paths to align with OTLP/HTTP spec — `POST /v1/enclave-metrics` → `POST /v1/metrics`, `POST /v1/enclave-traces` → `POST /v1/traces` (`POST /v1/logs` was already correctly aligned); GET introspection routes keep the `enclave-` prefix (`GET /v1/enclave-{metrics,traces,logs}`). PCR0 signing folded into `GET /v1/enclave-info` (`pcr0_signature` field, `omitempty`) and the standalone `GET /enclave/signature` endpoint + `pathSignature` const removed; `signatureHandler` replaced by `Signature.Snapshot()` returning `*PCR0SignatureInfo` directly into `RuntimeInfo`
+- `49c748f` fix(signing): drop dead toggle, plug supervisor KMS env-leak — removed the unused `SigningConfig.Enabled` field + `signing:` block from all four `enclave.yaml` templates (provisioning is purely a Tofu-module property now); inlined `AWS_ENDPOINT_URL_KMS` on the supervisor relauncher in `test/run.sh` and added a `AWS_ENDPOINT_URL_KMS_SUPERVISOR` (default `http://aws-mocks:4000`) on `runner/main.go` so the test rig's second `tofu apply` no longer inherits the supervisor's KMS endpoint and miss-routes to local-kms with a LocalStack-owned key UUID
+
+**Documentation Updates**:
+- `system/project_overview.md` — added "Tofu-provisioned PCR0 signing" + "OTLP/HTTP-aligned telemetry ingest" capability bullets; updated local-QEMU test-harness bullet to 35 tests + the new signing + ECDSA verification cases; refreshed `runtime/` row to mention `runtime/signature.go` and the OTLP-aligned POST endpoints
+- `system/architecture.md` — new "PCR0 Signing (Tofu-provisioned, runtime-served)" section (signing key, terraform_data.sign_pcr0, SSM paths, `Signature.Load`/`Snapshot`, verification recipe); new "OTLP/HTTP Endpoint Alignment" section (POST ingest vs GET introspection table); file map updated to list `runtime/signature.go` and note that the JSON-snapshot GETs keep the `enclave-` prefix while POSTs use the bare OTLP paths
+- `testing/api-reference.md` — `/v1/enclave-info` row notes the `pcr0_signature` sub-object; new "Telemetry ingest vs introspection" table (OTLP POSTs vs JSON GETs); new "PCR0 Signing (Tofu-provisioned, served via `/v1/enclave-info`)" section (SSM parameter table + OpenSSL verification recipe)
+- `testing/how_to_test.md` — integration-test count 33 → 35; added rows 34 (`pcr0_signature` presence on `/v1/enclave-info`) and 35 (`openssl pkeyutl -verify`); intro updated
+- `sop/development-workflow.md` — added `runtime/signature_test.go` to the runtime unit-test list
+- `INDEX.md` (project) — added PCR0-Signing + Telemetry-ingest rows to Quick Reference; architecture-overview diagram now annotates `/v1/enclave-info` with `pcr0_signature` and shows the OTLP-spec POSTs alongside the JSON-snapshot GETs
+- `INDEX.md` (master) — enclave Key Capabilities: added "Tofu-provisioned PCR0 signing" bullet and "OTLP/HTTP-spec telemetry ingest" bullet; tags extended (`pcr0-signing`, `ecdsa-p384`, `otlp`, `otlp-ingest`); ask_question triggers extended (`pcr0 signing`, `ecdsa p384`, `pcr0_signature`, `otlp ingest`, `enclave telemetry`)
+
 ## 2026-05-16 - Atomic KMSKeyID migration + enclave-owned KMS keys
 **From**: `a008c3fc89f27e9821e5c7bb4f49ee947b2c59dd`
 **To**: `bfb8d9c535dd325455119616703725d2cf99799c`

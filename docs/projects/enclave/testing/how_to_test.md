@@ -1,6 +1,6 @@
 # How to Test
 
-Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + the combined `awsmocks` binary, which bundles kms-proxy and mock-imds in one container), then runs 33 integration tests followed by a full locked-key migration with post-migration verification. The new test cases at the tail (29 – 33) cover end-to-end HTTP/2 (ALPN h2 negotiation, HTTP/1.1 backward compat) and gRPC (unary `Health/Check`, server-streaming `Health/Watch`, middleware bypass) added with issue #85.
+Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + the combined `awsmocks` binary, which bundles kms-proxy and mock-imds in one container), then runs 35 integration tests followed by a full locked-key migration with post-migration verification. The HTTP/2 + gRPC tail (29 – 33, issue #85) covers end-to-end HTTP/2 (ALPN h2 negotiation, HTTP/1.1 backward compat) and gRPC (unary `Health/Check`, server-streaming `Health/Watch`, middleware bypass). Tests 34 – 35 (added with the PCR0-signing feature) confirm that `pcr0_signature` is exposed on `/v1/enclave-info` and that `openssl pkeyutl -verify` validates the signature against the embedded public key.
 
 > **Upstream-app testing (image-based).** As of v0.0.76, upstream apps don't build the test rig from source. The CLI ships an `enclave test` subcommand suite (`build` / `init` / `start` / `down`) that scaffolds `enclave/test/docker-compose.yml`, pulls the prebuilt GHCR images (`ghcr.io/arklabshq/enclave-awsmocks:<rev>` and `ghcr.io/arklabshq/enclave-test-runner:<rev>` where `<rev>` matches `cli/runtime-hashes.json::rev` with the leading `v` stripped), and brings the stack up. See **Upstream-app workflow** below. The framework's own self-test (this page) still builds everything from source.
 
@@ -47,7 +47,7 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 
 ## What Gets Tested
 
-33 integration tests run after enclave boot (`test/integration-test.sh`), grouped roughly as: core (1–17), telemetry (20–28), runtime metrics (29), final attestation stability (30), and HTTP/2 + gRPC (29–33 — note: numbering restarts within the gRPC block per the script's own comments):
+35 integration tests run after enclave boot (`test/integration-test.sh`), grouped roughly as: core (1–17), telemetry (20–28), runtime metrics (29), final attestation stability (30), HTTP/2 + gRPC (29–33 — note: numbering restarts within the gRPC block per the script's own comments), and PCR0 signing (34–35):
 
 | # | Test |
 |---|------|
@@ -77,6 +77,8 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 | 31 | gRPC unary — `grpc.health.v1.Health/Check` returns `SERVING` |
 | 32 | gRPC server-streaming — `grpc.health.v1.Health/Watch` yields ≥ 1 message |
 | 33 | gRPC bypasses response-signing middleware (no `X-Attestation-*` headers, trailers preserved) |
+| 34 | `pcr0_signature` is present on `/v1/enclave-info` (Tofu provisioned the signing block) and carries non-empty `pubkey_pem` / `pcr0_hex` / `signature_b64` |
+| 35 | ECDSA-P384 PCR0 signature verifies via `openssl pkeyutl -verify` against the embedded public key + raw PCR0 bytes |
 
 **Migration verification** then runs a full locked-key migration and confirms:
 

@@ -129,6 +129,35 @@ PCR31 is **audit-only** — `verifyPCR31Commitment` was removed; boot no longer 
 
 **Endpoint rename (prior release):** `/v1/export-key` was renamed to `/v1/start-migration` (verb-noun parity with `/v1/extend-pcr`, `/v1/lock-pcr`).
 
+## PCR0 Signing (Tofu-provisioned, runtime-served)
+
+A second AWS-rooted attestation of PCR0 (independent of the NSM document) is provisioned at `tofu apply` time and surfaced by the runtime:
+
+- **`aws_kms_key.pcr0_signing`** — `ECC_NIST_P384`, `SIGN_VERIFY`, no rotation, 30-day deletion window, `prevent_destroy = true`. Aliased `alias/<prefix>-pcr0-signing`. Distinct from the secret-encryption KMS key — losing it makes past signatures un-verifiable, hence the safety net.
+- **`terraform_data.sign_pcr0`** — local-exec (bash + `openssl` + `aws kms ...`) that re-runs whenever `effective_pcr0` or the signing-key id changes:
+  1. Writes the PCR0 hex as raw bytes to `${path.module}/.signing/pcr0.bin`.
+  2. `aws kms get-public-key` → DER → PEM via `openssl ec -pubin -inform DER -outform PEM`.
+  3. `aws kms sign` with `--message-type DIGEST --signing-algorithm ECDSA_SHA_384`.
+  4. Stores PubkeyPEM / PCR0 / Signature in SSM under `/{dep}/{app}/Signing/{PubkeyPEM,PCR0,Signature}` (the EC2 role's IAM `ssm:GetParameter` policy is extended to cover these three names).
+- **`runtime/signature.go`** — `Signature.Load` reads those three SSM parameters during `runtime.Runtime.Init` (non-fatal: a deployment without signing provisioned just logs a warning and proceeds). `Signature.Snapshot()` returns `*PCR0SignatureInfo{PubkeyPEM, PCR0Hex, SignatureB64}` (nil when not ready). `enclaveInfoHandler` embeds the snapshot as the `pcr0_signature` field on `GET /v1/enclave-info` with `omitempty`, so consumers see it only when provisioned. There is no dedicated endpoint and no `signing:` block in `enclave.yaml` — provisioning is entirely a Tofu-module property.
+- **Verification recipe (external):** decode `pubkey_pem`, hex-decode `pcr0_hex`, base64-decode `signature_b64`, then `openssl pkeyutl -verify -pubin -inkey pubkey.pem -in pcr0.bin -sigfile sig.bin`. This is what the v0.0.77 integration test does as the new `[35/35]` check.
+- **Tofu output:** `pcr0_signing_key_arn` is exposed so the identity running `tofu apply` can be granted `kms:Sign` + `kms:GetPublicKey` on the key explicitly.
+
+## OTLP/HTTP Endpoint Alignment
+
+POST routes for telemetry follow the OTLP/HTTP spec so that a standard OTEL SDK exporter works without per-deployment URL overrides:
+
+| Method | Path | Role |
+|--------|------|------|
+| `POST` | `/v1/metrics` | OTLP-protobuf metric ingest from the user app |
+| `POST` | `/v1/traces` | OTLP-protobuf trace ingest from the user app |
+| `POST` | `/v1/logs` | OTLP-protobuf log ingest from the user app |
+| `GET` | `/v1/enclave-metrics` | JSON metric snapshot (cumulative counters + heap/goroutine gauges) |
+| `GET` | `/v1/enclave-traces` | JSON history of recently-seen spans |
+| `GET` | `/v1/enclave-logs` | JSON history of recently-seen log lines |
+
+The GETs keep the `enclave-` prefix to make introspection visually distinct from OTLP ingest. `RegisterRoutes` (`runtime/runtime.go`) wires the POSTs (`handleMetricPost`, `Tracing.handlePost`, `Logging.handlePost`) onto the bare OTLP paths; the gRPC + Schnorr middlewares apply to both ingest and snapshot flows uniformly.
+
 ## Response Signing (Schnorr middleware)
 
 Every response from the runtime reverse proxy includes:
@@ -172,7 +201,7 @@ The runtime no longer validates a baked-in `previous_pcr0` against the live chai
 | Package | Files | Role |
 |---------|-------|------|
 | `cli/` | `aws.go`, `build.go`, `config.go`, `init.go`, `setup.go`, `template.go`, `tofu.go`, `verify.go`, `lifecycle.go`, `migration_status.go`, `test_init.go`, `test_boot.go`, `test_compose.go` | CLI subcommands, OpenTofu scaffold, CDK stack, attestation verify. New `enclave test` subcommand suite (`build` / `init` / `start` / `down`) scaffolds and runs `enclave/test/docker-compose.yml` for upstream-app local QEMU testing. |
-| `runtime/` | `runtime.go`, `runtime_handlers.go`, `config.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `nitriding_config.go`, `utils.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime. `runtime.go` owns the `Runtime` struct, lifecycle (`New`/`Start`/`Init`/`Stop`), routing, response-signing + logging + gRPC-bypass middleware, TLS cert management, and NSM helpers (`configureHTTPServers` coordinates shared setup and dispatches to `configureExternalHttpServer` + `configureInternalHttpServer`). `runtime/config.go` holds `Config` + `Validate` + `String`. `runtime/attestation.go` holds `AttestationHashes`. `runtime/runtime_handlers.go` (renamed from `server_handlers.go`) holds every `/enclave/*` and admin handler as a factory returning `http.HandlerFunc`. `runtime/kms.go` owns `EnsureKeyID`, `VerifyKeyAuthorization`, `CreateMigrationKey`. `runtime/migrate.go` runs `handleStartMigration` (atomic `KMSKeyID` flip) + `VerifyPredecessorCommitment`. SSM ciphertext paths are key-scoped: `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`. |
+| `runtime/` | `runtime.go`, `runtime_handlers.go`, `config.go`, `attestation.go`, `kms.go`, `static_secret.go`, `dynamic_secrets.go`, `storage.go`, `migrate.go`, `policy_builder.go`, `tracing.go`, `metrics.go`, `signature.go`, `nitriding_config.go`, `utils.go`, `viproxy_setup.go`, `imds.go` | In-enclave runtime. `runtime.go` owns the `Runtime` struct, lifecycle (`New`/`Start`/`Init`/`Stop`), routing, response-signing + logging + gRPC-bypass middleware, TLS cert management, and NSM helpers (`configureHTTPServers` coordinates shared setup and dispatches to `configureExternalHttpServer` + `configureInternalHttpServer`). `runtime/config.go` holds `Config` + `Validate` + `String`. `runtime/attestation.go` holds `AttestationHashes`. `runtime/runtime_handlers.go` (renamed from `server_handlers.go`) holds every `/enclave/*` and admin handler as a factory returning `http.HandlerFunc`. `runtime/kms.go` owns `EnsureKeyID`, `VerifyKeyAuthorization`, `CreateMigrationKey`. `runtime/migrate.go` runs `handleStartMigration` (atomic `KMSKeyID` flip) + `VerifyPredecessorCommitment`. `runtime/signature.go` holds the `Signature` type — `Load(ctx, ssmAPI)` pulls PubkeyPEM / PCR0 / Signature from SSM (`/{dep}/{app}/Signing/*`) and `Snapshot()` feeds the `pcr0_signature` field of `GET /v1/enclave-info`. POSTs for OTLP ingest live at the bare paths (`POST /v1/{metrics,traces,logs}`); JSON-snapshot GETs keep the `enclave-` prefix. SSM ciphertext paths are key-scoped: `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`. |
 | `runtime/nitriding/` | `cache.go`, `bufferpool.go`, `certcache.go`, `proxy.go`, `attestation.go`, `system{,_linux}.go`, `constants.go`, `keysync_initiator.go`, `keysync_shared.go`, `package_init.go` | Leaf utilities shared with the upstream nitriding fork: `Cache`, `BufPool`, `CertCache`, `SetFdLimit`, `ConfigureLoIface`, `RunNetworking`, `Attest`, `NewLimitReader`, `InEnclave`, and `/dev/nsm`-backed entropy seeding via `package_init`. The previous `Enclave` struct, its `/enclave/sync` keysync responder, and the `/enclave/nonce` handler were removed in v0.0.76 — `Runtime` owns the TLS edge and admin mux directly. |
 | `supervisor/` | `supervisor.go`, `lifecycle.go`, `migrate.go`, `health.go`, `networking.go`, `observability.go`, `validate.go` | Host-side single-process supervisor (gvproxy, IMDS fwd, watchdog, mgmt API, 7-step migration orchestrator — no KMS calls; just cooldown / start-migration / EIF swap / health poll / rollback / cleanup). `observability.go` proxies enclave OTEL metrics to Prometheus text on `:8443/metrics`; the dead `http.Get("localhost:9090/metrics")` scrape and the corresponding `:9090` vsock forward were dropped along with the runtime's chi-middleware Prometheus exposition. |
 | `client/` | `client.go`, `verify.go`, `grpc.go` | Verified Go HTTP client (NSM chain + PCR0 + Schnorr per-response). `grpc.go` exposes `GRPCConn(ctx, ...DialOption)` for native gRPC over HTTP/2: TLS handshake pins the leaf cert fingerprint to the attestation document's `tlsKeyHash` (no per-response Schnorr — middleware bypasses gRPC). |

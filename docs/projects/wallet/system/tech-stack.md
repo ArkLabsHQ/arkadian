@@ -134,7 +134,7 @@ t.error('Invoice rejected')
 
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.26
+### @arkade-os/sdk 0.4.27
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -159,7 +159,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.30
+### @arkade-os/boltz-swap 0.3.32
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:

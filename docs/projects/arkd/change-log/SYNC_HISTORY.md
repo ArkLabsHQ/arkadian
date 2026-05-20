@@ -1,5 +1,34 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-20 - Documentation Update
+**Commit**: `2c9612a0` (arkd repository)
+**Previous Sync**: `f8aefab4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `2c9612a0` Bump golang@1.26.3 (#1070)
+
+**Go Version**:
+- Updated from Go 1.26.2 to Go 1.26.3 (build toolchain only; patch-level update).
+- Touched `go.mod` files across the repo: root, `api-spec`, `pkg/ark-cli`, `pkg/ark-lib`, `pkg/arkd-wallet`, `pkg/client-lib`, `pkg/errors`, `pkg/kvdb`, `pkg/macaroons`.
+- CI workflows bumped to `go-version: 1.26.3`: `.github/workflows/{artifacts,integration,release,unit}.yaml`.
+- Builder images bumped to `golang:1.26.3`: `Dockerfile`, `arkdwallet.Dockerfile`, `arkdwallet.btcwallet.Dockerfile`.
+
+**Files Updated**:
+- docs/projects/arkd/INDEX.md (sync commit + date)
+- docs/projects/arkd/system/tech_stack.md (Go version: 1.24.6+ → 1.26.3+, two references)
+- docs/projects/arkd/system/project_overview.md (Go version: 1.25.7+ → 1.26.3+)
+- docs/projects/arkd/sop/development-workflow.md (Go prerequisite: 1.24.6 → 1.26.3)
+- docs/projects/arkd/testing/how_to_run.md (Go prerequisite: 1.24.6 → 1.26.3)
+- docs/projects/arkd/testing/arkd-environment-and-testing-guide.md (Go prerequisite: 1.25.7 → 1.26.3)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Build-toolchain bump only — no API, capability, dependency, or configuration changes. Master `docs/INDEX.md` does not track Go version for arkd, so no update there. Also aligned previously-inconsistent Go version references across the docs to the new value.
+
+---
+
 ## 2026-05-12 - Documentation Update
 **Commit**: `f8aefab4` (arkd repository)
 **Previous Sync**: `42f58837`

@@ -5,7 +5,7 @@
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
 
 **Repository**: `git@github.com:arkade-os/boltz-swap.git`
-**NPM Package**: `@arkade-os/boltz-swap@0.3.31`
+**NPM Package**: `@arkade-os/boltz-swap@0.3.32`
 **Language**: TypeScript
 **Build System**: tsup (ESM + CJS bundles)
 **Test Framework**: Vitest
@@ -107,7 +107,7 @@ Arkade-specific HTLC implementation:
 ## Technology Stack
 
 ### Dependencies
-- `@arkade-os/sdk@0.4.26` — Arkade Wallet SDK for VTXO operations
+- `@arkade-os/sdk@0.4.27` — Arkade Wallet SDK for VTXO operations
 - `@noble/hashes` — Cryptographic hashing
 - `@scure/base` — Base encoding/decoding
 - `@scure/btc-signer` — Bitcoin transaction signing
@@ -211,8 +211,16 @@ boltz-swap/
 
 **Current Status**: Active Development
 **Production Readiness**: ✓ Beta
-**Version**: 0.3.31
+**Version**: 0.3.32
 **Stability**: Stable API, active feature development
+
+**Recent Improvements (0.3.31 → 0.3.32)**:
+- **`@arkade-os/sdk` bumped 0.4.26 → 0.4.27** (commit `e0837db`). 0.3.32 cuts the SDK upgrade — no boltz-swap `src/` changes.
+- **Regtest harness upgraded to arkd / arkd-wallet v0.9.5 + fulmine v0.3.23** (commits `499c4a0`, `983cf62`, `ad4d175`). `.env.regtest` overrides realigned to the wallet's existing arkd config:
+  - **Scheduler switched from `block` → `gocron`** and the `ARKD_ALLOW_CSV_BLOCK_TYPE=true` flag was dropped. Under gocron, settlement rounds tick on a timer — mixing block-typed and seconds-typed CSV delays is rejected without the flag, so `ARKD_VTXO_TREE_EXPIRY` and `ARKD_BOARDING_EXIT_DELAY` are restored to **seconds-typed** values (5120 / 7200, up from the previous block-typed 200 / 1024) to match the wallet's defaults.
+  - New keys: `ARKD_SESSION_DURATION=10`, `ARKD_LOG_LEVEL=6`, `BOLTZ_IMAGE=boltz/boltz:latest`. `BITCOIN_LOW_FEE` flipped `false → true` (the regtest `start-env.sh` nbxplorer guard handles the missing container case gracefully now).
+  - `regtest` submodule pointer bumped (`3ac33b6` → `dc23da2`).
+- **VtxoManager-enabled receive test stabilised for gocron** (commit `983cf62`, `test/e2e/arkade-swaps.test.ts`). With gocron, a just-claimed VTXO can be re-registered into the next settlement round between the claim and an immediate `getBalance()` snapshot. The test now polls via `waitForBalance(() => defaultWallet.getBalance(), 1, 10_000)` — the same pattern used elsewhere in the suite — instead of asserting on a single snapshot.
 
 **Recent Improvements (0.3.30 → 0.3.31)**:
 - **Expo background-task subpath isolation** (commit `3039456`, fix for [#136](https://github.com/arkade-os/boltz-swap/issues/136)) — **breaking for Expo callers**. The OS-task helpers (`defineExpoSwapBackgroundTask`, `registerExpoSwapBackgroundTask`, `unregisterExpoSwapBackgroundTask`) moved from `@arkade-os/boltz-swap/expo` to a new dedicated subpath `@arkade-os/boltz-swap/expo/background`. Reason: lazy `require()` inside `/expo` was invisible to Metro's static dependency collector, so `expo-task-manager` / `expo-background-task` never entered the bundle graph and resolution failed at runtime. The new subpath uses static imports, and is the **only** module that pulls in those native packages — keeping it isolated lets react-native-web and Node consumers use `/expo` without them. `ExpoArkadeSwaps.setup()` no longer registers the OS task itself; callers must explicitly invoke `await registerExpoSwapBackgroundTask(taskName, { minimumInterval })` and `await unregisterExpoSwapBackgroundTask(taskName)` on teardown. The `background` config dropped `taskName` and `minimumBackgroundInterval` — TS callers get a compile error, JS callers get a runtime warning via `warnOnRemovedBackgroundFields` (silently ignored otherwise, so the OS task would never run if not migrated).

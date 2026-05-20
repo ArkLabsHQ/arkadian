@@ -86,7 +86,7 @@ internal/
 ## Technology Stack
 
 ### Core Technologies
-- **Go 1.25.7+** - Primary language
+- **Go 1.26.3+** - Primary language
 - **Protocol Buffers** - API definition and serialization
 - **gRPC** - Inter-service communication
 - **Taproot / MuSig2** - Bitcoin transaction signing

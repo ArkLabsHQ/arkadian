@@ -33,7 +33,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Unilateral Exit | Exit without server cooperation (unroll + timelock). Since 0.4.24 split into `prepareUnrollTransaction` (build + sign) and `completeUnroll` (broadcast); regtest-aware `tx.addOutputAddress(..., wallet.network)` so `bcrt1...` outputs no longer fail base58 decode. Centralised per-namespace `isScriptValid` helpers (return `true | Error`); `VtxoScript.exitPaths` correctly compares `=== true` so non-CSV leaves (e.g. ConditionCSVMultisig) route to ConditionCSV's decode rather than throwing in CSV's branch. `prepareUnrollTransaction` `Math.ceil`s the fee rate before `BigInt(...)` so fractional sat/vB rates returned by Esplora/bitcoind regtest no longer throw `RangeError` |
 | Service Worker | Background wallet operation via `ServiceWorkerWallet` |
 | Storage Adapters | InMemory, localStorage, IndexedDB, FileSystem, AsyncStorage |
-| Expo/React Native | Dedicated providers for React Native streaming (SSE); peer ranges accept Expo SDK 55 unified majors |
+| Expo/React Native | Dedicated providers for React Native streaming (SSE); peer ranges accept Expo SDK 55 unified majors. Background-task helpers live on a separate `/wallet/expo/background` subpath (post-0.4.27, #487) — static imports keep `expo-task-manager` / `expo-background-task` invisible to Metro's static dependency collector only on the subpath that needs them. **Breaking for Expo callers**: `defineExpoBackgroundTask` / `registerExpoBackgroundTask` / `unregisterExpoBackgroundTask` and `DefineBackgroundTaskOptions` / `PersistedBackgroundConfig` are re-exported only from `@arkade-os/sdk/wallet/expo/background`; `ExpoWallet.setup()` no longer registers the OS scheduler (consumer must call `registerExpoBackgroundTask(taskName, { minimumInterval })` explicitly); `dispose()` no longer unregisters (consumer calls `unregisterExpoBackgroundTask(taskName)`); `background` config dropped `taskName` + `minimumBackgroundInterval` (TS compile error; JS callers must update manually — fields are silently ignored and the OS task never runs). Ambient declarations for the two `expo-*` modules live in `src/wallet/expo/expo-modules.d.ts` so the optional peer deps can be type-checked without entering the build |
 | ArkNote | Serializable payment data format |
 | Repository Pattern | Low-level VTXO and contract data access |
 
@@ -50,6 +50,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Testing | Vitest with v8 coverage |
 | Formatting | Prettier |
 | Package Manager | pnpm 10.29.2 (workspace) |
+| Node | Node 24 LTS pinned via `.nvmrc` (`24.15.0`); `engines.node` widened to `>=22.12.0 <25` so downstream consumers on Node 22.x are not broken (#495) |
 | Documentation | TypeDoc |
 | Versioning | Manual with `pnpm release` |
 
@@ -74,6 +75,8 @@ The SDK provides multiple entry points:
 | `@arkade-os/sdk/adapters/fileSystem` | Node.js file system adapter |
 | `@arkade-os/sdk/adapters/asyncStorage` | React Native AsyncStorage adapter |
 | `@arkade-os/sdk/adapters/expo` | Expo-compatible providers (ExpoArkProvider, ExpoIndexerProvider) |
+| `@arkade-os/sdk/wallet/expo` | Foreground Expo wallet (`ExpoWallet`, `ExpoWalletConfig`, `ExpoBackgroundConfig`) |
+| `@arkade-os/sdk/wallet/expo/background` | OS-task helpers (`defineExpoBackgroundTask`, `registerExpoBackgroundTask`, `unregisterExpoBackgroundTask`) — split out post-0.4.27 (#487) so non-Expo consumers don't pull `expo-task-manager` / `expo-background-task` into their bundle graph |
 
 ## Use Cases
 

@@ -1,5 +1,33 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-20 - Deterministic `AssetPacketBuilder` group ordering + cross-SDK fixture parity (asset_ref / asset_input / asset_output / metadata, ts-sdk-sourced)
+**From**: `0f8ba7fa6551a387f4d8f01143e7a4c86f15f3da`
+**To**: `bbcd96015d01bcaf5bb88da7cf626e4cb1612e69`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge PR (#94).
+
+**Highlights**:
+- **Deterministic asset group ordering (PR #94, GAP B)** — `AssetPacketBuilder.Build` previously emitted `AssetGroup` entries in `HashSet<string>` enumeration order, so the same logical transfer could serialize to different OP_RETURN bytes across runs and SDKs — breaking reproducibility and any cross-implementation fixture stability. Fix sorts the `allAssetIds` HashSet by `id => id` using `StringComparer.Ordinal` before iterating. The `AssetId` string is the lowercase hex of the 34-byte serialization (`txid ‖ groupIndex_LE`), so an ordinal sort over those strings yields exactly the same `(txid, groupIndex)` ordering rust-sdk applies — locking the three SDKs onto a single canonical group order. Net diff: one comment block + one `.OrderBy(id => id, StringComparer.Ordinal)` chained onto the loop iterator in `NArk.Core/Assets/AssetPacketBuilder.cs`. Order-independence guarded by a new unit test (`AssetPacketBuilderTests.cs` +33 LoC) that builds the same logical packet from inputs supplied in two different orders and asserts byte-exact equality. No public API change.
+- **Cross-SDK fixture parity (PR #94, GAP C)** — Imported the ts-sdk-canonical asset conformance vectors verbatim from `arkade-os/ts-sdk@master` into `NArk.Tests/Assets/Fixtures/`: `asset_ref_fixtures.json` (68 lines), `asset_input_fixtures.json` (183 lines), `asset_output_fixtures.json` (100 lines), `metadata_fixtures.json` (220 lines — includes the `MetadataList` Merkle-hash vectors, the strongest cross-SDK check on the books). New `NArk.Tests/Assets/FixtureTests.cs` (173 LoC) consumes them: valid vectors assert byte-exact serialization against the fixture, invalid vectors assert rejection (without pinning the exact error message, since that's per-SDK impl detail). Locks NNark's wire format to the same bytes ts-sdk and rust-sdk produce, with the strongest validation available — fixture drift now fails fast in CI rather than at first cross-SDK production use.
+- **Intentional scope cut (PR #94, GAP A)** — rust-sdk's `ControlAssetConfig::New` (same-tx new control asset) was **intentionally not implemented**. The audit chose the canonical reference (ts-sdk, which is also the fixture source); ts-sdk's `AssetManager` exposes only control-by-id, so NNark already matches the cross-SDK contract. Rust's `::New` variant is treated as a rust-only convenience.
+- **Tests** — Full NArk unit suite 393/393 green at HEAD (was 380/380 last sync; +13 = 12 fixture cases + 1 order-independence regression test).
+- **Docs** — README Assets section adds an explicit "deterministic asset packets" note (per the repo's docs policy that behavior guarantees get user-facing documentation) calling out the stable `(asset id, group index)` order, run-to-run identical bytes, and cross-SDK fixture-comparability.
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk Key Capabilities gets a new "Deterministic Arkade asset packets" bullet (covers ordering rule, the `(txid, groupIndex)` parity with rust-sdk, fixture suite location). Tags: `asset-packet`, `deterministic-asset-ordering`, `cross-sdk-fixtures`. `ask_question` triggers: `asset packet builder`, `deterministic asset ordering`, `cross sdk asset fixtures`.
+- `docs/projects/dotnet-sdk/INDEX.md` — Key Concepts: new `AssetPacketBuilder` entry (ordering rule, byte-exact reproducibility, cross-SDK parity, test surface).
+- `docs/projects/dotnet-sdk/system/project_overview.md` — New Core Feature **(25) Deterministic Asset Packets** covering the stable ordering rule, fixture parity contract, and the four fixture files under `NArk.Tests/Assets/Fixtures/`.
+- `docs/projects/dotnet-sdk/system/architecture.md` — `NArk.Core` dependency-graph section gains an Assets bullet documenting `NArk.Core/Assets/AssetPacketBuilder.Build`'s ordering guarantee + the ordinal-hex == `(txid, groupIndex)` equivalence with rust-sdk.
+- `docs/projects/dotnet-sdk/testing/how_to_test.md` — New unit-test entries: `AssetPacketBuilderTests.cs` (notes the new order-independence assertion) and `Assets/FixtureTests.cs` (cross-SDK conformance vectors).
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `bbcd96015d01bcaf5bb88da7cf626e4cb1612e69`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/projects/dotnet-sdk/testing/usage.md` — no public API change, no DI-wiring change; existing snippets remain accurate.
+- `docs/projects/dotnet-sdk/testing/how_to_run.md`, `sop/development-workflow.md`, `system/integration-with-arkd.md`, `testing/troubleshooting.md` — no impact (this is a serializer-internal determinism fix + a tests-only fixture import).
+
 ## 2026-05-19 - `AddBoltzProvider` is now self-contained (registers typed `BoltzClient` HttpClient itself)
 **From**: `a89d47aa06b93fe1136c0b5b52a78dcf99317f71`
 **To**: `0f8ba7fa6551a387f4d8f01143e7a4c86f15f3da`

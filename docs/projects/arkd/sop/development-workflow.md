@@ -4,7 +4,7 @@ General development best practices and common workflows for arkd development.
 
 ## Prerequisites
 
-- Go 1.24.6 or later
+- Go 1.26.3 or later
 - Docker (for integration tests)
 - PostgreSQL (via `make pg` or Docker)
 - Understanding of hexagonal architecture

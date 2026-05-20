@@ -70,6 +70,8 @@ Analysis and summaries of pull requests.
 | Networking | gvproxy (vsock:1024), viproxy (IMDS via vsock CID 3:8002) |
 | Attestation | NSM COSE Sign1 + BIP-340 Schnorr response signing (gRPC clients pin TLS cert fingerprint to attestation `tlsKeyHash` instead) |
 | Encryption | AWS KMS (PCR0-locked) + AES-256-GCM (S3 storage DEK) |
+| PCR0 Signing | Dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`); signature surfaced as `pcr0_signature` on `GET /v1/enclave-info` (omitempty when not provisioned) |
+| Telemetry ingest | `POST /v1/{metrics,traces,logs}` (OTLP/HTTP); JSON snapshots at `GET /v1/enclave-{metrics,traces,logs}` |
 | Transports | HTTP/1.1 + HTTP/2 + native gRPC + gRPC-Web (issue #85) |
 
 ## Configuration (enclave.yaml)
@@ -104,7 +106,9 @@ EC2 Instance (Amazon Linux 2023, Nitro)
  └── Nitro Enclave (EIF) — single runtime.Runtime process (nitriding.Enclave folded in @ v0.0.76)
      ├── pubSrv (TLS :443, ALPN h2 / http/1.1)
      │   ├── /enclave/* attestation handlers
-     │   ├── /v1/* admin handlers (storage, secrets, migration, metrics, logs, traces)
+     │   ├── /v1/enclave-info — incl. pcr0_signature (Tofu-provisioned, omitempty)
+     │   ├── /v1/* admin handlers (storage, secrets, migration)
+     │   ├── /v1/{metrics,traces,logs} OTLP-spec ingest (POST) + /v1/enclave-{metrics,traces,logs} JSON snapshots (GET)
      │   ├── Schnorr response signing (BIP-340) — bypassed for application/grpc* + application/grpc-web*
      │   └── catch-all revProxy (h2c, FlushInterval=-1) → user app :7074
      ├── privSrv (127.0.0.1:8080) — same chi mux for user-app loopback callbacks

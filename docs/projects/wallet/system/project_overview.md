@@ -100,8 +100,9 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
   - `plugins/vite-plugin-basic-auth.ts` (new) — dev/preview equivalent using Node `crypto.timingSafeEqual`; configures the Vite dev server and preview server via `configureServer`/`configurePreviewServer`. Registered first in the `plugins` array of `vite.config.ts` so it short-circuits any unauthenticated request.
   - Activation: set `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` env vars (locally for dev/preview, in the Cloudflare Pages dashboard for prod). If either is unset, both middlewares are no-ops.
 
-### Address Input Recognition (PR #620)
-- **LNURL paste/scan support**: `InputAddress` (`src/components/InputAddress.tsx`) now recognises LNURLs via `isValidLnUrl` (`src/lib/lnurl.ts`) alongside Bitcoin/Ark addresses, Lightning invoices, BIP21 URIs, email addresses and Ark notes — so an LNURL pasted into the address field triggers the same paste-button affordance as any other supported payload. `isEmailAddress` regex made case-insensitive. New LNURL unit tests in `src/test/lib/address.test.ts`.
+### Address Input Recognition (PR #620, PR #625)
+- **LNURL paste/scan support** (PR #620): `InputAddress` (`src/components/InputAddress.tsx`) recognises LNURLs via `isValidLnUrl` (`src/lib/lnurl.ts`) alongside Bitcoin/Ark addresses, Lightning invoices, BIP21 URIs, email addresses and Ark notes — so an LNURL pasted into the address field triggers the same paste-button affordance as any other supported payload. `isEmailAddress` regex made case-insensitive. New LNURL unit tests in `src/test/lib/address.test.ts`.
+- **`lightning:` URI prefix** (PR #625): `InputAddress` now also recognises strings prefixed with `lightning:` (e.g. wallet-app copies of BOLT11 invoices) — `isAddress` strips the 10-character prefix and runs `isLightningInvoice` on the remainder, so prefixed invoices activate the paste button. `lowerData = data.toLowerCase()` is factored out so each predicate runs against the same lowercased string.
 
 ### Asset Amount Precision
 - **bigint-based amount math**: `unitsToCents` / `centsToUnits` operate on `bigint`; `AssetOption.balance` and tx-asset `amount` are now `bigint`. Asset metadata `supply` is `bigint` and serialised via a `JSON.stringify` replacer that converts bigint → string.
@@ -124,8 +125,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
-- **@arkade-os/sdk** (0.4.26) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.31) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
+- **@arkade-os/sdk** (0.4.27) for Ark protocol operations
+- **@arkade-os/boltz-swap** (0.3.32) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
 - **@tanstack/react-virtual** for virtualized swap list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
@@ -220,7 +221,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.26, @arkade-os/boltz-swap 0.3.31
+**Dependencies**: @arkade-os/sdk 0.4.27, @arkade-os/boltz-swap 0.3.32
 
 ## Getting Started
 

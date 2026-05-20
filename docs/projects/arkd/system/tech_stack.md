@@ -2,12 +2,12 @@
 
 ## Overview
 
-arkd is built with Go 1.24.6+ using modern Bitcoin libraries and infrastructure components. The stack emphasizes reliability, testability, and maintainability through clean architecture patterns.
+arkd is built with Go 1.26.3+ using modern Bitcoin libraries and infrastructure components. The stack emphasizes reliability, testability, and maintainability through clean architecture patterns.
 
 ## Core Technologies
 
 ### Programming Language
-**Go 1.24.6+** - Compiled, statically-typed language with excellent concurrency primitives for managing rounds and background services. Strong Bitcoin development ecosystem with cross-platform compilation support.
+**Go 1.26.3+** - Compiled, statically-typed language with excellent concurrency primitives for managing rounds and background services. Strong Bitcoin development ecosystem with cross-platform compilation support.
 
 ### Bitcoin Libraries
 

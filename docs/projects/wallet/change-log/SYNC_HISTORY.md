@@ -1,5 +1,46 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-20 - Documentation Sync
+**Commit**: `447f01866732aca287f791caad60791cc8244739`
+**Previous Sync**: `98f2ef09c9b232d85a9d894c22c80a94484adae4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 non-merge commits
+- `447f0186` Minor fixes (#621)
+- `fb57f127` accept lightning: prefix in paste address button (#625)
+- `5e86af42` Upgrade ts-sdk 0.4.27 - boltz-swap 0.3.32 (#623)
+
+**Features Added / Modified**:
+- **`lightning:` URI prefix recognised by paste/scan (PR #625, commit fb57f127)** — `src/components/InputAddress.tsx` factors out a single `lowerData = data.toLowerCase()` and adds a new branch `lowerData.startsWith('lightning:') && isLightningInvoice(lowerData.slice(10))` to `isAddress`. Strings prefixed with `lightning:` (e.g. wallet-app copies of BOLT11 invoices) now activate the paste button alongside raw addresses, invoices, BIP21 URIs, email, LNURLs and Ark notes. Strip-and-validate is done in-component only — `isLightningInvoice` itself is unchanged.
+- **Minor UX fixes (PR #621, commit 447f0186)**:
+  - `src/screens/Init/Restore.tsx` — `<Input name='private-key' label='Private key' onChange={setSomeKey} />` no longer passes the `value` prop, making it an uncontrolled input. Fixes a React error during the restore-with-private-key flow.
+  - `src/screens/Apps/Boltz/Settings.tsx` — Recover section heading switched from `<TextLabel>` to `<Text thin>` to match the rest of the Settings typography; helper text color migrated from legacy `dark50` to the design-token-aligned `neutral-500`. `TextLabel` import removed.
+
+**Dependency Updates** (PR #623, commit 5e86af42):
+- `@arkade-os/sdk`: 0.4.26 → 0.4.27
+- `@arkade-os/boltz-swap`: 0.3.31 → 0.3.32
+- `pnpm-lock.yaml` regenerated.
+
+**Files Touched in Repo** (5 files):
+- `package.json`, `pnpm-lock.yaml`
+- `src/components/InputAddress.tsx`
+- `src/screens/Apps/Boltz/Settings.tsx`
+- `src/screens/Init/Restore.tsx`
+
+**Configuration Changes**: None
+**Breaking Changes**: None
+
+**Files Updated**:
+- `docs/INDEX.md` (wallet Key Capabilities: `lightning:` prefix added to InputAddress recognition note; sdk 0.4.26 → 0.4.27, boltz-swap 0.3.31 → 0.3.32 in Key Capabilities + Dependencies)
+- `docs/projects/wallet/INDEX.md` (frontmatter version 1.2.9 → 1.2.10 + `last_sync_commit`; Arkade Integration sdk/boltz-swap versions; shadcn core-component migration entry boltz-swap reference)
+- `docs/projects/wallet/system/project_overview.md` (Address Input Recognition: `lightning:` prefix added; Technology Stack sdk/boltz-swap versions; Dependencies summary versions)
+- `docs/projects/wallet/system/tech-stack.md` (`@arkade-os/sdk` heading 0.4.26 → 0.4.27; `@arkade-os/boltz-swap` heading 0.3.30 → 0.3.32)
+- `docs/projects/wallet/change-log/last-sync.txt` → `447f01866732aca287f791caad60791cc8244739`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+---
+
 ## 2026-05-19 - Documentation Sync
 **Commit**: `98f2ef09c9b232d85a9d894c22c80a94484adae4`
 **Previous Sync**: `1cfdb1661f57e1852c828038303d0ee5234457d3`

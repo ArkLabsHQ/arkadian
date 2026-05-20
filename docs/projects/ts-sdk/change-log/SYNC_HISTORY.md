@@ -1,5 +1,31 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-20 - Post-0.4.27: Expo background-task subpath split (#487) + Node 24 LTS (#495)
+**From**: `07785478edf31f2d0683f5664c1b5aa002d9eb6e`
+**To**: `c0442fbf3aaafba226400981d15bbb14c658622e`
+**Synced By**: update-project skill
+**Status**: Two PRs landed on `main` after the 0.4.27 release tag; `package.json` `version` still reads `0.4.27` (no new version cut yet). Both changes are user-visible — one is breaking for Expo callers, the other widens supported Node range.
+
+**Commits analyzed** (2 non-merge commits):
+- `97d64ef` chore: upgrade to Node 24 LTS (#495) — adds `.nvmrc` pinned to `24.15.0`; CI workflows (`.github/workflows/ci.yml`, `tsdoc.yml`) bumped to Node 24; `engines.node` widened from `>=22.12.0 <23` to `>=22.12.0 <25` so downstream consumers still on Node 22.x are not broken (the PR explicitly widened the range as a follow-up fix in the same merge).
+- `c0442fb` fix(wallet/expo): isolate expo-task-manager/expo-background-task to /wallet/expo/background (#487) — fixes #486. Splits background-task helpers out of `/wallet/expo` into a new `@arkade-os/sdk/wallet/expo/background` subpath (new `package.json` `exports` entry). The previous shape lazy-`require()`-d `expo-task-manager` / `expo-background-task` from inside `/wallet/expo` so they were invisible to Metro's static dependency collector and never entered the bundle graph. The new subpath uses static imports (Metro sees them) and isolates the imports to the only module that needs them so react-native-web and Node consumers using `/wallet/expo` don't pull the two native peer deps. **Breaking for Expo callers**: `defineExpoBackgroundTask` / `registerExpoBackgroundTask` / `unregisterExpoBackgroundTask` and `DefineBackgroundTaskOptions` / `PersistedBackgroundConfig` are no longer re-exported from `/wallet/expo`; `ExpoWallet.setup()` no longer registers the OS scheduler, and `dispose()` no longer unregisters it — consumer must call `registerExpoBackgroundTask(taskName, { minimumInterval })` after `setup()` and `unregisterExpoBackgroundTask(taskName)` before `dispose()`. `background` config dropped `taskName` + `minimumBackgroundInterval` (TS compile error on removed fields; JS callers must update manually — fields are silently ignored and the OS task never runs). New `src/wallet/expo/expo-modules.d.ts` carries ambient declarations for the subset of `expo-task-manager` / `expo-background-task` APIs `background.ts` actually uses, so `tsc` type-checks without pulling the optional peer deps into the build. `src/worker/expo/README.md` rewritten with the new usage shape and a Before/After table.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Key Concepts gain "Expo Subpath Split" and "Node Engines" entries; existing concepts untouched
+- `docs/projects/ts-sdk/system/project_overview.md` — Core Features `Expo/React Native` row rewritten with the breaking-change details; Technology Stack adds a `Node` row (Node 24 LTS + widened `engines.node`); Export Paths table adds `/wallet/expo` and the new `/wallet/expo/background`
+- `docs/projects/ts-sdk/system/architecture.md` — module tree gains `wallet/expo/{index,wallet,background,expo-modules.d.ts}.ts` subtree with annotation; Build Configuration adds bullets for the Expo subpath split and the Node engine bump
+- `docs/projects/ts-sdk/sop/development-workflow.md` — Prerequisites Node version 18+ → Node 24 LTS (`.nvmrc` → `24.15.0`)
+- `docs/projects/ts-sdk/testing/how_to_run.md` — Prerequisites Node version 18+ → Node 24 LTS
+- `docs/INDEX.md` — ts-sdk Active Dev row prefixes the existing 0.4.27 release paragraph with the two post-release changes (Expo subpath split + Node 24); Tags add `expo-background-task`, `metro-bundler`, `node-24`
+
+**Notes**:
+- No new `version` cut — `package.json` still reads `"0.4.27"`. The next published version will carry both changes.
+- `pnpm-lock.yaml` was not touched by either commit.
+- Breaking change is **Expo callers only**; non-Expo consumers (Node, browser, RN-web, service worker) keep working unchanged on `/wallet/expo`.
+- The `engines.node` widening (`<25`) is intentional — pinning to Node 24 only would break downstream apps that still run Node 22.x; the SDK itself develops on 24 (via `.nvmrc`) but ships compatible with both.
+
+---
+
 ## 2026-05-18 - Release 0.4.27 (version bump only)
 **From**: `d663d158bdf90354a15fd6878c482026f40ea2a0`
 **To**: `07785478edf31f2d0683f5664c1b5aa002d9eb6e`

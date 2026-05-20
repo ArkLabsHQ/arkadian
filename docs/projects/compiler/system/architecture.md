@@ -33,7 +33,7 @@ The AST is a fully typed Rust representation:
 | `Contract` | Top-level: name, params, server key, timelocks, functions |
 | `Function` | Name, params, statements, `is_internal` flag |
 | `Statement` | Enum: Require, LetBinding, VarAssign, IfElse, ForIn |
-| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, GroupFind, CurrentInput, introspection, crypto ops |
+| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, GroupFind, CurrentInput, introspection, crypto ops, `Concat { left, right, coerce_left, coerce_right }`, one-shot `Sha256 { data }` |
 | `Requirement` | CheckSig, CheckSigFromStack, CheckMultisig, After, HashEqual, Comparison |
 
 ### Stage 2.5: AST Validation (`src/validator/`)
@@ -54,10 +54,11 @@ Transforms AST to `ContractJson` (the output ABI):
 1. **Parse source** → AST via `parser::parse()`
 2. **Collect asset IDs** used in lookups for constructor param decomposition
 3. **Decompose parameters**: `bytes32` asset IDs → `_txid` + `_gidx` pairs; array types → flattened `_0`, `_1`, `_2`
-4. **For each non-internal function**, generate two `AbiFunction` variants:
+4. **Bytes-aware `+` rewrite pass**: walk each function bottom-up with a `Scope` and rewrite every `BinaryOp { op: "+" }` whose left or right operand resolves to a bytes-like type into `Expression::Concat`, recording per-side `coerce_left` / `coerce_right` flags so int operands get `OP_SCRIPTNUMTOLE64` before `OP_CAT`. Pure `int + int` stays as `OP_ADD64`. The rewrite uses `typechecker::infer_type()` (and the public `Scope` / `build_scope`) so emission can keep its lowering logic uniform.
+5. **For each non-internal function**, generate two `AbiFunction` variants:
    - **Cooperative**: Original ASM + `<SERVER_KEY> <serverSig> OP_CHECKSIG`
    - **Exit**: Original ASM + timelock OR N-of-N CHECKSIG chain (if introspection detected)
-5. **Serialize** to JSON with contract metadata
+6. **Serialize** to JSON with contract metadata
 
 ### Stage 4: Output Validation (`src/validator/`)
 
@@ -111,10 +112,10 @@ src/
 
 ## Testing Architecture
 
-21 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
-- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`
+23 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
+- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction)
 - **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
-- **New opcodes**: `new_opcodes_test`
+- **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
 - **Asset groups**: `group_properties_test`
 - **Complex contracts**: `arkade_kitties_test`, `token_vault_test`, `threshold_oracle_test`, `threshold_multisig_test`, `epoch_limiter_test`
 - **Validation & structure**: `asm_structural_test` (BSST-style ASM checks), `validation_error_test` (AST/output validator errors), `type_system_test` (typechecker behaviour), `compilation_roundtrip_test` (compile-then-re-parse round-trip), `contract_import_instantiation_test` (cross-contract imports)

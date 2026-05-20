@@ -19,9 +19,12 @@ The compiler is a critical piece of the Arkade OS stack: contracts written in Ar
 
 ### Cryptographic Primitives
 - `checkSig` / `checkMultisig` / `checkSigFromStack` / `checkSigFromStackVerify`
-- `sha256` and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`)
+- One-shot `sha256(data)` (compiles to `OP_SHA256`) and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`). Accepts concatenated arguments — e.g. `sha256(ticker + price + time)` — so an oracle message can be reconstructed in a single hash step.
 - `ecMulScalarVerify` (EC scalar multiplication)
 - `tweakVerify` (Taproot key tweaking)
+
+### Byte-string Operations
+- **Type-dispatched `+`**: when at least one operand resolves to a bytes-like type (`bytes`, `bytes20`, `bytes32`), `+` compiles to `OP_CAT` (concatenation) instead of `OP_ADD64`. An `int` operand on either side is auto-coerced with `OP_SCRIPTNUMTOLE64` so on-chain and off-chain hashing remain byte-identical. Pure `int + int` keeps the existing arithmetic semantics. Implemented via a bottom-up rewrite pass over the AST that calls `typechecker::infer_type()` before emission.
 
 ### Transaction Introspection
 - Input/output value, scriptPubKey, sequence, outpoint, nonce, issuance
@@ -87,12 +90,11 @@ compiler/
 ├── typechecker/            # Type system for AST expressions (ArkType)
 ├── opcodes/                # Opcode constants module
 ├── examples/               # 12+ .ark contract examples with compiled JSON
-│   └── stability/          # BTC-collateralised USD position contracts
-│       ├── price_beacon.ark
+│   └── stability/          # BTC-collateralised USD position contracts (oracle-signed witness)
 │       ├── stability_vault.ark
 │       └── stability_offer.ark
-├── tests/                  # 21 integration test files
-└── docs/                   # Internal documentation (specs, opcodes, stability-vault-prd.md)
+├── tests/                  # 23 integration test files
+└── docs/                   # Internal documentation (specs, opcodes, stability.md design doc)
 ```
 
 ## Security Model

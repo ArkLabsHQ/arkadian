@@ -1,5 +1,39 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-20 - Operational Memory Sync (no doc changes)
+**Commit Range**: `1a91fbd9..ddfdbf72` (25 commits, all `memory(*)` agent logs)
+**Previous Sync**: `be434460938cafb4ebe7b239c03068007715650d`
+**Caller-Asserted From**: `1a91fbd9b5a94cbfdabb686110eec995fee02990` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `ddfdbf72f25691591044666f161ecc4884461c89`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 16 files changed (+740/-97), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,research-monitor,sdk-parity,security-triage,self-improver,slack-monitor}.md, executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md)
+- Routine agent activity spanning 2026-05-19 00:00Z → 2026-05-20 00:00Z (~24h): issue-triage/security-triage on 4-hourly slots; release-coordinator on 4-hourly slots; daily-briefing, executive-digest, linear-sync, sdk-parity, slack-monitor, self-improver, repo-detector, repo-sync, research-monitor each logged 2026-05-19 runs
+- Notable operational events captured in memory only:
+  - **enclave PR #111 PCR0 signing endpoint merged with ZERO reviews** — flagged CRITICAL by security-triage 2026-05-19T20:00Z (GOV#42)
+  - **enclave v0.0.77 HARD BLOCKED** — release-coordinator 2026-05-19T20:00Z (GOV#42/PCR0); still holding 2026-05-20 with ts-sdk fix pending
+  - **enclave GOV#42 audit trail gap** flagged by issue-triage 2026-05-19T20:00Z
+  - **compiler PR #31 merged** (GOV#43, oracle price witness) — security-triage 2026-05-20
+  - **go-sdk #172** uint64 underflow fix advanced day 14 → day 15 → day 16 (still unreviewed)
+  - **ts-sdk #487 merged** (GOV#41) — security-triage 2026-05-19T16:00Z
+  - **wallet #623 merged** (ts-sdk v0.4.27 ships unreviewed HD rotation, GOV#35) — security-triage 2026-05-19T08:00Z
+  - **introspector #81 DoS/compute-budget** surfaced repeatedly across 12:00Z/16:00Z release/security/issue runs
+  - **GOV#36-40 batch** — 5 merges noted by security-triage 2026-05-19T12:00Z
+  - **executive-digest FINAL CATASTROPHIC CONTINUATION 2026-05-19** — 41 governance violations, CodeRabbit root-cause analysis (CodeRabbit counted as human reviewer), pr-lifecycle 6 weeks silent, new CI meltdown (arkd+bancod), protocol-critical VHTLC/introspector/btcpay
+  - **repo-detector 2026-05-20**: 6 repos archived from arkade-os
+  - **ts-sdk P1 race** present in 3 repos — release-coordinator 2026-05-19T20:00Z
+  - **self-improver weekly audit 2026-05-19** ran
+  - **linear-sync state snapshot 2026-05-19** captured
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: ddfdbf72…`, `last_sync_date: 2026-05-20T00:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `ddfdbf72f25691591044666f161ecc4884461c89`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no changes required (capabilities, agent roster, endpoints unchanged)
+
 ## 2026-05-19 - Operational Memory Sync (no doc changes)
 **Commit Range**: `38fac684..be434460` (17 commits, all `memory(*)` agent logs)
 **Previous Sync**: `11205eb64123cc702c01e7a6bc60e183d8d77666`

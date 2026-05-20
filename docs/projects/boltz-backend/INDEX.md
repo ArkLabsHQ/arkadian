@@ -70,6 +70,7 @@ Boltz offers three types of atomic swaps:
    - Receives Bitcoin on another chain
    - Use case: Move between Bitcoin mainchain, Liquid, or EVM chains
    - EVM lockups support 0-amount commitments so renegotiation can populate the actual amount later
+   - EVM lockups also accept **underpaid** commitments — the commitment is recorded, the swap is then marked `transaction.lockup.failed` through the normal nursery path, and renegotiation continues from there (Submarine Swaps still reject underpaid commitments)
 
 ### Atomic Swap Mechanism
 - **HTLCs**: Hash Time-Locked Contracts ensure trustless execution
