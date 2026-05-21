@@ -101,7 +101,7 @@ Arkade Wallet follows a **client-side first architecture** where all sensitive o
 
 **Key Providers** (`src/providers/`):
 
-- **WalletProvider** (`wallet.tsx`): Core wallet state — balance, VTXOs, send/receive, settlement. As of PR #613 ("Fix dead service worker"), service-worker wallet initialization uses an **AbortController-per-session** model rather than a generation counter: each `initSvcWorkerWallet` call mints a new `AbortSignal` (`startInitSession`) and aborts the previous with reason `'init'` ("abandon, don't clear"); lock/reset aborts the current signal with reason `'lock-reset'` so stale paths can decide whether to call `svcWallet.clear()` (`clearIfLockReset`). `runInitAttempt` is extracted so retries inherit the same signal. `initSvcWorkerWallet` accepts `identity?: SingleKey` (preferred) or legacy `privateKey?: string`, returns `Promise<boolean>`, and supports `skipMigration: true` (used by `restartWallet`, since the IndexedDB migration is a no-op after first successful init). The `reinitSvcWalletRef` assignment was moved into a `useEffect` to avoid mutating refs during render.
+- **WalletProvider** (`wallet.tsx`): Core wallet state — balance, VTXOs, send/receive, settlement. As of PR #613 ("Fix dead service worker"), service-worker wallet initialization uses an **AbortController-per-session** model rather than a generation counter: each `initSvcWorkerWallet` call mints a new `AbortSignal` (`startInitSession`) and aborts the previous with reason `'init'` ("abandon, don't clear"); lock/reset aborts the current signal with reason `'lock-reset'` so stale paths can decide whether to call `svcWallet.clear()` (`clearIfLockReset`). `runInitAttempt` is extracted so retries inherit the same signal. As of PR #624, `initSvcWorkerWallet` accepts a typed `Identity` (`SingleKey` for legacy wallets, `MnemonicIdentity` for new mnemonic-backed wallets); the legacy `privateKey?: string` parameter is gone. `initWallet` is now `initWallet(credentials: { mnemonic?: string; privateKey?: Uint8Array })` — the mnemonic path constructs `MnemonicIdentity.fromMnemonic(..., { isMainnet })`, derives the LNURL session secret via `deriveNostrKeyFromMnemonic` (BIP86 `m/86'/coinType'/0'/0/0`), and pushes the mnemonic into `FlowContext.setLnurlInfo`; the privateKey path uses `SingleKey.fromPrivateKey`. `ServiceWorkerWallet.setup` is now called with `walletMode: 'static'` for all wallets so addresses never rotate. `unlockWallet` reads `hasMnemonic()` to decide between `getMnemonic(password)` and `getPrivateKey(password)`, and translates `DOMException` from `crypto.subtle.decrypt` (wrong password) into `Error('Invalid password')`. `restartWallet` no longer pulls `.toHex()` off the identity — it reuses `svcWallet.identity` directly.
 - **LightningProvider** (`lightning.tsx`): SwapManager-based Lightning swap orchestration (submarine, reverse, chain swaps)
 - **FeesProvider** (`fees.tsx`): Fee estimation and display for on-chain/collaborative exit
 - **FiatProvider** (`fiat.tsx`): Fiat currency conversion (USD, EUR, CHF, etc.)
@@ -268,31 +268,40 @@ self.addEventListener('fetch', (event) => {
 
 ### Key Management
 
-**Seed Generation**:
+**Two identity paths (PR #624)**:
+- **New wallets — `MnemonicIdentity`** (`@arkade-os/sdk`): 12-word BIP39 mnemonic → BIP86 Taproot derivation at `m/86'/coinType'/0'/0/0` (coinType `0` mainnet, `1` testnet). Signing happens inside the service worker against the worker-constructed `MnemonicIdentity`.
+- **Legacy wallets — `SingleKey`**: raw 32-byte private key, stored encrypted; supported indefinitely for unlock + restore.
+
+**Mnemonic storage** (`src/lib/mnemonic.ts`):
+```typescript
+// encryptMnemonic — PBKDF2 (100k iters, SHA-256) → AES-GCM (256)
+// Random 16-byte salt + 12-byte IV per record; combined blob base64'd
+// into localStorage['encrypted_mnemonic'].
+
+export const deriveNostrKeyFromMnemonic = (mnemonic, isMainnet) => {
+  if (!validateMnemonic(mnemonic, wordlist)) throw new Error('Invalid mnemonic phrase')
+  const seed = mnemonicToSeedSync(mnemonic)
+  const master = HDKey.fromMasterSeed(seed)
+  const coinType = isMainnet ? 0 : 1
+  const derived = master.derive(`m/86'/${coinType}'/0'`).deriveChild(0).deriveChild(0)
+  if (!derived.privateKey) throw new Error('BIP32 derivation yielded no private key')
+  return derived.privateKey // 32 bytes, used as the LNURL session secret
+}
+```
+
+The Nostr-backup key is intentionally the same key as the Ark signing key (matches legacy raw-private-key behavior where one key served both purposes).
+
+**Legacy seed generation** (still applicable to non-mnemonic wallets and tests):
 ```typescript
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-
 const mnemonic = generateMnemonic(wordlist, 128); // 12 words
-// or
-const mnemonic = generateMnemonic(wordlist, 256); // 24 words
-```
-
-**Key Derivation** (BIP32):
-```typescript
-import { HDKey } from '@scure/bip32';
-
-const seed = mnemonicToSeedSync(mnemonic);
-const masterKey = HDKey.fromMasterSeed(seed);
-
-// Derive Ark wallet key (example path)
-const arkKey = masterKey.derive("m/84'/0'/0'/0/0");
 ```
 
 **Storage**:
-- Seed encrypted with user password (optional) using browser Crypto API
-- Derived keys kept in memory during session
-- Keys cleared on wallet lock
+- Mnemonic (new) or raw private key (legacy) AES-GCM-encrypted in `localStorage` (`encrypted_mnemonic` / `encrypted_private_key`); user password is the KDF input — empty string means passwordless
+- Derived keys / identities kept in memory inside the service-worker session; the wallet provider holds the mnemonic in a ref for `restartWallet` and clears it on lock
+- Password change (`Settings → Password.saveNewPassword`) re-encrypts the mnemonic for mnemonic wallets, or the private key for legacy wallets
 
 ### Network Security
 

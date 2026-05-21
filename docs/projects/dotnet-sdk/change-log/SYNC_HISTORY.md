@@ -1,5 +1,40 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-21 - `ArkNetworkConfig` per-network Esplora + Electrum (WS / TCP) endpoint defaults + quieter `VtxoSynchronizationService` poll logs
+**From**: `bbcd96015d01bcaf5bb88da7cf626e4cb1612e69`
+**To**: `fa6092d084e326632ecf1686eef2335b1c12efbe`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 2 squash-merge PRs (#95, #96).
+
+**Highlights**:
+- **`ArkNetworkConfig` chain-source defaults (PR #96)** — Three additive nullable fields appended to the positional record: `EsploraUri`, `ElectrumWsUri`, `ElectrumTcpUri` (`tcp://host:port`). Values mirror the canonical Arkade ts-sdk presets (`ESPLORA_URL` / `ELECTRUM_WS_URL` / `ELECTRUM_TCP_HOST`) so apps that want an `IBitcoinBlockchain` (Esplora flavor) without running their own NBXplorer / bitcoind can wire it straight off the preset:
+  ```csharp
+  services.AddEsploraBlockchain(new Uri(ArkNetworkConfig.Mainnet.EsploraUri!));
+  ```
+  Per-network values:
+  | Network | `EsploraUri` | `ElectrumWsUri` | `ElectrumTcpUri` |
+  |---------|--------------|-----------------|------------------|
+  | Mainnet | `https://mempool.arkade.sh/api` | `wss://electrum.arkade.sh` | `tcp://electrum.arkade.sh:50001` |
+  | Mutinynet | `https://mempool.mutinynet.arkade.sh/api` | `wss://electrum.mutinynet.arkade.sh` | `tcp://electrum.mutinynet.arkade.sh:50001` |
+  | Regtest | `http://localhost:3000` | `ws://localhost:50003` | `tcp://localhost:50000` |
+  Electrum ports were verified at the `server.version` protocol level against the public Fulcrum hosts: only `:50001` plain-TCP is exposed on Mainnet / Mutinynet (TLS goes via the WSS endpoint at `:443`, not the conventional `:50002`). Regtest's `:50000` is nigiri's electrs binary-protocol port (its `:30000` HTTP REST endpoint is a different protocol). The intermediate `ElectrumTcpHost`+`ElectrumTcpPort` split was collapsed pre-merge into a single `ElectrumTcpUri` symmetric with `ElectrumWsUri`. JSON keys: `esplora`, `electrum-ws`, `electrum-tcp`. Additive nullable defaults — existing named-args callers compile unchanged.
+- **Quieter `VtxoSynchronizationService.StartQueryLogic` logs (PR #95)** — The 5-second safety-net poll is deliberate and cheap (~3 ms per tick; bounds the indexer-lag detection gap that motivated v2.1.13's fix), but every tick used to fire two Info-level lines (`StartQueryLogic: polling N script(s) ...` and `StartQueryLogic: poll returned 0 VTXO(s) across N script(s) in Nms`) — 24 INFO lines/minute on an idle wallet that drowned anything else at the default log level. Now: the pre-poll line is always Debug (duplicates info from the result line; the upcoming arkd call isn't a productive signal on its own); the result line is Info **only** when the poll produced a VTXO (the productive case — a payment landed) **or** on the one-off cold-start catch-up; routine ticks returning 0 drop to Debug. No behaviour change: same gRPC calls, same upsert path, same cadence — only verbosity at the default log level changes. Operators who want the chatter back lower the log level to Debug for `NArk.Core.Services.VtxoSynchronizationService`.
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk Key Capabilities gets a new bullet for per-network Esplora + Electrum (WS / TCP) endpoint defaults (PR #96). Tags: `network-defaults`, `esplora-uri`, `electrum-uri`, `electrum-ws`, `electrum-tcp`. `ask_question` triggers: `arknetworkconfig esplora default`, `arknetworkconfig electrum default`, `electrum ws uri`, `electrum tcp uri`. Status table row extended with both PRs.
+- `docs/projects/dotnet-sdk/INDEX.md` — Key Concepts: new `ArkNetworkConfig` entry covering the new nullable defaults and the verified-port disambiguation.
+- `docs/projects/dotnet-sdk/system/project_overview.md` — New Core Feature **(26) Network Endpoint Defaults (Esplora + Electrum)** covering the per-network values, JSON keys, ts-sdk parity, and the verified Electrum TCP port table.
+- `docs/projects/dotnet-sdk/system/architecture.md` — `## Network Configurations` section gains the chain-source-defaults table (3 networks × 3 endpoints) plus the Electrum-port verification rationale.
+- `docs/projects/dotnet-sdk/testing/usage.md` — `## Network Configurations` table widened from 4 columns to 7 to cover Esplora / Electrum WS / Electrum TCP per network, with the off-the-preset wiring snippet.
+- `docs/projects/dotnet-sdk/testing/troubleshooting.md` — New Debugging Tip note explaining that the absence of `VtxoSynchronizationService.StartQueryLogic` lines at Info level is correct (PR #95), and how to lower the log level to Debug to see every poll iteration.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `fa6092d084e326632ecf1686eef2335b1c12efbe`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/projects/dotnet-sdk/testing/how_to_run.md`, `sop/development-workflow.md`, `system/integration-with-arkd.md`, `testing/how_to_test.md` — no impact (additive nullable-field config defaults + a log-verbosity tweak; no build, test, or runtime-execution change).
+
 ## 2026-05-20 - Deterministic `AssetPacketBuilder` group ordering + cross-SDK fixture parity (asset_ref / asset_input / asset_output / metadata, ts-sdk-sourced)
 **From**: `0f8ba7fa6551a387f4d8f01143e7a4c86f15f3da`
 **To**: `bbcd96015d01bcaf5bb88da7cf626e4cb1612e69`

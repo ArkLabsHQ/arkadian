@@ -135,6 +135,16 @@ enclave setup     # full: recomputes vendor/deps hash too
 enclave build && enclave deploy
 ```
 
+**CLI / runtime version bump:**
+
+```sh
+go install github.com/ArkLabsHQ/introspector-enclave/cli/cmd/enclave@latest
+enclave upgrade    # rewrites runtime: {rev,hash,vendor_hash} in enclave.yaml to the CLI's baked coordinates
+enclave build && enclave deploy
+```
+
+`enclave upgrade` only touches the top-level `runtime:` block, so `app.nix_rev` / `app.nix_hash` / `app.nix_vendor_hash` are never disturbed. It is idempotent — re-running with no version change prints `Already on runtime <rev> — nothing to do.`
+
 ## Lock the KMS Key (irreversible)
 
 ```sh
@@ -157,3 +167,7 @@ Manual verification:
 enclave verify --base-url https://<elastic-ip> --expected-pcr0 <pcr0>
 gh attestation verify deployment.json --repo <owner>/<repo>
 ```
+
+### Deployer IAM Policy
+
+The repo ships `deploy-iam-policy.json` at the root — a least-privilege template for the OIDC role assumed by the deployer (`AWS_ROLE_ARN`). Attach (or merge) it to that role so `enclave deploy` / `tofu apply` can manage the stack. Highlights: broad `ec2`/`s3`/`kms`/`ssm`/`dynamodb` access for stack lifecycle, IAM read for `terraform plan` drift detection, and IAM write scoped to `*enclave*` role + instance-profile ARNs (plus `iam:PassRole` guarded to `ec2.amazonaws.com`).

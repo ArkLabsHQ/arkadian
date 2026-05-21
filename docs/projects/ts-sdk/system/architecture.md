@@ -220,10 +220,18 @@ interface StorageAdapter {
 
 ## Build Configuration
 
-- **Target**: ES2020
-- **Module**: ESNext (ESM) + CommonJS (CJS)
+- **Builder**: `tsup` ^8.5.0 — single `pnpm build` invocation replaces the prior 6-step `tsc` chain (`build:esm` / `build:cjs` / `build:types` / `build:expo:*`) plus `scripts/add-extensions.js` + `scripts/generate-package-files.js` + `scripts/build-browser.js` (#496). Config in `tsup.config.ts`.
+- **Target**: `es2022` (was `es2020` under the prior `tsc` build)
+- **Format**: Dual ESM + CJS — per-entry `.js` (ESM) + `.cjs` (CJS); per-entry `.d.ts` (ESM types) + `.d.cts` (CJS types); source maps
+- **Splitting / treeshake**: `splitting: true` + `treeshake: true` (load-bearing: keeps `contractHandlers` a single runtime instance across entries — `scripts/smoke-dist.mjs` asserts singleton identity across both formats)
+- **Output**: Flat `dist/` — e.g. `dist/index.js`, `dist/index.cjs`, `dist/index.d.ts`, `dist/index.d.cts`, `dist/adapters/expo.{js,cjs,d.ts,d.cts}`, `dist/wallet/expo/background.{js,cjs,d.ts,d.cts}`, etc. Was `dist/esm/`, `dist/cjs/`, `dist/types/` under the prior chain.
+- **Entries** (`tsup.config.ts`): `src/index.ts`, `src/adapters/{expo,localStorage,fileSystem,indexedDB,asyncStorage}.ts`, `src/repositories/{sqlite,realm}/index.ts`, `src/worker/expo/index.ts`, `src/wallet/expo/index.ts`, `src/wallet/expo/background.ts`, plus `src/contracts/handlers/index.ts` (side-effects-only entry kept at a predictable dist path so `package.json` `sideEffects` keeps resolving)
+- **External peers** (not bundled): `expo`, `expo-sqlite`, `expo-task-manager`, `expo-background-task`, `@react-native-async-storage/async-storage`
+- **Typecheck**: Separate `pnpm typecheck` (`tsc --noEmit`) gates CI before `pnpm build`. `tsconfig.json` is repurposed as typecheck-only (`noEmit: true`, `moduleResolution: bundler`) — the per-format `tsconfig.cjs.json` / `tsconfig.esm.json` / `tsconfig.expo.json` are deleted, and the build is unconditional (no more `build:expo:check`)
 - **Strict mode**: Enabled
-- **Output**: `dist/esm/`, `dist/cjs/`, `dist/types/`
+- **Smoke / publish-shape gates**: `scripts/smoke-dist.mjs` runs post-build (locally: `pnpm smoke:dist`; CI: after `pnpm build`) and asserts every `package.json` `exports` target (+ `main`/`module`/`types`) exists, every relative import in `dist/**/*.d.{ts,cts}` resolves, ESM + CJS `contractHandlers` singleton identity holds across the root and `contracts/handlers` entries with registered types `{default, delegate, vhtlc}`, each Node-safe public subpath resolves via `@arkade-os/sdk`'s `exports` through a symlinked consumer, and `wallet/expo/background` stays structural-only (would eagerly require optional Expo peers at module init otherwise). CI additionally runs `npm pack --dry-run --ignore-scripts` to verify publish shape without re-running `prepack`
+- **Barrel bypass in `src/index.ts`**: imports directly from defining modules in `src/contracts/` and `src/repositories/` instead of going through the local `index.ts` barrels — suppresses Rollup chunk-circularity warnings in tsup's dts emit when `splitting: true` is on. A bare side-effect `import "./contracts/handlers"` is added so handler registration survives tree-shaking (and both src + dist paths are listed in `package.json` `sideEffects`, ESM + CJS)
 - **Separate adapter entry points**: Each adapter in `adapters/` has its own export path
 - **Expo subpath split**: `/wallet/expo` (foreground) and `/wallet/expo/background` (OS-task helpers) are separate export entries; only the `/background` subpath imports `expo-task-manager` / `expo-background-task`, keeping them invisible to Metro's static dependency collector on the foreground subpath (#487)
+- **Ambient declarations for optional Expo peers**: `src/wallet/expo/expo-modules.d.ts` covers `expo-task-manager` + `expo-background-task` + `expo-sqlite` (boltz-swap's pattern for soft-optional peers) so `tsc` type-checks without the packages installed (the previous `tsconfig` exclude of `src/repositories/indexedDB/websqlAdapter.ts` is consequently dropped, #496)
 - **Node engines**: `engines.node` = `>=22.12.0 <25`; `.nvmrc` pins development to Node `24.15.0` (CI runs Node 24, #495)

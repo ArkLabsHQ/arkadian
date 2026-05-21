@@ -132,11 +132,17 @@ var txId = await spendingService.Spend("my-wallet", selectedCoins, outputs);
 
 ## Network Configurations
 
-| Network | Ark Server | Boltz | Explorer |
-|---------|------------|-------|----------|
-| Mainnet | `arkade.computer` | `api.boltz.exchange` | `arkade.space` |
-| Mutinynet | `mutinynet.arkade.sh` | `api.boltz.mutinynet.arkade.sh` | `explorer.mutinynet.arkade.sh` |
-| Regtest | `localhost:7070` | `localhost:9069` | N/A |
+| Network | Ark Server | Boltz | Explorer | Esplora | Electrum WS | Electrum TCP |
+|---------|------------|-------|----------|---------|-------------|--------------|
+| Mainnet | `arkade.computer` | `api.boltz.exchange` | `arkade.space` | `mempool.arkade.sh/api` | `wss://electrum.arkade.sh` | `electrum.arkade.sh:50001` |
+| Mutinynet | `mutinynet.arkade.sh` | `api.boltz.mutinynet.arkade.sh` | `explorer.mutinynet.arkade.sh` | `mempool.mutinynet.arkade.sh/api` | `wss://electrum.mutinynet.arkade.sh` | `electrum.mutinynet.arkade.sh:50001` |
+| Regtest | `localhost:7070` | `localhost:9069` | N/A | `localhost:3000` | `ws://localhost:50003` | `localhost:50000` |
+
+`EsploraUri` / `ElectrumWsUri` / `ElectrumTcpUri` are nullable — apps that don't need a chain source can ignore them. Use them straight off the preset to skip running your own NBXplorer / bitcoind:
+
+```csharp
+services.AddEsploraBlockchain(new Uri(ArkNetworkConfig.Mainnet.EsploraUri!));
+```
 
 ## Boltz Referral Attribution
 

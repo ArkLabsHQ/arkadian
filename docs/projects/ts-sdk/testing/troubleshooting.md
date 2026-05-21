@@ -4,20 +4,32 @@
 
 ### TypeScript Compilation Errors
 
-**Problem**: Type errors during `pnpm build`
+**Problem**: Type errors during `pnpm build` or `pnpm typecheck`
 
 **Fix**:
 ```bash
 pnpm install          # Ensure deps are installed
-rm -rf dist/          # Clean build output
-pnpm build            # Rebuild
+pnpm typecheck        # Surfaces TS errors without emitting (faster than build)
+pnpm build            # tsup runs with clean: true — no manual rm -rf dist/ needed
 ```
+
+Since #496 typechecking is a separate `pnpm typecheck` step (`tsc --noEmit`) wired into CI before `pnpm build`. The build itself is `tsup` and uses `clean: true`, so `dist/` is wiped automatically each run.
+
+### Smoke-Dist Failures
+
+**Problem**: `pnpm smoke:dist` (or CI's post-build smoke) reports a missing `exports` target, an unresolved dist-side relative import, a `contractHandlers` singleton-identity mismatch, or that `wallet/expo/background` is no longer structural-only
+
+**Fix**: This indicates the dist shape regressed. Common causes:
+1. A new entry was added to `tsup.config.ts` but not to `package.json` `exports` (or vice versa) — keep the two lists in sync
+2. `splitting: false` was set, or a new entry stopped sharing the `contractHandlers` chunk — the singleton must be one runtime instance across ESM + CJS, root + `contracts/handlers` entries
+3. A new top-level import was added to `src/wallet/expo/background.ts` that materializes an optional Expo peer at module init — keep eager `import` statements limited to `expo-task-manager` / `expo-background-task` (which have ambient declarations in `src/wallet/expo/expo-modules.d.ts`)
+4. A `dist/**/*.d.{ts,cts}` file references a `.js`/`.d.ts` path that wasn't emitted (often after refactoring barrel imports) — re-check the entry list and any `src/index.ts` direct-module imports
 
 ### Module Resolution Errors
 
 **Problem**: Cannot find module `@arkade-os/sdk/adapters/...`
 
-**Fix**: The adapter paths are separate entry points. Ensure your bundler supports the `exports` field in `package.json`. For older bundlers, you may need to configure path aliases.
+**Fix**: The adapter paths are separate entry points. Ensure your bundler supports the `exports` field in `package.json`. For older bundlers, you may need to configure path aliases. Note: since #496 the dist layout is flat (`dist/adapters/expo.{js,cjs,d.ts,d.cts}`), not `dist/{esm,cjs,types}/adapters/expo.*` — any consumer reaching into `dist/` directly (bypassing `exports`) needs to update its paths.
 
 ## Crypto Polyfill Issues
 

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.10
-last_sync_commit: 447f01866732aca287f791caad60791cc8244739
+version: 1.2.11
+last_sync_commit: 9848c02c3ea72d8a004c703ea9d7577bbd946bf4
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -74,8 +74,8 @@ Analysis and summaries of pull requests.
 ### Self-Custodial Wallet
 - **User controls keys**: Private keys never leave the device
 - **No intermediaries**: Direct connection to arkd server
-- **Encrypted storage**: Keys encrypted in IndexedDB via Dexie
-- **Recovery via seed**: BIP39 mnemonic for backup
+- **Encrypted storage**: Mnemonic / private key encrypted in `localStorage` via PBKDF2 (100k iters, SHA-256) + AES-GCM; transaction/VTXO state in IndexedDB via Dexie
+- **Recovery via seed**: New wallets use a 12-word BIP39 mnemonic with `MnemonicIdentity` (BIP86 Taproot derivation); legacy wallets continue to use `SingleKey` from a raw private key (PR #624)
 
 ### ARK Protocol Integration
 - **VTXOs**: Virtual Transaction Outputs for off-chain transactions

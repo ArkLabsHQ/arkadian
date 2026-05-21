@@ -1,5 +1,31 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-21 - Build migration to tsup (#496)
+**From**: `c0442fbf3aaafba226400981d15bbb14c658622e`
+**To**: `029a988d0cae1ba9e35a3a10d7f0b0cc37cce26b`
+**Synced By**: update-project skill
+**Status**: One build-system PR landed on `main` after the post-0.4.27 batch. Replaces the multi-step `tsc + post-processors` build chain with a single `tsup` invocation. Output dist layout changed (flat `dist/*.js|*.cjs|*.d.ts|*.d.cts` instead of `dist/{esm,cjs,types}/` subdirectories); `package.json` `main` / `module` / `types` / `exports` updated accordingly. No `version` cut — `package.json` still reads `"0.4.27"`. No public TypeScript API changes; downstream consumers using documented `exports` paths are unaffected.
+
+**Commits analyzed** (1 non-merge commit):
+- `029a988` Migrate from tsc + post-processors to tsup (#496) — replaces 6 `tsc` invocations (`build:esm`, `build:cjs`, `build:types`, `build:expo:esm`, `build:expo:cjs`, `build:expo:types`) plus `scripts/add-extensions.js` + `scripts/generate-package-files.js` + `scripts/build-browser.js` with a single `pnpm build → tsup` step (dual ESM+CJS, per-entry `.d.ts` / `.d.cts`, source maps, `splitting: true`, `treeshake: true`, target `es2022`). Drops devDeps `esbuild`, `glob`, `rimraf` (tsup brings them); adds `tsup ^8.5.0`. New `pnpm typecheck` script (`tsc --noEmit`) wired into CI before build. New `scripts/smoke-dist.mjs` post-build verification asserts: every `package.json` `exports` target (and `main`/`module`/`types`) exists on disk, every relative import in `dist/**/*.d.{ts,cts}` resolves, CJS + ESM `contractHandlers` singleton identity holds across the root entry and the `contracts/handlers` entry with registered types exactly `{default, delegate, vhtlc}`, each Node-safe public subpath resolves via `@arkade-os/sdk`'s exports through a symlinked consumer, and `wallet/expo/background` stays structural-only (would eagerly require optional Expo peers at module init otherwise). Smoke step wired into CI as `pnpm run smoke:dist` after `pnpm build`, plus `npm pack --dry-run --ignore-scripts` to verify publish shape without re-running prepack. `tsconfig.json` bumped target `es2020 → es2022`, `moduleResolution: node → bundler`, set `noEmit: true` (now used only for typecheck) — `tsconfig.cjs.json` / `tsconfig.esm.json` / `tsconfig.expo.json` deleted, so the previous conditional Expo build (`build:expo:check`) is gone; build is unconditional. `src/index.ts` bypasses the `contracts/index.ts` and `repositories/index.ts` barrels (imports directly from the defining modules) to suppress Rollup chunk-circularity warnings in tsup's dts emit when `splitting: true` is on; adds a bare side-effect import `import "./contracts/handlers"` so handler registration survives tree-shaking. `sideEffects` array expanded to include both `src/` and the new flat `dist/` paths (`.js` + `.cjs`). `src/wallet/expo/expo-modules.d.ts` extended to cover `expo-sqlite` (boltz-swap's ambient `.d.ts` pattern, now covering all three soft-optional Expo peers); the prior tsconfig `exclude` of `src/repositories/indexedDB/websqlAdapter.ts` consequently dropped.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Quick Reference `Build Output` row clarified to flat `dist/` layout (per-entry `.js` / `.cjs` + `.d.ts` / `.d.cts`); `scripts` frontmatter adds `typecheck: "pnpm typecheck"` and `smoke_dist: "pnpm smoke:dist"`; Key Concepts gain a "Build (tsup)" entry
+- `docs/projects/ts-sdk/system/project_overview.md` — Technology Stack `Build` row rewritten (tsup single-step, dual ESM+CJS, per-entry typings, `es2022`); `Bundler` row added pointing at `tsup ^8.5.0` (devDep)
+- `docs/projects/ts-sdk/system/architecture.md` — Build Configuration block updated: target `es2020 → es2022`; output layout flat `dist/` (was `dist/esm/`, `dist/cjs/`, `dist/types/`); `tsup` entry list documented; `splitting: true` + `treeshake: true` rationale noted; post-build `smoke-dist.mjs` verification step added; `expo-modules.d.ts` line gains `expo-sqlite` ambient declaration
+- `docs/projects/ts-sdk/sop/development-workflow.md` — Building section: single `pnpm build` (tsup) replaces the multi-step chain; Pre-commit Checklist gains `pnpm typecheck` (now CI-gated before build); Releasing notes that CI runs `smoke:dist` + `npm pack --dry-run` to verify publish shape
+- `docs/projects/ts-sdk/testing/how_to_run.md` — Build section output paths updated (flat `dist/`); typecheck + smoke:dist scripts added
+- `docs/projects/ts-sdk/testing/troubleshooting.md` — Build Issues: `rm -rf dist/` → `pnpm build` (tsup handles `clean: true` automatically); add a note that smoke:dist failures indicate dist shape regression (run locally with `pnpm smoke:dist`)
+- `docs/INDEX.md` — ts-sdk Active Dev row gains a `tsup`-migration paragraph (single-step build, per-entry `.d.cts`, post-build `smoke-dist.mjs` + `npm pack --dry-run` CI gates, dropped `esbuild`/`glob`/`rimraf` devDeps); Tags add `tsup`, `dist-smoke-test`
+
+**Notes**:
+- No new `version` cut — `package.json` still reads `"0.4.27"`. The next published version will carry the build-system migration.
+- No public TypeScript API changes — downstream consumers using documented `exports` subpaths are unaffected. The dist layout change only matters to consumers reaching into `dist/` directly (which they shouldn't).
+- `pnpm-lock.yaml` was touched (devDep churn): `tsup` + transitive deps in, `esbuild` / `glob` / `rimraf` out.
+- The `splitting: true` + `treeshake: true` config is load-bearing: it keeps `contractHandlers` a single runtime instance across all entries — the smoke test asserts singleton identity across both formats.
+
+---
+
 ## 2026-05-20 - Post-0.4.27: Expo background-task subpath split (#487) + Node 24 LTS (#495)
 **From**: `07785478edf31f2d0683f5664c1b5aa002d9eb6e`
 **To**: `c0442fbf3aaafba226400981d15bbb14c658622e`

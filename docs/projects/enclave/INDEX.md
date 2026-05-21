@@ -61,7 +61,7 @@ Analysis and summaries of pull requests.
 | Module | `github.com/ArkLabsHQ/introspector-enclave` |
 | Repository | `${ENCLAVE_REPO}` |
 | GitHub | `ArkLabsHQ/enclave` |
-| Latest Release | `v0.0.76` (see `cli/runtime-hashes.json`) |
+| Latest Release | `v0.0.77` (see `cli/runtime-hashes.json`) |
 | Components | `cli/`, `runtime/` (+ `runtime/nitriding/` leaf utils), `supervisor/`, `client/`, `client-rs/`, `awsmocks/`, `runner/` |
 | Default Ports | `:443` (TLS edge, `runtime.Runtime` `pubSrv`, ALPN `h2`/`http/1.1`), `127.0.0.1:8080` (internal loopback admin/attestation mux, `privSrv` — was `:7073` pre-v0.0.76), `:7074` (user app, h2c-capable), `127.0.0.1:8443` (host supervisor management API) |
 | Test-rig Images | `ghcr.io/arklabshq/enclave-awsmocks:<rev>`, `ghcr.io/arklabshq/enclave-test-runner:<rev>` (`<rev>` = `cli/runtime-hashes.json::rev` without leading `v`) |
@@ -129,6 +129,7 @@ EC2 Instance (Amazon Linux 2023, Nitro)
 | `enclave generate template --{golang,nodejs,dotnet}` | Generate complete app template |
 | `enclave setup [--language ...]` | Auto-populate `app.*` Nix hashes from git remote |
 | `enclave update` | Fast update (rev + source hash only, no dep changes) |
+| `enclave upgrade` | Sync the `runtime:` block in `enclave.yaml` (rev / hash / vendor_hash) to the runtime coordinates this CLI binary was built with — idempotent; run after `go install ...@latest`, then `enclave build` |
 | `enclave tofu [--remote]` | Generate OpenTofu deployment scaffold to `./tofu/` |
 | `enclave build` | Reproducible EIF build via Docker + Nix |
 | `enclave deploy` | Deploy CDK stack (VPC, EC2, KMS, IAM, S3, secrets) |

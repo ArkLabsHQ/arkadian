@@ -1,5 +1,24 @@
 # Documentation Sync History - Simple Enclave
 
+## 2026-05-21 - Release v0.0.77 + `enclave upgrade` command + deployer IAM policy template
+**From**: `c173a68f955b83aa3b01ed736dc64826bc468394`
+**To**: `c8cea3504513cbe9a524020238bc27988b5c1512`
+**Synced By**: /update-project enclave
+**Status**: Documentation updated — new CLI command for syncing pinned runtime, repo-root least-privilege deployer IAM policy template, version bump to v0.0.77
+
+**Commits Analyzed** (3):
+- `ec6afcc` feat(upgrade): add upgrade command to sync CLI with runtime version — new `cli/upgrade.go` + `cli/upgrade_test.go`; `upgradeCmd()` registered in `cli/main.go` between `setupCmd()` and `tofuCmd()`. Rewrites the top-level `runtime:` block (`rev` / `hash` / `vendor_hash`) in `enclave.yaml` to the coordinates baked into the CLI binary (via `runtimeRev`/`runtimeHash`/`runtimeVendorHash` ldflags from `cli/runtime-hashes.json`). `replaceRuntimeBlockValue` walks indent levels to scope replacement strictly to the top-level `runtime:` mapping — `app.nix_rev`/`nix_hash`/`nix_vendor_hash` and nested keys are never touched. Errors clearly on missing block / missing key. Idempotent (`Already on runtime <rev> — nothing to do.`). `resolveUpgradeConfigPath` respects `ENCLAVE_CONFIG` and falls back to `findRepoRoot` → `resolveConfigPath`, so canonical `enclave/enclave.yaml` and bare-layout `<root>/enclave.yaml` both work
+- `1031635` release v0.0.77 — `cli/runtime-hashes.json` bumped `rev` `v0.0.76 → v0.0.77`, `hash` + `vendor_hash` refreshed to new sha256 values
+- `c8cea35` feat(iam): add IAM policy for enclave infrastructure and role management — new `deploy-iam-policy.json` at repo root (68 lines). Four-statement least-privilege policy for the deployer principal (the OIDC role that runs `enclave deploy` / `tofu apply`): `EnclaveInfraServices` (broad `ec2:*` / `s3:*` / `kms:*` / `ssm:*` / `dynamodb:*` / `sts:GetCallerIdentity` for stack lifecycle), `IamReadForRefresh` (read-only IAM for `terraform plan` drift detection), `IamManageEnclaveRolesOnly` (write-scoped to `*enclave*` role + instance-profile ARNs), and `PassEnclaveRoleToEc2` (`iam:PassRole` guarded by `iam:PassedToService == ec2.amazonaws.com` on `*enclave*` roles)
+
+**Documentation Updates**:
+- `INDEX.md` (project) — Latest Release `v0.0.76 → v0.0.77`; new `enclave upgrade` row in the CLI Commands lifecycle table (placed between `update` and `tofu` to match `cli/main.go` registration order)
+- `system/project_overview.md` — added "CLI ↔ runtime version sync" capability bullet (describes the `enclave upgrade` flow, scope, idempotency, `ENCLAVE_CONFIG`/bare-layout support); extended the "CI scaffolding" bullet with a description of the new repo-root `deploy-iam-policy.json` template (four statements + `*enclave*` ARN scoping + `iam:PassRole` guard); added `deploy-iam-policy.json` to the Repository Layout tree
+- `testing/usage.md` — new "CLI / runtime version bump" sub-section under Update Your App (covers `go install ...@latest` → `enclave upgrade` → `build && deploy`, idempotency note); new "Deployer IAM Policy" sub-section under Manual Verification linking the repo-root `deploy-iam-policy.json` template
+- `testing/how_to_run.md` — new "CLI / runtime version bump" workflow snippet appended to Update App; explanatory paragraph on scoping (`runtime:`-only rewrite), idempotency, `ENCLAVE_CONFIG`, and bare-layout discovery
+- `sop/development-workflow.md` — SDK Release section extended: after CLI refresh, downstream apps now run `enclave upgrade` in their app repo to atomically rewrite the `runtime:` block before `enclave build`, referencing `cli/upgrade.go` + `cli/upgrade_test.go`; unit-test list extended with `cli/upgrade_test.go`
+- `INDEX.md` (master) — enclave Key Capabilities: added "Deployer IAM policy template" bullet (`deploy-iam-policy.json` four-statement policy) and "CLI ↔ runtime version sync (`enclave upgrade`)" bullet; tags extended with `iam-policy`, `cli-upgrade`; `develop` triggers extended with `enclave upgrade`, `deployer iam policy`
+
 ## 2026-05-20 - PCR0 signing + OTLP/HTTP ingest paths + supervisor KMS env-leak fix
 **From**: `c6055bee5b2985d78a7ecd50698c39b184382f8b`
 **To**: `c173a68f955b83aa3b01ed736dc64826bc468394`

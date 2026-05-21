@@ -1,5 +1,53 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-21 - Documentation Sync
+**Commit**: `9848c02c3ea72d8a004c703ea9d7577bbd946bf4`
+**Previous Sync**: `447f01866732aca287f791caad60791cc8244739`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `9848c02c` fix prettyAssetNumber (#626)
+- `dfb1e9d3` feat(wallet): mnemonic identity for new wallets (#624)
+
+**Features Added / Modified**:
+- **Mnemonic identity for new wallets (PR #624, commit dfb1e9d3)** — biggest change in this sync. New `src/lib/mnemonic.ts` adds encrypted-at-rest storage (`localStorage['encrypted_mnemonic']`, PBKDF2 100k SHA-256 → AES-GCM 256 with per-record 16-byte salt + 12-byte IV) and a `deriveNostrKeyFromMnemonic(mnemonic, isMainnet)` helper that derives the 32-byte BIP86 Taproot key at `m/86'/coinType'/0'/0/0` (`validateMnemonic` guard + null-privateKey defensive check). New wallets now generate a 12-word BIP39 mnemonic and run on `MnemonicIdentity` (from `@arkade-os/sdk`); existing wallets keep using `SingleKey`. `src/providers/wallet.tsx` is reworked:
+  - `initWallet` signature changed from `initWallet(seed: Uint8Array)` to `initWallet(credentials: { mnemonic?: string; privateKey?: Uint8Array })`; mnemonic path builds `MnemonicIdentity.fromMnemonic(..., { isMainnet })`, calls `deriveNostrKeyFromMnemonic` and pushes it through `FlowContext.setLnurlInfo`; privateKey path uses `SingleKey.fromPrivateKey` and sets the LNURL secret to the raw private key.
+  - `InitSvcWorkerWalletParams.privateKey?: string` removed; the new `identity: Identity` (`SingleKey` or `MnemonicIdentity`) is required. `runInitAttempt(signal, params.identity, params)` flows through `ServiceWorkerWallet.setup({ ..., walletMode: 'static' })` — `walletMode` is now pinned to `static` for **all** wallets to prevent address rotation (a mid-PR fix-up commit had accidentally swapped it back to `'hd'`).
+  - `unlockWallet` now branches on `hasMnemonic()` — `getMnemonic(password)` or `getPrivateKey(password)` — and translates `DOMException` from `crypto.subtle.decrypt` to `Error('Invalid password')` (the raw crypto error used to leak on wrong password).
+  - `restartWallet` no longer pulls `.toHex()` off the identity (which `MnemonicIdentity` doesn't implement) — it reuses `svcWallet.identity` directly; `reinitSvcWalletRef` now stores `(identity: Identity) => Promise<void>`.
+  - `detectPasswordState()` checks `encrypted_mnemonic` first (with a `getMnemonic(defaultPassword)` probe for passwordless detection) before falling back to `noUserDefinedPassword()` for legacy wallets.
+- **Service worker custom `buildServices` (PR #624)** — `src/wallet-service-worker.ts` now ships its own `buildServices` that branches on the wallet-config payload (`mnemonic`, `privateKey`, or `publicKey`) and constructs `MnemonicIdentity` internally; `initSvcWorkerWallet` for mnemonic wallets manually drives `INITIALIZE_MESSAGE_BUS` with `{ mnemonic, isMainnet }` instead of deriving a `SingleKey` (which would lose the mnemonic identity). The mnemonic is held in a ref for `restartWallet` and cleared on lock.
+- **Restore screen mnemonic-aware (PR #624)** — `src/screens/Init/Restore.tsx` auto-detects 12-word mnemonics vs `nsec1...` / raw-hex input, mentions raw hex in the help text, clears parsed state when the input is emptied, and routes parsed credentials into `initWallet(...)` with the right shape.
+- **Backup screen recovery-phrase support (PR #624)** — `src/screens/Settings/Backup.tsx` shows the recovery phrase for mnemonic wallets and the `nsec` for legacy wallets; keeps the backup dialog open on invalid password; copy casing normalised to sentence case ("private key"). Backup tests + the shared `getSecret` e2e helper now know both wallet shapes.
+- **Password change re-encrypts mnemonic (PR #624)** — `src/screens/Settings/Password.tsx` `saveNewPassword` re-encrypts the mnemonic (not just the private key) when the wallet is mnemonic-backed; `isValidPassword` / `noUserDefinedPassword` updated to check `encrypted_mnemonic` first, fixing the "password change never authenticates on mnemonic wallets" bug.
+- **InitConnect fast-fails on missing credentials (PR #624)** — `src/screens/Init/Connect.tsx` now bails with a clear error instead of silently constructing a broken wallet when neither mnemonic nor privateKey is present.
+- **LNURL provider keyed off `setLnurlInfo` secret (PR #624)** — `src/providers/lnurl.tsx` and `flow.tsx` now thread the per-identity secret (BIP86 key for mnemonic wallets, raw private key for legacy wallets) into the LNURL session so the same `HMAC-SHA256(secret, "lnurl-session")` derivation works for both wallet types. `xonlypubkey` for lnurl credentials was tried and reverted; the working path is the secret-based `HMAC-SHA256`.
+- **`prettyAssetNumber` hardening (PR #626, commit 9848c02c)** — `src/lib/assets.ts` `prettyAssetNumber` now defaults `maximumFractionDigits` to `MAX_DECIMALS` (8) and strips non-digit / non-`-` characters from the integer part (`integer.replace(/[^0-9-]+/g, '')`) before computing `negative`. New asset-formatter test cases in `src/test/lib/asset.test.ts`.
+- **`cross-env` for E2E scripts (PR #624)** — `package.json` `test:e2e` / `test:e2e:ui` now use `cross-env VITE_NOSTR_RELAY_URL=http://localhost:10547 playwright test` so the env var works on Windows shells.
+
+**Dependency Updates**: `cross-env` added to devDependencies (via `package.json` script changes).
+
+**Files Touched in Repo** (17 files):
+- `package.json`
+- `src/lib/assets.ts`, `src/lib/mnemonic.ts` (new), `src/lib/privateKey.ts`
+- `src/providers/flow.tsx`, `src/providers/lnurl.tsx`, `src/providers/wallet.tsx`
+- `src/screens/Init/Connect.tsx`, `src/screens/Init/Init.tsx`, `src/screens/Init/Restore.tsx`
+- `src/screens/Settings/Backup.tsx`, `src/screens/Settings/Password.tsx`
+- `src/test/e2e/backup.test.ts`, `src/test/e2e/utils.ts`
+- `src/test/lib/asset.test.ts`, `src/test/lib/mnemonic.test.ts` (new), `src/test/screens/settings/backup.test.tsx`
+
+**Configuration Changes**: None (no new env vars; storage layout adds `encrypted_mnemonic` key alongside the legacy `encrypted_private_key` key).
+**Breaking Changes**: `WalletContext.initWallet` signature changed from `(seed: Uint8Array)` to `({ mnemonic?: string; privateKey?: Uint8Array })`. `InitSvcWorkerWalletParams` no longer accepts a `privateKey?: string` — callers must pass `identity: Identity` instead. These are internal APIs (wallet boot path) and not consumed outside the wallet repo.
+
+**Files Updated**:
+- `docs/INDEX.md` (wallet Key Capabilities: BIP39 line rewritten to describe mnemonic vs SingleKey paths, BIP86 derivation, encrypted-at-rest storage, Restore auto-detect, Backup recovery-phrase rendering, Password re-encryption, `walletMode: 'static'` invariant, LNURL secret derivation; `prettyAssetNumber` hardening note appended to the BIP21/asset capability; `cross-env` line added; Tags extended with `bip39`, `bip86`, `mnemonic`, `taproot`, `pbkdf2`, `aes-gcm`)
+- `docs/projects/wallet/INDEX.md` (frontmatter `version` 1.2.10 → 1.2.11 + `last_sync_commit`; Self-Custodial Wallet concept updated to describe MnemonicIdentity + PBKDF2/AES-GCM + legacy SingleKey path)
+- `docs/projects/wallet/system/project_overview.md` (Self-Custodial Architecture section rewritten with Mnemonic identity, Legacy identity, Service-worker identity bridge sub-sections + updated encrypted-storage description)
+- `docs/projects/wallet/system/architecture.md` (WalletProvider description extended with PR #624 changes — `Identity` typing, `initWallet` credentials shape, `walletMode: 'static'`, DOMException translation, `restartWallet` reuses identity; Key Management section rewritten with two-identity-paths overview, `src/lib/mnemonic.ts` storage details + `deriveNostrKeyFromMnemonic` excerpt)
+- `docs/projects/wallet/change-log/last-sync.txt` → `9848c02c3ea72d8a004c703ea9d7577bbd946bf4`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
 ## 2026-05-20 - Documentation Sync
 **Commit**: `447f01866732aca287f791caad60791cc8244739`
 **Previous Sync**: `98f2ef09c9b232d85a9d894c22c80a94484adae4`

@@ -1,5 +1,36 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-21 - Operational Memory Sync (no doc changes)
+**Commit Range**: `92361f2f..1227677a` (25 commits, all `memory(*)` / `logs(*)` agent activity)
+**Previous Sync**: `ddfdbf72f25691591044666f161ecc4884461c89`
+**Caller-Asserted From**: `92361f2f17d64ce5da45c16bfd3ac65161818304` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `1227677a1a35519689fc3891ea7c26613320771e`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+618/-288), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,sdk-parity,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity spanning 2026-05-20 04:00Z → 2026-05-21 08:00Z (~28h): security-triage and release-coordinator on 4-hourly slots; issue-triage on 4-hourly slots; daily-briefing, executive-digest, linear-sync, sdk-parity, slack-monitor, repo-detector, repo-sync each logged 2026-05-20/21 runs
+- Notable operational events captured in memory only:
+  - **enclave v0.0.77 RELEASED with hard block IGNORED** — executive-digest 2026-05-20 flagged ABSOLUTE FINAL CRISIS (GOV#42 PCR0 signing in production)
+  - **5 consecutive self-merged enclave PRs** (5500+ lines) — security-triage 2026-05-20T20:00Z escalation
+  - **rust-sdk #227 silent settle() semantic break** — first surfaced by release-coordinator 2026-05-21T08:00Z; gated by security-triage 2026-05-21T04:00Z; rust-sdk added to issue-triage scan 2026-05-21T00:00Z
+  - **go-sdk #172** uint64 underflow fix advanced day 16 → day 17 (still unreviewed)
+  - **arkd #1072** CEL tx filters (enhancement) — issue-triage 2026-05-20T12:00Z; impl PR #1074 noted 2026-05-20T20:00Z
+  - **introspector #83 signing paths** — release-coordinator 2026-05-20T16:00Z; issue-triage 2026-05-20T16:00Z
+  - **ts-sdk #427 blind-sign**, **compiler #32 trust model**, **fulmine #411** — 3 code-review gates noted by release-coordinator 2026-05-20T08:00Z
+  - **ts-sdk #497 CWE-502 deserialization dep** — issue-triage 2026-05-20T08:00Z (bug label); **ts-sdk #498 test gap** — issue-triage 2026-05-21T04:00Z; **ts-sdk P1 race propagated** across 3 repos
+  - **wallet #624 mnemonic identity** — security-triage 2026-05-20T16:00Z
+  - **GOV#44-47 batch** — 6 small merges noted across security-triage 2026-05-20 runs
+  - **enclave GOV#3 audit gap** still has no incident issue — issue-triage 2026-05-20T16:00Z
+  - **Digest queue repaired** — issue-triage 2026-05-21T00:00Z
+  - **repo-detector 2026-05-21**: no changes (54 ArkLabsHQ + 17 arkade-os repos); fulmine added to security scan
+  - **repo-sync ARK-193** (18:00 UTC) and 2026-05-21 00:01 UTC sync logs captured
+  - **executive-digest 2026-05-20**: 42 governance violations, 10 critical human actions overdue, 5 protocol-critical code reviews requesting changes
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+---
+
 ## 2026-05-20 - Operational Memory Sync (no doc changes)
 **Commit Range**: `1a91fbd9..ddfdbf72` (25 commits, all `memory(*)` agent logs)
 **Previous Sync**: `be434460938cafb4ebe7b239c03068007715650d`

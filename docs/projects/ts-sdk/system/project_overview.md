@@ -41,8 +41,8 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 
 | Component | Technology |
 |-----------|------------|
-| Language | TypeScript (ES2020 target) |
-| Build | Dual ESM + CJS output with type declarations |
+| Language | TypeScript (ES2022 target since #496; was ES2020 under the prior `tsc` build) |
+| Build | `tsup` ^8.5.0 — single-step dual ESM+CJS, per-entry `.d.ts` (ESM types) + `.d.cts` (CJS types), source maps, `splitting: true` + `treeshake: true`. Replaces the prior 6-step `tsc` chain + `add-extensions` / `generate-package-files` post-processors (#496). Output flattened to `dist/<entry>.{js,cjs,d.ts,d.cts}` (was `dist/{esm,cjs,types}/`). Post-build `scripts/smoke-dist.mjs` + `npm pack --dry-run` gate publish shape in CI. Type-check is a separate `pnpm typecheck` (`tsc --noEmit`) wired into CI before build |
 | Crypto | @noble/curves, @noble/secp256k1, @scure/bip32, @scure/bip39, @scure/btc-signer |
 | Descriptors | @kukks/bitcoin-descriptors |
 | Expression | @marcbachmann/cel-js (Common Expression Language) |

@@ -46,3 +46,20 @@
 **Dashboard changes**:
 - `Host_metrics.json`: segments by `host_role`; CPU utilization fixed for arbitrary CPU counts (no more hard-coded 16 cores); filesystem gauge collapsed to 1 with min/max percentages
 - `Cadvisor_exporter.json`: filtered by `host_role`
+
+---
+
+## 2026-05-21 - Loki: ArkdVtxoUnrolled alert surfaces VTXO ID
+**From**: `17f93753f7e2a591f91640903b7f9d5d0215605e`
+**To**: `52a8856524cbb27139b04d9db134a800abc16eac`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `52a8856` loki: Add VTXO id to unrolled alert copy
+
+**Alert changes**:
+- `ArkdVtxoUnrolled` (loki.alert.rules.yml) now applies `regexp "(?i)vtxo (?P<vtxo_id>\S+) unrolled"` to extract the unrolled VTXO outpoint and groups `count_over_time(...)` by the new `vtxo_id` label
+- Annotation `description` now renders the specific outpoint: `VTXO `{{ $labels.vtxo_id }}` has been unrolled (spent unilaterally onchain).`
+- `logql_query` annotation updated to include the same regexp so the linked Grafana Explore query reproduces the label extraction
+
+**No doc-file updates needed**: alert was not previously documented in `system/alert-rules.md`; only sync tracking is updated.

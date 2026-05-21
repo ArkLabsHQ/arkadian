@@ -1,5 +1,18 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-21 - Documentation Update
+**Commit**: `246dcfbe` (boltz-backend repository)
+**Previous Sync**: `e91269df`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Internal Changes Only** — no user-facing documentation updates required.
+
+**Chore**:
+- Log before sending on EVM (#1413) — `ContractHandler` now takes a `Logger` in its constructor and emits debug logs prior to each EVM lockup send (EtherSwap and ERC20Swap lockup + prepay-minerfee variants), including swap label, amount, contract address, and (for ERC20) token symbol. Internal observability only; no API, schema, config, or dependency changes.
+
 ## 2026-05-20 - Documentation Update
 **Commit**: `e91269df` (boltz-backend repository)
 **Previous Sync**: `00aa3d96`

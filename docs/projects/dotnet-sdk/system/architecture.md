@@ -209,3 +209,13 @@ Pre-configured networks via `ArkNetworkConfig`:
 - **Mainnet**: `arkade.computer` / `arkade.money` / `api.boltz.exchange` (the `ark.` subdomain was dropped in PR #82; mutinynet and regtest endpoints unchanged)
 - **Mutinynet**: `mutinynet.arkade.sh` / `mutinynet.arkade.money`
 - **Regtest**: `localhost:7070` / `localhost:3002` / `localhost:9069`
+
+Chain-source defaults (nullable, PR #96) mirror the canonical ts-sdk per-network presets so apps that want an `IBitcoinBlockchain` (Esplora flavor) without their own NBXplorer / bitcoind can wire it straight off the preset: `services.AddEsploraBlockchain(new Uri(ArkNetworkConfig.Mainnet.EsploraUri!))`.
+
+| Network | `EsploraUri` | `ElectrumWsUri` | `ElectrumTcpUri` |
+|---------|--------------|-----------------|------------------|
+| Mainnet | `https://mempool.arkade.sh/api` | `wss://electrum.arkade.sh` | `tcp://electrum.arkade.sh:50001` |
+| Mutinynet | `https://mempool.mutinynet.arkade.sh/api` | `wss://electrum.mutinynet.arkade.sh` | `tcp://electrum.mutinynet.arkade.sh:50001` |
+| Regtest | `http://localhost:3000` | `ws://localhost:50003` | `tcp://localhost:50000` |
+
+Electrum TCP ports were verified at the `server.version` protocol level against the public Fulcrum hosts: only `:50001` plain-TCP is open on Mainnet / Mutinynet (TLS goes through the WSS endpoint at `:443`, not the conventional `:50002`). Regtest's `:50000` is nigiri's electrs binary-protocol port (its `:30000` HTTP REST endpoint is a different protocol). JSON keys: `esplora`, `electrum-ws`, `electrum-tcp`. Fields are appended to the positional record as nullable defaults — existing named-args callers compile unchanged.

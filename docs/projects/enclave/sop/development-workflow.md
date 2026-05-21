@@ -52,7 +52,7 @@ cd client && go test ./...
 
 Existing test files (use as templates for new tests):
 
-- `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go`
+- `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go`, `cli/upgrade_test.go`
 - `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/signature_test.go`, `runtime/tracing_test.go`
 - `supervisor/gvproxy_test.go`
 - `client/verify_test.go`
@@ -109,7 +109,7 @@ make sdk-hashes REV=v1.0.0
 make vendor-hash
 ```
 
-After release, downstream apps refresh by either upgrading the CLI (`go install ...@latest`) or rebuilding from source (`make build`) — the hashes are baked at build time.
+After release, downstream apps refresh by either upgrading the CLI (`go install ...@latest`) or rebuilding from source (`make build`) — the hashes are baked at build time. Then run `enclave upgrade` in the app repo to atomically rewrite `enclave.yaml`'s `runtime:` block (`rev` / `hash` / `vendor_hash`) to the new CLI's coordinates before `enclave build`. The rewriter (`cli/upgrade.go` + `cli/upgrade_test.go`) is scoped to the top-level `runtime:` mapping — `app.nix_rev` / `app.nix_hash` / `app.nix_vendor_hash` and nested keys are never touched — and is idempotent.
 
 ### Test-rig image release (GHCR — manual)
 

@@ -297,6 +297,10 @@ builder.ConfigureLogging(logging =>
 });
 ```
 
+### `VtxoSynchronizationService` is quiet at Info level
+
+The 5-second safety-net poll runs constantly, but `StartQueryLogic` only emits Info-level lines when a poll actually produced a VTXO (the productive case — a payment landed) or during the one-off cold-start catch-up. Routine ticks that return 0 VTXOs across N scripts drop to Debug (PR #95). To see every poll iteration, lower the log level to Debug for `NArk.Core.Services.VtxoSynchronizationService` — at Info the absence of those lines on an idle wallet is correct, not a misconfigured service.
+
 ### Inspect gRPC Traffic
 
 Use `GRPC_TRACE=all` environment variable for detailed gRPC logging.

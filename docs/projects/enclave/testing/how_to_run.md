@@ -54,6 +54,16 @@ enclave setup
 enclave build && enclave deploy
 ```
 
+**CLI / runtime version bump:**
+
+```sh
+go install github.com/ArkLabsHQ/introspector-enclave/cli/cmd/enclave@latest
+enclave upgrade           # syncs runtime: {rev,hash,vendor_hash} in enclave.yaml to the CLI's baked coordinates
+enclave build && enclave deploy
+```
+
+`enclave upgrade` reads the runtime coordinates baked into the CLI at build time (via `-ldflags` on `cli/version.go`), then rewrites only the top-level `runtime:` block in `enclave.yaml`. It is idempotent (no-op when already on the CLI's runtime), respects `ENCLAVE_CONFIG`, and works with both the canonical `enclave/enclave.yaml` and bare `<root>/enclave.yaml` layouts. The rewriter is scoped to the `runtime:` mapping so `app.nix_rev`/`nix_hash`/`nix_vendor_hash` are never touched.
+
 ## Lock the KMS Key (irreversible)
 
 ```sh

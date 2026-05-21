@@ -17,14 +17,23 @@ pnpm install
 ## Build
 
 ```bash
-# Full build (ESM + CJS + types)
+# Type-check (no emit) — separate from build since #496
+pnpm typecheck
+
+# Single-step build via tsup (dual ESM + CJS, per-entry typings, source maps)
 pnpm build
+
+# Post-build smoke: asserts dist shape, .d.{ts,cts} relative imports resolve,
+# ESM+CJS contractHandlers singleton identity holds. Run locally before pushing.
+pnpm smoke:dist
 ```
 
-This produces:
-- `dist/esm/` — ES modules
-- `dist/cjs/` — CommonJS modules
-- `dist/types/` — TypeScript declarations
+Output (flat `dist/` since #496 — was `dist/{esm,cjs,types}/` under the prior `tsc` chain):
+- `dist/<entry>.js` — ES modules
+- `dist/<entry>.cjs` — CommonJS modules
+- `dist/<entry>.d.ts` — ESM-condition TypeScript declarations
+- `dist/<entry>.d.cts` — CJS-condition TypeScript declarations
+- `dist/<entry>.*.map` — source maps
 
 ## Run Regtest Environment
 

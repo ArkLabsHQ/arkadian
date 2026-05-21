@@ -16,9 +16,12 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 
 ### Self-Custodial Architecture
 - **Private keys never leave device**: All cryptographic operations happen client-side
-- **BIP39 seed phrase backup**: Standard 12 or 24-word recovery mechanism
+- **BIP39 seed phrase backup**: 12-word mnemonic for new wallets; legacy wallets keep their raw private key (nsec / hex) — `Backup` shows whichever the wallet stores
+- **Mnemonic identity (PR #624)**: New wallets create a `MnemonicIdentity` (BIP86 Taproot derivation at `m/86'/coinType'/0'/0/0`, coinType `0` mainnet / `1` testnet) from a 12-word mnemonic; the mnemonic is encrypted at rest in `localStorage` via PBKDF2 (100k iters, SHA-256) + AES-GCM with a per-record salt + IV. `Restore` auto-detects 12-word mnemonics vs `nsec1...` / raw hex input. `Settings → Backup` shows the recovery phrase for mnemonic wallets and the `nsec` for legacy wallets. `Settings → Password` re-encrypts the mnemonic (not just the legacy private key) on password change. All wallets use `walletMode: 'static'` (no address rotation) — both mnemonic and legacy paths share the static-address invariant. The Nostr backup key for mnemonic wallets is the BIP86-derived signing key (deliberate — same key serves both Nostr backup and Ark signing, matching legacy raw-privkey behaviour).
+- **Legacy identity (`SingleKey`)**: Existing wallets created before PR #624 continue to use the raw-private-key path (`SingleKey.fromPrivateKey`). Unlock detects whether `encrypted_mnemonic` or `encrypted_private_key` is present in `localStorage` and routes to the right decryption path; `isValidPassword` / `noUserDefinedPassword` were updated to check `encrypted_mnemonic` first so password change on mnemonic wallets actually authenticates.
+- **Service-worker identity bridge**: `initSvcWorkerWallet` was tightened to accept a typed `Identity` (`SingleKey` or `MnemonicIdentity`) directly — the legacy `privateKey` string parameter is gone. For mnemonic wallets the boot path posts `INITIALIZE_MESSAGE_BUS` with the raw mnemonic + `isMainnet`, and `wallet-service-worker.ts`'s custom `buildServices` constructs `MnemonicIdentity` inside the worker for signing. Mnemonic is held in a ref (for `restartWallet`) and cleared on lock. Wrong-password unlocks now raise `DOMException` from `crypto.subtle.decrypt` and are translated to `"Invalid password"` (raw crypto errors no longer leak).
 - **No intermediaries**: Direct connection to arkd server
-- **Encrypted storage**: Keys stored in IndexedDB via Dexie with browser-level encryption
+- **Encrypted storage**: Wallet credential (mnemonic or legacy private key) AES-GCM-encrypted in `localStorage`; transaction history and VTXOs in IndexedDB via Dexie
 
 ### ARK Protocol Integration
 - **VTXOs (Virtual Transaction Outputs)**: Off-chain Bitcoin representation

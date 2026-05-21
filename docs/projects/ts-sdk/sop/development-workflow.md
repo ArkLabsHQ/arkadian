@@ -17,9 +17,19 @@ pnpm install
 ## Building
 
 ```bash
-# Full build (ESM + CJS + types)
+# Single-step build (tsup): dual ESM + CJS, per-entry .d.ts + .d.cts, source maps
 pnpm build
+
+# Type-check only (no emit) — gated in CI before build
+pnpm typecheck
+
+# Post-build smoke: asserts exports targets exist, dist .d.{ts,cts} relative
+# imports resolve, ESM+CJS contractHandlers singleton identity holds, and
+# /wallet/expo/background stays structural-only. CI runs this after build.
+pnpm smoke:dist
 ```
+
+Output is flat under `dist/` (e.g. `dist/index.js`, `dist/index.cjs`, `dist/index.d.ts`, `dist/index.d.cts`). Under the prior `tsc` build it was layered into `dist/esm/`, `dist/cjs/`, `dist/types/` (#496).
 
 ## Running Tests
 
@@ -77,18 +87,20 @@ refactor/area-description
 ### Pre-commit Checklist
 
 ```bash
-pnpm build    # No build errors
-pnpm test     # All tests pass
-pnpm format   # Code formatted
-pnpm lint     # No lint errors
+pnpm typecheck   # No TS errors (CI-gated before build)
+pnpm build       # tsup builds cleanly
+pnpm smoke:dist  # Dist shape + singleton invariants hold
+pnpm test        # All tests pass
+pnpm format      # Code formatted
+pnpm lint        # No lint errors
 ```
 
 ### PR Flow
 
 1. Create feature branch from `main`
-2. Make changes, ensure build + tests pass
+2. Make changes, ensure typecheck + build + tests pass
 3. Push and create PR against `main`
-4. CI validates build and tests
+4. CI runs `pnpm typecheck` → `pnpm build` → `pnpm smoke:dist` → `npm pack --dry-run --ignore-scripts` (publish-shape verification without re-running `prepack`) → tests
 5. npm package published on merge to `main`
 
 ## Releasing
