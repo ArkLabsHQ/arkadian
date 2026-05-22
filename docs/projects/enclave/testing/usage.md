@@ -84,6 +84,14 @@ app:
 secrets:
   - name: signing_key
     env_var: APP_SIGNING_KEY
+
+# Optional — pick the TLS cert source for the public :443 listener.
+# This is applied at deploy time (CLI → tofu → SSM → runtime), so
+# changing the domain is a redeploy, NOT an EIF rebuild.
+tls:
+  provider: self-signed         # self-signed | letsencrypt | letsencrypt-staging
+  fqdn: ""                      # required when provider != self-signed
+  email: ""                     # optional ACME contact for expiry notices
 ```
 
 `app.env` values are baked into the EIF (PCR0-attested schema). Override values at deploy without rebuilding via:
@@ -144,6 +152,30 @@ enclave build && enclave deploy
 ```
 
 `enclave upgrade` only touches the top-level `runtime:` block, so `app.nix_rev` / `app.nix_hash` / `app.nix_vendor_hash` are never disturbed. It is idempotent — re-running with no version change prints `Already on runtime <rev> — nothing to do.`
+
+## Enable a CA-trusted Cert (Let's Encrypt / ACME)
+
+By default the enclave serves a self-signed cert and clients trust the connection via the attestation document (`tlsKeyHash` in `UserData`). To serve a CA-issued cert instead, set the `tls:` block in `enclave.yaml`:
+
+```yaml
+tls:
+  provider: letsencrypt          # or letsencrypt-staging for testing
+  fqdn: api.example.com          # required
+  email: ops@example.com         # optional but recommended
+```
+
+Then redeploy — **no EIF rebuild required**:
+
+```sh
+enclave tofu                     # republish tls.* to SSM /<dep>/<app>/env/ENCLAVE_NITRIDING_*
+enclave deploy
+```
+
+Notes:
+- The challenge is **TLS-ALPN-01** on `:443`, so DNS for `fqdn` must already resolve to the enclave's public address before deploy.
+- Issued cert material is sealed under the storage DEK and persisted in S3 under the reserved `acme/` namespace via `acmeStorageCache`, so reboots and locked-key migrations reuse the cert instead of re-issuing (which would quickly exhaust Let's Encrypt's rate limit).
+- Use `letsencrypt-staging` for first-time setup — its untrusted root keeps you out of the production rate-limit window while you iterate.
+- Changing the domain later is a single-step redeploy: edit `tls.fqdn`, then `enclave tofu && enclave deploy`. The next boot will issue a fresh cert for the new FQDN.
 
 ## Lock the KMS Key (irreversible)
 

@@ -1,5 +1,41 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-22 - Drop `VtxoSynchronizationService` stream-push retry schedule + cache `OutputDescriptor.Parse` / BIP-39 master extKey (~800x faster claim) + richer contract derive/import logs
+**From**: `fa6092d084e326632ecf1686eef2335b1c12efbe`
+**To**: `b55c88689e00c07ab5e96551ca85cf8376078807`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 3 squash-merge PRs (#97, #99, #100).
+
+**Highlights**:
+- **`VtxoSynchronizationService` single immediate poll per stream push (PR #99)** — VTXO subscription stream pushes used to fan out to three follow-up polls at `+750ms / +3s / +8s` (`StreamPushPollSchedule[]` consumed by `FirePollSchedule`). That schedule was tuned for arkd v0.9.0-rc.1's indexer commit lag (could span <1 s to ~30 s). On current arkd builds (v0.9.5+) plus the 5-second routine safety-net poll, it was dead weight: the happy path ate 750 ms of detection latency before the first poll fired, and the +3 s / +8 s retries were no-op upserts of unchanged state. Replaced with a single immediate enqueue. Lost coverage for arkd indexer races greater than the immediate poll's window is reclaimed by the routine poll which already sweeps every active script every 5 s using the same `after`-windowed semantics. Removed: `StreamPushPollSchedule[]` and `FirePollSchedule`.
+- **Cache `OutputDescriptor.Parse` + BIP-39 master extKey (PR #100, ~800x faster claim)** — Reverse-submarine swap claims and any VTXO settlement path were taking multiple seconds in observed live wallets (6.8 s `GetCoin` / 11.5 s sweep trigger total). Probes pinpointed two repeated CPU costs that fired on every coin and every signing operation:
+  - `OutputDescriptor.Parse` — ~0.6 ms in isolation but called ~5× per `GetCoin` (`ArkContractParser` parses server / sender / receiver descriptors; `IsOurs` parsed the wallet account descriptor + the index-resolved derivation twice in `CanTransform`/`Transform`). Under concurrent CPU pressure from batch-session MuSig signing, those 5 sub-ms calls got context-switched and ballooned to >1.5 s wall time each.
+  - `HierarchicalDeterministicWalletSigner.DerivePrivateKey` — ran `new Mnemonic(secret).DeriveExtKey()` on every `Sign` / `SignMusig` / `GetPubKey` / `GenerateNonces`. `Mnemonic.DeriveExtKey` is PBKDF2-HMAC-SHA512 × 2048 iterations (~1.6 ms). On a batch-round MuSig signing pass that's hundreds of calls — minutes of accumulated CPU work blocking every other async task.
+
+  Four cache changes:
+  - `KeyExtensions.ParseOutputDescriptor` — `ConcurrentDictionary` keyed by `(descriptor-string, network)` wraps the underlying parse call. Parsed `OutputDescriptor` is immutable; cache bounded by number of unique descriptors a wallet ever sees (server + per-VTXO derivations, small).
+  - `HierarchicalDeterministicAddressProvider.IsOurs` — removed the bare `OutputDescriptor.Parse(wallet.AccountDescriptor, network)` line on entry that discarded its result. Pure waste, ~0.6–1.5 ms per invocation, fired on every `IsOurs` (twice per coin via `CanTransform`/`Transform`). Replaced with a `string.IsNullOrEmpty` null check that preserves the validation intent.
+  - `HierarchicalDeterministicAddressProvider.GetDescriptorFromIndex` — routed through the cached parser. Subsequent claims at the same HD index hit the cache.
+  - `HierarchicalDeterministicWalletSigner.DerivePrivateKey` — static `ConcurrentDictionary<string, ExtKey>` caches the BIP-39 → BIP-32 master extKey by mnemonic. PBKDF2 fires at most once per mnemonic per process lifetime. The mnemonic is already held in memory by the wallet object, so no additional exposure surface.
+
+  Validated against a live BTCPay process: same code path that previously logged `[coin-probe] GetCoin Payment: parse=1875ms transformer=6171ms` now logs `parse=0ms transformer=6-9ms` — ~800x speedup. The four-coin batch-session setup that was the longest observed sweep window completes in 24 ms total.
+
+  Also added Info-level `Stopwatch` latency probes across the VTXO settlement chain (`SweeperService` trigger dequeue / `TrySweepVtxos` / `GetCoinsAsync` per-coin / `ExecutePoliciesAsync` per-policy / `Sweep`; `CoinService.GetCoin` GetServerInfo / parse / transformer split; `VHTLCContractTransformer.CanTransform` per code path; `DefaultWalletProvider` LoadWallet for `GetSigner`/`GetAddressProvider`; `SpendingService.DeriveContract` for change / `ConstructAndSubmit`). Left at Info so the next "why is this slow" investigation has data immediately. New `NArk.Scratchpad` micro-benchmark commands (`parse-bench`, `mnemonic-bench`) prove `OutputDescriptor.Parse` and `Mnemonic.DeriveExtKey` are sub-millisecond in isolation — the seconds-long wall-clock measurements observed in BTCPay had to be contention/cache-miss rather than parser cost.
+- **Contract derive/import logs include type + script (PR #97)** — `ContractService.DeriveContract` and `ImportContract` Info logs previously gave only the wallet id, which was useless for diagnosing flows that derive several contracts in sequence (invoice payment, boarding co-derivation, swap restore). Both lines now include the persisted contract type (`Boarding` / `Payment` / `HTLC` / ...) and the hex-encoded script, matching what's stored in the contract entity.
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk Key Capability for VTXO sync rewritten: drops the `750 ms / 3 s / 8 s` retry-schedule reference and adds the single-immediate-poll-per-stream-push note (PR #99). No new tags or triggers needed (the perf and logging PRs don't surface new user-facing APIs).
+- `docs/projects/dotnet-sdk/INDEX.md` — Key Concepts `VtxoSynchronizationService` bullet rewritten: drops the retry-schedule wording, calls out the single immediate poll, and explains why the schedule was dropped (routine poll covers the same ground, retry was adding 750 ms of happy-path detection latency).
+- `docs/projects/dotnet-sdk/system/project_overview.md` — Core Feature **(14) Resilient VTXO Sync** rewritten to drop the retry schedule from the headline description and reference PR #99.
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — `## VTXO Polling and Sync Resilience` "Stream-push retry schedule" bullet rewritten as "Stream-push immediate poll" with full PR #99 rationale (arkd v0.9.0-rc.1 lag tuning → dead weight on v0.9.5+, routine-poll coverage reclaim, removed symbols).
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `b55c88689e00c07ab5e96551ca85cf8376078807`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/projects/dotnet-sdk/testing/usage.md`, `testing/how_to_run.md`, `testing/how_to_test.md`, `testing/troubleshooting.md`, `sop/development-workflow.md`, `system/architecture.md` — no impact. PR #99 is a behaviour-equivalent simplification on the same `after`-windowed code path (no new env vars, no public API change, no DI change). PR #100 is a pure perf optimisation with no public API or schema change (cached values are immutable; mnemonic stays in memory only as long as the wallet object already kept it). PR #97 is a log-line tweak (Info logs gain `type=` / `script=` template fields — log shape is documented as ad-hoc anyway).
+
 ## 2026-05-21 - `ArkNetworkConfig` per-network Esplora + Electrum (WS / TCP) endpoint defaults + quieter `VtxoSynchronizationService` poll logs
 **From**: `bbcd96015d01bcaf5bb88da7cf626e4cb1612e69`
 **To**: `fa6092d084e326632ecf1686eef2335b1c12efbe`

@@ -70,6 +70,9 @@ Same config structure as ArkadeLightning.
 | `getLimits(from, to)` | `LimitsResponse` | Get chain swap limits |
 | `getPendingChainSwaps()` | `PendingChainSwap[]` | Get active chain swaps |
 | `getSwapHistory()` | `PendingChainSwap[]` | Get all chain swaps |
+| `quoteSwap(id, options?)` | `number` | Renegotiate quote on `transaction.lockupFailed`. Validates the Boltz-returned amount against an acceptable floor; throws `QuoteRejectedError` otherwise. Floor resolved from `options.minAcceptableAmount` → stored `response.claimDetails.amount` → `no_baseline` throw. `options.maxSlippageBps` (default 0) relaxes the floor. |
+| `getSwapQuote(id)` | `number` | Fetch a renegotiated quote without committing (pair with `acceptSwapQuote`). |
+| `acceptSwapQuote(id, amount, options?)` | `number` | Validate an explicit amount against the floor and post the acceptance to Boltz. Throws `QuoteRejectedError` on non-positive amount, below-floor amount, or missing baseline. |
 
 ## BoltzSwapProvider
 
@@ -139,7 +142,24 @@ new SwapManager(swapProvider: BoltzSwapProvider, config?: SwapManagerConfig)
 | `InsufficientFundsError` | Not enough funds |
 | `NetworkError` | HTTP/WebSocket error (has statusCode, errorData) |
 | `SwapNotFoundError` | Subclass of `NetworkError` (statusCode 404). Thrown by `BoltzSwapProvider.getSwapStatus` when Boltz responds 404 with body `"could not find swap with id: …"`. Drives the SwapManager unknown-to-provider counter (terminal `swap.expired` after 10 consecutive). Has `swapId: string`. |
+| `QuoteRejectedError` | Thrown by `quoteSwap` / `acceptSwapQuote` when a Boltz chain-swap quote fails local validation (acceptance is NOT posted to Boltz). Discriminated by `reason: "below_floor" \| "non_positive" \| "no_baseline"`; `below_floor` also exposes `quotedAmount` + `floor`; `non_positive` exposes `quotedAmount`. Survives the ServiceWorker `postMessage` boundary via a `QUOTE_REJECTED::`-prefixed JSON payload in `Error.message` (the SW runtime reconstructs the typed error so `instanceof` checks still work). Renegotiation failures wrap it in `SwapError` via `ErrorOptions.cause` for programmatic recovery. |
 | `SchemaError` | Invalid API response format |
+
+## QuoteSwapOptions
+
+```typescript
+type QuoteSwapOptions = {
+  // Hard floor on the accepted quote (sats). Must be a positive integer
+  // (0 is rejected — would silently restore blind-accept behaviour).
+  // When provided, skips the repository lookup of claimDetails.amount.
+  minAcceptableAmount?: number;
+  // Slippage tolerance in basis points [0, 10000], applied to the floor.
+  // Default 0 (strict). E.g. 100 = accept within 1% below the floor.
+  maxSlippageBps?: number;
+};
+
+type QuoteRejectionReason = "below_floor" | "non_positive" | "no_baseline";
+```
 
 ## Submarine Recovery Types
 

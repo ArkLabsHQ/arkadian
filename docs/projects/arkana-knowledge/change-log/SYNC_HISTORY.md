@@ -1,5 +1,32 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-22 - Operational Memory Sync (no doc changes)
+**Commit Range**: `15c551e8..5d477eec` (18 commits, all `memory(*)` agent activity)
+**Previous Sync**: `1227677a1a35519689fc3891ea7c26613320771e`
+**Caller-Asserted From**: `15c551e86545f4e4f929528784b71bb7e6da9989` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `5d477eec0fe334f474a1636a0125361062620bce`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 14 files changed (+532/-134), all under `memory/` (MEMORY.md, agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,research-monitor,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/research-updates.md, slack-log.md)
+- Routine agent activity spanning 2026-05-21 08:00Z → 2026-05-22 04:00Z (~20h): release-coordinator on 4-hourly slots; issue-triage on 8-hourly slots; daily-briefing, executive-digest, linear-sync, research-monitor, security-triage, slack-monitor, repo-detector, repo-sync each logged 2026-05-21/22 runs
+- Notable operational events captured in memory only:
+  - **enclave v0.0.78 RELEASED with 4th block violation** — release-coordinator 2026-05-21T20:00Z flagged GOV#4 (FIFTH self-merge, FOURTH block violation, 4-min release window)
+  - **arkd #1078** 131-file refactor — 2 CRITICAL + 8 HIGH findings noted in executive-digest ABSOLUTE FINAL BATCH 2026-05-21
+  - **dotnet-sdk #100 BIP-39 caching** — GOV#49 (HIGH, zero reviews), security-triage 2026-05-21T16:00Z
+  - **rust-sdk HARD BLOCKED** — #225/#228 CRITICAL exit-path bugs (release-coordinator 2026-05-21T12:00Z); go-sdk #172 day 16 still unreviewed
+  - **arkd #1075 polling panic bug** — issue-triage 2026-05-21T08:00Z
+  - **ts-sdk #427 M1 blind-signing** — retracted (release-coordinator 2026-05-21T16:00Z)
+  - **boltz-swap#151 security fix** — security-triage 2026-05-21T16:00Z; GOV count 53
+  - **StabilityVault oracle merged**, **rust-sdk exponential DoS O(2^depth)** — executive-digest 2026-05-21 ABSOLUTE FINAL BATCH (50+ violations total)
+  - **repo-detector 2026-05-22 MAJOR CHANGE**: scan flagged significant org restructuring
+  - **repo-sync 2026-05-22**: 8 updates, 53 stable, 24 failed
+  - **release-coordinator 2026-05-22T04:00Z**: quiet overnight, 12 blocks unchanged
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+---
+
 ## 2026-05-21 - Operational Memory Sync (no doc changes)
 **Commit Range**: `92361f2f..1227677a` (25 commits, all `memory(*)` / `logs(*)` agent activity)
 **Previous Sync**: `ddfdbf72f25691591044666f161ecc4884461c89`

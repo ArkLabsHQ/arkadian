@@ -1,9 +1,41 @@
 # Ark TypeScript SDK — Architecture
 
+## Repo Layout
+
+Since 2026-05-22 the repository is a pnpm workspace monorepo. The SDK source lives under `packages/ts-sdk/`; the sibling `@arkade-os/boltz-swap` library lives under `packages/boltz-swap/` and depends on `@arkade-os/sdk` via `workspace:*`.
+
+```
+arkade-os/ts-sdk (repo root)
+├── pnpm-workspace.yaml        # packages: [packages/*]; overrides + onlyBuiltDependencies
+├── package.json               # root: pnpm -r build/test/lint aggregates; release script
+├── tsconfig.base.json         # extended by each package's tsconfig
+├── prettier config            # repo-wide format
+├── tsup.base.config.ts        # shared tsup base (extended per-package)
+├── bip68.d.ts                 # single ambient declaration (hoisted from per-package)
+├── scripts/
+│   ├── regtest.sh             # unified <pkg> <up|setup|test|down|reset|cycle> driver
+│   └── release.sh / release.mjs # package-scoped release CLI
+├── regtest/                   # shared regtest harness submodule
+└── packages/
+    ├── ts-sdk/                # @arkade-os/sdk — described below
+    │   ├── src/               # (module tree in next section)
+    │   ├── test/
+    │   ├── scripts/smoke-dist.mjs
+    │   ├── tsup.config.ts     # extends ../../tsup.base.config.ts
+    │   ├── tsconfig.json      # typecheck-only (noEmit), extends ../../tsconfig.base.json
+    │   └── package.json       # version 0.4.27
+    └── boltz-swap/            # @arkade-os/boltz-swap — depends on workspace ts-sdk
+        ├── src/
+        ├── test/
+        └── package.json       # version 0.3.32
+```
+
+devDeps (`tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fake-indexeddb`, `eventsource`) are hoisted to the root; per-package `package.json` keeps only package-unique deps.
+
 ## Module Structure
 
 ```
-src/
+packages/ts-sdk/src/
 ├── index.ts                 # Main exports (~400 lines of re-exports)
 ├── networks.ts              # Network definitions (mainnet, testnet, regtest, mutinynet)
 ├── forfeit.ts               # Forfeit transaction construction

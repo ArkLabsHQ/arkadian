@@ -29,7 +29,9 @@ The compiler is a critical piece of the Arkade OS stack: contracts written in Ar
 ### Transaction Introspection
 - Input/output value, scriptPubKey, sequence, outpoint, nonce, issuance
 - Transaction-level: version, locktime, numInputs, numOutputs, weight
+- Two clocks: `tx.time` (Bitcoin nLockTime block height) and `tx.offchainTime` (TEE wallclock unix seconds) — emitted as runtime placeholders. `tx.offchainTime` enables per-second funding accrual and freshness windows independent of block cadence.
 - Current input: `tx.input.current.value`, `.scriptPubKey`, `.sequence`, `.outpoint`
+- `this.activeInputIndex`: compiles directly to `OP_PUSHCURRENTINPUTINDEX` (not a placeholder), so exit tapleaves can enforce self-vs-sibling input identification on chain (used by `StabilityVault.merge` to distinguish the two vaults being consolidated).
 
 ### Asset Introspection
 - Per-input/output asset lookup, count, and indexed access (assetId, amount)

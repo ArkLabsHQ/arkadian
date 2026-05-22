@@ -61,7 +61,7 @@ Analysis and summaries of pull requests.
 | Module | `github.com/ArkLabsHQ/introspector-enclave` |
 | Repository | `${ENCLAVE_REPO}` |
 | GitHub | `ArkLabsHQ/enclave` |
-| Latest Release | `v0.0.77` (see `cli/runtime-hashes.json`) |
+| Latest Release | `v0.0.78` (see `cli/runtime-hashes.json`) |
 | Components | `cli/`, `runtime/` (+ `runtime/nitriding/` leaf utils), `supervisor/`, `client/`, `client-rs/`, `awsmocks/`, `runner/` |
 | Default Ports | `:443` (TLS edge, `runtime.Runtime` `pubSrv`, ALPN `h2`/`http/1.1`), `127.0.0.1:8080` (internal loopback admin/attestation mux, `privSrv` — was `:7073` pre-v0.0.76), `:7074` (user app, h2c-capable), `127.0.0.1:8443` (host supervisor management API) |
 | Test-rig Images | `ghcr.io/arklabshq/enclave-awsmocks:<rev>`, `ghcr.io/arklabshq/enclave-test-runner:<rev>` (`<rev>` = `cli/runtime-hashes.json::rev` without leading `v`) |
@@ -73,6 +73,7 @@ Analysis and summaries of pull requests.
 | PCR0 Signing | Dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`); signature surfaced as `pcr0_signature` on `GET /v1/enclave-info` (omitempty when not provisioned) |
 | Telemetry ingest | `POST /v1/{metrics,traces,logs}` (OTLP/HTTP); JSON snapshots at `GET /v1/enclave-{metrics,traces,logs}` |
 | Transports | HTTP/1.1 + HTTP/2 + native gRPC + gRPC-Web (issue #85) |
+| TLS Cert Source | **Deploy-time** — `enclave.yaml`'s `tls:` block (fqdn / provider / email) is published by Tofu to SSM as `/{dep}/{app}/env/ENCLAVE_NITRIDING_*`; runtime resolves it via `loadDeployTLSConfig` on `Init`. `self-signed` (default, trust via attestation `tlsKeyHash`) or ACME `letsencrypt` / `letsencrypt-staging` (TLS-ALPN-01, autocert) — cert persisted in the encrypted S3 storage subsystem under the reserved `acme/` namespace via `acmeStorageCache`, so reboots and migrations reuse it instead of re-issuing (avoids the Let's Encrypt rate limit). Changing the domain is a redeploy, **not an EIF rebuild**. |
 
 ## Configuration (enclave.yaml)
 
@@ -89,6 +90,9 @@ Analysis and summaries of pull requests.
 | `secrets[].{name,env_var}` | KMS-managed static secrets (env var injection) |
 | `is_kms_key_locked` | Permanent KMS lockdown flag |
 | `release_tag` | GitHub Release tag for `--remote` artifact pull |
+| `tls.fqdn` | Domain the cert is issued for (required when `provider` ≠ `self-signed`; FQDN-validated) |
+| `tls.provider` | `self-signed` (default) \| `letsencrypt` \| `letsencrypt-staging` |
+| `tls.email` | Optional ACME contact for expiry notices (used when `provider` selects ACME) |
 
 ## Architecture Overview
 

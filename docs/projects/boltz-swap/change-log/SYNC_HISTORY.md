@@ -1,5 +1,47 @@
 # Boltz Swap Documentation Sync History
 
+## 2026-05-22 — Sync (post-0.3.32: quoteSwap guard)
+
+**From**: `57ac89165bfb4680efad6706f1e8783b56f32733` (release 0.3.32)
+**To**: `5e61590af44adfa0fa3712e287bf96e76ed20517`
+**Commits Analyzed**: 3 (non-merge)
+**Status**: ✓ Complete
+
+### Commits Analyzed
+- `3df5311` Guard quoteSwap against adversarial Boltz quotes
+- `db39c2d` Address review on quoteSwap guard
+- `0dec8b3` Address PR review on quoteSwap guard
+
+### Notable Changes
+
+**Versions**
+- No version bump — still `@arkade-os/boltz-swap@0.3.32`, `@arkade-os/sdk@0.4.27`.
+
+**Chain-swap quote acceptance guard** (`3df5311`, hardened by `db39c2d` + `0dec8b3`)
+- `ArkadeSwaps.quoteSwap` previously blind-accepted whatever amount `BoltzSwapProvider.getChainQuote` returned. A Boltz instance (or a MITM in front of it) could return a tiny amount that the wallet would then accept via `postChainQuote`. The renegotiation path on `transaction.lockupFailed` (both Arkade→BTC and BTC→Arkade autopilot loops) is now floored against the original `response.claimDetails.amount`.
+- New typed `QuoteRejectedError` (extends `SwapError`, exported from `src/index.ts`) with discriminated `reason: "below_floor" | "non_positive" | "no_baseline"`. The `QuoteRejectedOptions` type is a discriminated union so each reason statically requires its own metadata (`below_floor` ↔ `{ quotedAmount, floor }`; `non_positive` ↔ `{ quotedAmount }`; `no_baseline` carries neither).
+- New public API:
+  - `quoteSwap(swapId, options?)` — `QuoteSwapOptions = { minAcceptableAmount?: number; maxSlippageBps?: number }`. Options validated as positive integers; `minAcceptableAmount=0` rejected (would silently restore the old blind-accept behaviour). `maxSlippageBps` clamped to `[0, 10000]`, default 0 (strict).
+  - `getSwapQuote(swapId)` — fetch a quote without committing.
+  - `acceptSwapQuote(swapId, amount, options?)` — validate-then-post a specific amount.
+  - All three wired through `IArkadeSwaps`, `ExpoArkadeSwaps`, the SW message handler (`QUOTE_SWAP` / `GET_SWAP_QUOTE` / `ACCEPT_SWAP_QUOTE`), and the SW runtime (`ServiceWorkerArkadeSwaps`).
+- **Floor-resolution order**: `options.minAcceptableAmount` → stored `BoltzChainSwap.response.claimDetails.amount` (looked up via `swapRepository.getAllSwaps({ id, type: "chain" })`) → `QuoteRejectedError({ reason: "no_baseline" })`.
+- **Slippage math**: `Math.floor(floor - (floor * slippageBps) / 10000)` — subtract-then-floor instead of multiply-then-divide, so precision stays correct for floors above `MAX_SAFE_INTEGER / 10000` (~9e11 sats).
+- **Autopilot `claimDetails` guard** (`db39c2d`): both `transaction.lockupFailed` call sites build options via a `quoteOptionsForSwap` helper that tolerates restored swaps from older persisted formats missing `claimDetails.amount` (falls through to the repository lookup, which routes to `no_baseline` and aborts the renegotiation cleanly instead of crashing). Renegotiation failures wrap the inner error via the new `ErrorOptions.cause` field (threaded through `SwapError`) so callers can `instanceof`-check the wrapped `QuoteRejectedError` for programmatic branching.
+- **SW boundary serialization**: `postMessage` structured clone strips custom `.name` and own properties on Error subclasses, but preserves `.message`. `QuoteRejectedError.toTransportError()` encodes `{ reason, message, quotedAmount, floor }` as JSON behind a `"QUOTE_REJECTED::"` marker prefix in the message field; the SW handler wraps thrown `QuoteRejectedError`s with `toQuoteTransportError`, and the runtime's `rethrowIfQuoteRejected` decodes them back into real typed errors so SW callers can `instanceof`-check exactly like in-process callers. In-process `QuoteRejectedError`s skip the encode/decode round trip (`db39c2d`).
+
+**Tests**
+- ~180 added lines in `test/arkade-swaps.test.ts` covering option validation (including the `minAcceptableAmount=0` rejection from `0dec8b3`), behavioural rejection of below-floor / non-positive / no-baseline quotes, and the autopilot `cause` thread-through.
+- ~140 added lines in `test/serviceWorker/arkade-swaps-runtime.test.ts` covering the transport-error encode/decode round trip and `instanceof QuoteRejectedError` recovery in SW callers.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/system/project_overview.md` — new "Recent Improvements (post-0.3.32: quoteSwap guard, unreleased)" block above the 0.3.31 → 0.3.32 entry, covering the guard rationale, `QuoteRejectedError`/`QuoteSwapOptions` surface, floor-resolution rules, slippage math, autopilot guard, SW transport encoding, and the no-version-bump note
+- `docs/projects/boltz-swap/testing/api-reference.md` — added `quoteSwap`/`getSwapQuote`/`acceptSwapQuote` rows to the ArkadeChainSwap methods table; added `QuoteRejectedError` row to the Error Types table; new "QuoteSwapOptions" type-doc section with `QuoteRejectionReason` and the `minAcceptableAmount=0` rejection note
+- `docs/INDEX.md` — appended quoteSwap guard summary to the boltz-swap status row; added a new "Chain-swap quote acceptance guard" bullet to **Key Capabilities**; added `quote-guard`/`quote-rejected` tags; added ask_question triggers (`quoteSwap`, `getSwapQuote`, `acceptSwapQuote`, `QuoteRejectedError`, `chain swap quote guard`, `minAcceptableAmount`, `maxSlippageBps`), develop triggers (`quote guard`, `quoteSwap options`), and debug triggers (`quote below floor`, `quote rejected`, `adversarial Boltz quote`, `renegotiate quote failed`, `no_baseline`); bumped **Last Updated** to 2026-05-22 and **Version** to 1.6.3
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `5e61590a`
+
+---
+
 ## 2026-05-20 — Sync 0.3.31 → 0.3.32
 
 **From**: `67683b13a44bb58f605a824836883aa1f6eab962` (release 0.3.31)

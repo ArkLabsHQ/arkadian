@@ -10,23 +10,39 @@ aliases:
   overview: ["system/project_overview.md", "system/architecture.md"]
   usage: ["testing/usage.md"]
 scripts:
-  build: "pnpm build"
-  typecheck: "pnpm typecheck"
-  smoke_dist: "pnpm smoke:dist"
-  test: "pnpm test"
-  test_unit: "pnpm test:unit"
-  test_integration: "pnpm test:integration"
-  format: "pnpm format"
-  lint: "pnpm lint"
-  regtest_up: "nigiri start --ark"
-  regtest_down: "nigiri stop --delete"
-  docs_build: "pnpm docs:build"
-  release: "pnpm release"
+  build: "pnpm build"                          # root: pnpm -r build (both packages)
+  build_ts_sdk: "pnpm -C packages/ts-sdk build"
+  typecheck: "pnpm -C packages/ts-sdk typecheck"
+  smoke_dist: "pnpm -C packages/ts-sdk smoke:dist"
+  test: "pnpm test"                            # root: unit + integration, both packages
+  test_unit: "pnpm test:unit"                  # root: pnpm -r test:unit
+  test_unit_ts_sdk: "pnpm -C packages/ts-sdk test:unit"
+  test_integration: "pnpm test:integration"    # root: ts-sdk cycle + boltz-swap cycle
+  test_integration_ts_sdk: "pnpm test:integration:ts-sdk"
+  format: "pnpm -C packages/ts-sdk format"
+  lint: "pnpm lint"                            # root: pnpm -r lint
+  regtest_up_ts_sdk: "pnpm regtest:up:ts-sdk"
+  regtest_setup_ts_sdk: "pnpm regtest:setup:ts-sdk"
+  regtest_down_ts_sdk: "pnpm regtest:down:ts-sdk"
+  docs_build: "pnpm -C packages/ts-sdk docs:build"
+  release_sdk: "pnpm run release -- sdk patch"          # SDK + mirrored boltz-swap patch
+  release_boltz: "pnpm run release -- boltz-swap patch" # boltz-swap only
+  release_all: "pnpm run release -- all patch"          # bump both
+  release_dry_run: "pnpm release:dry-run"
 ---
 
 # Ark TypeScript SDK — Project Index
 
 **ts-sdk** is the official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. It provides a complete client library for building Bitcoin wallets with Taproot and Ark virtual UTXO (VTXO) support. The SDK runs in browsers, Node.js, React Native/Expo, and service workers with pluggable storage adapters.
+
+Since 2026-05-22 the repository is a **pnpm workspace monorepo** that vendors two published packages:
+
+| Workspace path | npm package | Version | Purpose |
+|----------------|-------------|---------|---------|
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.27` | This SDK (wallet, providers, crypto, repositories) — npm-published path inside the tarball is unchanged |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.32` | Sibling Boltz Lightning/chain-swap library (docs under `docs/projects/boltz-swap/`) |
+
+devDeps, prettier config, `tsup` base config, and the `scripts/regtest.sh` regtest driver are hoisted to the repo root. Releases are package-scoped via `pnpm run release -- {sdk|boltz-swap|all} <bump>`.
 
 ## Directory Structure
 
@@ -70,12 +86,14 @@ Analysis and summaries of pull requests.
 |------|-------|
 | Package | `@arkade-os/sdk` |
 | Version | `0.4.27` |
+| Repo Layout | pnpm workspace monorepo — `packages/ts-sdk/` + `packages/boltz-swap/` (since 2026-05-22) |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
-| Package Manager | pnpm 10.29.2 |
+| Package Manager | pnpm 10.25.0 (workspace; root `engines.pnpm` `>=10.25.0 <11`) |
 | Test Framework | Vitest |
-| Build Tool | tsup ^8.5.0 (single step, dual ESM+CJS, per-entry `.d.ts` + `.d.cts`, target `es2022`) |
-| Build Output | Flat `dist/` — per-entry `.js` (ESM) + `.cjs` (CJS) + `.d.ts` (ESM types) + `.d.cts` (CJS types) + source maps |
+| Build Tool | tsup ^8.5.0 (single step, dual ESM+CJS, per-entry `.d.ts` + `.d.cts`, target `es2022`; hoisted to root devDeps) |
+| Build Output | Flat `packages/ts-sdk/dist/` — per-entry `.js` (ESM) + `.cjs` (CJS) + `.d.ts` (ESM types) + `.d.cts` (CJS types) + source maps |
+| Release CLI | `pnpm run release -- {sdk\|boltz-swap\|all} <bump>` (driver: `scripts/release.sh` → `scripts/release.mjs`; gated on `pnpm test:unit`) |
 | GitHub | `arkade-os/ts-sdk` |
 
 ## Architecture Overview

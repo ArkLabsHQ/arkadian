@@ -1,5 +1,67 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-22 - Monorepo restructure: ts-sdk + boltz-swap unified under `packages/*`
+**From**: `029a988d0cae1ba9e35a3a10d7f0b0cc37cce26b`
+**To**: `2fc8a3ff5adb14c87cf57586bddcf287ce4bfff6`
+**Synced By**: update-project skill
+**Status**: The single-package `@arkade-os/sdk` repository has been re-shaped into a **pnpm workspace monorepo** that vendors `@arkade-os/boltz-swap` as a sibling package. The two packages keep independent `package.json` `version`s (`@arkade-os/sdk` `0.4.27`, `@arkade-os/boltz-swap` `0.3.32`) but share devDependencies, prettier config, tsup config, regtest harness, and a coordinated `scripts/release.sh` driver. **No public TypeScript API changes for `@arkade-os/sdk` consumers** — only repo-local tooling, file paths, and CI scripts moved. Downstream apps installing `@arkade-os/sdk` from npm are unaffected.
+
+**Commits analyzed** (high signal — the full range carries ~280 non-merge commits because the boltz-swap history was grafted in; ~30 commits below are the load-bearing structural ones):
+
+*Monorepo scaffolding & migration:*
+- `90e5de32` Add monorepo scaffolding (workspace, root configs, CI) — `pnpm-workspace.yaml`, root `package.json` with `pnpm -r` aggregate scripts, root `prettier`/`tsconfig` bases.
+- `d74cc004` Move `@arkade-os/sdk` under `packages/ts-sdk/` for monorepo layout — all `src/`, `test/`, `tsup.config.ts`, `vitest.config.ts`, `scripts/smoke-dist.mjs`, `package.json`, `tsconfig.json`, `CHANGELOG.md`, etc. relocated; npm-published path inside the tarball unchanged.
+- `d1b4070a` Adapt boltz-swap for monorepo (hoist per-package files, workspace dep) — boltz-swap's git history rewritten in; `packages/boltz-swap/package.json` declares `@arkade-os/sdk: workspace:*`.
+
+*Shared config + devDep hoisting:*
+- `bf5a5137` refactor: dedupe boltz-swap against ts-sdk — boltz-swap reuses ts-sdk's tsup base, `tsconfig` base, and prettier config; eliminates duplicated build scaffolding.
+- `1900c8b6` refactor(config): wire shared base configs — root `tsconfig.base.json` + `prettier` config + tsup shared base. Per-package configs extend the root.
+- `e7835101` chore: hoist tsup; add boltz-swap typecheck — `tsup` moved to root devDeps; boltz-swap gets a `pnpm typecheck` step matching ts-sdk's, gated in CI.
+- `42f5133a` chore: hoist shared devdeps and drop per-package leftovers — `vitest`, `@types/node`, `husky`, `prettier`, `typescript`, `tsup`, `fake-indexeddb`, `eventsource` all hoisted to root; per-package `node_modules` keep only package-unique deps.
+- `26f1cb29` style: apply root prettier config across packages — single repo-wide format pass.
+- `919d0d1d` chore: move pnpm settings to pnpm-workspace.yaml — `onlyBuiltDependencies` (`better-sqlite3`, `canvas`, `sqlite3`, `@arkade-os/sdk`), `ignoredBuiltDependencies`, and `overrides` (`esbuild >=0.25.0`, `brace-expansion`, `minimatch`) consolidated.
+- `8c3283ef` refactor(types): single bip68 ambient declaration — `bip68.d.ts` hoisted to a single root-level declaration consumed by both packages (was duplicated per-package).
+- `615d128d` chore: hygiene pass on repo root — removes orphaned files left over from the single-package layout.
+
+*Release flow:*
+- `843502e1` chore(release): unify versions and release both packages in lockstep — first attempt at coordinated releases; both packages get the same version bump.
+- `cd29cda3` chore: package-scoped releases — supersedes lockstep with **package-scoped release CLI**: `pnpm run release -- sdk patch` (SDK + dependent boltz-swap patch), `pnpm run release -- boltz-swap patch` (Boltz-only bugfix), `pnpm run release -- sdk prepatch --preid beta` (mirrors prerelease into boltz-swap), `pnpm run release -- all patch` (bump both). Driver is `scripts/release.sh` → `scripts/release.mjs`.
+- `15ee8c63` chore(release): run pnpm test:unit before publish — release script gates publish on `pnpm test:unit` (monorepo-wide).
+- `7eb819d7` Address review comments 1,2,5 — release-flow polish.
+
+*Node + CI:*
+- `2ca08e3f` Bump Node to 24.15.0 LTS, add `.nvmrc` — root `engines.node` = `>=24.15.0 <25` (publishable `@arkade-os/sdk` still ships with the widened `>=22.12.0 <25` consumer range from #495).
+- `7bf8d386` Update CI jobs to use new scripts — CI invokes root-level `pnpm build` / `pnpm test:unit` / `pnpm test:integration` (which fan out to both packages via `pnpm -r`).
+- `3555a9a4` ci: smoke boltz-swap dist; restore next, engines, regtest cache key — boltz-swap now runs its own `pnpm smoke:dist` post-build (mirrors ts-sdk's #496 smoke step); cache key includes the regtest submodule pin.
+- `fdf5c04e` ci: run boltz-swap typecheck after build — `pnpm typecheck` per package, gated before tests.
+- `80c75eee` Fix e2e tests — alignment fixes for the new monorepo path layout.
+
+*Boltz-swap upgrades carried in (no `@arkade-os/sdk` impact):*
+- `e0837dbf` Upgrade ts-sdk 0.4.27 (inside boltz-swap), `57ac8916` release 0.3.32, `67683b13` release 0.3.31, `e019ba06` release 0.3.30, plus older 0.3.x releases grafted from boltz-swap's prior history.
+- `4a680abd` fix(boltz-swap): poll swap status when WebSocket fails, `1e53b733` test(boltz-swap): isolate swap repo and extend slow timeouts, `2234ab30` Recover from half-initialized ArkadeSwaps handler after SW restart, `30394562` fix: isolate expo-task-manager/expo-background-task to `/expo/background`, `fd756129` chore: declare optional Expo peers and test removed-field guard.
+
+*Documentation:*
+- `a434417b` docs: clarify authoritative ai guidance, `c284c6fc` docs(sdk): add worker README index, `5fb76c0f` docs: align typedoc output with monorepo layout, `68b353e1` docs(boltz-swap): fix expo setup and swap migration guidance, `ae5be443` docs(sdk): update examples for bigint assets and current repositories, `100c257a` docs: replace stale package-local development instructions, `9785f9e7` docs: fix monorepo command and architecture guidance — `AGENTS.md` / `CLAUDE.md` / `FOUNDATION.md` rewritten as monorepo-aware guides (Commands section now monorepo-wide + per-package `pnpm -C packages/<pkg>`).
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Quick Reference adds `Repo Layout` row (pnpm workspace monorepo, `packages/ts-sdk/` + `packages/boltz-swap/`); `Package Manager` row updated to `pnpm 10.25.0` (was `10.29.2`); `scripts` frontmatter rewritten to be monorepo-aware (root `pnpm build` / `pnpm test:unit` / `pnpm lint` fan out via `pnpm -r`; package-scoped commands documented via `pnpm -C packages/ts-sdk <script>`; `release` entry shows the new package-scoped CLI form); new "Monorepo Layout" section near the top.
+- `docs/projects/ts-sdk/system/project_overview.md` — Adds **Monorepo Layout** section at the top noting the workspace shape and the boltz-swap sibling; Package row clarifies the npm-published artifact is `packages/ts-sdk/` (publish path unchanged); Technology Stack `Package Manager` row updated to `pnpm 10.25.0` workspace (was `10.29.2`); release section notes the package-scoped CLI.
+- `docs/projects/ts-sdk/system/architecture.md` — Module Structure header prefixed with `packages/ts-sdk/` (was top-level `src/`); new **Repo Layout** section at the top showing `packages/ts-sdk/`, `packages/boltz-swap/`, root `scripts/regtest.sh`, hoisted devDeps, shared `tsconfig.base.json` / `prettier` / `tsup` base.
+- `docs/projects/ts-sdk/sop/development-workflow.md` — Prerequisites bumps pnpm to `>=10.25.0 <11`; Setup section notes `pnpm install` at the repo root installs both packages; Building section adds per-package syntax (`pnpm -C packages/ts-sdk build`) alongside the root aggregate; Testing section adds `pnpm -C packages/ts-sdk test:unit` and the root `pnpm test:integration:ts-sdk` / `pnpm test:integration:boltz-swap`; Releasing section rewritten for the package-scoped CLI (`pnpm run release -- sdk patch` / `boltz-swap patch` / `all patch`, `--preid beta` for prereleases, gated on `pnpm test:unit`).
+- `docs/projects/ts-sdk/testing/how_to_run.md` — Install notes `pnpm install` at the repo root; Build section adds per-package alternative (`pnpm -C packages/ts-sdk build`); Regtest section replaces the deprecated `pnpm test:up-docker` / `pnpm test:down-docker` script names with the root-level `pnpm regtest:up:ts-sdk` / `pnpm regtest:setup:ts-sdk` / `pnpm regtest:down:ts-sdk` (and `pnpm test:integration:ts-sdk` for the full `cycle`); package-local script names (`pnpm -C packages/ts-sdk regtest:start` / `regtest:stop` / `regtest:clean` / `regtest`) noted for in-package invocation.
+- `docs/projects/ts-sdk/testing/how_to_test.md` — Running Tests section adds per-package syntax (`pnpm -C packages/ts-sdk test:unit`); Integration Tests rewrites `pnpm test:up-docker` → root `pnpm regtest:up:ts-sdk` (and per-package `pnpm -C packages/ts-sdk regtest:start`); notes the unified `scripts/regtest.sh <pkg> <action>` driver.
+- `docs/INDEX.md` — ts-sdk Active Dev row prefixes the existing changelog narrative with the monorepo restructure (workspace shape, package-scoped release CLI, hoisted devDeps, shared configs); Tags add `monorepo`, `pnpm-workspace`, `boltz-swap-sibling`.
+
+**Notes**:
+- **No published `@arkade-os/sdk` source changes.** Every `src/` modification in `packages/ts-sdk/src/` already shipped in the 0.4.27 cut (or the post-0.4.27 unreleased changes documented in earlier sync entries: #487 Expo subpath split, #495 Node 24, #496 tsup migration, etc.). The structural changes in this sync are repo tooling only.
+- The `package.json` `version` of `@arkade-os/sdk` remains `0.4.27`; no new release cut.
+- The `package.json` `version` of `@arkade-os/boltz-swap` reads `0.3.32` — the most recent release at HEAD inside the monorepo.
+- Root `engines.node` is intentionally narrower (`>=24.15.0 <25`) than the published `@arkade-os/sdk` `engines.node` (`>=22.12.0 <25`) so contributors develop on Node 24 while downstream consumers on Node 22.x remain supported.
+- The `pnpm-workspace.yaml` `overrides` (`esbuild >=0.25.0`, `brace-expansion ^2.0.2`, `minimatch 9.0.3`) close known transitive vulnerability advisories without forcing direct devDep churn in either package.
+- Pre-monorepo boltz-swap history (~150 commits, `0.1.x` through `0.3.31`) is grafted into the unified history; releases prior to `0.3.30` predate the monorepo and are documented under the `boltz-swap` project for context.
+
+---
+
 ## 2026-05-21 - Build migration to tsup (#496)
 **From**: `c0442fbf3aaafba226400981d15bbb14c658622e`
 **To**: `029a988d0cae1ba9e35a3a10d7f0b0cc37cce26b`

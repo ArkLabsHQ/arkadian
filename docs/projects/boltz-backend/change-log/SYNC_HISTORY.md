@@ -1,5 +1,36 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-22 - Documentation Update
+**Commit**: `0c66e188` (boltz-backend repository)
+**Previous Sync**: `246dcfbe`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 7 commits
+
+**Features / Behaviour Changes**:
+- feat: JWT authentication for gRPC server (#1415) (`f41000dd`) — every call on `boltzrpc.Boltz` is now authenticated by a new `AuthInterceptor` against tokens issued by the server itself. New `jwt_tokens` table (Sequelize model `JwtToken` + `JwtTokenRepository`) persists tokens; `JwtSigner` mints/validates them. New RPCs `IssueJwt`, `RevokeJwt`, `ListJwts`, `ListMethods` (latter returns the exact method paths and accepted wildcard entries — `*`, `<service>/*`). Each token carries `allowed_methods` (exact paths or wildcards) and optional `expires_in_seconds` TTL. On first start a bootstrap admin token is written to `<certificates>/admin.jwt` at mode `0600`. Configured via new optional `[grpc.jwt]` section in `boltz.conf` (`disable`, `secretFile` — default `<certificates>/jwt.key`, `adminTokenFile` — default `<certificates>/admin.jwt`); matching TypeScript `GrpcJwtConfig` added to `lib/Config.ts`. `boltzr-cli` gains `jwt …` subcommands wrapping all four RPCs (`boltzr-cli/src/main.rs`, `parsers.rs`, `grpc/mod.rs`). The pre-existing logging interceptor was extracted to `lib/grpc/interceptors/LoggingInterceptor.ts` alongside the new `AuthInterceptor.ts`; `MethodRegistry` enumerates the registered methods/wildcards used by both the registry RPC and the auth allowlist.
+- feat: preemptively rotate 0-conf API WebSocket (#1414) (`779beaff`) — the Liquid 0-conf observation WebSocket transport now proactively reconnects before the server-side TTL drops the connection, controlled by a new `rotation_interval_secs` config knob (default `3300`s, `0` disables). The single-file `zero_conf_tool/ws.rs` was split into a module (`ws/{connection,mod,protocol,state,tests}.rs`); the new `connection.rs`/`protocol.rs`/`state.rs` separate transport, wire protocol, and observation state, and `tests.rs` exercises rotation + idle reconnect. `docs/boltz.conf` documents the new knob alongside `interval` / `max_retries` / `deadline_secs`. Transport selection (HTTP vs WS by URL scheme) now also emits a `debug!` log.
+
+**Refactors**:
+- refactor: remove Elements lowball node (#1417) (`b84dfca3`) — the legacy `[liquid.chain.lowball]` backup-node configuration and the `ElementsWrapper` dual-node failover are removed. `liquid.chain` now configures a single Elements RPC endpoint. Deletes `lib/chain/ElementsWrapper.ts` (-180 lines) and its integration spec `test/integration/chain/ElementsWrapper.spec.ts` (-234 lines); simplifies `ElementsClient.ts`, `boltzr/src/chain/elements_client.rs`, `lib/chain/ChainClient.ts`, `lib/Boltz.ts`, `lib/Config.ts` (drops `LiquidChainConfig` and `lowball` export), `lib/swap/SwapNursery.ts`, `lib/swap/UtxoNursery.ts`, `lib/service/Service.ts`, `lib/service/cooperative/{CoopSignerBase,DeferredClaimer}.ts`, and `boltzr/src/chain/mod.rs`. `docs/boltz.conf` drops the `[liquid.chain.lowball]` block.
+
+**Bug Fixes**:
+- fix: flaky mempool.space integration tests (`35e67e82`, `97b60b3f`) — `boltzr/src/chain/mempool_client.rs` test stabilisation only; no production behaviour change.
+
+**Tooling / Chores**:
+- chore: bump eclair to v0.14.0 (`02fdf501`) — `docker/build.py` bumps the pinned Eclair Docker image from `0.13.1` to `0.14.0`. No code path change.
+- chore: bump vulnerable NPM dependencies (`106cfdf0`) — `package-lock.json` only (16 insertions / 17 deletions); no `package.json` change.
+
+**Documentation Impact**:
+- `INDEX.md` (project): added a new **gRPC Authentication** subsection (JWT interceptor, `[grpc.jwt]` config, new RPCs, `boltzr-cli jwt …`, `jwt_tokens` table); extended **Bitcoin / Liquid Nodes** to note the **Lowball backup node removed** (PR #1417) and the new `rotation_interval_secs` knob for the WebSocket 0-conf transport; added **Eclair v0.14.0** to **Lightning Integration**.
+- `system/project_overview.md`: added a new **gRPC JWT Authentication** capability bullet (PR #1415); extended **Liquid 0-Conf Observation API** with the `rotation_interval_secs` WS rotation knob and a bullet calling out the `[liquid.chain.lowball]` / `ElementsWrapper` removal.
+- `system/architecture.md`: added a new **gRPC Server (`lib/grpc/`)** subsection covering `GrpcServer`, `AuthInterceptor` + `JwtSigner`, `LoggingInterceptor`, `MethodRegistry`, and the JWT management RPCs; added `ElementsClient` (single-node) bullet under **Chain Integration** with a note that `ElementsWrapper` was removed; added `EclairClient` v0.14.0 under **Lightning Integration**; added the `jwt_tokens` table to the **Database** section.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** gained a **gRPC JWT authentication** bullet and the **lowball single-node** + **WebSocket `rotation_interval_secs`** updates; the LND/CLN bullet now also lists **Eclair pinned to v0.14.0**; added `grpc`, `jwt-auth`, `eclair` tags.
+- `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — the JWT auth surface is on the **internal** `boltzrpc.Boltz` gRPC, not the public REST/WebSocket API; the Liquid 0-conf WS rotation and Eclair bump are config/Docker-pin changes with no public API or env-var surface; the lowball removal is a config-schema cleanup with no public-facing behaviour change.
+
+---
+
 ## 2026-05-21 - Documentation Update
 **Commit**: `246dcfbe` (boltz-backend repository)
 **Previous Sync**: `e91269df`

@@ -83,6 +83,11 @@ The compiler distinguishes between CScriptNum (standard Bitcoin) and u64le (64-b
 ### Asset ID Decomposition
 Constructor parameters used in `AssetLookup` expressions are automatically decomposed from a single `bytes32` into `_txid` (bytes32) + `_gidx` (int) pairs, matching the on-chain asset ID format.
 
+### Direct-Emission Properties
+Most `tx.*` / `this.*` properties compile to `<placeholder>` tokens resolved at deploy time. Two exceptions:
+- `this.activeInputIndex` → `OP_PUSHCURRENTINPUTINDEX` (no placeholder). This lets exit tapleaves enforce self-vs-sibling input checks on chain — required for the `StabilityVault.merge` consolidation flow.
+- `tx.offchainTime` → runtime placeholder `<tx.offchainTime>`, distinct from `<tx.time>`; the introspector binds it to the TEE wallclock in unix seconds.
+
 ## Source Structure
 
 ```

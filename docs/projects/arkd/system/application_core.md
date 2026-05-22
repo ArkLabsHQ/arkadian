@@ -146,6 +146,11 @@ Provides read-only query APIs for wallets and explorers.
 - `GetVtxoChain()` - Trace VTXO history back to root
 - `GetVirtualTxs()` - Virtual transaction details
 
+**Subscription Methods (server-streaming):**
+- `SubscribeForScripts()` / `UnsubscribeForScripts()` - Two-step flow: create/extend a subscription, then attach via `GetSubscription`.
+- `GetSubscription()` - Server-streaming RPC. If `subscription_id` is empty the server creates a subscription inline, applies the optional initial `SubscriptionFilter`, and emits a `SubscriptionStartedEvent` carrying the generated id as the first message; if `subscription_id` is set the stream attaches to the existing listener (legacy flow). Bound to both `/v1/indexer/script/subscription/{subscription_id}` (legacy) and `/v1/indexer/subscription` (single-connection).
+- `UpdateSubscription()` - Atomic, in-place filter mutation on an existing subscription. Generic `SubscriptionFilter` (currently `ScriptsFilter` with mutually-exclusive `modify` add/remove or `overwrite`) is validated end-to-end before any topic mutation; requires `indexer:write` macaroon permission.
+
 ### Admin Service (`admin.go`)
 Provides administrative operations for ASP operators.
 

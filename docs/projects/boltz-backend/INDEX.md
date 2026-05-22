@@ -148,12 +148,20 @@ npm run dev
 ### Lightning Integration
 - **LND**: gRPC integration
 - **CLN**: gRPC integration (boltzr sidecar) — pinned to **v26.04.1**
+- **Eclair**: pinned to **v0.14.0** (Docker image, bumped from v0.13.1)
 - **BOLT12**: Support for offers and blinded paths (hardened)
 
 ### Bitcoin / Liquid Nodes
 - **Bitcoin Core**: **v31.0**
 - **Elements (Liquid)**: **v23.3.3**
-- **Liquid 0-conf observation API** (`[liquid.chain.zeroConfTool]` in `boltz.conf`, optional): when configured, lockup transactions are only considered 0-conf-safe once the bridge observation quorum is reached. Transport is selected by URL scheme — `http(s)://…` uses REST polling (`interval` ms, default `100`; `max_retries`, default `60`), `ws(s)://…` uses WebSocket with a per-tx `deadline_secs` wall-time (default `6`). Falls back to the elementsd mempool check when not configured.
+- **Lowball backup node removed**: the `[liquid.chain.lowball]` configuration section and the `ElementsWrapper` dual-node code path have been deleted; `liquid.chain` now configures a single Elements RPC endpoint (see PR #1417).
+- **Liquid 0-conf observation API** (`[liquid.chain.zeroConfTool]` in `boltz.conf`, optional): when configured, lockup transactions are only considered 0-conf-safe once the bridge observation quorum is reached. Transport is selected by URL scheme — `http(s)://…` uses REST polling (`interval` ms, default `100`; `max_retries`, default `60`), `ws(s)://…` uses WebSocket with a per-tx `deadline_secs` wall-time (default `6`) and optional `rotation_interval_secs` (default `3300`, `0` disables) for **preemptive WebSocket reconnects** before the server-side TTL drops the connection. Falls back to the elementsd mempool check when not configured.
+
+### gRPC Authentication
+- **JWT auth interceptor** on the `boltzrpc.Boltz` service (PR #1415). Every call is authenticated against tokens issued by the server itself; the interceptor is configured via the optional `[grpc.jwt]` section in `boltz.conf` (`disable`, `secretFile` — defaults to `<certificates>/jwt.key`, `adminTokenFile` — defaults to `<certificates>/admin.jwt`). On first start a bootstrap **admin token** is written to `<certificates>/admin.jwt` at mode `0600`. Tokens are stored in the new `jwt_tokens` table.
+- **Per-token method allowlist**: each JWT carries `allowed_methods` (exact gRPC method paths such as `/boltzrpc.Boltz/GetInfo`, or wildcards `*` / `<service>/*`) and an optional `expires_in_seconds` TTL; expired or revoked tokens are rejected by the interceptor.
+- **New RPCs** on `boltzrpc.Boltz`: `IssueJwt`, `RevokeJwt`, `ListJwts`, `ListMethods` (the latter surfaces the exact method paths and wildcard entries the allowlist accepts).
+- **`boltzr-cli jwt …`** commands wrap the new RPCs end-to-end for operator workflows.
 
 ### Signer Control
 - **gRPC signer-control surface** on `boltzrpc.Boltz`: `DisableSigners` / `EnableSigners` / `GetDisabledSigners` operate on a `Signer` enum covering submarine-refund, reverse-claim, chain-refund, chain-claim, deferred-claim, EVM-refund, EVM-commitment-refund, reverse-lockup, chain-lockup, and submarine-invoice-payment signers

@@ -1,5 +1,48 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-22 - Documentation Update
+**Commit**: `700026fe` (arkd repository)
+**Previous Sync**: `2c9612a0`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+- `700026fe` Non-breaking single-connection GetSubscription rpc (#951)
+- `2336e19e` client-lib: Fix explorer polling fallback panic when poll interval is unset (#1076)
+- `a6f1b71f` Upgrade `nbxplorer` to 2.6.7 (#1077)
+
+**Features Added (Indexer gRPC API, additive & non-breaking)**:
+- New single-connection `GetSubscription` flow in `internal/interface/grpc/handlers/indexer.go`: when `subscription_id` is empty the server creates the subscription inline (UUID), optionally applies an initial `SubscriptionFilter`, and emits a `SubscriptionStartedEvent` carrying the generated id as the first stream message. When `subscription_id` is set, the previous attach-to-existing-listener behavior is preserved (now returns `codes.NotFound` instead of silently allowing on missing listener).
+- New `UpdateSubscription` RPC for atomic, in-place subscription mutation. Generic `SubscriptionFilter` is mutually exclusive between filter types (currently only `ScriptsFilter`, with future packet-type filters planned). `ScriptsFilter` supports two modes:
+  - `Modify { add_scripts, remove_scripts }` — incremental add/remove
+  - `Overwrite { scripts }` — full replacement
+  Returns `ScriptsFilterResult { added, removed, all }`. All scripts are parsed/validated up-front so partial mutations are not possible on invalid input.
+- New proto messages in `api-spec/protobuf/ark/v1/indexer.proto`: `SubscriptionStartedEvent`, `SubscriptionFilter`, `ScriptsFilter`, `ModifyScripts`, `OverwriteScripts`, `UpdateSubscriptionRequest`, `UpdateSubscriptionResponse`, `ScriptsFilterResult`; `GetSubscriptionRequest` gains an optional `SubscriptionFilter filter` field; `GetSubscriptionResponse` gains a `SubscriptionStartedEvent subscription_started` oneof variant.
+- New REST bindings: `GET /v1/indexer/subscription` (single-connection server-sent stream, alongside the existing `/v1/indexer/script/subscription/{subscription_id}`) and `POST /v1/indexer/subscription/update`.
+- New macaroon permission entry in `internal/interface/grpc/permissions/permissions.go`: `IndexerService/UpdateSubscription` requires `indexer:write`.
+- Indexer handler test suite expanded by ~968 lines (`internal/interface/grpc/handlers/indexer_test.go`) covering single-connection start, filter validation, atomic modify/overwrite semantics, error mapping, and listener cleanup.
+
+**Bug Fixes (client-lib SDK, `pkg/client-lib`)**:
+- `mempool.NewExplorer` (`pkg/client-lib/explorer/mempool/explorer.go`): polling fallback path no longer panics when `pollInterval` is unset — constructor now seeds `defaultPollInterval = 10 * time.Second` and validates `pollInterval > 0`, returning an error instead.
+- Default explorer URLs updated to Arkade-operated mempool mirrors:
+  - Bitcoin: `https://mempool.space/api` → `https://mempool.arkade.sh/api`
+  - Signet:  `https://mempool.space/signet/api` → `https://mempool.signet.arkade.sh/api`
+  - MutinyNet: `https://mutinynet.com/api` → `https://mempool.mutinynet.arkade.sh/api`
+  - Testnet and Regtest defaults unchanged.
+
+**Dependency Bumps**:
+- `docker-compose.regtest.yml`: `nicolasdorier/nbxplorer:2.5.30` → `2.6.7`.
+
+**Files Updated**:
+- docs/projects/arkd/INDEX.md (sync commit + date)
+- docs/projects/arkd/system/application_core.md (Indexer Service: documented `GetSubscription` single-connection flow, `UpdateSubscription` RPC, and existing `SubscribeForScripts`/`UnsubscribeForScripts` — previously this section listed only query methods)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Master `docs/INDEX.md` arkd entry already lists gRPC/REST API interfaces at a high level; the new RPC + flow is additive and non-breaking, no capability/tag/dependency change at master-INDEX granularity (consistent with how prior similarly-scoped syncs like 2026-05-20/2026-05-09 were handled). `tech_stack.md` mentions NBXplorer generically without a pinned version, so the 2.6.7 image bump needs no doc edit there.
+
+---
+
 ## 2026-05-20 - Documentation Update
 **Commit**: `2c9612a0` (arkd repository)
 **Previous Sync**: `f8aefab4`

@@ -53,7 +53,7 @@ cd client && go test ./...
 Existing test files (use as templates for new tests):
 
 - `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go`, `cli/upgrade_test.go`
-- `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/signature_test.go`, `runtime/tracing_test.go`
+- `runtime/acme_cache_test.go`, `runtime/acme_directory_test.go`, `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/signature_test.go`, `runtime/tls_test.go`, `runtime/tracing_test.go`
 - `supervisor/gvproxy_test.go`
 - `client/verify_test.go`
 
@@ -66,6 +66,7 @@ make test          # test-build + test-run
 make test-build    # builds v1/v2/v3 EIFs
 make test-run      # docker compose --profile test run (no rebuild of test-runner image)
 make test-rebuild  # rebuild test-runner image, then run integration tests
+make test-acme     # test-build + end-to-end ACME / Let's Encrypt test against a local Pebble server (test/acme-test.sh, test/pebble/)
 ```
 
 `make test-run` no longer rebuilds the test-runner image on every invocation; use `make test-rebuild` after changing `test/Dockerfile.runner` or its build-time inputs.
@@ -77,7 +78,7 @@ make test-build-docker     # works on macOS/ARM
 make test-docker           # build-in-Docker + run; vsock_loopback Linux-only
 ```
 
-CI workflow `.github/workflows/integration-test.yml` runs this on every push/PR to `master`.
+CI workflow `.github/workflows/integration-test.yml` runs the QEMU integration suite on every push/PR to `master`; `.github/workflows/acme-test.yml` runs `make test-acme` (the Pebble-backed end-to-end ACME test) on the same triggers.
 
 ## Working on Local Source vs Pinned
 

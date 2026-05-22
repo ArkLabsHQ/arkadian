@@ -1,5 +1,60 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-05-22 — Mutable Funding Rate, Capital Ops, Proportional Fees, `tx.offchainTime`, `merge`
+**Commit Range**: `86d9b047` → `d42674e0`
+**Synced By**: /update-project compiler
+**Status**: StabilityVault redesign + new compiler emission rules
+
+**Commits Analyzed** (1, squash-merge of PR #32):
+- `d42674e` feat(stability): mutable funding rate, capital ops, proportional fees (#32)
+
+**Changes**:
+
+**PR #32 — StabilityVault: USD-compound funding, capital management, basis-point fees, merge**
+
+- **Funding model rewrite (sat-additive → USD-compound)**
+  - Removed `fundingSatPerBlock` (absolute sat amount, inflated effective APY on partial fills).
+  - Intermediate stop: `fundingRatePerBlock` as a signed fixed-point fraction at scale 1e10.
+  - Final form: `fundingRatePerSec` at scale 1e12, accrued per second using a new `tx.offchainTime` introspector property.
+  - Settlement algebra unified everywhere: `newTargetUSD = targetUSD × (1 + rate × elapsed / 1e12)`. The `/1e12` is interleaved as two `/1e6` steps to keep the intermediate product inside int64 across realistic position sizes.
+  - `openHeight` → `openTime` → mutable `lastUpdate` (advances on every funding settle).
+  - Freshness window: ≤ 144 blocks (≈24h) → ≤ 600 seconds (10 min).
+
+- **New vault functions** (vault tapleaf count: 12 → 14 → 16 → 20 including merge)
+  - `settleAndUpdateFunding(providerSig, newFundingRatePerSec)`: rolls accrued funding into `targetUSD` and sets a new rate. Enforces `newFundingRatePerSec >= 0` (negative would let provider unilaterally drain). Anti-grief guard: when `rate > 0` the call must produce a nonzero delta (prevents sub-truncation-interval ratcheting of `lastUpdate`).
+  - `addCapital(providerSig, amount)`: provider tops up collateral. No oracle needed (more collateral is strictly better for the seeker).
+  - `removeCapital(providerSig, amount, oraclePrice, oracleTime, oracleSig)`: provider reclaims excess; remaining balance must cover seeker claim at the offer's collateral ratio.
+  - `merge(seekerSig, otherIdx, …)`: seeker consolidates two of their own StabilityVaults. Both vaults must agree on seekerPk/providerPk/oraclePk/ticker/collateralRatioPct/exit. Merged vault: `targetUSD = accruedA + accruedB`, `totalCollateral = sum`, `fundingRatePerSec = max(rateA, rateB)`, `seekerExitFee = max(exitFeeA, exitFeeB)`, `lastUpdate = tx.offchainTime`. Position-agnostic — both vaults run their merge tapleaf in the same tx; `this.activeInputIndex` identifies self, witness `otherIdx` points to sibling.
+
+- **Compiler: new direct-emission property**
+  - `src/compiler/mod.rs`: `Expression::Property("this.activeInputIndex")` now emits `OP_PUSHCURRENTINPUTINDEX` directly in both `generate_expression_asm` and `emit_expression_asm` paths, instead of an unresolved `<this.activeInputIndex>` placeholder. This lets exit tapleaves enforce self-vs-sibling input identification on chain.
+  - All other `tx.*` / `this.*` properties continue to emit `<placeholder>` tokens.
+
+- **Fees: flat sats → basis points (scale 1e4)**
+  - `takeFee` (offer-level): `takeFeeSats = userBTC × takeFee / 1e4`. Bounds-checked at `take()` time: `0 <= takeFee <= 10000`.
+  - `seekerExitFee` (offer-level, propagated into every opened vault): applied in USD denomination at exit — `seekerRaw = newTargetUSD × (1 − seekerExitFee/1e4) × 1e8 / P`. Bounds-checked: `0 <= seekerExitFee <= 10000` (prevents `(10000 − fee) < 0` from routing all collateral to provider).
+  - Dust-fee routing: when `takeFeeSats > 330` the take fee sits at `outputs[1]` and remaining offer at `outputs[2]`; when `takeFeeSats <= 330` (Taproot dust) the fee is rolled into `vault.value` and remaining offer slides to `outputs[1]`. The vault value check becomes `>= totalCollateral + takeFeeSats` on the dust branch.
+
+- **Security guards added in PR review pass**
+  - Clock-regression guard `require(tx.offchainTime >= lastUpdate)` in every function computing `elapsed` (`settleAndUpdateFunding`, `seekerExit`, `providerExit`, `removeCapital`) — without it a backward-drifting TEE clock could reverse funding accrual.
+  - Fee-bound checks at `take()` time so they propagate into every vault opened from the offer.
+  - Stale "144-block freshness check" comment in offer header replaced with current basis-point fee descriptions.
+
+**Documentation Updates**:
+- `docs/projects/compiler/INDEX.md` — Supported Operations: added `tx.time` / `tx.offchainTime` distinction and `this.activeInputIndex` (direct `OP_PUSHCURRENTINPUTINDEX` emission); stability_vault row rewritten to enumerate the 8 vault functions, USD-compound funding model, basis-point exit fee, and `merge` semantics; stability_offer row updated for basis-point `takeFee` with dust-routing branch.
+- `system/project_overview.md` — Transaction Introspection section: added `tx.offchainTime` (TEE wallclock unix seconds, distinct from block-height `tx.time`) and `this.activeInputIndex` direct emission.
+- `system/architecture.md` — new "Direct-Emission Properties" subsection under Key Design Decisions, documenting both the `OP_PUSHCURRENTINPUTINDEX` shortcut and the `tx.offchainTime` runtime-placeholder.
+- `testing/how_to_test.md` — stability_vault_test row expanded to mention per-second funding via `tx.offchainTime`, the no-oracle vs oracle-required boundary tests for `settleAndUpdateFunding` / `addCapital` / `removeCapital`, and the `merge` self-vs-sibling check.
+- Master `docs/INDEX.md` — compiler entry: introspection bullet now lists both clocks and `this.activeInputIndex`; new tags `offchain-time`, `active-input-index`, `funding-rate`; ask_question triggers add `tx.offchainTime`, `offchain time`, `activeInputIndex`, `merge vault`, `funding rate`, `take fee`, `seeker exit fee`, `basis points`.
+
+**Notes**:
+- ABI shape change: StabilityVault adds four new functions (`merge`, `settleAndUpdateFunding`, `addCapital`, `removeCapital`) and the offer / vault constructor parameter lists changed (e.g. `fundingRatePerSec`, `lastUpdate`, `seekerExitFee` on the vault; `takeFee` and `seekerExitFee` on the offer). Consumers of the compiled JSON must update.
+- `tx.offchainTime` requires an introspector property the runtime hasn't shipped yet — emission is in the compiler but full exit-tapleaf semantics are out of scope for this PR.
+- Test file count unchanged (23); three new tests added inside the existing `stability_vault_test.rs` covering the no-oracle vs oracle-required boundary on the new functions.
+- No grammar or parser changes in `grammar.pest` / `parser/mod.rs` — only `src/compiler/mod.rs` gained the `this.activeInputIndex` direct emission. Total diff: 7 files, +2094 / -276.
+
+---
+
 ## 2026-05-20 — Oracle-Signed Price Witness, OP_CAT, One-Shot SHA256
 **Commit Range**: `b479765b` → `86d9b047`
 **Synced By**: /update-project compiler

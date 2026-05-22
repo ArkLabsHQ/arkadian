@@ -8,10 +8,12 @@
 - **Globals**: Enabled (no imports needed for describe, it, expect)
 - **Parallelism**: Disabled (`fileParallelism: false`)
 
+All paths in this document are relative to the SDK package: `packages/ts-sdk/` in the monorepo (since 2026-05-22). Commands shown without `pnpm -C packages/ts-sdk` are root-level monorepo aggregates that fan out to both packages.
+
 ## Test Structure
 
 ```
-test/
+packages/ts-sdk/test/
 ├── polyfill.js             # Crypto polyfill setup
 ├── setup.mjs               # Integration test environment setup
 ├── fixtures/               # Test fixtures and data
@@ -38,59 +40,57 @@ test/
 ### Unit Tests
 
 ```bash
-# All unit tests
-pnpm test
+# Root — both packages
+pnpm test:unit                        # = pnpm -r test:unit
 
-# Unit tests only (excludes integration)
-pnpm test:unit
-
-# Watch mode
-pnpm test:watch
-
-# With coverage
-pnpm test:coverage
+# Scoped to @arkade-os/sdk only
+pnpm -C packages/ts-sdk test          # vitest run (full suite)
+pnpm -C packages/ts-sdk test:unit     # excludes test/e2e
+pnpm -C packages/ts-sdk test:watch
+pnpm -C packages/ts-sdk test:coverage
 ```
 
-### Integration Tests (Nigiri + Ark)
+### Integration Tests (Nigiri + Ark, quick dev cycle)
 
 ```bash
 # Start regtest
 nigiri start --ark
 
-# Setup test environment
-pnpm test:setup
+# Setup test environment (scoped to ts-sdk)
+pnpm -C packages/ts-sdk test:setup
 
-# Run integration tests
-pnpm test:integration
+# Run integration tests (scoped)
+pnpm -C packages/ts-sdk test:integration
 
 # Cleanup
 nigiri stop --delete
 ```
 
-### Integration Tests (Docker Compose)
+### Integration Tests (Root-level monorepo regtest driver)
 
 ```bash
-# Start nigiri (bitcoin layer)
-nigiri start
+# Full cycle for ts-sdk (reset + up + setup + test)
+pnpm test:integration:ts-sdk          # = bash scripts/regtest.sh ts-sdk cycle
 
-# Start Ark stack
-pnpm test:up-docker
+# Both packages
+pnpm test:integration                 # ts-sdk cycle + boltz-swap cycle
+```
 
-# Setup
-pnpm test:setup-docker
+### Integration Tests (Per-package Docker Compose)
 
-# Run tests
-pnpm test:integration-docker
-
-# Cleanup
-pnpm test:down-docker
-nigiri stop --delete
+```bash
+# In-package regtest scripts (packages/ts-sdk)
+pnpm -C packages/ts-sdk regtest:start          # ./regtest/start-env.sh
+pnpm -C packages/ts-sdk test:setup-docker
+pnpm -C packages/ts-sdk test:integration-docker
+pnpm -C packages/ts-sdk regtest:stop           # ./regtest/stop-env.sh
+pnpm -C packages/ts-sdk regtest:clean
 ```
 
 ## Coverage
 
 ```bash
-pnpm test:coverage
+pnpm -C packages/ts-sdk test:coverage
 ```
 
 Coverage uses v8 provider and generates text + HTML reports. Excludes:

@@ -96,7 +96,7 @@ contract Name(pubkey user) {
 - **Hash functions**: one-shot `sha256(data)` (compiles to `OP_SHA256`, accepts concatenation chains like `sha256(a + b + c)`) and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`)
 - **Byte-string ops**: type-dispatched `+` — `OP_CAT` when either operand is bytes-like (`bytes`, `bytes20`, `bytes32`), `OP_ADD64` for pure `int + int`. Int operands on a bytes-mixed `+` are auto-coerced to 8-byte LE via `OP_SCRIPTNUMTOLE64`.
 - **Timelocks**: `tx.time >= value`, exit timelock via options
-- **Transaction introspection**: `tx.inputs[i]`, `tx.outputs[o]`, `tx.version`, `tx.locktime`, `tx.input.current`
+- **Transaction introspection**: `tx.inputs[i]`, `tx.outputs[o]`, `tx.version`, `tx.locktime`, `tx.time` (Bitcoin nLockTime block height), `tx.offchainTime` (TEE wallclock unix seconds, distinct from `tx.time`), `tx.input.current`, `this.activeInputIndex` (emits `OP_PUSHCURRENTINPUTINDEX` directly so on-chain self-vs-sibling checks work in exit tapleaves)
 - **Asset introspection**: `tx.inputs[i].assets.lookup()`, `.length`, `[t].assetId`, `[t].amount`
 - **Asset groups**: `tx.assetGroups.find()`, `.length`, `[k].sumInputs`, `.sumOutputs`, `.delta`, `.control`, `.isFresh`
 - **Cryptographic primitives**: `ecMulScalarVerify`, `tweakVerify`
@@ -119,8 +119,8 @@ contract Name(pubkey user) {
 | `arkade_kitties.ark` | CryptoKitties-style collectibles |
 | `threshold_oracle.ark` | Multi-oracle threshold signing |
 | `threshold_multisig_htlc.ark` | Threshold multisig HTLC |
-| `stability/stability_vault.ark` | BTC-collateralised USD position (transfer, split, seekerExit, providerExit). Settlement consumes an oracle-signed price witness — `sha256(ticker + price + time)` verified via `checkSigFromStack`; no on-chain beacon UTXO. |
-| `stability/stability_offer.ark` | Non-interactive StabilityVault offer with configurable `collateralRatioPct`; `take()` opens a vault at the oracle-signed price |
+| `stability/stability_vault.ark` | BTC-collateralised USD position with USD-compound funding (8 functions: transfer, split, merge, settleAndUpdateFunding, addCapital, removeCapital, seekerExit, providerExit — 16 vault tapleaves). Funding accrues as `rate × targetUSD × elapsed / 1e12` per second using `tx.offchainTime`; provider can mutate `fundingRatePerSec` (≥ 0) and capital via signed updates; basis-point `seekerExitFee` carved from payout. Settlement consumes an oracle-signed price witness — `sha256(ticker + price + time)` verified via `checkSigFromStack`. `merge` combines two seeker-owned vaults using `max(rate)` and `max(exitFee)`, identifying self-vs-sibling via `this.activeInputIndex`. |
+| `stability/stability_offer.ark` | Non-interactive StabilityVault offer with configurable `collateralRatioPct`, basis-point `takeFee` (sats-routed-to-provider, or rolled into vault.value when dust ≤ 330 sats) and `seekerExitFee` (propagated into every opened vault); `take()` opens a vault at the oracle-signed price with bounds-checked fees (0–10000 bp) |
 
 ## Technology Stack
 

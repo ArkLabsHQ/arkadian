@@ -2,69 +2,79 @@
 
 ## Prerequisites
 
-- **Node.js** 24 LTS (`.nvmrc` → `24.15.0`; `engines.node` allows `>=22.12.0 <25`)
-- **pnpm** 10.29.2+
+- **Node.js** 24 LTS (`.nvmrc` → `24.15.0`; root `engines.node` `>=24.15.0 <25`; published `@arkade-os/sdk` `engines.node` `>=22.12.0 <25` for downstream consumers)
+- **pnpm** `>=10.25.0 <11` (`packageManager: pnpm@10.25.0`)
 - **Docker** (for integration tests)
 - **nigiri** (local Bitcoin regtest) — `curl https://getnigiri.vulpem.com | bash`
 
 ## Install Dependencies
 
+The repo is a pnpm workspace monorepo (since 2026-05-22). One install at the root pulls deps for both `packages/ts-sdk/` and `packages/boltz-swap/`:
+
 ```bash
-cd /path/to/ts-sdk
+cd /path/to/ts-sdk        # repo root
 pnpm install
 ```
 
 ## Build
 
 ```bash
-# Type-check (no emit) — separate from build since #496
-pnpm typecheck
-
-# Single-step build via tsup (dual ESM + CJS, per-entry typings, source maps)
+# Root — builds both packages (ts-sdk first, boltz-swap depends on it)
 pnpm build
 
-# Post-build smoke: asserts dist shape, .d.{ts,cts} relative imports resolve,
-# ESM+CJS contractHandlers singleton identity holds. Run locally before pushing.
-pnpm smoke:dist
+# Scoped to @arkade-os/sdk only
+pnpm -C packages/ts-sdk typecheck     # tsc --noEmit (CI-gated before build)
+pnpm -C packages/ts-sdk build         # single-step tsup
+pnpm -C packages/ts-sdk smoke:dist    # post-build dist-shape + singleton-identity smoke
 ```
 
-Output (flat `dist/` since #496 — was `dist/{esm,cjs,types}/` under the prior `tsc` chain):
-- `dist/<entry>.js` — ES modules
-- `dist/<entry>.cjs` — CommonJS modules
-- `dist/<entry>.d.ts` — ESM-condition TypeScript declarations
-- `dist/<entry>.d.cts` — CJS-condition TypeScript declarations
-- `dist/<entry>.*.map` — source maps
+Output (flat `packages/ts-sdk/dist/` since #496 — was `dist/{esm,cjs,types}/` under the prior `tsc` chain):
+- `packages/ts-sdk/dist/<entry>.js` — ES modules
+- `packages/ts-sdk/dist/<entry>.cjs` — CommonJS modules
+- `packages/ts-sdk/dist/<entry>.d.ts` — ESM-condition TypeScript declarations
+- `packages/ts-sdk/dist/<entry>.d.cts` — CJS-condition TypeScript declarations
+- `packages/ts-sdk/dist/<entry>.*.map` — source maps
 
 ## Run Regtest Environment
 
-### Option 1: Nigiri with Ark (Recommended)
+The regtest stack is driven from the repo root by `scripts/regtest.sh <pkg> <action>`. Each package supplies its own `.env.regtest`.
+
+### Option 1: Nigiri with Ark (Recommended for quick dev cycles)
 
 ```bash
 # Start nigiri with built-in Ark support
 nigiri start --ark
 
-# Run setup script
-pnpm test:setup
+# Run setup script (scoped to ts-sdk)
+pnpm -C packages/ts-sdk test:setup
 
 # When done:
 nigiri stop --delete
 ```
 
-### Option 2: Docker Compose (Custom Stack)
+### Option 2: Root-level monorepo regtest (Docker Compose)
 
 ```bash
-# Start nigiri first (provides bitcoin, electrs, chopsticks)
-nigiri start
+# Full cycle (reset + up + setup + test for the ts-sdk package only)
+pnpm test:integration:ts-sdk           # = bash scripts/regtest.sh ts-sdk cycle
 
-# Start Ark stack (arkd, arkd-wallet, nbxplorer, fulmine)
-pnpm test:up-docker
+# Or step-by-step
+pnpm regtest:up:ts-sdk                 # bring stack up
+pnpm regtest:setup:ts-sdk              # fund wallets + initial state
+pnpm regtest:test:ts-sdk               # run e2e suite against the stack
+pnpm regtest:down:ts-sdk               # tear down
+pnpm regtest:reset:ts-sdk              # nuke state without down
+```
 
-# Run setup script
-pnpm test:setup-docker
+### Option 3: Per-package Docker Compose (in-package scripts)
 
-# When done:
-pnpm test:down-docker
-nigiri stop --delete
+```bash
+# From inside packages/ts-sdk
+pnpm -C packages/ts-sdk regtest:start       # ./regtest/start-env.sh
+pnpm -C packages/ts-sdk test:setup-docker
+pnpm -C packages/ts-sdk test:integration-docker
+pnpm -C packages/ts-sdk regtest:stop        # ./regtest/stop-env.sh
+pnpm -C packages/ts-sdk regtest:clean       # ./regtest/clean-env.sh
 ```
 
 The docker-compose stack includes:
@@ -77,22 +87,22 @@ The docker-compose stack includes:
 ## Run Examples
 
 ```bash
-# The examples/ directory contains standalone scripts:
-ls examples/
+# Examples now live under the package:
+ls packages/ts-sdk/examples/
 # spilman.js  vhtlc.js
 
 # Run an example (requires regtest running):
-node examples/spilman.js
+node packages/ts-sdk/examples/spilman.js
 ```
 
 ## Build Documentation
 
 ```bash
-# Generate TypeDoc API docs
-pnpm docs:build
+# Generate TypeDoc API docs (output: monorepo-level docs/, aligned in 5fb76c0f)
+pnpm -C packages/ts-sdk docs:build
 
 # Open in browser
-pnpm docs:open
+pnpm -C packages/ts-sdk docs:open
 ```
 
 ## Environment

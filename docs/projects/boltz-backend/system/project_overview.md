@@ -67,12 +67,18 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Excludes paid swaps from invoice expiry; expiry never overwrites paid swaps
 - Bounded swap-restore pagination during recovery
 
+**gRPC JWT Authentication**
+- The `boltzrpc.Boltz` gRPC service now authenticates every call via a JWT interceptor (PR #1415). On first start a bootstrap admin token is written to `<certificates>/admin.jwt` (`0600`); tokens are persisted in a new `jwt_tokens` table
+- New RPCs `IssueJwt` / `RevokeJwt` / `ListJwts` / `ListMethods` plus `boltzr-cli jwt …` commands let operators mint scoped tokens (per-token `allowed_methods` with exact paths or `*` / `<service>/*` wildcards, optional `expires_in_seconds` TTL) and inspect the methods/wildcards the allowlist accepts
+- Configurable via `[grpc.jwt]` in `boltz.conf` (`disable`, `secretFile`, `adminTokenFile` — defaults: `<certificates>/jwt.key`, `<certificates>/admin.jwt`)
+
 **Operational Signer Control**
 - Persisted gRPC surface (`DisableSigners` / `EnableSigners` / `GetDisabledSigners`) and `boltzr-cli signer …` commands let operators disable individual cooperative/lockup signer paths (submarine-refund, reverse-claim, chain-refund, chain-claim, deferred-claim, EVM-refund, EVM-commitment-refund, reverse-lockup, chain-lockup, submarine-invoice-payment) at runtime
 - State lives in the `disabled_signers` table and is enforced by an in-process `SignerControlRegistry`; the legacy dev-only `DevDisableCooperative` toggle has been removed
 
 **Liquid 0-Conf Observation API**
-- Optional `[liquid.chain.zeroConfTool]` configuration enables an external bridge-observation quorum for Liquid 0-conf safety; transport (`http(s)` polling vs `ws(s)` push) is selected by URL scheme, with separate tunables per transport (`interval` / `max_retries` for HTTP, `deadline_secs` for WS)
+- Optional `[liquid.chain.zeroConfTool]` configuration enables an external bridge-observation quorum for Liquid 0-conf safety; transport (`http(s)` polling vs `ws(s)` push) is selected by URL scheme, with separate tunables per transport (`interval` / `max_retries` for HTTP, `deadline_secs` and the new `rotation_interval_secs` for WS — preemptive reconnects before the server-side TTL drops the WebSocket; default `3300` seconds, `0` disables)
+- Removes the legacy `[liquid.chain.lowball]` backup-node configuration and the in-process `ElementsWrapper` dual-Elements-node failover (PR #1417); `liquid.chain` now configures a single Elements RPC endpoint
 
 ## Technology Stack
 

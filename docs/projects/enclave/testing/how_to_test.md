@@ -29,9 +29,12 @@ cd test && nix develop . --command ./run.sh
 make test                # test-build + test-run
 make test-build          # build v1 / v2 / v3 EIFs (rollback test scenario)
 make test-run            # docker compose --profile test run --build test-runner
+make test-acme           # build test EIF + run the end-to-end ACME / Let's Encrypt test against a local Pebble server
 make test-build-docker   # run test-build inside linux/amd64 container (macOS/ARM hosts)
 make test-docker         # test-build-docker + test-run (vsock_loopback required — Linux only)
 ```
+
+`make test-acme` runs `bash test/pebble/gen-certs.sh` (regenerates the Pebble CA + server certs), brings down any previous ACME stack (`docker compose --profile acme down -v`), and then runs `docker compose --profile acme run --build acme-runner` which drives `test/acme-test.sh` end-to-end: boots the test enclave against a local **Pebble** ACME server, verifies issuance via TLS-ALPN-01, reboots, and verifies the cert is reused (no second issuance). CI runs the same flow via `.github/workflows/acme-test.yml`.
 
 ## What Gets Built
 
@@ -149,7 +152,7 @@ The `lint-vet.yml` GitHub Actions workflow runs the same.
 ## Other Test Files
 
 - `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go` — CLI-level Go unit tests.
-- `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/tracing_test.go` — runtime unit tests.
+- `runtime/acme_cache_test.go`, `runtime/acme_directory_test.go`, `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/tls_test.go`, `runtime/tracing_test.go` — runtime unit tests (the `acme_*` / `tls_test.go` set was added with the v0.0.78 deploy-time ACME support — they cover the storage-backed cert cache, the custom directory client + `Location`-header `RoundTripper`, and `certForHello`'s nameless-ClientHello fallback).
 - `supervisor/gvproxy_test.go` — supervisor unit tests.
 - `client/verify_test.go` — client attestation verification tests.
 

@@ -6,9 +6,26 @@ The Ark TypeScript SDK (`@arkade-os/sdk`) is the official client library for bui
 
 The SDK is designed to run across all JavaScript environments: browsers, Node.js, React Native/Expo, and service workers.
 
+## Monorepo Layout
+
+Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorepo** (`pnpm-workspace.yaml`) that ships two published packages:
+
+| Workspace path | Published as | Version (at HEAD) | Role |
+|----------------|--------------|-------------------|------|
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.27` | This SDK — what the rest of this doc describes |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.32` | Sibling Boltz Lightning/chain-swap library; depends on `@arkade-os/sdk` via `workspace:*` (see `docs/projects/boltz-swap/`) |
+
+- **devDeps hoisted to root**: `tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fake-indexeddb`, `eventsource`. Per-package `package.json` keeps only package-unique deps.
+- **Shared base configs**: root `tsconfig.base.json`, root prettier config, root `tsup` base extended per-package.
+- **Single regtest driver**: `scripts/regtest.sh <ts-sdk|boltz-swap> <up|setup|test|down|reset|cycle>` from the repo root. Each package supplies its own `.env.regtest`.
+- **Package-scoped releases**: `pnpm run release -- sdk patch` (SDK + dependent boltz-swap patch), `pnpm run release -- boltz-swap patch` (Boltz-only bugfix), `pnpm run release -- sdk prepatch --preid beta` (mirrors prerelease into boltz-swap), `pnpm run release -- all patch` (bump both). Driver: `scripts/release.sh` → `scripts/release.mjs`; gated on `pnpm test:unit` (monorepo-wide) before publish.
+- **Single `bip68` ambient declaration** hoisted to the monorepo root (was duplicated per-package).
+- **No published API impact**: the npm-published `@arkade-os/sdk` tarball path is unchanged; downstream consumers installing from npm are unaffected by the workspace shape.
+
 ## Package
 
 - **npm**: `@arkade-os/sdk`
+- **Workspace path**: `packages/ts-sdk/`
 - **Version**: 0.4.27
 - **License**: MIT
 
@@ -49,7 +66,7 @@ The SDK is designed to run across all JavaScript environments: browsers, Node.js
 | Timelocks | bip68 (relative timelocks) |
 | Testing | Vitest with v8 coverage |
 | Formatting | Prettier |
-| Package Manager | pnpm 10.29.2 (workspace) |
+| Package Manager | pnpm 10.25.0 (workspace; root `engines.pnpm` `>=10.25.0 <11`) |
 | Node | Node 24 LTS pinned via `.nvmrc` (`24.15.0`); `engines.node` widened to `>=22.12.0 <25` so downstream consumers on Node 22.x are not broken (#495) |
 | Documentation | TypeDoc |
 | Versioning | Manual with `pnpm release` |

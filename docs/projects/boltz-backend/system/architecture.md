@@ -59,6 +59,13 @@ Key endpoints:
 - `GET /swapstatus`: Query swap state
 - `POST /setinvoice`: Set invoice for submarine swap (if not provided at creation)
 
+### gRPC Server (`lib/grpc/`)
+- **GrpcServer**: hosts the `boltzrpc.Boltz` service used by `boltzr-cli` and internal operator tooling
+- **AuthInterceptor + JwtSigner** (PR #1415): validate every call against a JWT issued by the server. Tokens are persisted in the `jwt_tokens` table and carry an `allowed_methods` allowlist (exact paths or `*` / `<service>/*` wildcards) plus optional TTL. Bootstrap admin token is written to `<certificates>/admin.jwt` on first start (`0600`); auth is configured via `[grpc.jwt]` in `boltz.conf` (`disable`, `secretFile`, `adminTokenFile`)
+- **LoggingInterceptor**: structured request/response logging (renamed from the previous inline interceptor when the JWT auth interceptor was added)
+- **MethodRegistry**: enumerates exact gRPC method paths and wildcard entries returned by the new `ListMethods` RPC; the same registry is consulted by the auth interceptor to validate `allowed_methods`
+- **JWT management RPCs**: `IssueJwt`, `RevokeJwt`, `ListJwts`, `ListMethods` — exposed end-to-end by `boltzr-cli jwt …`
+
 ### Service Layer (`lib/service/`)
 - **SwapManager**: Orchestrates swap lifecycle
 - **RateProvider**: Fetches exchange rates
@@ -80,6 +87,7 @@ Swap states:
 - **UTXOManager**: Manage unspent outputs
 - **FeeEstimator**: Estimate on-chain fees (Bitcoin estimations rounded to one decimal for stability)
 - **MempoolClient**: Hardened mempool.space integration with deduplicated instances
+- **ElementsClient**: single-node Elements RPC (the `ElementsWrapper` dual-node/lowball failover was removed in PR #1417)
 
 Supports:
 - Bitcoin Core **v31.0** (bitcoind)
@@ -89,6 +97,7 @@ Supports:
 ### Lightning Integration (`lib/lightning/`)
 - **LndClient**: gRPC client for LND
 - **ClnClient**: gRPC client for Core Lightning (via boltzr) — CLN **v26.04.1**
+- **EclairClient**: pinned Eclair Docker image **v0.14.0** (bumped from `v0.13.1`)
 - **InvoiceManager**: Create and monitor invoices
 - **PaymentManager**: Execute Lightning payments
 
@@ -103,6 +112,7 @@ Features:
 - **Models**: Swap, ReverseSwap, ChainSwap, Transaction, ClaimTransaction, etc.
 - **Migrations**: Schema versioning (Sequelize + diesel for `boltzr`)
 - **Claim transactions table** (`claim_transactions`): records broadcast claim TXIDs for reverse/chain swaps, with a Postgres trigger enforcing `swap_id ∈ reverseSwaps ∪ chainSwaps`. Cooperative claims on UTXO chains are not stored.
+- **JWT tokens table** (`jwt_tokens`): persists gRPC auth tokens issued by `IssueJwt` (id, label, allowed methods, issued/expires/revoked-at), consulted by the `AuthInterceptor` on every gRPC call.
 
 Supported databases:
 - PostgreSQL (production)
