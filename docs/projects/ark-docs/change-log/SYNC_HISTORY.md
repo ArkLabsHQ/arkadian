@@ -249,3 +249,23 @@
 - docs/projects/ark-docs/change-log/last-sync.txt → dd33677c8cb5f2397ad4af43484908bf71ea1507
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
 
+## 2026-05-23 - Wallet intro description copy edit (drop "Ark protocol" mention)
+**Commit**: `dcc34b2da502ab77a007eeda21ef8162579ce81b`
+**Previous Sync**: `dd33677c8cb5f2397ad4af43484908bf71ea1507`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit — `dcc34b2 docs: remove Ark protocol mention from wallet intro descriptions (#117)` (mintlify[bot] PR, +2/−2 lines across two files).
+
+**Content Changes** (frontmatter `description` field only):
+- `wallets/getting-started/introduction.mdx`: "Build self-custodial Bitcoin wallets with Arkade SDKs. Integrate directly with the Arkade protocol, no external daemons required." → "Build self-custodial Bitcoin wallets with Arkade SDKs. No external daemons required."
+- `wallets/v0.3/introduction.mdx`: "Build self-custodial Bitcoin wallets with Arkade SDKs. Integrate directly with the Ark protocol—no external daemons required." → "Build self-custodial Bitcoin wallets with Arkade SDKs. No external daemons required."
+
+**Notes**: Pure SEO/marketing copy edit — both descriptions now match verbatim. The v0.3 variant was the only remaining live mention of "Ark protocol" (vs. "Arkade protocol") in the wallets section. No body content, no structural moves, no `docs.json`/redirect/tooling/SEO changes. Capabilities and tag set unchanged.
+
+**Files Updated in Arkadian Registry**:
+- docs/INDEX.md
+  - Footer Last Updated 2026-05-22 → 2026-05-23, Version 1.6.3 → 1.6.4.
+- docs/projects/ark-docs/change-log/last-sync.txt → dcc34b2da502ab77a007eeda21ef8162579ce81b
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

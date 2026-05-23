@@ -79,3 +79,26 @@
 **Notes**:
 - No production behavior or API surface changed; per smart-update detection (test-only commit) no project_overview / architecture / api-reference / INDEX updates were required.
 - `docs/projects/introspector/testing/how_to_test.md` test list remains stale (does not enumerate `htlc_test.go`, `delegate_test.go`, `counter_contract_test.go`, etc.) — pre-existing drift outside the scope of this sync.
+
+---
+
+## 2026-05-23 - Sync from 697f94f4 to d71547f0
+**Commit**: `d71547f0145b8fc095af69594bd510d82b1cd810`
+**Previous**: `697f94f40245fc8a4b564f85de1712b531fe662b`
+**Synced By**: /update-project introspector
+**Status**: Sync tracking only — no documentation updates required
+
+**Changes Analyzed** (1 commit):
+- `Chore: version bump - go 1.26.3 & otel 1.41.0 (trivy)` (#87) — infrastructure-only version bumps.
+  - Go 1.26.2 → 1.26.3 in `Dockerfile`, `go.mod`, `api-spec/go.mod`, `pkg/arkade/go.mod`, `pkg/client/go.mod`, and CI workflows (`.github/workflows/quality.yaml`, `release.yaml`, `test.yaml`).
+  - `go.opentelemetry.io/otel` 1.39.0 → 1.41.0 (and matching bumps to `otel/metric`, `otel/sdk`, `otel/trace`, `otlp/otlptrace`, `otlp/otlptracegrpc`, `proto/otlp` 1.7.1 → 1.9.0), driven by trivy CVE scan.
+  - Transitive bumps: `golang.org/x/net` 0.49.0 → 0.50.0, `grpc-gateway/v2` 2.27.2 → 2.28.0, `cenkalti/backoff` v4.3.0 → v5.0.3.
+
+**Files Updated**:
+- `docs/projects/introspector/change-log/last-sync.txt` — bumped to `d71547f0`
+- `docs/projects/introspector/change-log/SYNC_HISTORY.md` — this entry
+
+**Notes**:
+- No production behavior, API surface, configuration, or doc-visible version constraint changed. Project docs already say "Go 1.26+", which remains accurate.
+- Master `docs/INDEX.md` introspector entry has no version-specific references; no update needed.
+- Per smart-update detection (dependency/infra-only commit) no project_overview / architecture / api-reference / INDEX updates were required.

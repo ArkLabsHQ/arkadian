@@ -1,5 +1,61 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-23 - Wallet.restore() gap-scan recovery + Discoverable handlers (0.4.28, #492)
+**From**: `2fc8a3ff5adb14c87cf57586bddcf287ce4bfff6`
+**To**: `0fa19be5f59d50435d19806ba182754b3689a80f`
+**Synced By**: update-project skill
+**Status**: First post-monorepo release cycle for both packages: `@arkade-os/sdk` cuts `0.4.28` and `@arkade-os/boltz-swap` cuts `0.3.33`. Headline ts-sdk change is **explicit gap-scan recovery** — a new `Wallet.restore({ gapLimit })` API plus the `Discoverable` capability + `ContractManager.scanContracts` plumbing that backs it (PR #492). The Boltz quoteSwap guard against adversarial renegotiations is tracked under the `boltz-swap` project. One transitive security override: `@ungap/structured-clone >=1.3.1` (CWE-502, pulled in via expo, closes #497).
+
+**Commits analyzed** (26 non-merge commits across both packages):
+
+*ts-sdk: Wallet.restore() gap-scan recovery (#492):*
+- `6e08283c` feat(contracts): add Discoverable capability + DiscoveryDeps/DiscoveredContract — new contract-handler capability `discoverAt(descriptor, deps): Promise<DiscoveredContract[]>`; structural `isDiscoverable` guard; types in `src/contracts/types.ts`.
+- `f52403e0` feat(contracts): DefaultContractHandler implements discoverAt — probes every csvTimelock in the baseline matrix at the given descriptor's leaf pubkey; index 0 produces an untagged hit, index > 0 tags with `metadata.source = WALLET_RECEIVE_SOURCE` + `metadata.signingDescriptor`.
+- `ba99adfe` feat(contracts): DelegateContractHandler implements discoverAt — same shape for delegated `default + delegate` contracts; multi-timelock coverage with each entry's `params.csvTimelock` round-tripping its own `timelockToSequence`.
+- `3d3e0e1f` refactor(contracts): extract WALLET_RECEIVE_SOURCE to break contracts→wallet cycle — source-of-truth declaration moved to dependency-free leaf `src/contracts/metadata.ts`; `wallet/walletReceiveRotator.ts` re-exports for backward compatibility.
+- `a2f452e4` feat(wallet): public materializeDescriptorAt + monotonic advanceLastIndexUsed on HDDescriptorProvider — exposes descriptor materialization at arbitrary HD indexes (used by scanContracts) and a monotonic cursor-advance helper (used by restore to fast-forward past discovered hits).
+- `7c2de20e` refactor: extract deriveDescriptorLeafPubKey into identity/descriptor — shared between WalletReceiveRotator and the contract-handler discoverAt paths.
+- `b217fbb7` refactor: simplify deriveLeafPubkey wrapper message; add HD-descriptor test.
+- `859ff01c` test(contracts): multi-timelock discoverAt coverage; drop redundant casts — exported `ContractHandler<...> & Discoverable` typing makes `as any` casts unnecessary at use sites.
+- `95b4d1ba` feat(contracts): ContractManager.scanContracts gap-limit discovery loop — `scanContracts({ deps, hd, gapLimit }): Promise<ScanResult>` iterates each Discoverable handler probing successive indexes until `gapLimit` consecutive misses; `hd: false` short-circuits to a single static pass at index 0; returns `{ lastIndexUsed, handlerErrors }`.
+- `49a4f187` refactor(contracts): scanContracts naming/typing polish; drop dead test import — local rename `lastUsedIdx → lastIndexUsed`; tightened `let found: DiscoveredContract[];` typing.
+- `d257984c` fix(wallet): deterministic pickActiveReceive tiebreak on HD index — when multiple `metadata.source === 'wallet-receive'` contracts coexist (restore can create several), parse trailing `/N)` from each `metadata.signingDescriptor` and prefer the highest index.
+- `ec78c094` feat(wallet): explicit Wallet.restore() gap-scan recovery — public `restore({ gapLimit })` entry point; HD branch drives `scanContracts({ hd: true })`, non-HD branch does a single static pass; trailing `refreshVtxos({ includeInactive: true })` bulk-loads VTXOs for all discovered scripts in one indexer call.
+- `84155f75` fix(wallet): drain in-flight restore on dispose; lazy static descriptor — `dispose()` now awaits `_restoreInFlight?.catch(() => undefined)` before tearing down the contract/vtxo managers; staticDescriptor computed lazily (HD branch never touches `xOnlyPublicKey()`); JSDoc notes coalesce-on-concurrent behaviour.
+- `27e90585` feat: export restore/discovery public types — `Discoverable`, `DiscoveryDeps`, `DiscoveredContract`, `isDiscoverable`, `ScanResult`, `ScanContractsOptions`, `HandlerError` surfaced from the package root following the existing curated import/export pattern.
+- `0900d3e6` test(e2e): restore recovers balance on a fresh repo from the same seed — end-to-end coverage of the full restore loop.
+- `ab65a01c` test(e2e): make restore test HD-mode and load-bearing — restore e2e now exercises the actual HD path.
+- `400829f8` fix: address CodeRabbit review (HD capability check, watermark guard, test robustness).
+- `d0839d24` fix(restore): bound HD scan with SCAN_MAX_INDEX; use instanceof for HD check — HD scan capped at `SCAN_MAX_INDEX = 10_000` (was `POSITIVE_INFINITY`) so a buggy/malicious Discoverable handler can't hang the wallet, and silently truncating a fund-recovery scan can't mask the failure (hitting the cap **throws**); `_runRestore` detects HD via `instanceof HDDescriptorProvider` rather than duck-typing the new method names.
+- `3d15d5e3` perf(scan): avoid N per-contract indexer pulls during scanContracts — factor `upsertContract` + new lighter `persistAndWatchContract` that omits the per-contract `fetchContractVxosFromIndexer` pull (trailing `refreshVtxos` covers the same scripts in one batched call); `createContract` keeps the fetch for standalone callers.
+- `fb8cfabc` fix(restore): coalesce concurrent calls before validating gapLimit — `_restoreInFlight` check moved BEFORE `gapLimit` validation so a coalescing caller with an invalid `gapLimit` joins the running scan instead of throwing (matches the documented JSDoc).
+
+*ts-sdk: Release:*
+- `b32735b7` chore: release @arkade-os/sdk@0.4.28, @arkade-os/boltz-swap@0.3.33 — package.json version bumps via `pnpm run release -- all patch`.
+- `057886d2` Update docs — AGENTS.md + README.md narrative tweaks for the restore feature.
+- `2d823ef2` chore: override @ungap/structured-clone to >=1.3.1 — flags CWE-502 (deserialization of untrusted data); 1.3.0 was pulled in transitively via expo. Override added to root `pnpm-workspace.yaml` (closes #497). No `@arkade-os/sdk` source change.
+
+*boltz-swap (carried in the same range — tracked under `docs/projects/boltz-swap/`):*
+- `3df53118` Guard quoteSwap against adversarial Boltz quotes — typed `QuoteRejectedError` with reason codes, `getSwapQuote` / `acceptSwapQuote` inspection helpers, `minAcceptableAmount` + basis-point slippage support.
+- `db39c2d8` Address review on quoteSwap guard — `claimDetails` guards for restored swaps; preserve native `QuoteRejectedError` across SW boundary; discriminated `QuoteRejectedOptions` union.
+- `0dec8b37` Address PR review on quoteSwap guard — reject `minAcceptableAmount = 0`, rewrite slippage math as subtract-then-floor so it stays correct above `MAX_SAFE_INTEGER / 10000`; thread `cause` through autopilot wrap.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — `Version` row bumped `0.4.27 → 0.4.28`; Monorepo workspace table now lists `@arkade-os/sdk 0.4.28` + `@arkade-os/boltz-swap 0.3.33`; new "Wallet Restore / Discovery" entry in Key Concepts covering the full `Wallet.restore` flow (HD detection via `instanceof HDDescriptorProvider`, `scanContracts` gap-limit loop, `SCAN_MAX_INDEX = 10_000` cap, lighter `persistAndWatchContract` perf path, monotonic `advanceLastIndexUsed`, coalesce-before-validate semantics, `dispose()` draining `_restoreInFlight`, `pickActiveReceive` HD-index tiebreak), and the `WALLET_RECEIVE_SOURCE` extraction + new public exports (`Discoverable`, `DiscoveryDeps`, `DiscoveredContract`, `isDiscoverable`, `ScanResult`, `ScanContractsOptions`, `HandlerError`).
+- `docs/projects/ts-sdk/system/project_overview.md` — Package row Version `0.4.27 → 0.4.28`; Monorepo Layout table versions updated; Core Features table adds a "Wallet Restore / Discovery" row summarising the new public API.
+- `docs/projects/ts-sdk/system/architecture.md` — Module Structure entries updated: `wallet.ts` (adds `restore()` flow + dispose drain + instanceof HD detection + lazy static descriptor); `walletReceiveRotator.ts` (`pickActiveReceive` HD-index tiebreak + `WALLET_RECEIVE_SOURCE` re-export note + `deriveDescriptorLeafPubKey` extraction); `hdDescriptorProvider.ts` (public `materializeDescriptorAt` + monotonic `advanceLastIndexUsed`); `identity/descriptor.ts` (now hosts `deriveDescriptorLeafPubKey`); `contracts/types.ts` (adds `Discoverable` + `DiscoveryDeps` + `DiscoveredContract` + `isDiscoverable`); new `contracts/metadata.ts` entry (dependency-free leaf for `WALLET_RECEIVE_SOURCE`); `contracts/contractManager.ts` (`scanContracts` gap-limit loop, `SCAN_MAX_INDEX` cap, `persistAndWatchContract` perf path); new `contracts/handlers/default.ts` + `contracts/handlers/delegate.ts` entries documenting `discoverAt` implementations.
+- `docs/INDEX.md` — ts-sdk Key Capabilities adds the Wallet Restore / Discovery bullet (full feature paragraph); Tags add `wallet-restore`, `gap-limit-discovery`, `discoverable-handler`, `scan-contracts`.
+
+**Notes**:
+- **No public API breaking changes** for existing consumers — `Wallet.restore()` is a new, opt-in method; `DescriptorProvider` interface itself is unchanged (`materializeDescriptorAt` / `advanceLastIndexUsed` live on the concrete `HDDescriptorProvider` class, not the interface).
+- Restore is **explicit, never automatic** — `Wallet.create()` does not call `restore()`; callers wanting gap-scan recovery must invoke it deliberately. This matches the dotnet-sdk's `Restore()` design.
+- `SCAN_MAX_INDEX = 10_000` is intentionally a hard ceiling rather than a configurable parameter: it bounds a buggy/malicious Discoverable handler returning unconditional hits (would otherwise hang the wallet) and refuses to silently truncate a fund-recovery scan.
+- `restore()` is **safe to call from multiple sites** — concurrent callers coalesce on `_restoreInFlight`; second caller's `gapLimit` is silently ignored (documented behaviour, validated by the in-flight-coalesce regression test).
+- `@arkade-os/boltz-swap` cuts `0.3.33` in the same release because `pnpm run release -- all patch` was used. The boltz-swap quoteSwap guard is the boltz-swap-side highlight; ts-sdk consumers of boltz-swap (Lightning swap, chain swap) automatically get the new typed `QuoteRejectedError` + slippage controls once they bump.
+- `@ungap/structured-clone >=1.3.1` override is a transitive-only fix (no SDK source change); the upstream advisory is CWE-502 on 1.3.0, pulled in via expo. Override is at the workspace-root `pnpm-workspace.yaml` `overrides` block so both packages pick it up uniformly.
+
+---
+
 ## 2026-05-22 - Monorepo restructure: ts-sdk + boltz-swap unified under `packages/*`
 **From**: `029a988d0cae1ba9e35a3a10d7f0b0cc37cce26b`
 **To**: `2fc8a3ff5adb14c87cf57586bddcf287ce4bfff6`

@@ -1,5 +1,65 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-05-23 — Options Contracts (CoveredCall, CashSecuredPut) + Exit-Leaf Pubkey Filtering
+**Commit Range**: `d42674e0` → `63dc58e4`
+**Synced By**: /update-project compiler
+**Status**: New example contracts + new compiler classifier
+
+**Commits Analyzed** (3):
+- `501193a` Add CoveredCall and CashSecuredPut option contracts with tests (#33)
+- `fc9d168` refactor(options): Rysk-faithful single-locked physical settlement (#35)
+- `63dc58e` docs(skills): add writing-arkade-contracts skill for contract authors (#34)
+
+**Changes**:
+
+**PR #33 → PR #35 — Options contracts (net state after refactor)**
+
+The PR #33 initial design (dual-locked, oracle-triggered) was superseded by PR #35 (single-locked, no oracle) after quant clarification of Rysk's actual mechanics. The final state in the tree is the PR #35 form.
+
+- **New example folder `examples/options/`** containing `covered_call.ark`/`.json` and `cash_secured_put.ark`/`.json`. Both contracts faithful to Rysk Finance v12: only the seller's collateral is escrowed at trade execution; the buyer brings the strike payment AT exercise time, IF they choose to exercise.
+- **Function shape (4 per contract → 8 tapleaves each)**:
+  - `exercise(buyerSig)` — valid in `[expiryHeight, expiryHeight + graceBlocks)`. Buyer-only signature + asset/value checks on outputs. No oracle. CoveredCall: vault holds `btcSats` BTC only; buyer brings `stableAmount` stablecoin inputs. CashSecuredPut: vault holds `stableAmount` stable only; buyer brings BTC inputs.
+  - `reclaim(sellerSig)` — valid from `expiryHeight + graceBlocks`. Seller's path when the buyer didn't exercise.
+  - `transferSeller(sellerSig, newSellerPk)` / `transferBuyer(buyerSig, newBuyerPk)` — pure key swaps, guarded by `require(tx.time < expiryHeight)` (M8 audit fix).
+- **What this gains**: capital efficiency for the MM (no pre-locked strike), no oracle dependency, simpler ASM (no ITM/OTM branching, no oracle message reconstruction).
+- **What this trades away**: buyer-liveness requirement (must exercise within grace window or forfeit ITM gain + premium); Operator-down asymmetry mitigated via pre-signed exit templates per `docs/options.md`.
+- **In-repo `docs/options.md`** rewritten end-to-end to document the design switch, quant's worked example (including the seller's "Christmas morning" case), funding-buffer guidance, and operator-down risk disclosure.
+
+**PR #33 — Compiler change that persisted into the final state**
+
+- **`src/compiler/mod.rs`: tx-signing vs data-signing pubkey classification.** New helpers `collect_pubkey_usage_in_expr`, `collect_pubkey_usage_in_req`, `collect_pubkey_usage_in_stmts` walk every function's AST and split each `pubkey` identifier into two sets:
+  - **tx-signing**: appears in `checkSig` / `checkMultisig` (the pubkey actually co-signs the spending transaction).
+  - **data-signing**: appears only in `checkSigFromStack` / `checkSigFromStackVerify` (the pubkey signs a byte-string message, e.g. Stork oracle prices).
+- `collect_data_only_pubkeys` computes the per-contract data-only set; `collect_all_pubkeys` filters it out of the exit-leaf pubkey chain.
+- **Why**: data-only pubkeys (Stork-style oracles) only publish signatures over byte strings — they don't co-sign L1 transactions on demand, so the conservative "include every pubkey-typed param in the N-of-N exit" rule made the exit path unreachable for any oracle-using contract. Pre-signed unwind templates were therefore unimplementable. Now `StabilityVault` and any other contract that consumes oracle signatures only via `checkSigFromStack` correctly emits an exit leaf containing only the human counterparties' pubkeys.
+- Regression test `test_exit_leaf_excludes_oracle_pubkey` (mirrored in `covered_call_test.rs` and `cash_secured_put_test.rs`) locks in the filtering behaviour.
+
+**Tests added**
+- `tests/covered_call_test.rs` — 9 tests (compile shape, exercise/reclaim/transfer signature shapes, CLTV bounds, exit-leaf filtering, asset-id decomposition).
+- `tests/cash_secured_put_test.rs` — 9 tests, direct mirror of the call.
+- Total integration test file count: 23 → 25.
+
+**Playground**
+- `playground/main.js`: added an `options` project entry. Auto-generated `playground/contracts.js` already exposed the contracts, but the UI's hard-coded project list needed an explicit entry.
+
+**In-repo skill (PR #34)**
+- `.codex/skills/writing-arkade-contracts.md` — guidance for contract authors covering the two-tapleaf model, state-bearing UTXOs via constructor recursion, output layout idioms, witness/introspection patterns, fixed-point arithmetic, grammar gotchas, style conventions, and an authoring-workflow checklist. Registered in `.codex/skills/_index.md` and `CLAUDE.md`. (In-repo author guidance — not surfaced in the Arkadian registry beyond this note.)
+
+**Documentation Updates**:
+- `docs/projects/compiler/INDEX.md` — example contracts table now lists `options/covered_call.ark` and `options/cash_secured_put.ark` with the 4-function/8-tapleaf shape and the no-oracle, voluntary-exercise model.
+- `system/project_overview.md` — Compilation Model paragraph extended with the tx-signing vs data-signing pubkey-classification rule explaining the new exit-leaf filter. Project structure adds `examples/options/`; test count 23 → 25; in-repo docs note updated to include `options.md`.
+- `system/architecture.md` — new "Tx-Signing vs Data-Signing Pubkey Classification" subsection under Key Design Decisions; Testing Architecture entry adds `covered_call_test`/`cash_secured_put_test`; test count 23 → 25.
+- `testing/how_to_test.md` — total count 23 → 25; added rows for both new test files; covered_call/cash_secured_put rows describe the 9-test shape (compile shape, CLTV windows, transfer expiry guard, exit-leaf pubkey filter, asset-id decomposition).
+- Master `docs/INDEX.md` — compiler entry: new Key Capabilities row for exit-leaf pubkey filtering; new options-primitives row pointing at the Rysk-faithful contracts; tags add `options`, `covered-call`, `cash-secured-put`, `rysk`, `physical-settlement`, `exit-leaf-filter`, `tx-signing-pubkey`; ask_question triggers add `covered call`, `cash secured put`, `options contract`, `rysk`, `physical settlement`, `exercise window`, `reclaim`, `exit leaf pubkey`, `oracle pubkey exit`, `n-of-n exit`; develop triggers add `exit leaf filter`, `pubkey classification`.
+
+**Notes**:
+- The options contracts went through several mid-PR design changes (oracle-triggered dual-locked → physical single-locked → back to oracle-triggered → back to single-locked). Only the final form lives in the tree; SYNC_HISTORY captures the net state, not the intermediate forms.
+- The PR #33 inverse-oracle `RyskCall` (oracle-settled, BTC-collateralised cash-settled-in-BTC) and the dual-locked oracle-triggered design were both removed before merge of #35. Don't restore them.
+- The pubkey-classification compiler change is contract-agnostic; it benefits every oracle-using contract going forward (currently `StabilityVault` and the prior intermediate oracle-driven options form). After PR #35 stripped oracles from the options contracts, they no longer exercise the classifier on `oraclePk` — but the four mirrored regression tests in `covered_call_test.rs` / `cash_secured_put_test.rs` keep the invariant locked in, and `stability_vault` continues to depend on it.
+- No grammar, parser, or AST type changes — only `src/compiler/mod.rs` grew the classifier helpers (~200 net added in `mod.rs`). 12 files changed across the three commits (3 in PR #34, 3 + skill index in PR #33, the rest in PR #35), net +3,000 / -1,000 weighted toward the options contract rewrite.
+
+---
+
 ## 2026-05-22 — Mutable Funding Rate, Capital Ops, Proportional Fees, `tx.offchainTime`, `merge`
 **Commit Range**: `86d9b047` → `d42674e0`
 **Synced By**: /update-project compiler

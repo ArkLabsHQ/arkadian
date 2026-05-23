@@ -74,6 +74,9 @@ After compilation, `validate_output()` runs structural invariant checks on the e
 ### Dual Variant Generation
 Every spending function produces two script variants. The introspection detection system (`function_uses_introspection`) recursively walks the AST to determine if any statement uses opcodes like `OP_INSPECT*`, `OP_FINDASSETGROUP*`, or `OP_TXHASH`. Functions with introspection get N-of-N multisig exit paths instead of simple timelocks.
 
+### Tx-Signing vs Data-Signing Pubkey Classification
+The N-of-N exit signature chain only lists pubkeys that actually co-sign the spending transaction. Helpers `collect_pubkey_usage_in_{expr,req,stmts}` walk the AST per function and split every `pubkey` identifier into two sets: **tx-signing** (appears in `checkSig` / `checkMultisig`) and **data-signing** (appears only in `checkSigFromStack` / `checkSigFromStackVerify`). `collect_data_only_pubkeys` then computes the per-contract data-only set and `collect_all_pubkeys` filters it out of the exit-leaf pubkey list. This is what makes oracle-using contracts unilaterally exitable — Stork-style oracles sign byte strings, not L1 transactions, so demanding `<oraclePk> <oraclePkSig> OP_CHECKSIG` in the exit script would render the exit path unreachable.
+
 ### Compile-Time Loop Unrolling
 `for` loops are unrolled at compile time (default 3 iterations). The `substitute_loop_body` function replaces loop variables with concrete indices, transforming `group.sumOutputs` into `GroupSum { index: k }`.
 
@@ -117,8 +120,8 @@ src/
 
 ## Testing Architecture
 
-23 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
-- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction)
+25 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
+- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard, exit-leaf pubkey filtering)
 - **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
 - **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
 - **Asset groups**: `group_properties_test`

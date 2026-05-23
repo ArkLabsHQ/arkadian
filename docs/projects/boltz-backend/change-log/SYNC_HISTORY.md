@@ -1,5 +1,25 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-05-23 - Documentation Update
+**Commit**: `1bbc85c1` (boltz-backend repository)
+**Previous Sync**: `0c66e188`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+
+**Internal Changes Only** — no user-facing documentation updates required. All three commits are NPM/tooling churn: dependency bumps, an internal HTTP wrapper that replaces `axios`, and an in-tree TypeChain generation step for the `boltz-core` v5 bump. No new REST/gRPC surface, swap-type capability, `boltz.conf` schema, DB migration, env var, or runtime behaviour change.
+
+**Tooling / Chores**:
+- chore: bump NPM dependencies (`7d18ff98`) — drops `axios ^1.16.0` entirely and replaces all four exchange-rate adapters (`lib/rates/data/exchanges/{Binance,Bitfinex,CoinbasePro,Kraken}.ts`) and `docs/setup.js` with a new internal `lib/Http.ts` helper that wraps `fetch`/`AbortSignal.timeout` and exposes `getJson<T>` / `getText` plus an `HttpError` class. Bumps `@grpc/grpc-js` (`^1.14.3` → `^1.14.4`), the OpenTelemetry instrumentation/exporter/SDK family (`^0.217.0` → `^0.218.0` for `exporter-trace-otlp-grpc` / `instrumentation-grpc` / `instrumentation-http` / `sdk-node`; `^0.65.0` → `^0.66.0` for `instrumentation-express`; `^0.69.0` → `^0.70.0` for `instrumentation-pg`; `^0.61.0` → `^0.62.0` for `instrumentation-winston`), `pg` (`^8.20.0` → `^8.21.0`), `swagger-ui-dist` (`^5.32.5` → `^5.32.6`), `@swc-contrib/mut-cjs-exports` (`^14.9.0` → `^14.10.0`), and `typescript-eslint` (`^8.59.2` → `^8.59.4`).
+- chore: bump `boltz-core` to v5 (`9af5faa3`) — `boltz-core ^4.0.5` → `^5.0.0`. v5 no longer ships compiled TypeChain bindings; the repo now generates them locally via a new `generateTypechain.js` (runs `typechain` against `boltz-core/out/{ERC20,ERC20Swap,EtherSwap}.sol/*.json` into `lib/wallet/ethereum/typechain/`) and a new `npm run generate:typechain` script wired into `postinstall` (`node parseGitCommit.js && npm run proto && npm run generate:typechain`). Adds devDeps `typechain ^8.3.2`, `@typechain/ethers-v6 ^0.5.1`. `lib/wallet/ethereum/contracts/{Commitments,ContractEventHandler,ContractHandler,ContractUtils,Contracts}.ts`, `lib/wallet/ethereum/EthereumManager.ts`, `lib/service/cooperative/EipSigner.ts`, `lib/consts/Types.ts`, and seven integration specs are updated to import from `../typechain/...` instead of `boltz-core/typechain/...`. Generated directory is added to `.gitignore`. `jest.config.js` extends the integration test glob to include the new contracts spec layout.
+- fix: Docker builds (#1420) (`1bbc85c1`) — `generateTypechain.js` now gracefully skips when `typechain` is absent and `--omit=dev` is set (e.g. production Docker stages that install only runtime deps), throwing only when the dev deps were expected; otherwise the production `postinstall` step would fail with "Missing typechain generation dependency".
+
+**Documentation Impact**:
+- None. The `axios → lib/Http.ts` swap is purely internal (the exchange-rate adapter signatures and outputs are unchanged); the `boltz-core` v5 bump only relocates TypeChain bindings from upstream to local-generation with no API surface change; the Docker build fix is a `postinstall` resilience tweak. The existing `system/`, `testing/`, and `INDEX.md` documents already describe `boltz-core` and the Rust components without pinning a specific upstream version, so no rewrite is needed.
+
+---
+
 ## 2026-05-22 - Documentation Update
 **Commit**: `0c66e188` (boltz-backend repository)
 **Previous Sync**: `246dcfbe`

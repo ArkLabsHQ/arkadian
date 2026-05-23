@@ -12,8 +12,8 @@ Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorep
 
 | Workspace path | Published as | Version (at HEAD) | Role |
 |----------------|--------------|-------------------|------|
-| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.27` | This SDK — what the rest of this doc describes |
-| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.32` | Sibling Boltz Lightning/chain-swap library; depends on `@arkade-os/sdk` via `workspace:*` (see `docs/projects/boltz-swap/`) |
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.28` | This SDK — what the rest of this doc describes |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.33` | Sibling Boltz Lightning/chain-swap library; depends on `@arkade-os/sdk` via `workspace:*` (see `docs/projects/boltz-swap/`) |
 
 - **devDeps hoisted to root**: `tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fake-indexeddb`, `eventsource`. Per-package `package.json` keeps only package-unique deps.
 - **Shared base configs**: root `tsconfig.base.json`, root prettier config, root `tsup` base extended per-package.
@@ -26,7 +26,7 @@ Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorep
 
 - **npm**: `@arkade-os/sdk`
 - **Workspace path**: `packages/ts-sdk/`
-- **Version**: 0.4.27
+- **Version**: 0.4.28
 - **License**: MIT
 
 ## Core Features
@@ -41,6 +41,7 @@ Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorep
 | Wallet Mode | `WalletConfig.walletMode: 'auto' \| 'static' \| 'hd' \| DescriptorProvider`. `'auto'` (default) **currently behaves like `'static'`** — HD rotation is opt-in until it has more soak time (`TODO(hd-maturation)` flip-back criteria recorded in `resolveDescriptorProvider`). `'hd'` requires an HD-capable identity with a rangeable descriptor (no silent fallback). Object form forwards rotation through a custom provider; the polymorphic type makes contradictory `static + provider` combos structurally unrepresentable. `ServiceWorkerWalletMode = 'auto' \| 'static' \| 'hd'` (string-only because the provider object can't cross postMessage) |
 | Per-Input Signing Router | `InputSignerRouter` (`src/wallet/inputSignerRouter.ts`) dispatches each PSBT input to the correct signer by looking up its owning contract. Rotated `default`/`delegate` contracts with a non-baseline owner route to `DescriptorProvider.signWithDescriptor` (using `metadata.signingDescriptor` persisted at rotation time); everything else routes to `Identity`. Throws `DescriptorSigningProviderMissingError` / `MissingSigningDescriptorError` (both exported from the package root) on misconfiguration |
 | VTXO Operations | Get balance, send, receive, settle, renew, recover VTXOs. Surgical cache reconciliation via `IContractManager.refreshOutpoints(outpoints)` (indexer-by-outpoint upserts, no full re-scan) — wired into `VTXO_ALREADY_SPENT` recovery on both renewal and periodic-settle paths, plus the service-worker `REFRESH_OUTPOINTS` proxy. `VtxoManager.revalidateBeforeSettle` pre-flights settle candidates so stale-cache rows are dropped before the intent flies (closes the 60-second `?after=created_at` blind-spot loop) |
+| Wallet Restore / Discovery | `Wallet.restore({ gapLimit })` rebuilds an HD wallet's contract set + VTXO cache from on-chain + indexer history alone (post-0.4.27, #492). HD wallets (`instanceof HDDescriptorProvider`) drive `ContractManager.scanContracts({ deps, hd: true, gapLimit })`, walking each `Discoverable` handler (currently `DefaultContractHandler` + `DelegateContractHandler`) until `gapLimit` consecutive misses, capped at `SCAN_MAX_INDEX = 10_000` (hitting the cap throws). Each hit goes through a lighter `persistAndWatchContract` (skips per-contract indexer pulls — the trailing `refreshVtxos({ includeInactive: true })` covers all scripts in one batched call). `HDDescriptorProvider.advanceLastIndexUsed(maxHitIndex)` monotonically advances the receive cursor; `WalletReceiveRotator.pickActiveReceive` deterministically tiebreaks on the highest HD index. Concurrent `restore()` calls coalesce — second caller's `gapLimit` is ignored. `dispose()` drains `_restoreInFlight` so the manager can't be called after teardown. New public exports: `Discoverable`, `DiscoveryDeps`, `DiscoveredContract`, `isDiscoverable`, `ScanResult`, `ScanContractsOptions`, `HandlerError` |
 | VTXO Ownership Gating | `src/contracts/vtxoOwnership.ts` helpers gate every contract-scoped read/write site so legacy address buckets cannot leak wrong-script rows. Background sync writers warn-and-skip; user-initiated wallet write paths throw. `updateDbAfterOffchainTx` / `updateDbAfterSettle` group spent rows by owning script and route each bucket to its contract's address (multi-contract spends no longer collapse into the primary bucket). `getVtxosFromRepo` fails fast on undecodable wallet addresses (was silently zeroing balance). Since 0.4.25 (Tier 2 of #480): `WalletRepository` exposes optional script-scoped methods (`getVtxosForScript` / `saveVtxosForScript` / `deleteVtxosForScript`) implemented by all SDK backends (InMemory, IndexedDB, Realm, SQLite); `getVtxosForContract` / `saveVtxosForContract` dispatch helpers in `vtxoOwnership.ts` route to them when present and fall back to Tier 1 address-bucket + filter for custom backends. `VtxoRepositoryKey = { script; address? }` carries both keys |
 | Boarding/Offboarding | On-chain ↔ off-chain fund conversion via `Ramps` |
 | Batch Settlement | Participate in Ark rounds with MuSig2 tree signing |

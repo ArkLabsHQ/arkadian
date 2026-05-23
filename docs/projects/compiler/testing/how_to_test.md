@@ -26,7 +26,7 @@ cargo test htlc_claim
 cargo test asset_introspection
 ```
 
-## Test Files (23 total)
+## Test Files (25 total)
 
 ### Contract Compilation Tests
 | Test File | Covers |
@@ -36,6 +36,8 @@ cargo test asset_introspection
 | `fuji_safe_test.rs` | DeFi lending with oracle, liquidation, renewal, introspection exit paths |
 | `beacon_test.rs` | Beacon contract compilation (loop fixture + production 4-param design) |
 | `stability_vault_test.rs` | StabilityVault settlement paths (`seekerExit`, `providerExit`) with oracle-signed price witness and per-second funding via `tx.offchainTime`; asserts `OP_CAT` + `OP_SHA256` reconstruction of `sha256(ticker + price + time)`; covers the no-oracle vs oracle-required boundary on `settleAndUpdateFunding`, `addCapital`, `removeCapital`; regression guards `test_vault_transfer_is_pure_keyswap` and `test_vault_split_is_pure_keyswap` for no-oracle paths; `merge` consolidation emits `OP_PUSHCURRENTINPUTINDEX` for self-vs-sibling identification |
+| `covered_call_test.rs` | Single-locked physical CoveredCall: 9 tests covering compile shape (4 functions × cooperative+exit = 8 variants), `exercise(buyerSig)` uses only buyer signature and asset/value output checks (no oracle), `reclaim(sellerSig)` uses only seller signature with `expiryHeight + graceBlocks` CLTV, pre-expiry guard `require(tx.time < expiryHeight)` on both transfer functions, and exit-leaf pubkey filtering — no introspection / N-of-N appears in exit variants of `exercise`/`reclaim`/`transferSeller`/`transferBuyer`. Includes `test_asset_id_decomposes_to_txid_and_gidx`, `test_settle_binds_oracle_time_to_expiry`, `test_exit_leaf_excludes_oracle_pubkey`, `test_transfers_guarded_by_expiry` regressions covering compiler-side invariants. |
+| `cash_secured_put_test.rs` | Mirror of `covered_call_test.rs` (9 tests). Same shape and same four regression tests, against the cash-secured-put contract that locks `stableAmount` stablecoin instead of BTC. |
 | `arkade_kitties_test.rs` | CryptoKitties-style collectibles with asset groups |
 | `token_vault_test.rs` | Token vault with group sum validation |
 | `controlled_mint_test.rs` | Controlled asset minting |

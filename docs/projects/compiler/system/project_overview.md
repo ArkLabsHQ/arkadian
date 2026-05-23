@@ -43,6 +43,8 @@ Each non-internal function compiles to **two variants**:
 1. **Cooperative path** (`serverVariant: true`): Original script + server signature check
 2. **Exit path** (`serverVariant: false`): Original script + timelock OR N-of-N multisig (when introspection opcodes are used)
 
+The N-of-N exit list is built by walking each function's AST and classifying every `pubkey` identifier as **tx-signing** (used inside `checkSig` / `checkMultisig`) or **data-signing** (used only inside `checkSigFromStack` / `checkSigFromStackVerify`). Data-only pubkeys — typically oracle keys like Stork — are **excluded** from the exit-leaf signature chain, because oracles publish signatures over byte strings and do not co-sign L1 transactions. This keeps oracle-using contracts (e.g. `StabilityVault`) exitable via pre-signed unwind templates with just the human counterparties' signatures.
+
 ### Semantic Validation
 A dedicated `validator` module runs two passes around compilation, producing `ValidationIssue` entries with `Error` / `Warning` severity:
 
@@ -92,11 +94,14 @@ compiler/
 ├── typechecker/            # Type system for AST expressions (ArkType)
 ├── opcodes/                # Opcode constants module
 ├── examples/               # 12+ .ark contract examples with compiled JSON
-│   └── stability/          # BTC-collateralised USD position contracts (oracle-signed witness)
-│       ├── stability_vault.ark
-│       └── stability_offer.ark
-├── tests/                  # 23 integration test files
-└── docs/                   # Internal documentation (specs, opcodes, stability.md design doc)
+│   ├── stability/          # BTC-collateralised USD position contracts (oracle-signed witness)
+│   │   ├── stability_vault.ark
+│   │   └── stability_offer.ark
+│   └── options/            # Rysk-faithful single-locked physical options (no oracle)
+│       ├── covered_call.ark
+│       └── cash_secured_put.ark
+├── tests/                  # 25 integration test files
+└── docs/                   # Internal documentation (specs, opcodes, stability.md, options.md design docs)
 ```
 
 ## Security Model

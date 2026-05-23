@@ -1,5 +1,34 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-23 - Operational Memory Sync (no doc changes)
+**Commit Range**: `792d9e06..00729de1` (20 commits, all `memory(*)` agent activity)
+**Previous Sync**: `5d477eec0fe334f474a1636a0125361062620bce`
+**Caller-Asserted From**: `792d9e06eb4681c3464e700abcaf66282bf966b1` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `00729de183f8f476f30aa9cf643a738a4381d271`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 12 files changed (+629/-217), all under `memory/` (agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,security-triage,slack-monitor}.md, executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md)
+- Routine agent activity spanning 2026-05-22 08:00Z → 2026-05-23 04:00Z (~20h): security-triage and release-coordinator on 4-hourly slots; issue-triage on 4–8h slots; daily-briefing, executive-digest, linear-sync, slack-monitor, repo-detector, repo-sync each logged 2026-05-22/23 runs
+- Notable operational events captured in memory only:
+  - **ts-sdk v0.4.28 + boltz-swap v0.3.33 RELEASED** (lockstep monorepo) — release-coordinator 2026-05-22T12:00Z; `Wallet.restore()` static factory + `WalletReceiveRotator` refactor; P1 HD-rotation race likely resolved (flagged for human verification)
+  - **VHTLC unilateral exit — 3 concurrent PRs zero sign-off** — executive-digest 2026-05-22 continuation batch flagged
+  - **enclave v0.0.78 GOV#54** (5th zero-review self-merge) — security-triage 2026-05-22T08:00Z
+  - **compiler #32 MERGED (GOV#55)** then **GOV#57-59 triple-merge HARD BLOCK on first compiler release** — release-coordinator 2026-05-22T08:00Z and T16:00Z; security-triage T16:00Z
+  - **dotnet-sdk #101 P0 gaps merged over CHANGES_REQUESTED** + **#103 GOV#62** — release-coordinator/security-triage 2026-05-22T20:00Z; 62+ governance violations total
+  - **ts-sdk#506-509 boltz-swap bugs triaged, #508 VHTLC recovery gap flagged protocol-critical** — issue-triage 2026-05-22T16:00Z
+  - **ts-sdk #514 mainnet defaults watching** — security-triage 2026-05-23T00:00Z
+  - **go-sdk #172** uint64 underflow fix still unreviewed at day 20
+  - **rust-sdk v0.9.0 RELEASED** — settle() narrowed to expired/recoverable VTXOs; settle_all() new name for full renewal; semantic divergence vs ts-sdk noted in sdk-parity context
+  - **repo-sync 2026-05-23 00:02 UTC**: 61 repos updated, 24 archived
+  - **repo-detector 2026-05-23**: status stable, no changes since 2026-05-22 (17 ArkLabsHQ + 23 arkade-os repos)
+  - **release-coordinator 2026-05-22T20:00Z**: no new releases, dotnet-sdk #101 P0 gaps merged over CHANGES_REQUESTED
+  - **security-triage 2026-05-23T04:00Z**: morning quiet, go-sdk #172 day 20
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+---
+
 ## 2026-05-22 - Operational Memory Sync (no doc changes)
 **Commit Range**: `15c551e8..5d477eec` (18 commits, all `memory(*)` agent activity)
 **Previous Sync**: `1227677a1a35519689fc3891ea7c26613320771e`

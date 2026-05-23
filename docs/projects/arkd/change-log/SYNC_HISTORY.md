@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-23 - Documentation Update
+**Commit**: `299b7ad6` (arkd repository)
+**Previous Sync**: `700026fe`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `299b7ad6` client-lib: Add `WithTxOutsTaprootTree` SendOption (#1068)
+- `f2fa2963` Connection pooling for gateway stream connections (#1073)
+
+**Features Added (client-lib SDK, `pkg/client-lib`)**:
+- New `WithTxOutsTaprootTree(tapTrees map[string][]byte) SendOption` in `pkg/client-lib/send_opts.go`. Callers pass BIP-371-encoded tap tree bytes (produced via `txutils.TapTree(scripts).Encode()`) keyed by the hex-encoded `pkScript` of each ark-tx output. The option validates input up front: empty map / empty value returns `missing taproot trees` / `receiver tap tree must not be empty`, and each value is round-tripped through `txutils.DecodeTapTree` before being defensively copied into `sendOptions.outputsTapTree`. The new private helper `applyOutputTapTrees` in `send.go` writes each matching tree into `ptx.Outputs[i].TaprootTapTree` after the ark PSBT is built, and **returns an error if any pkScript key fails to match an output** — this is deliberate to avoid the silent footgun of a PSBT going out without the tap tree on the wire in a VTXO-spending path. Test coverage in `send_opts_test.go` expanded by ~243 lines (validation, copy-on-write isolation, decode failures, mismatch behavior).
+
+**Features Added (gRPC gateway, server-side scalability)**:
+- New connection pooling for gateway streaming RPCs in `internal/interface/grpc/service.go`. `service.streamConn *grpc.ClientConn` is replaced by `streamConns []*grpc.ClientConn`; `newServer` now allocates a pool of `StreamConnPoolSize` connections to the gateway address (cleaning up partials on failure) and `stop()` closes all of them. Each pooled connection carries an independent HTTP/2 `MAX_CONCURRENT_STREAMS` budget, so a pool of N multiplies the effective concurrent-stream capacity by N.
+- `splitConn` (the meshapi gateway's `grpc.ClientConnInterface` adapter) now holds `streamPool []grpc.ClientConnInterface` and a `streamIndex atomic.Uint64`; `NewStream` atomically increments and wraps `streamIndex % len(streamPool)` to round-robin streams across the pool. `Invoke` continues to use the dedicated unary connection unchanged.
+- Startup log line added: `stream connection pool size: N`.
+- Test coverage in `internal/interface/grpc/service_test.go` expanded by ~131 lines covering the new pool init / shutdown / round-robin paths.
+
+**Configuration Changes**:
+- New env var `ARKD_STREAM_CONN_POOL_SIZE` (`internal/config/config.go`, `internal/interface/grpc/config.go`, `cmd/arkd/main.go`). Default `4`, hard-capped to `[1, 64]` at load time (`min(maxStreamConnPoolSize, max(1, viper.GetUint32(...)))`) to prevent misconfiguration. A value of `1` preserves the previous single-connection behavior.
+
+**Files Updated**:
+- docs/INDEX.md (added `WithTxOutsTaprootTree` SendOption and `ARKD_STREAM_CONN_POOL_SIZE` pooling capability to the arkd entry)
+- docs/projects/arkd/INDEX.md (sync commit + date)
+- docs/projects/arkd/system/configuration.md (new "gRPC Gateway / Streaming" section documenting `ARKD_MAX_CONCURRENT_STREAMS` and `ARKD_STREAM_CONN_POOL_SIZE` with the multiplicative-capacity rationale)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Both changes are additive and non-breaking. The pool size defaults to `4`, so existing deployments will see a 4× lift in effective concurrent-stream capacity on the gateway after upgrade without any config change; set `ARKD_STREAM_CONN_POOL_SIZE=1` to restore prior behavior. `WithTxOutsTaprootTree` is purely opt-in on the client-lib call site. No tag / dependency / API-surface entries in master INDEX changed.
+
+---
+
 ## 2026-05-22 - Documentation Update
 **Commit**: `700026fe` (arkd repository)
 **Previous Sync**: `2c9612a0`

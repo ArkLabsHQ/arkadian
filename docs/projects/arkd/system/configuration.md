@@ -63,6 +63,10 @@ Fees are now managed via a programmable CEL formula engine (see Admin Fee APIs).
 - `ARKD_UNLOCKER_FILE_PATH` - File path for file-based unlocker
 - `ARKD_UNLOCKER_PASSWORD` - Password for env-based unlocker
 
+### gRPC Gateway / Streaming
+- `ARKD_MAX_CONCURRENT_STREAMS` (default: 1000) - HTTP/2 `MAX_CONCURRENT_STREAMS` budget advertised per gateway connection
+- `ARKD_STREAM_CONN_POOL_SIZE` (default: 4, max: 64) - Number of pooled `grpc.ClientConn`s the gateway uses for streaming RPCs. Each connection carries an independent stream budget, so the effective concurrent-stream capacity is `MAX_CONCURRENT_STREAMS * STREAM_CONN_POOL_SIZE`. `splitConn` round-robins `NewStream` calls across the pool; values are clamped to `[1, 64]`. Set to `1` to restore the previous single-connection behavior.
+
 ### Observability & Monitoring
 - `ARKD_OTEL_COLLECTOR_ENDPOINT` - OpenTelemetry collector endpoint
 - `ARKD_OTEL_PUSH_INTERVAL` (default: 10) - Push interval in seconds
