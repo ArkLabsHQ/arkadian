@@ -1,5 +1,31 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-24 - Operational Memory Sync (no doc changes)
+**Commit Range**: `07d3db6b..5b3a24f5` (19 commits, all `memory(*)` agent activity)
+**Previous Sync**: `00729de183f8f476f30aa9cf643a738a4381d271`
+**Caller-Asserted From**: `07d3db6baccfabfc19cac2404bd289fae48ef1d9` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `5b3a24f58634ce212cec8197b69024bb052efda7`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed, all under `memory/` (`MEMORY.md`; `agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,research-monitor,security-triage,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/research-updates.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-05-23 12:00Z → 2026-05-24 04:05Z (~16h): security-triage on 4-hourly slots (12/16/20/00/04), issue-triage on 4-hourly slots, release-coordinator at 12:00Z and 00:00Z, daily-briefing/executive-digest/linear-sync/research-monitor/slack-monitor each logged a 2026-05-23 run, repo-detector logged a 2026-05-24 02:30Z run
+- Notable operational events captured in memory only:
+  - **repo-detector MAJOR CHANGE 2026-05-24T02:30Z**: ArkLabsHQ ↔ arkade-os restructuring reversed — now **54 ArkLabsHQ + 17 arkade-os** (was 17 + 23 on 2026-05-23). Affects only operational counts; no change to arkana-knowledge architecture
+  - **enclave#113 opened 2026-05-23T16:00Z → gate holding**: `prevent_destroy=false` on PCR0 key (permanent-key-destruction risk) + CORS wildcard on ALL admin endpoints; CHANGES REQUESTED (security-triage 16:00/20:00/00:00/04:00Z)
+  - **arkd#1080 opened 2026-05-23T12:00Z**: 131-file refactor, flagged "seems bad" by team (slack-monitor 2026-05-23); release-coordinator notes "no new releases"
+  - **executive-digest 2026-05-23T16:00Z afternoon flush**: 7 items posted, queue cleared — StabilityVault 4th protocol change in 7 days, VHTLC 4 concurrent PRs with zero sign-off, ts-sdk#508 VHTLC recovery gap, go-sdk CI CLEARED, ts-sdk#514 mainnet-default risk, arkade-kotlin#60 VTXO persistence critical, enclave#113 misconfiguration. 62+ governance violations across 26-day window
+  - **slack-monitor 2026-05-23 daily scan**: PROTOCOL-CRITICAL VTXO persistent storage merged without confirmed atomicity fix (silent corruption risk); `e2ee.vtxos.com` live (enclave KV WebAuth in production); ee2e-kv QEMU regtest 2 failures escalating; Verify Enclave day 10+
+  - **research-monitor 2026-05-23**: Optech #406 — Ibis Wallet (Android) listed with optional Ark support (2nd third-party wallet after Chimera); LDK `splice_in_inputs` API; Bitcoin Core combinepsbt preserves proprietary PSBT fields; BIP322 overhauled; 4th PQ thread in 6 days on Delving Bitcoin (Winternitz + Lamport); CTV still 0% at 13+ weeks; Chimera TGE 4 days (May 27)
+  - **linear-sync 2026-05-23**: No Linear changes — 38th consecutive day; ENG-5 ~67d stale, DES-7 ~82d stale, DES-8 Urgent+unassigned 93d
+  - **go-sdk#172** uint64 underflow fix still unreviewed at day 21 (security-triage 08/00/04Z, all "quiet")
+  - **issue-triage all four runs (12/16/20/00/04Z)**: 0 new issues each window
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+- Master `docs/INDEX.md` arkana-knowledge entry not modified (no material change to capabilities, tags, dependencies, or relationships)
+
+---
+
 ## 2026-05-23 - Operational Memory Sync (no doc changes)
 **Commit Range**: `792d9e06..00729de1` (20 commits, all `memory(*)` agent activity)
 **Previous Sync**: `5d477eec0fe334f474a1636a0125361062620bce`
