@@ -63,7 +63,9 @@ Analysis and summaries of pull requests.
 | GitHub | `ArkLabsHQ/enclave` |
 | Latest Release | `v0.0.78` (see `cli/runtime-hashes.json`) |
 | Components | `cli/`, `runtime/` (+ `runtime/nitriding/` leaf utils), `supervisor/`, `client/`, `client-rs/`, `awsmocks/`, `runner/` |
-| Default Ports | `:443` (TLS edge, `runtime.Runtime` `pubSrv`, ALPN `h2`/`http/1.1`), `127.0.0.1:8080` (internal loopback admin/attestation mux, `privSrv` — was `:7073` pre-v0.0.76), `:7074` (user app, h2c-capable), `127.0.0.1:8443` (host supervisor management API) |
+| Default Ports | `:443` (TLS edge, `runtime.Runtime` `pubSrv`, ALPN `h2`/`http/1.1`), `127.0.0.1:8080` (internal loopback admin/attestation mux, `privSrv` — was `:7073` pre-v0.0.76), `:7074` (user app, h2c-capable), `127.0.0.1:8443` (host supervisor management API; reached over SSM Session Manager port-forwarding by `log` / `trace` / `metrics`) |
+| Upstream Protocol | `ENCLAVE_NITRIDING_UPSTREAM` selects the `revProxy → user app` HTTP version: `auto` (default — match inbound per request via `protocolSwitchTransport`), `h2c` (pin HTTP/2 cleartext, required for gRPC), or `h1` (pin HTTP/1.1). |
+| Admin CORS | `/v1/*` admin handlers are wrapped in `corsWildcard` — wildcard `Access-Control-Allow-{Origin,Methods,Headers,Expose-Headers}` + `Max-Age: 600`, `OPTIONS` short-circuits with `204`. The catch-all upstream proxy is **not** wrapped; the user app sets its own CORS. |
 | Test-rig Images | `ghcr.io/arklabshq/enclave-awsmocks:<rev>`, `ghcr.io/arklabshq/enclave-test-runner:<rev>` (`<rev>` = `cli/runtime-hashes.json::rev` without leading `v`) |
 | Build System | Nix (reproducible, byte-identical EIF) inside pinned Docker container |
 | Target Hardware | AWS Nitro Enclaves (m6i.xlarge, Amazon Linux 2023) |
@@ -93,6 +95,7 @@ Analysis and summaries of pull requests.
 | `tls.fqdn` | Domain the cert is issued for (required when `provider` ≠ `self-signed`; FQDN-validated) |
 | `tls.provider` | `self-signed` (default) \| `letsencrypt` \| `letsencrypt-staging` |
 | `tls.email` | Optional ACME contact for expiry notices (used when `provider` selects ACME) |
+| `tls.route53_zone_id` | Optional Route53 hosted-zone ID; when set, `enclave tofu` creates an `A` record for `tls.fqdn` in that zone pointing at the EIP (60 s TTL). Skipped in local mode or when empty. Requires `tls.fqdn`. Deployer IAM needs `route53:ChangeResourceRecordSets` / `GetHostedZone` / `ListResourceRecordSets` on `arn:aws:route53:::hostedzone/*` and `route53:GetChange` on `arn:aws:route53:::change/*` (already covered by `deploy-iam-policy.json`). |
 
 ## Architecture Overview
 
@@ -142,3 +145,5 @@ EC2 Instance (Amazon Linux 2023, Nitro)
 | `enclave destroy` | Tear down stack (irreversible) |
 | `enclave lock` | Apply irreversible KMS policy lockdown |
 | `enclave test build` / `init` / `start` / `down` | Local QEMU integration-test workflow for upstream apps (image-based — pulls `enclave-awsmocks` + `enclave-test-runner` from GHCR) |
+| `enclave start` / `stop` | POST `/start` or `/stop` to the supervisor over SSM RunCommand. Flags: `--instance-id`, `--region`, optional `--profile` (defaults to `AWS_PROFILE` env / default credential chain). |
+| `enclave log` / `trace` / `metrics` | Stream supervisor data over an SSM **Session Manager port-forward** to `:8443` (no 24 KB SSM RunCommand stdout cap). Flags: `--instance-id`, `--region`, optional `--profile`. Requires AWS CLI v2 + Session Manager Plugin on `PATH`. |

@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
 version: 1.3.0
-last_sync_commit: 0444708fc20a79f551b1a01d2b6ae2d74515a7a8
+last_sync_commit: 241e2291dc615dcfe7a276a976f8d3a9f13eab75
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -81,13 +81,14 @@ All publishable crates aligned at **v0.9.0** with crates.io metadata (`keywords 
 - Round participation with MuSig2 signing — asset-preserving settlement
 - Ark notes (transferable payment proofs)
 - DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 invoice `description` (max 639 bytes) — `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a `description: Option<String>` parameter (**breaking**)
 - **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
 - **Arkade Asset V1**: issue, transfer, burn, reissue (rejects empty asset packets)
 - **Arkade Script** (introspector flow): extension opcodes, key-tweaked introspector pubkeys, `ArkadeVtxoScript` taproot encoding, PSBT-driven introspector packet insertion
 - Sub-dust amounts
 - Key discovery (now probes delegate addresses too)
 - arkd protocol 0.9.2 (gRPC + REST)
+- **SDK build-version handshake** — both `ark-grpc` and `ark-rest` clients send `x-build-version` (= `CARGO_PKG_VERSION`) on every request. Servers can reject too-old SDKs; callers detect this via the new `Error::is_version_mismatch()` helper on both `ark_grpc::Error` and `ark_rest::Error`. `ark_rest::Client::new(url)` now returns `Result<Self, Error>` (**breaking**).
 
 ### Transport Options
 - **gRPC** (default): Via `ark-grpc` with tonic, native TLS

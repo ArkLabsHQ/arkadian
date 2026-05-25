@@ -154,16 +154,22 @@ curl -X POST http://127.0.0.1:8443/start
 
 ### Read-only CLI commands (cross-repo)
 
-`verify`, `log`, `trace`, and `metrics` no longer read `enclave.yaml` or depend on tofu output — pass connection details directly via flags so they work from any working directory:
+`verify`, `log`, `trace`, `metrics`, `start`, and `stop` no longer read `enclave.yaml` or depend on tofu output — pass connection details directly via flags so they work from any working directory:
 
 ```sh
 enclave verify  --base-url https://<elastic-ip> --expected-pcr0 <pcr0>
-enclave log     --instance-id <i-...> --region <region>
-enclave trace   --instance-id <i-...> --region <region>
-enclave metrics --instance-id <i-...> --region <region>
+enclave log     --instance-id <i-...> --region <region> [--profile <name>]
+enclave trace   --instance-id <i-...> --region <region> [--profile <name>]
+enclave metrics --instance-id <i-...> --region <region> [--profile <name>]
+enclave start   --instance-id <i-...> --region <region> [--profile <name>]
+enclave stop    --instance-id <i-...> --region <region> [--profile <name>]
 ```
 
-A strict `runCommand` helper now surfaces SSM errors and non-zero exit codes from `log`/`trace`/`metrics` (the previous `curl ... || echo '[]'` fallback that masked supervisor-reachability failures as "no data" was removed).
+`--profile` is optional — empty falls back to the `AWS_PROFILE` env var or the default credential chain. The flag is plumbed into both the AWS SDK config loader and the `aws ssm start-session --profile …` subprocess.
+
+`log` / `trace` / `metrics` now stream the supervisor response over an **SSM Session Manager port-forward** to `:8443` on the instance (`AWS-StartPortForwardingSession`) instead of `SSM RunCommand`, so responses larger than the 24 KB stdout cap are no longer truncated. Requires AWS CLI v2 and the **Session Manager Plugin** on `PATH` — the canonical `"SessionManagerPlugin is not found"` AWS-CLI sentinel surfaces as an actionable error. AWS-CLI stderr is teed so AccessDenied / expired-credential / bad-instance-ID failures surface verbatim instead of as a generic 15 s timeout; cleanup `SIGTERM`s the AWS-CLI process group with a 2 s `SIGKILL` escalation when the response body is closed.
+
+`start` / `stop` still use SSM RunCommand (small request, fits well under the 24 KB cap).
 
 ### Local integration testing (`enclave test`)
 

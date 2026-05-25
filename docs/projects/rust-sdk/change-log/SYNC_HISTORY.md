@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-25 - x-build-version handshake, BOLT11 description, unilateral-exit DAG rewrite
+**From**: `0444708fc20a79f551b1a01d2b6ae2d74515a7a8`
+**To**: `241e2291dc615dcfe7a276a976f8d3a9f13eab75`
+**Synced By**: update-project skill
+**Commits analyzed**: 13 (no merges)
+
+**Summary**: Two new user-facing features plus a deep refactor/fix pass on the unilateral-exit finalizer. `ark-grpc` and `ark-rest` now send `x-build-version` (`CARGO_PKG_VERSION`) on every request so servers can reject too-old SDKs; `ark_rest::Client::new` is now fallible. `ark-client::get_ln_invoice` and `get_ln_invoice_with_preimage_hash` gained a trailing `description: Option<String>` arg that ends up in the BOLT11 `d` field. `ark-core::unilateral_exit` was rewritten to traverse the ancestor sub-DAG topologically (avoiding exponential path enumeration) and to finalize each virtual transaction generically from PSBT data via new public `finalize_virtual_tx_input` / `finalize_taproot_script_spend_witness` helpers; the condition-witness decoder gained strict length-prefix validation, and `sign_unilateral_exit_tree` is preserved as a `#[deprecated]` alias. Round-streaming code in `ark-client::batch` consistently uses "batch-tree" terminology.
+
+**Changes**:
+- `feat: Send x-build-version header for every request` (`b7dcf8c`, resolves #195) — `ark-grpc::Client` switches to a shared `tonic::transport::Channel` wrapped by `VersionInterceptor` (both `ArkServiceClient` and `IndexerServiceClient` carry the header); `ark-rest::Client::new` builds a `reqwest::Client` with `X-Build-Version` as a default header. Servers signal too-old SDKs via gRPC `FailedPrecondition: BUILD_VERSION_TOO_OLD` (REST surfaces the same marker in the error body). Both crates gain `Error::is_version_mismatch()` with unit tests. **Breaking**: `ark_rest::Client::new(url)` returns `Result<Self, Error>` instead of `Self`; the wasm test harness and `e2e_rest_client_get_info` updated. `ark-grpc::Client` now derives `Clone` and gets a hand-rolled `Debug`.
+- `feat(boltz): pass invoice description through to reverse swaps` (`09c2cc1`) — adds `MAX_BOLT11_DESCRIPTION_BYTES = 639` constant + `validate_invoice_description` helper in `ark-client/src/boltz.rs`; `CreateReverseSwapRequest` gains `description: Option<String>` (skip-serialize-if-none); `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a trailing `description: Option<String>` argument; `boltz_reverse.rs` e2e uses it; sample app threads `None`. **Breaking** for direct callers.
+- `fix: avoid exponential unilateral exit paths` (`da69cf2`) — replaces the recursive `find_paths_to_commitment` (which produced one entry per root-to-leaf path) with `visit_virtual_ancestors`, a DFS that visits each ancestor virtual TX once and emits a topologically sorted branch. Drops the 1000-depth safety net (cycles are now detected via a `visiting`/`visited` set pair).
+- `fix: finalize unilateral exit branches generically` (`258006d`) — adds public `finalize_virtual_tx_input(psbt, input_index, witness_utxo)` and `finalize_taproot_script_spend_witness(input)` helpers. Script-spend finalizer picks the first tapleaf whose `CHECKSIG`/`CHECKSIGVERIFY` pubkeys (extracted via `script::extract_checksig_pubkeys`) all have `tap_script_sigs`, pushes signatures in reverse script order, then appends elements decoded from the `VTXO_CONDITION_KEY` (type 222) unknown PSBT field.
+- `fix: validate condition witness decoding` (`97f856e`) — strict `usize::try_from` + checked arithmetic when reading the condition witness count and per-element lengths; rejects counts that can't fit in the remaining buffer, length-prefix overflow, and trailing bytes.
+- `fix: Do not expect in unilateral_exit.rs` (`3cb0951`) — replaces an `.expect(...)` in the condition-witness path with a returned `Error::transaction`.
+- `chore: keep unilateral exit finalizer alias` (`d07f10f`) — keeps `sign_unilateral_exit_tree` as a `#[deprecated(note = "use finalize_unilateral_exit_tree")]` wrapper.
+- `refactor: clarify batch-tree exit terminology` (`b2e2f04`) — `vtxo_graph` / `vtxo_graph_chunks` → `vtxo_batch_tree_graph(_chunks)` in `ark-client::batch` round-event handling; user-facing error strings standardised on "batch-tree" wording. Internal-only rename across `ark-client/src/{batch,unilateral_exit}.rs` and `ark-core/src/{batch,send,server,tree_tx_output_script,unilateral_exit}.rs`.
+- `docs: document condition witness stack invariant` (`c5cdf1e`) — code comments documenting the `VTXO_CONDITION_KEY` payload layout.
+- Tests: `5304b64` (VHTLC ancestor unilateral exit e2e), `b0f7557` (fail fast on reverse swap payment issues), `5644e1e` (DAG ordering unit test), `6d2df3e` (condition witness decoding unit test).
+
+**Breaking changes**:
+- `ark_rest::Client::new(url) -> Result<Self, Error>` (was `Self`) — direct callers must `?` the result.
+- `ark-client::get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a trailing `description: Option<String>` parameter — pass `None` to take the default.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`, Boltz capability line, new build-version handshake bullet)
+- `docs/projects/rust-sdk/system/project_overview.md` (two new top entries under Recent Additions for x-build-version and BOLT11 description; new bullet on unilateral exit + batch-tree terminology)
+- `docs/projects/rust-sdk/system/architecture.md` (new "SDK Version Handshake" and "Unilateral Exit Finalization" sub-sections; reverse-swap chain-swap section now mentions BOLT11 `description` arg)
+- `docs/INDEX.md` (rust-sdk Key Capabilities — appended BOLT11 description, build-version handshake, unilateral-exit rewrite)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-13 - Boltz referralId on swap creation
 **From**: `887cb4a1c87124594c13b4d2a1ffc1c7d89934fc`
 **To**: `0444708fc20a79f551b1a01d2b6ae2d74515a7a8`

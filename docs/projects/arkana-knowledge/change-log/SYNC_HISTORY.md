@@ -1,5 +1,46 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-25 - Operational Memory Sync (no doc changes)
+**Commit Range**: `d2d8ac97..9234ada8` (22 commits, all `memory(*)` agent activity)
+**Previous Sync**: `5b3a24f58634ce212cec8197b69024bb052efda7`
+**Caller-Asserted From**: `d2d8ac973bb9cf5656b66de6427a5f36531bddbe` (1 commit ahead of previous sync — repo had advanced before this run; the intermediate commit is `d2d8ac9 memory(issue-triage): triage run 2026-05-24T08:00:00Z`)
+**Current Sync**: `9234ada866f024d9d9a81635aeb51549441b13f7`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 11 files changed (+477/-74), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,security-triage,slack-monitor}.md`, `executive-digest-queue.json`, `project-context/sdk-parity.md`, `slack-log.md`)
+- Routine agent activity spanning 2026-05-24 08:00Z → 2026-05-25 04:00Z (~20h): security-triage on 4-hourly slots (08/12/16/20/00/04Z), issue-triage on 4-hourly slots, release-coordinator on 4-hourly slots, daily-briefing/executive-digest/linear-sync/slack-monitor each logged a 2026-05-24 run, repo-detector logged a 2026-05-25 scan
+- Notable operational events captured in memory only:
+  - **repo-detector 2026-05-25**: stable state confirmed — 54 ArkLabsHQ + 17 arkade-os repos (unchanged from 2026-05-24)
+  - **enclave #113 MERGED 2026-05-24T08:00Z over 2x CHANGES_REQUESTED → GOV#63** (security-triage 08:00Z); `prevent_destroy=false` PCR0 + CORS wildcard concerns over-ridden despite review push-back
+  - **enclave #115 MERGED 2026-05-24T16:00Z → GOV#64** (release-coordinator/security-triage 16:00Z); enclave v0.0.79 still unreleased
+  - **enclave #116 MERGED 2026-05-25T04:00Z → GOV#65** (release-coordinator/security-triage 04:00Z); rust-sdk #226 noted as "good governance" by contrast
+  - **go-sdk#188 regtest race bug** triaged 2026-05-25T00:00Z (issue-triage)
+  - **go-sdk#189 opened** 2026-05-25T00:00Z (release-coordinator); no new releases this window
+  - **go-sdk #172** uint64 underflow fix at day 22 (security-triage 2026-05-25T00:00Z)
+  - **executive-digest afternoon flush 2026-05-24T20:00Z**: queue cleared (slack-log + executive-digest log)
+  - **daily-briefing 2026-05-24** morning briefing logged
+  - **linear-sync 2026-05-24**: state snapshot, no Linear changes (streak continues)
+  - **slack-monitor 2026-05-24 daily scan** appended
+  - **sdk-parity 2026-05-24**: parity context refreshed (+26 lines)
+  - All issue-triage runs in window report 0 new issues each slot ("quiet morning/midday/afternoon/overnight")
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+- Master `docs/INDEX.md` arkana-knowledge entry not modified (no material change to capabilities, tags, dependencies, or relationships)
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 9234ada8…`, `last_sync_date: 2026-05-25T04:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `9234ada866f024d9d9a81635aeb51549441b13f7`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no changes required (capabilities, agent roster, endpoints unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-24 - Operational Memory Sync (no doc changes)
 **Commit Range**: `07d3db6b..5b3a24f5` (19 commits, all `memory(*)` agent activity)
 **Previous Sync**: `00729de183f8f476f30aa9cf643a738a4381d271`

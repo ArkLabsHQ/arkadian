@@ -21,7 +21,11 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 
 ### HTTP/2 / ALPN
 
-`pubSrv` advertises `h2, http/1.1` (and `acme-tls/1` when ACME is enabled) in ALPN with `MinVersion = TLS 1.2`. The internal `revProxy` dials the user app with `http2.Transport{AllowHTTP: true}` and `FlushInterval = -1`, so HTTP/2 streams and gRPC trailers survive the loopback hop unchanged.
+`pubSrv` advertises `h2, http/1.1` (and `acme-tls/1` when ACME is enabled) in ALPN with `MinVersion = TLS 1.2`. The internal `revProxy`'s upstream transport is chosen by `ENCLAVE_NITRIDING_UPSTREAM`: `auto` (default, `protocolSwitchTransport` — HTTP/1.1 inbound → `http.Transport{}`, HTTP/2 inbound → `http2.Transport{AllowHTTP: true}`), `h2c` (pin HTTP/2 cleartext — required for gRPC-only apps), or `h1` (pin HTTP/1.1 — plain HTTP apps). `FlushInterval = -1` in all cases, so HTTP/2 streams and gRPC trailers survive the loopback hop unchanged.
+
+### CORS
+
+`/v1/*` admin handlers on `pubSrv` are wrapped in `corsWildcard` — every response carries `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: *`, `Access-Control-Allow-Headers: *`, `Access-Control-Expose-Headers: *`, and `Access-Control-Max-Age: 600`; `OPTIONS` preflights short-circuit with `204 No Content`. The catch-all upstream reverse proxy to the user app is **not** wrapped — apps own their own CORS policy on their own responses.
 
 ---
 

@@ -92,6 +92,9 @@ tls:
   provider: self-signed         # self-signed | letsencrypt | letsencrypt-staging
   fqdn: ""                      # required when provider != self-signed
   email: ""                     # optional ACME contact for expiry notices
+  route53_zone_id: ""           # optional Route53 hosted-zone ID; when set,
+                                # `enclave tofu` creates an A record for `fqdn`
+                                # in that zone pointing at the EIP. Requires `fqdn`.
 ```
 
 `app.env` values are baked into the EIF (PCR0-attested schema). Override values at deploy without rebuilding via:
@@ -162,6 +165,7 @@ tls:
   provider: letsencrypt          # or letsencrypt-staging for testing
   fqdn: api.example.com          # required
   email: ops@example.com         # optional but recommended
+  route53_zone_id: ZXXXXXXXXXXX  # optional — lets tofu manage the A record for you
 ```
 
 Then redeploy — **no EIF rebuild required**:
@@ -172,7 +176,7 @@ enclave deploy
 ```
 
 Notes:
-- The challenge is **TLS-ALPN-01** on `:443`, so DNS for `fqdn` must already resolve to the enclave's public address before deploy.
+- The challenge is **TLS-ALPN-01** on `:443`, so DNS for `fqdn` must already resolve to the enclave's public address before deploy. Either point `fqdn` at the `elastic_ip` output manually at your DNS provider (Cloudflare, registrar, etc.), or set `tls.route53_zone_id` to your Route53 hosted-zone ID and `enclave tofu` will create the `A` record for you (60 s TTL). The deployer's IAM needs `route53:ChangeResourceRecordSets` on the zone — `deploy-iam-policy.json` already covers this.
 - Issued cert material is sealed under the storage DEK and persisted in S3 under the reserved `acme/` namespace via `acmeStorageCache`, so reboots and locked-key migrations reuse the cert instead of re-issuing (which would quickly exhaust Let's Encrypt's rate limit).
 - Use `letsencrypt-staging` for first-time setup — its untrusted root keeps you out of the production rate-limit window while you iterate.
 - Changing the domain later is a single-step redeploy: edit `tls.fqdn`, then `enclave tofu && enclave deploy`. The next boot will issue a fresh cert for the new FQDN.
