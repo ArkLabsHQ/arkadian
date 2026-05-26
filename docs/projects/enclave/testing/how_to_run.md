@@ -20,14 +20,16 @@ enclave setup --language dotnet
 enclave setup                 # use local Nix instead
 
 # 4. (Optional) generate OpenTofu deployment scaffold
-enclave tofu                          # writes ./tofu/ — merge-only-new
-enclave tofu --remote                 # CI mode: pull artifacts from GitHub Release
+enclave tofu init                     # writes ./tofu/ + backend.tf — merge-only-new modules
+enclave tofu init --remote            # CI mode: pull artifacts from GitHub Release
+enclave tofu update                   # later: refresh tfvars from enclave.yaml (modules untouched)
+enclave tofu env --key K --value V    # set deploy-time env vars (next tofu apply pushes to SSM)
 
 # 5. Build EIF
 enclave build              # Docker + Nix (reproducible)
 
-# 6. Deploy
-enclave deploy             # CDK: VPC, EC2, KMS, IAM, S3, secrets
+# 6. Apply OpenTofu
+cd tofu && tofu init && tofu apply    # provisions VPC, EC2, KMS, IAM, S3, secrets
 
 # 7. Verify
 enclave verify             # confirms attestation document + PCR0 match
@@ -35,6 +37,8 @@ enclave verify             # confirms attestation document + PCR0 match
 # 8. Inspect
 enclave status             # stack outputs, current PCR0, IP
 ```
+
+`enclave tofu init` is a subcommand of the new `enclave tofu` group (alongside `update` and `env`); it replaces the old single-shot `enclave tofu`. In a TTY, `init` prompts to optionally bootstrap the S3 state bucket + DynamoDB lock table from the bundled `modules/backend` submodule. Non-TTY contexts (CI) skip the prompt; pass `--bootstrap-backend` / `--no-bootstrap` / `--backend-{bucket,table,region}` to make the choice explicit. `update` regenerates only `terraform.tfvars.json` — module files and `backend.tf` are left untouched, so it's the right command after editing `tls:`, `route53_zone_id`, or runtime version. `env` sets/merges entries in `tofu/env_values.auto.tfvars.json` without hand-editing the JSON; the next `tofu apply` pushes each `KEY=value` to SSM at `/<deployment>/<app>/env/<key>` (the runtime picks them up at the next boot via `GetParametersByPath` — no rebuild required).
 
 ## Update App
 
@@ -132,7 +136,7 @@ gh attestation verify deployment.json --repo <owner>/<repo>
 | `RUNTIME_LOCAL_PATH` (test) | Local override for runtime source (Nix `local source`) |
 | `SUPERVISOR_LOCAL_PATH` (test) | Local override for supervisor source |
 | `APP_LOCAL_PATH` (test) | Local override for app source |
-| `TF_VAR_env_values` (deploy) | JSON map of deploy-time env overrides |
+| `TF_VAR_env_values` (deploy) | JSON map of deploy-time env overrides. Operator-managed today via `enclave tofu env --key K --value V` (writes `tofu/env_values.auto.tfvars.json` for you); the `TF_VAR_` form is still honoured by Tofu but no longer the recommended path. |
 
 ## Operating the Live Enclave
 

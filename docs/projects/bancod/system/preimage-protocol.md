@@ -15,7 +15,7 @@ The preimage claim plugin enables stateless VTXO claims gated by preimage knowle
 ### Maker Side
 1. Call `GetSolverPubKey` RPC to get the bot's hex-encoded compressed secp256k1 pubkey (33 bytes / 66 hex chars)
 2. ECIES-encrypt `(preimage || arkade_script)` to the bot's pubkey
-3. Attach ciphertext + plaintext taptree as Ark extension TLV packet (type 0x04)
+3. Attach ciphertext + plaintext taptree as Arkade extension TLV packet (type 0x04)
 4. Fund the resulting address
 
 ### Bot Side

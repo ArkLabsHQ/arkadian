@@ -11,6 +11,17 @@
 - **Source changes**: go-sdk bumped to `v0.9.2-0.20260514163636-f28dda8725d5`; `arksdk.ArkClient` interface renamed to `arksdk.Wallet`; constructors renamed (`LoadArkClient`/`NewArkClient` → `LoadWallet`/`NewWallet`); taker fulfillment refactored from `Wallet().GetAddresses` matching to the new `ContractManager` API, signing via `Identity().SignTransaction` with an explicit script→keyId map. Transitive deps trimmed (badger, ristretto, otel, flatbuffers, factomproject); added gocron, robfig/cron/v3, tyler-smith/go-bip39 indirects.
 - **Doc updates**: Master `docs/INDEX.md` — replaced `go-sdk (ArkClient)` references with `go-sdk (Wallet)` in bancod's Dependencies line and Correlation Matrix row.
 
+## 2026-05-26 — README terminology refresh (Ark → Arkade)
+- **Range**: c758b9bb8af48c9a3fb476426c894d077c510479..138bbd5f8f082285726c54f58050ec74d4b05d62
+- **Commits analyzed**: 1 (`138bbd5 Update documentation to use "Arkade" terminology consistently (#1)`)
+- **Source changes**: `README.md` only — renames protocol-name references from "Ark" to "Arkade" throughout (Ark network → Arkade, Ark transaction → Arkade transaction, Ark extension → Arkade extension, ark client → Arkade client, arkade script → arkade-script). No code, config, or dependency changes.
+- **Doc updates**:
+  - `docs/projects/bancod/INDEX.md`: bumped `last_sync_commit`/`last_sync_date`; updated description to use "Arkade" terminology ("VTXO on Arkade", "introspector-signed Arkade transaction").
+  - `docs/projects/bancod/system/project_overview.md`: "introspector-signed Ark transactions" → "Arkade transactions"; "Ark virtual mempool" → "Arkade virtual mempool" in Use Cases.
+  - `docs/projects/bancod/system/swap-protocol.md`: "Ark virtual mempool" → "Arkade virtual mempool"; "Ark transaction" → "Arkade transaction"; "Ark extension packets" → "Arkade extension packets"; "ark client" → "Arkade client"; "Ark tx" → "Arkade tx".
+  - `docs/projects/bancod/system/preimage-protocol.md`: "Ark extension TLV packet" → "Arkade extension TLV packet".
+  - Master `docs/INDEX.md`: bancod description aligned to "Arkade transactions" / "Arkade virtual mempool". No changes to dependencies, tags, or correlation matrix.
+
 ## 2026-05-19 — explicit single-key identity, `make run`, README architecture
 - **Range**: 2827a305a0b6561730abaef78ca40cd158d142f8..c758b9bb8af48c9a3fb476426c894d077c510479
 - **Commits analyzed**: 3 (`fa1ecfd fix identity`, `512ac31 format`, `c758b9b update README.md`)

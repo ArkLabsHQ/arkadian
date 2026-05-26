@@ -2,7 +2,7 @@
 
 ## What is Bancod?
 
-Bancod is a Go-based **solver bot** for the Arkade virtual mempool. It watches the arkd transaction stream for swap offers posted as VTXOs, matches them against configured trading pairs and price ranges, and fulfills them atomically using introspector-signed Ark transactions.
+Bancod is a Go-based **solver bot** for the Arkade virtual mempool. It watches the arkd transaction stream for swap offers posted as VTXOs, matches them against configured trading pairs and price ranges, and fulfills them atomically using introspector-signed Arkade transactions.
 
 ## Key Features
 
@@ -35,7 +35,7 @@ Bancod is a Go-based **solver bot** for the Arkade virtual mempool. It watches t
 
 ## Use Cases
 
-- Automated market-making on the Ark virtual mempool
+- Automated market-making on the Arkade virtual mempool
 - Atomic swap fulfillment for banco swap offers
 - Stateless preimage-gated VTXO claims
 - Trading pair management and price monitoring

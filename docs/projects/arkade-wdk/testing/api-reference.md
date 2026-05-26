@@ -1,6 +1,6 @@
 # Arkade WDK — API Reference
 
-Reflects `@arkade-os/wdk` `0.1.2`. The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
+Reflects `@arkade-os/wdk` `0.1.3`. The package is JavaScript with JSDoc; the type signatures below mirror the JSDoc / emitted `.d.ts` shapes.
 
 ## Public Exports (`src/index.js`)
 

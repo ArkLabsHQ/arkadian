@@ -211,6 +211,15 @@ Genesis → PCR0_v1 (previous_pcr0 = "genesis")
 
 The runtime no longer validates a baked-in `previous_pcr0` against the live chain — a single EIF can legitimately be deployed against any predecessor (skipped versions, manual recovery), so the build-time `ENCLAVE_PREVIOUS_PCR0` is unreliable as a runtime claim. The value is still measured into PCR0 for external auditors but is not consumed by the runtime, and the variable is no longer wired through the OpenTofu deployment templates.
 
+## Deploy-time Env Overlay (SSM-scan)
+
+`Environment.Override` is called during `Runtime.Init`. It scans `/<deployment>/<app>/env/` in SSM via `GetParametersByPath` (paginated, `WithDecryption: true`, `Recursive: false`) and overlays every key it finds onto the process env on top of any defaults baked into the EIF. The trust boundary is the IAM grant on that SSM prefix.
+
+- The previous `ENCLAVE_APP_ENV_KEYS` mechanism (a JSON list of `app.env` keys baked into the EIF at build time, with the runtime calling `GetParameter` per key) has been **removed**. The `appEnvKeysJson` block in every `flake.nix` variant (Go / Node.js / .NET / Rust) and the `ENCLAVE_APP_ENV_KEYS` env line are gone. Operators no longer need to enumerate env keys at build time — adding a new deploy-time env var is now `enclave tofu env --key … --value …` + `tofu apply`, **no EIF rebuild**.
+- Defensive: empty key names or nested paths (containing `/`) are skipped so a misconfigured SSM tree can't surface unexpected env var names.
+- `runtime/aws_clients.go::SSMAPI` and the test-friendly `ssmGetter` interface in `runtime/environment.go` both add `GetParametersByPath`; `loadDeployTLSConfig` still uses single-key `GetParameter` calls for the known `ENCLAVE_NITRIDING_*` TLS params.
+- `app.env` in `enclave.yaml` is now reserved for **build-time PCR0-attested values** (e.g., `BUILD_VARIANT=prod`); the scaffolded templates default to `env: {}` and steer operators toward `enclave tofu env` for the common deploy-time case.
+
 ## File Map (key Go packages)
 
 | Package | Files | Role |

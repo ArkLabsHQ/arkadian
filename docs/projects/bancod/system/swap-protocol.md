@@ -2,11 +2,11 @@
 
 ## Overview
 
-The banco swap protocol enables atomic token/BTC swaps on the Ark virtual mempool. A maker posts a swap offer as a VTXO with a TLV-encoded extension packet; a taker (solver bot) detects the offer and fulfills it atomically via an introspector-signed Ark transaction.
+The banco swap protocol enables atomic token/BTC swaps on the Arkade virtual mempool. A maker posts a swap offer as a VTXO with a TLV-encoded extension packet; a taker (solver bot) detects the offer and fulfills it atomically via an introspector-signed Arkade transaction.
 
 ## Offer Structure (PacketType 0x03)
 
-Offers are encoded as TLV payloads inside Ark extension packets:
+Offers are encoded as TLV payloads inside Arkade extension packets:
 
 ```
 Offer {
@@ -21,7 +21,7 @@ Offer {
 ## Maker Flow
 
 1. `contract.CreateOffer()` queries introspector for signer key
-2. Derives maker address from ark client
+2. Derives maker address from Arkade client
 3. Assembles Offer, serializes to TLV
 4. Returns hex-encoded offer + extension packet + swap address
 5. Maker funds the swap address with deposit asset/amount
@@ -35,7 +35,7 @@ Offer {
    - Range-checks WantAmount against pair min/max
    - Validates price within 1% of price feed
 3. On match, `banco.Plugin.Solve()` calls `contract.FulfillOffer()`:
-   - Builds Ark tx spending swap VTXO to maker's pkScript
+   - Builds Arkade tx spending swap VTXO to maker's pkScript
    - Pays WantAmount/WantAsset to maker
    - Returns change to taker
    - Signs with introspector

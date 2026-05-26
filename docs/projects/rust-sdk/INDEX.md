@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
 version: 1.3.0
-last_sync_commit: 241e2291dc615dcfe7a276a976f8d3a9f13eab75
+last_sync_commit: 1d778429e7fc281bb05a68a5264011e740a2a001
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]

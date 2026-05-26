@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-26 - Batch event waits honour client timeout
+**From**: `241e2291dc615dcfe7a276a976f8d3a9f13eab75`
+**To**: `1d778429e7fc281bb05a68a5264011e740a2a001`
+**Synced By**: update-project skill
+**Commits analyzed**: 2 (no merges)
+
+**Summary**: Robustness fix for the round-streaming code paths in `ark-client::batch`. Both the regular settlement loop and the delegate-settlement loop now wrap `stream.next()` in `timeout_op(self.inner.timeout, …)`, so a stalled arkd round stream surfaces a timed-out `Error::transaction` instead of hanging the client forever. The companion test commit adds a `nigiri.mine(1)` after `alice.settle(...)` in `e2e_assets` to confirm the asset settlement is actually spendable on-chain.
+
+**Changes**:
+- `fix: timeout batch event waits` (`6a28c20`) — `ark-client/src/batch.rs`: both `match stream.next().await` sites (the main settlement loop at ~L646 and the delegate-settlement loop at ~L1389) now go through `timeout_op(self.inner.timeout, stream.next()).await.context("timed out waiting for batch event")?`. No public API change.
+- `test: confirm asset settlement spend` (`c6ca550`) — `e2e-tests/tests/e2e_assets.rs`: inserts `nigiri.mine(1).await;` after `alice.settle(&mut rng).await.unwrap();` so the post-settlement `offchain_balance()` reflects the confirmed asset VTXO.
+
+**Breaking changes**: None.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`)
+- `docs/projects/rust-sdk/system/project_overview.md` (new top entry under Recent Additions for the batch-event timeout fix)
+- `docs/INDEX.md` (rust-sdk Key Capabilities — appended note that batch event waits honour the client timeout)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-25 - x-build-version handshake, BOLT11 description, unilateral-exit DAG rewrite
 **From**: `0444708fc20a79f551b1a01d2b6ae2d74515a7a8`
 **To**: `241e2291dc615dcfe7a276a976f8d3a9f13eab75`

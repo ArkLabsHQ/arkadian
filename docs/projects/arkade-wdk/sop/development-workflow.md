@@ -93,7 +93,7 @@ Before requesting review:
 
 ## Release Cadence
 
-`@arkade-os/wdk` is at `0.1.2`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org.
+`@arkade-os/wdk` is at `0.1.3`. Releases are manual — there is no automated pipeline. From a maintainer machine that's logged in (`npm login`) with access to the `@arkade-os` org.
 
 ### Quick path (`scripts/release.js`)
 

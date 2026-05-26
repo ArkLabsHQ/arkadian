@@ -1,5 +1,33 @@
 # Boltz Swap Documentation Sync History
 
+## 2026-05-26 — Sync (repo deprecation notice)
+
+**From**: `5e61590af44adfa0fa3712e287bf96e76ed20517`
+**To**: `0320c8cb5aa01312702c71b04c26a6629064699c`
+**Commits Analyzed**: 1 (non-merge) — README-only
+**Status**: ✓ Complete
+
+### Commits Analyzed
+- `18bb9ee` docs: add deprecation notice pointing to ts-sdk monorepo (PR [#153](https://github.com/arkade-os/boltz-swap/pull/153), merged via `0320c8c`)
+
+### Notable Changes
+
+**Versions**
+- No version bump — still `@arkade-os/boltz-swap@0.3.32`, `@arkade-os/sdk@0.4.27`. No `src/`, test, or `package.json` changes.
+
+**Repository deprecation** (commit `18bb9ee`, PR [#153](https://github.com/arkade-os/boltz-swap/pull/153))
+- README gains a leading `[!WARNING]` callout: *"This repository is no longer under active development. Development has moved to the `@arkade-os/ts-sdk` monorepo, which includes the `boltz-swap` package. Please open all issues and pull requests there."*
+- Confirms the 2026-05-22 ts-sdk monorepo restructure (already documented in `docs/projects/ts-sdk/`): `arkade-os/ts-sdk` is now a pnpm workspace monorepo vendoring `@arkade-os/boltz-swap` at `packages/boltz-swap/` (v0.3.32, depends on `@arkade-os/sdk` via `workspace:*`).
+- The npm package `@arkade-os/boltz-swap@0.3.32` is unchanged on the registry; downstream consumers installing it are unaffected. The standalone repo simply stops receiving new commits / issues / PRs.
+
+### Documentation Files Updated
+- `docs/projects/boltz-swap/INDEX.md` — added prominent `> ⚠️ Repository deprecated 2026-05-25` callout under the title pointing to `arkade-os/ts-sdk`
+- `docs/projects/boltz-swap/system/project_overview.md` — added top-of-file `> ⚠️ REPOSITORY DEPRECATED` warning block; rewrote the "Status & Production Readiness" header (Current Status → "Repository deprecated — development moved to ts-sdk monorepo", Stability note updated); inserted a new "Recent Changes (2026-05-25, repo-level)" entry above the post-0.3.32 quoteSwap guard block
+- `docs/INDEX.md` — inserted `> ⚠️ Repository deprecated 2026-05-25` blockquote under the boltz-swap **Description**; updated the Project Status Summary table row for boltz-swap (Status column now reads `⚠️ Repo Deprecated (2026-05-25, PR #153) — development moved to arkade-os/ts-sdk monorepo (packages/boltz-swap/); npm package @arkade-os/boltz-swap@0.3.32 unchanged`); bumped registry **Last Updated** to 2026-05-26 and **Version** to 1.6.5
+- `docs/projects/boltz-swap/change-log/last-sync.txt` — updated to `0320c8cb`
+
+---
+
 ## 2026-05-22 — Sync (post-0.3.32: quoteSwap guard)
 
 **From**: `57ac89165bfb4680efad6706f1e8783b56f32733` (release 0.3.32)

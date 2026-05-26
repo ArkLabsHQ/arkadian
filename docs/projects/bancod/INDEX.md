@@ -1,8 +1,8 @@
 ---
 project_id: bancod
 version: 1.0.0
-last_sync_commit: c758b9bb8af48c9a3fb476426c894d077c510479
-last_sync_date: 2026-05-19T00:00:00Z
+last_sync_commit: 138bbd5f8f082285726c54f58050ec74d4b05d62
+last_sync_date: 2026-05-26T00:00:00Z
 repository_path: ${BANCOD_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/bancod
 commits_behind_upstream: 0
@@ -33,7 +33,7 @@ scripts:
 
 # Bancod — Project Index
 
-**bancod** is a Go implementation of a banco solver bot for the Arkade virtual mempool. A maker posts a swap offer as a VTXO on an Ark network; the solver bot watches the arkd transaction stream, finds offers matching configured pairs and price ranges, and fulfills them atomically via an introspector-signed Ark transaction. Also supports a stateless preimage-claim plugin.
+**bancod** is a Go implementation of a banco solver bot for the Arkade virtual mempool. A maker posts a swap offer as a VTXO on Arkade; the solver bot watches the arkd transaction stream, finds offers matching configured pairs and price ranges, and fulfills them atomically via an introspector-signed Arkade transaction. Also supports a stateless preimage-claim plugin.
 
 ## Directory Structure
 

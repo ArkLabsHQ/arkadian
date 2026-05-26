@@ -1,5 +1,47 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-26 - Operational Memory Sync (no doc changes)
+**Commit Range**: `46560527..fad6260f` (18 commits, all `memory(*)` agent activity)
+**Previous Sync**: `9234ada866f024d9d9a81635aeb51549441b13f7`
+**Caller-Asserted From**: `465605270a6cbe8024110f81a4c521c2a8e57990` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `fad6260fc16798a708f15c0d22b5c5528b672dc6`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+574/-24), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,research-monitor,sdk-parity,security-triage,slack-monitor}.md`, `executive-digest-queue.json`, `project-context/{research-updates,sdk-parity}.md`, `slack-log.md`)
+- Routine agent activity spanning 2026-05-25 08:17Z → 2026-05-26 04:25Z (~20h): security-triage on 4-hourly slots (08/12/16/20/00Z), release-coordinator on 4-hourly slots (08/12/16/20Z), issue-triage on 4–8h slots (12/22/02Z next-day), and one-per-day runs of daily-briefing, executive-digest, linear-sync, research-monitor, sdk-parity, and slack-monitor for 2026-05-25
+- Notable operational events captured in memory only:
+  - **rust-sdk #228 VHTLC exit MERGED 2026-05-25T08:00Z → GOV#66** (release-coordinator/security-triage 08:00Z); exp path DoS still unfixed
+  - **enclave #118 tofu-init stub triaged** 2026-05-25T12:00Z (issue-triage); rust-sdk #228 GOV#66 noted
+  - **enclave #119 TOFU zero reviews HIGH MERGED → GOV#69** (security-triage/release-coordinator 12:00Z); **9 consecutive self-merges** flagged
+  - **ts-sdk #505 VHTLC M3/M4 fix MERGED 2026-05-25T16:00Z** (security-triage/release-coordinator 16:00Z); go-sdk #186 contract registry tracked; enclave #123 watching; **v0.5.x release gate raised** on ts-sdk
+  - **ts-sdk #515 CRITICAL deferred refund loss** flagged 2026-05-25T20:00Z (security-triage); **ts-sdk #516 mainnet defaults** noted as good governance
+  - **go-sdk #186 CHANGES_REQUESTED corrected** 2026-05-25T20:00Z (release-coordinator); ts-sdk v0.5.x gate active
+  - **enclave #123 Terraform module removal MERGED → GOV#76** 2026-05-26T00:00Z (security-triage); **10 consecutive self-merges** now flagged
+  - **sdk-parity 2026-05-25**: no new SDK commits since 2026-05-24 — ts-sdk v0.4.28, go-sdk v0.9.1 (52 days no release), rust-sdk v0.9.0, dotnet-sdk master 2026-05-19; parity gap table unchanged
+  - **slack-monitor 2026-05-25 daily scan**: unilateral exit with VHTLC ancestor merged (governance unclear); boltz-swap deferred ARK chain refunds lost across restart (money at risk); ts-sdk 0.4.28 + boltz-swap 0.3.33 merged downstream; 14 items merged in window; wallet v2.1.18; enclave TOFU update; batch session SQS funding; 3 VHTLC protocol PRs still open without confirmed sign-off
+  - **executive-digest afternoon flush 2026-05-25**: queue cleared
+  - **daily-briefing 2026-05-25** morning briefing logged
+  - **linear-sync 2026-05-25**: state snapshot
+  - **research-monitor 2026-05-25**: research update logged
+  - **issue-triage runs (12:00/22:33Z 25th, 02:34Z 26th)**: routine triage
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+- Master `docs/INDEX.md` arkana-knowledge entry not modified (no material change to capabilities, tags, dependencies, or relationships)
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: fad6260f…`, `last_sync_date: 2026-05-26T04:25:53Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `fad6260fc16798a708f15c0d22b5c5528b672dc6`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no changes required (capabilities, agent roster, endpoints unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-25 - Operational Memory Sync (no doc changes)
 **Commit Range**: `d2d8ac97..9234ada8` (22 commits, all `memory(*)` agent activity)
 **Previous Sync**: `5b3a24f58634ce212cec8197b69024bb052efda7`

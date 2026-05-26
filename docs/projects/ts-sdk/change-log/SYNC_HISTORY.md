@@ -1,5 +1,54 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-26 - Provider mainnet defaults + URL-config deprecation + DustChangeError + ServiceWorkerWallet.restore()
+**From**: `0fa19be5f59d50435d19806ba182754b3689a80f`
+**To**: `d682eac52d1fc7e92662a859cd69db5bd8bff156`
+**Synced By**: update-project skill
+**Status**: Post-release polish batch on top of the `0.4.28` cut — no version bump (`packages/ts-sdk/package.json` still `0.4.28`, `packages/boltz-swap/package.json` still `0.3.33`). Four user-visible ts-sdk changes: (1) every default provider constructor now defaults its URL to the Ark Labs mainnet endpoint, (2) URL-string fields on `BaseWalletConfig` / `ServiceWorkerWalletOptions` are JSDoc-deprecated in favour of provider instances, (3) `Ramps` partial-offboard throws a typed `DustChangeError` before forwarding the intent so wallet UIs can recover gracefully, (4) `ServiceWorkerWallet.restore()` mirrors `Wallet.restore` with a worker-side scan + explicit `AggregateError` round-trip across postMessage. Several boltz-swap commits are also in this range; they are tracked under `docs/projects/boltz-swap/`.
+
+**Commits analyzed** (17 non-merge commits across both packages):
+
+*ts-sdk — mainnet defaults extended to providers:*
+- `c87bc3da` refactor: move mainnet default constants into networks — extracts `DEFAULT_ARKADE_SERVER_URL`, `DEFAULT_NETWORK`, `DEFAULT_NETWORK_NAME` to `src/networks.ts` so `script/base.ts` and the provider modules can import them without dragging in `wallet/index.ts` (breaks a future cycle once the providers start defaulting).
+- `cdeb6bb8` feat: default address + onchainAddress network to mainnet — `VtxoScript.address(prefix?)` defaults `prefix` to `DEFAULT_NETWORK.hrp`; `VtxoScript.onchainAddress(network?)` defaults to `DEFAULT_NETWORK`.
+- `5d7eded9` feat: default provider URLs to mainnet — `RestArkProvider.constructor(serverUrl = DEFAULT_ARKADE_SERVER_URL)`, `RestIndexerProvider.constructor(serverUrl = DEFAULT_ARKADE_SERVER_URL)`, `ExpoArkProvider`, `ExpoIndexerProvider` same shape. `EsploraProvider.constructor(baseUrl = ESPLORA_URL[DEFAULT_NETWORK_NAME])` defaults to the Ark Labs mempool deployment for bitcoin. `vtxo-manager.ts` example JSDocs rewritten to drop the now-redundant URL args; `DEFAULT_THRESHOLD_SECONDS` rewritten as numeric literal `259_200` (semantically identical).
+
+*ts-sdk — URL string config deprecated:*
+- `919d1fff` chore: deprecate string arguments when creating wallet — `BaseWalletConfig`'s JSDoc rewritten as `@deprecated`; the `ReadonlyWallet.create` / `Wallet.create` / `ExpoWallet.setup` `@example` blocks dropped the URL-based forms. `ReadonlyWallet.create` switched the provider resolution from `config.arkProvider ?? new RestArkProvider(arkadeServerUrl)` to `||` so an explicitly-passed `undefined` (e.g. via TypeScript narrowing) falls through to the default constructor.
+- `779dbb4f` chore: deprecate URL string args in wallet config (refs #466) — adds `@deprecated` JSDoc to `BaseWalletConfig.arkServerUrl` / `indexerUrl` / `esploraUrl` and `ServiceWorkerWalletOptions.arkServerUrl` / `indexerUrl` / `esploraUrl` / `delegatorUrl`. Runtime behaviour unchanged.
+
+*ts-sdk — DustChangeError on partial offboard:*
+- `f6769128` fix(ramps): reject sub-dust change on partial offboard (closes #458) — partial collab exits leaving a change VTXO below the wallet's dust threshold were forwarded to arkd, which rejected the intent and surfaced a raw dust error. `Ramps` now pre-checks the change against the wallet's `dustAmount` (with `FALLBACK_DUST_AMOUNT = 330n` for wallets that don't expose it) and throws a typed `DustChangeError(change, dustAmount)` locally. `DustChangeError` exported from the package root.
+- `c8d97ebb` Extract shared wallet dust amount helper — moves `getDustAmount(wallet): bigint` + `FALLBACK_WALLET_DUST_AMOUNT = 330n` to `src/wallet/utils.ts`; `ramps.ts` and `vtxo-manager.ts` share the helper (was duplicated inline).
+
+*ts-sdk — ServiceWorkerWallet.restore():*
+- `d19ed384` feat(sw): ServiceWorkerWallet.restore() with AggregateError round-trip — adds `ServiceWorkerWallet.restore({ gapLimit })` (signing-only — readonly rejects). New `RequestRestoreWallet` / `ResponseRestoreWallet` types + `RESTORE_WALLET` / `RESTORE_WALLET_SUCCESS` case; the message uses the streaming `sendMessageWithEvents` path and is added to `isLongRunningRequest()` alongside `SETTLE` / `RECOVER_VTXOS` / `RENEW_VTXOS` so the bus deadline never races a multi-minute indexer scan (liveness still covered by PING). `AggregateError` is not structured-clone-portable across browsers, so the worker explicitly serializes it (`SerializedAggregateError` wire envelope: `{ name: 'AggregateError', message, errors: { name; message }[] }`) and the page reconstructs via `deserializeAggregateError` so callers can inspect `.errors`. Helpers + `isSerializedAggregateError` guard live in `wallet-message-handler.ts`.
+
+*boltz-swap (carried in the same range — tracked under `docs/projects/boltz-swap/`):*
+- `4c92e4a8` Iterate all VTXOs in claimVHTLC and refundArk — `claimVHTLC` processes every unspent VTXO at the reverse-swap lockup script (recoverable→joinBatch, non-recoverable→offchain claim); `refundArk` processes every unspent VTXO at the chain-swap lockup, gates path by CLTV, returns `{ swept, skipped }`, propagated through `IArkadeSwaps`, `SwapManagerCallbacks`, Expo + service-worker wrappers. `SwapManager` keeps chain swaps monitored when `refundArk` reports partial outcomes or throws, schedules a 60s retry, finalizes once the local sweep completes. Fix Boltz throttle in `refundVHTLC` / `refundArk` to count attempts so the 2s gap also applies after a `BoltzRefundError`.
+- `a53ad526` claimVHTLC: aggregate per-VTXO errors instead of short-circuit — wrap each VTXO claim attempt in try/catch so an early failure doesn't strand later VTXOs at the lockup; throw a single aggregate after the loop.
+- `ad32ba6f` Address PR review on refundArk loop — re-check CLTV per-iteration; add `removeSwap()` test for refund-retry timer clearing.
+- `a10a2766` swap-manager.test: isolate chain-refund retry suite with a global.fetch stub.
+- `2bc185f9` Fix formatting (boltz-swap).
+- `b9b4e0a3` Guard claimVHTLC retries and refund-retry swaps — `claimVHTLC` retries until an unspent VTXO appears instead of breaking on any result; exclude swaps with a pending refund retry from polling and the not-found path so a 404 can't clear `refundRetryTimers`.
+- `5c36b5a5` test(boltz-swap): drive autopilot wrap via lockupFailed status.
+- `0789d942` fix(boltz-swap): reject non-safe-integer quote amounts.
+- `36937074` fix(boltz-swap): reject slippage that collapses quote floor to 0.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Mainnet Defaults key concept extended to cover provider constructor defaults + `VtxoScript.address`/`onchainAddress` defaults + the `DEFAULT_*` constants' move into `src/networks.ts`. Three new key concepts added: "Wallet Config URL Deprecation" (all URL fields `@deprecated`, provider-based config is the recommended path, refs #466); "Dust Change Guard / DustChangeError" (`Ramps` pre-check + typed error + shared `getDustAmount` helper, closes #458); "ServiceWorkerWallet.restore()" (worker-side scan + long-running message + explicit `AggregateError` round-trip).
+- `docs/projects/ts-sdk/system/project_overview.md` — Mainnet Defaults row in Core Features amended with the provider/`VtxoScript` defaults paragraph. New "URL Config Deprecation" row added. Boarding/Offboarding row gained the DustChangeError + `getDustAmount` + `FALLBACK_WALLET_DUST_AMOUNT` paragraph. Service Worker row gained the `ServiceWorkerWallet.restore({ gapLimit })` paragraph (long-running message + `SerializedAggregateError` envelope + readonly rejection).
+- `docs/projects/ts-sdk/system/architecture.md` — `networks.ts` entry now documents the `DEFAULT_ARKADE_SERVER_URL` / `DEFAULT_NETWORK` / `DEFAULT_NETWORK_NAME` declarations + rationale for the move. `script/base.ts` entry covers the `address(prefix?)` / `onchainAddress(network?)` defaults. `providers/{ark,indexer,onchain,expoArk,expoIndexer}.ts` entries each note the new default-URL constructor arg. `wallet/ramps.ts` entry covers the DustChangeError pre-check; `wallet/utils.ts` entry now hosts `getDustAmount` + `FALLBACK_WALLET_DUST_AMOUNT`. `wallet/serviceWorker/wallet.ts` + `wallet-message-handler.ts` entries document the `restore()` flow, `RESTORE_WALLET` message + long-running marking, and the `SerializedAggregateError` envelope + helpers.
+- `docs/INDEX.md` — ts-sdk Key Capabilities: Mainnet defaults bullet amended with the provider/`VtxoScript` defaults; three new bullets added (URL config deprecation, DustChangeError, ServiceWorkerWallet.restore). Tags add `provider-default-urls`, `url-config-deprecated`, `dust-change-error`, `service-worker-restore`.
+
+**Notes**:
+- **No version cut**: `packages/ts-sdk/package.json` still reads `"0.4.28"`, `packages/boltz-swap/package.json` still `"0.3.33"`. The next published release will carry these changes.
+- **No breaking changes for typical consumers**: provider-default URLs and `VtxoScript` argument defaults are *additive* (existing call sites passing explicit args keep working unchanged). URL-string deprecations are JSDoc-only — runtime still accepts them. `DustChangeError` is a new typed error class thrown from a previously-failing path (callers ignoring it get the same fail behaviour they had before, just with a structured error instead of arkd's raw dust message). `ServiceWorkerWallet.restore()` is a new method (additive).
+- The `||` operator (not `??`) is now used in `ReadonlyWallet.create` to resolve `arkProvider` so an explicitly-`undefined` `arkProvider` field falls through to the constructor's mainnet default — a deliberate tightening over the prior nullish-coalescing form.
+- The boltz-swap changes in this range (`claimVHTLC` aggregate-throw + per-VTXO retry, `refundArk` iterate-all + `{swept,skipped}` outcome + 60s SwapManager retry, quote-amount + slippage validations) substantially expand the public callback shape of `IArkadeSwaps` / `SwapManagerCallbacks` and the Expo / service-worker wrappers around them — full coverage lives under `docs/projects/boltz-swap/`.
+
+---
+
 ## 2026-05-23 - Wallet.restore() gap-scan recovery + Discoverable handlers (0.4.28, #492)
 **From**: `2fc8a3ff5adb14c87cf57586bddcf287ce4bfff6`
 **To**: `0fa19be5f59d50435d19806ba182754b3689a80f`

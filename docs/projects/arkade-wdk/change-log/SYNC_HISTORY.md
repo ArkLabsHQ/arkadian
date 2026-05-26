@@ -1,5 +1,27 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-26 — v0.1.3: terminology refresh (Ark → Arkade) in source comments and README
+**Previous Commit**: `519d9097d3692a23b04d51ed568e653c3832f124`
+**Current Commit**: `f24a17340cdcbfd88c147494c7a6d746e63e8b2a`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (3):
+- `fe9156d` chore: terminology fixes — Ark → Arkade across JSDoc headers (`src/index.js`, `src/types.js`, `src/wallet-manager-arkade.js`, `src/wallet-account-arkade.js`, `src/wallet-account-read-only-arkade.js`, `src/lib/*`), test descriptions (`src/__tests__/bech32m.test.js`, `src/__tests__/phase-0.test.js`), README copy (Ark address → Arkade address, "Ark server" → "Arkade server/operator"), and the `AGENTS.md` reference. Also drops `with Ark protocol support` from `package.json#description` (now: "WDK (Wallet Development Kit) implementation using the Arkade Bitcoin SDK") and switches the README footer link from `ark-protocol.org` → `docs.arkadeos.com`. Wallet-create timeout message now reads "Arkade wallet creation timed out … is the Arkade operator at `${arkServerUrl}` reachable?".
+- `e72c13a` chore: terminology improvements (patches) — same Ark → Arkade rename inside the three submodule patches: `patches/pear-wrk-wdk.patch`, `patches/wdk-react-native-provider.patch`, `patches/wdk-starter-react-native.patch`. No functional change — only string/comment renames inside the patched submodule files.
+- `f24a173` Version v0.1.3 — `package.json#version` bump `0.1.2` → `0.1.3` (and `package-lock.json#version`).
+
+**Changes**:
+- Bumped documented version `0.1.2` → `0.1.3` in `INDEX.md` (Quick Reference), `system/project_overview.md`, `testing/api-reference.md`, and `sop/development-workflow.md` (Release Cadence).
+- Master `docs/INDEX.md`: updated the arkade-wdk Description's parenthetical from `currently 0.1.2` → `currently 0.1.3`.
+
+**Notes**:
+- No public API surface changed — `WalletManagerArkade` / `WalletAccountArkade` / `WalletAccountReadOnlyArkade` signatures and behaviour are identical to `0.1.2`. The only externally visible string change is the wallet-create timeout error message (Ark → Arkade), which is a diagnostic; no consumer should be string-matching on it.
+- Dependency pins are unchanged in this window: `@arkade-os/sdk@0.4.25`, `@arkade-os/boltz-swap@0.3.29`, `@tetherto/wdk-wallet ^1.0.0-beta.5`. The patches were touched only for terminology — submodule pins did not move.
+- Existing local docs still use the term "Ark address" (the protocol-level term used in `getAddress()` JSDoc, account-model tables, send routing). That wording matches the protocol spec and the `@arkade-os/sdk` API (which still exposes Ark-address types), and was intentionally **not** rewritten — the v0.1.3 upstream rename was a marketing/copy refresh, not a protocol rename. If a future commit renames the SDK-level types or the `getAddress()` semantics, those local references should be re-examined then.
+
+---
+
 ## 2026-05-12 — v0.1.2: README reframe (BIP-86 leaves, not roles), release flow uses `--no-git-tag-version`
 **Previous Commit**: `cbd56b57c0f035e3813d31a374288b934bee8db5`
 **Current Commit**: `519d9097d3692a23b04d51ed568e653c3832f124`

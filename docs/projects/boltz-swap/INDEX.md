@@ -23,6 +23,8 @@ scripts:
 
 # Arkade Boltz Swap Library — Project Index
 
+> ⚠️ **Repository deprecated 2026-05-25** ([README PR #153](https://github.com/arkade-os/boltz-swap/pull/153)) — development moved to the [`arkade-os/ts-sdk`](https://github.com/arkade-os/ts-sdk) **pnpm workspace monorepo**, which vendors this package at `packages/boltz-swap/`. **Open all new issues and PRs against `arkade-os/ts-sdk`.** The npm package `@arkade-os/boltz-swap@0.3.32` is unchanged on the registry.
+
 **boltz-swap** is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps (Lightning ↔ Arkade) with automated swap monitoring, comprehensive error handling, and automatic refund capabilities.
 
 ## Directory Structure

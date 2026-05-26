@@ -9,7 +9,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 ## Package
 
 - **npm**: `@arkade-os/wdk`
-- **Version**: `0.1.2`
+- **Version**: `0.1.3`
 - **License**: MIT
 - **Repository**: `ArkLabsHQ/arkade-wdk`
 - **Source**: ships `src/*.js` directly (JavaScript with JSDoc); declaration files emitted into `types/` via `tsc -p tsconfig.json`.

@@ -137,7 +137,9 @@ EC2 Instance (Amazon Linux 2023, Nitro)
 | `enclave setup [--language ...]` | Auto-populate `app.*` Nix hashes from git remote |
 | `enclave update` | Fast update (rev + source hash only, no dep changes) |
 | `enclave upgrade` | Sync the `runtime:` block in `enclave.yaml` (rev / hash / vendor_hash) to the runtime coordinates this CLI binary was built with — idempotent; run after `go install ...@latest`, then `enclave build` |
-| `enclave tofu [--remote]` | Generate OpenTofu deployment scaffold to `./tofu/` |
+| `enclave tofu init [--remote]` | Scaffold the OpenTofu module tree under `./tofu/` (merge-only-new modules) + write `tfvars` and `backend.tf`. In a TTY, prompts to optionally bootstrap the S3 state bucket + DynamoDB lock table from the bundled `modules/backend` submodule; non-TTY skips the prompt. Flags: `--bootstrap-backend` / `--no-bootstrap` / `--backend-bucket` / `--backend-table` / `--backend-region`. |
+| `enclave tofu update [--remote]` | Refresh `tofu/terraform.tfvars.json` from `enclave.yaml`. Module files and `backend.tf` are left untouched; run after editing `tls:`, `route53_zone_id`, runtime version, or the secrets list before `tofu apply`. |
+| `enclave tofu env --key K --value V [--key … --value …]` | Set/merge entries in `tofu/env_values.auto.tfvars.json` without hand-editing JSON. Keys must match `^[A-Z_][A-Z0-9_]*$`; existing entries are preserved (merged + sorted on write). The next `tofu apply` pushes the map to SSM at `/<deployment>/<app>/env/<key>` — the runtime overlays it on the process env at boot via `GetParametersByPath`. |
 | `enclave build` | Reproducible EIF build via Docker + Nix |
 | `enclave deploy` | Deploy CDK stack (VPC, EC2, KMS, IAM, S3, secrets) |
 | `enclave verify` | Verify attestation + PCR0 |

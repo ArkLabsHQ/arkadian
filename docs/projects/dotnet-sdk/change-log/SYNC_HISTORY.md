@@ -1,5 +1,22 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-05-26 - regtest submodule bump (no SDK changes)
+**From**: `a9e990f3e4d2afd52a205c5cb05e7129cc831180`
+**To**: `6a5a027f2e570dc54d4abebe42d60422a34e22b0`
+**Synced By**: update-project skill
+**Status**: No documentation updates needed
+
+**Commits Analysed**: 1 commit (`6a5a027 update regtest`).
+
+**Changes**:
+- `regtest` submodule pointer moved from `eaea8c092fe1fad751d49d86fce25d4216b7cc2d` to `dc23da2ce658ac3483fa191282f71982f2ffe239`. Sole change in the dotnet-sdk repo at this revision.
+
+**Impact on dotnet-sdk docs**: None. No source files, public APIs, NuGet package metadata, DI registrations, configuration knobs, dependencies, or build/test scripts in this repo changed. The `arkade-regtest` shared environment is already documented as an external submodule consumed by E2E; updates to its contents are tracked under the `arkade-regtest` project, not here.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `6a5a027f`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
 ## 2026-05-23 - In-place arkd VTXO-subscription updates + fresh-derive safety-net poll + exclude unconfirmed boarding UTXOs from spendable coins
 **From**: `b55c88689e00c07ab5e96551ca85cf8376078807`
 **To**: `a9e990f3e4d2afd52a205c5cb05e7129cc831180`

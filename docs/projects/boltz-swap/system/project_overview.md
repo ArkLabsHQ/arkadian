@@ -1,5 +1,8 @@
 # Arkade Boltz Swap Library — Project Overview
 
+> ⚠️ **REPOSITORY DEPRECATED (2026-05-25, README PR [#153](https://github.com/arkade-os/boltz-swap/pull/153))**
+> The standalone `arkade-os/boltz-swap` repository is no longer under active development. Development has moved to the [`@arkade-os/ts-sdk`](https://github.com/arkade-os/ts-sdk) **pnpm workspace monorepo**, which now vendors the `@arkade-os/boltz-swap` package at `packages/boltz-swap/` (still published to npm under the same name and version line). **Open all new issues and pull requests against `arkade-os/ts-sdk`.** The npm package remains the published surface — downstream consumers installing `@arkade-os/boltz-swap` are unaffected.
+
 ## What is boltz-swap?
 
 **boltz-swap** (`@arkade-os/boltz-swap`) is a production-ready TypeScript library that integrates Boltz submarine swaps into Arkade wallets, enabling seamless Lightning Network payments. It provides bidirectional swaps between Lightning and Arkade with automated monitoring, comprehensive error handling, and automatic refund capabilities.
@@ -209,10 +212,13 @@ boltz-swap/
 
 ## Status & Production Readiness
 
-**Current Status**: Active Development
-**Production Readiness**: ✓ Beta
+**Current Status**: ⚠️ Repository deprecated — development moved to `arkade-os/ts-sdk` monorepo (`packages/boltz-swap/`). Standalone repo no longer accepts issues/PRs.
+**Production Readiness**: ✓ Beta (package itself still published to npm as `@arkade-os/boltz-swap`)
 **Version**: 0.3.32
-**Stability**: Stable API, active feature development
+**Stability**: Stable API; future development happens in the ts-sdk monorepo
+
+**Recent Changes (2026-05-25, repo-level)**:
+- **README deprecation notice** (PR [#153](https://github.com/arkade-os/boltz-swap/pull/153), commit `18bb9ee`). The repository README now opens with a `[!WARNING]` callout directing all new issues and pull requests to [`@arkade-os/ts-sdk`](https://github.com/arkade-os/ts-sdk). README-only change — no `src/`, test, or `package.json` changes. The npm package `@arkade-os/boltz-swap@0.3.32` is unchanged on the registry; the migrated copy in `arkade-os/ts-sdk` (`packages/boltz-swap/`) is byte-for-byte the same release.
 
 **Recent Improvements (post-0.3.32: quoteSwap guard, unreleased)**:
 - **Guard chain-swap quote acceptance against adversarial Boltz quotes** (commits `3df5311`, `db39c2d`, `0dec8b3`). `ArkadeSwaps.quoteSwap` previously blind-accepted whatever amount Boltz returned via `getChainQuote` — a Boltz instance (or a MITM in front of it) could return a tiny amount that the wallet would then sign off on. The renegotiation path on `transaction.lockupFailed` (both Arkade → BTC and BTC → Arkade autopilot loops) is now floored against the original `response.claimDetails.amount`, with `non_positive` quotes also rejected outright.

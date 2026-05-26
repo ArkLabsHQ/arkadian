@@ -15,7 +15,8 @@ Banco (`@arkade-os/banco`) is a TypeScript library implementing a **non-interact
 - **TLV offer encoding**: Offers serialized as TLV records in Ark Extension packets (type 0x03)
 - **Maker class**: Create offers, query status, cancel offers
 - **Taker class**: Fulfill by hex offer or by funding txid
-- **Introspector integration**: Covenant validation and co-signing via introspector service
+- **Introspector integration**: Covenant validation and co-signing via introspector service (now called **Emulator** in the upstream protocol README; SDK/wire format keep the legacy `introspector` name)
+- **Trust model**: Maker and Taker are trustless; Operator (arkd) and Emulator (introspector) are liveness-only — they can refuse to cosign but cannot redirect or steal funds
 - **Dual module output**: ESM + CJS + TypeScript declarations
 - **npm published**: `@arkade-os/banco` on npm
 

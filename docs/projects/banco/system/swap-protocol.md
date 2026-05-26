@@ -2,21 +2,23 @@
 
 ## TLV Offer Encoding
 
-Offers are serialized as TLV records inside Ark Extension packets (type 0x03).
+Offers are serialized as TLV records (`type:1B | length:2B BE | value`) wrapped in an Arkade Extension packet of type `0x03`.
+
+**Strict parsing**: decoders MUST reject unknown TLV types. The wire format is not forward-compatible — new types defined in future revisions require decoders to be updated before they can process offers containing them.
 
 | Type | Field | Size | Required |
 |------|-------|------|----------|
 | `0x01` | swapPkScript | variable | Yes |
-| `0x02` | wantAmount | 8B BE uint64 | Yes |
-| `0x03` | wantAsset | UTF-8 `txid:vout` | No |
-| `0x04` | cancelDelay | 8B BE uint64 | No |
-| `0x05` | makerPkScript | 34B | Yes |
-| `0x07` | makerPublicKey | 32B x-only | No |
+| `0x02` | wantAmount | 8B BE uint64 (sats or asset units) | Yes |
+| `0x03` | wantAsset | serialized `AssetId` | For asset wants |
+| `0x04` | cancelDelay | 8B BE uint64 (unix timestamp) | No |
+| `0x05` | makerPkScript | 34B (raw scriptPubKey) | Yes |
+| `0x07` | makerPublicKey | 32B x-only | When cancel or exit set |
 | `0x08` | introspectorPubkey | 32B x-only | Yes |
 | `0x09` | ratioNum | 8B BE uint64 | No (partial fill) |
 | `0x0a` | ratioDen | 8B BE uint64 | No (partial fill) |
-| `0x0b` | offerAsset | AssetId bytes | No |
-| `0x0c` | exitTimelock | 1B type + 8B BE uint64 | No |
+| `0x0b` | offerAsset | serialized `AssetId` | For asset offers |
+| `0x0c` | exitTimelock | 1B type (`0`=blocks, `1`=seconds) + 8B BE uint64 | No |
 
 ## Supported Swap Types
 
@@ -52,7 +54,11 @@ Outputs: [0: change VTXO (same swap addr), 1: maker, 2: taker]
 
 ## Introspector Role
 
+> Upstream terminology note: the protocol README now calls this role the **Emulator**. The SDK and wire format keep the legacy `introspector` name (`introspectorPubkey`, `introspectorUrl`, `RestIntrospectorProvider`).
+
 The fulfillment transaction routes through the introspector because:
 1. The fulfill leaf requires the introspector's signature (it's part of the multisig)
 2. The introspector validates the arkade covenant script against the transaction
-3. After validation, it forwards to arkd, merges signatures, and finalizes
+3. After validation, it forwards to arkd (the **Operator**), merges signatures, and finalizes
+
+The Operator and Emulator are liveness-only roles: either can deny service by refusing to cosign, but neither can redirect or steal funds — the covenant binds the spending transaction to pay the maker a specific amount of a specific asset to a specific scriptPubKey.

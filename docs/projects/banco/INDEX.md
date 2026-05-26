@@ -1,8 +1,8 @@
 ---
 project_id: banco
 version: 1.0.0
-last_sync_commit: aab5d0e5f3da17b4f7efecc3c00d3044b51bc360
-last_sync_date: 2026-05-09T12:00:00Z
+last_sync_commit: 86d4c7c3d01c45f52a6b22e103cb525839fd7dda
+last_sync_date: 2026-05-26T00:00:00Z
 repository_path: ${BANCO_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/banco
 commits_behind_upstream: 0

@@ -111,7 +111,7 @@ The supervisor's `:8443/metrics` Prometheus exposition is still the textfile tha
 
 ### PCR0 Signing (Tofu-provisioned, served via `/v1/enclave-info`)
 
-When `enclave tofu` is applied, the module mints a dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`), runs a local-exec at apply time that signs the live PCR0 with `ECDSA_SHA_384` via `aws kms sign`, and writes three SSM parameters under `/{dep}/{app}/Signing/`:
+When `enclave tofu init` has scaffolded the module and `tofu apply` runs, the module mints a dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`), runs a local-exec at apply time that signs the live PCR0 with `ECDSA_SHA_384` via `aws kms sign`, and writes three SSM parameters under `/{dep}/{app}/Signing/`:
 
 | SSM Parameter | Content |
 |---------------|---------|

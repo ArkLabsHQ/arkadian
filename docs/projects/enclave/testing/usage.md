@@ -97,13 +97,14 @@ tls:
                                 # in that zone pointing at the EIP. Requires `fqdn`.
 ```
 
-`app.env` values are baked into the EIF (PCR0-attested schema). Override values at deploy without rebuilding via:
+`app.env` is now strictly **opt-in** for build-time values that must be PCR0-attested (e.g., `BUILD_VARIANT=prod`). The runtime no longer reads `ENCLAVE_APP_ENV_KEYS` — instead it scans `/<deployment>/<app>/env/` in SSM via `GetParametersByPath` on boot and overlays every key it finds onto the process env. Set deploy-time env vars via the CLI rather than hand-editing JSON:
 
-1. `TF_VAR_env_values='{"KEY":"value"}' tofu apply` (env var)
-2. `*.auto.tfvars.json` files committed per environment
-3. `tofu apply -var 'env_values={...}'` (highest precedence)
+```sh
+enclave tofu env --key LOG_LEVEL --value debug --key FEATURE_X --value on
+cd tofu && tofu apply
+```
 
-PCR0 stays identical across env-value overrides — only the schema is attested.
+Each pair lands in `tofu/env_values.auto.tfvars.json` (merged with sorted keys), and the next `tofu apply` pushes them to SSM at `/<deployment>/<app>/env/<key>`. The runtime picks them up at the next boot. PCR0 stays identical across deploy-time env changes — values are not attested, only the SSM IAM grant is the trust boundary.
 
 ## Validate
 
@@ -122,11 +123,15 @@ Outputs `artifacts/image.eif` and `artifacts/pcr.json` (PCR0/1/2).
 ## Deploy
 
 ```sh
-enclave tofu               # or: enclave tofu --remote
-enclave deploy             # CDK: VPC, EC2, KMS, IAM, S3, secrets
-enclave verify             # confirm attestation + PCR0 match
-enclave status             # show stack outputs
+enclave tofu init                       # scaffold ./tofu/, write tfvars + backend.tf
+                                        # or: enclave tofu init --remote
+enclave tofu env --key K --value V ...  # (optional) set deploy-time env vars
+cd tofu && tofu init && tofu apply      # provision the stack
+enclave verify                          # confirm attestation + PCR0 match
+enclave status                          # show stack outputs
 ```
+
+`enclave tofu` is a subcommand group: `init` (initial scaffold + `backend.tf`), `update` (refresh `terraform.tfvars.json` from `enclave.yaml` — modules and backend untouched), and `env` (set/merge entries in `tofu/env_values.auto.tfvars.json` without hand-editing JSON). `enclave tofu init` prompts interactively in a TTY to optionally bootstrap the S3 state bucket + DynamoDB lock table from the bundled `modules/backend` submodule — non-TTY contexts (CI) skip the prompt; `--bootstrap-backend` / `--no-bootstrap` / `--backend-{bucket,table,region}` make the choice explicit.
 
 ## Update Your App
 
@@ -171,15 +176,15 @@ tls:
 Then redeploy — **no EIF rebuild required**:
 
 ```sh
-enclave tofu                     # republish tls.* to SSM /<dep>/<app>/env/ENCLAVE_NITRIDING_*
-enclave deploy
+enclave tofu update              # refresh tfvars (republishes tls.* to SSM /<dep>/<app>/env/ENCLAVE_NITRIDING_* on the next apply)
+cd tofu && tofu apply
 ```
 
 Notes:
 - The challenge is **TLS-ALPN-01** on `:443`, so DNS for `fqdn` must already resolve to the enclave's public address before deploy. Either point `fqdn` at the `elastic_ip` output manually at your DNS provider (Cloudflare, registrar, etc.), or set `tls.route53_zone_id` to your Route53 hosted-zone ID and `enclave tofu` will create the `A` record for you (60 s TTL). The deployer's IAM needs `route53:ChangeResourceRecordSets` on the zone — `deploy-iam-policy.json` already covers this.
 - Issued cert material is sealed under the storage DEK and persisted in S3 under the reserved `acme/` namespace via `acmeStorageCache`, so reboots and locked-key migrations reuse the cert instead of re-issuing (which would quickly exhaust Let's Encrypt's rate limit).
 - Use `letsencrypt-staging` for first-time setup — its untrusted root keeps you out of the production rate-limit window while you iterate.
-- Changing the domain later is a single-step redeploy: edit `tls.fqdn`, then `enclave tofu && enclave deploy`. The next boot will issue a fresh cert for the new FQDN.
+- Changing the domain later is a single-step redeploy: edit `tls.fqdn`, then `enclave tofu update && (cd tofu && tofu apply)`. The next boot will issue a fresh cert for the new FQDN.
 
 ## Lock the KMS Key (irreversible)
 

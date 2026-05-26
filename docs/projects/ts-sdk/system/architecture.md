@@ -37,20 +37,20 @@ devDeps (`tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fa
 ```
 packages/ts-sdk/src/
 ├── index.ts                 # Main exports (~400 lines of re-exports)
-├── networks.ts              # Network definitions (mainnet, testnet, regtest, mutinynet)
+├── networks.ts              # Network definitions (mainnet, testnet, regtest, mutinynet); since 0.4.28 also hosts the source-of-truth defaults `DEFAULT_ARKADE_SERVER_URL = "https://arkade.computer"`, `DEFAULT_NETWORK = networks.bitcoin`, `DEFAULT_NETWORK_NAME = "bitcoin"` (moved here from `src/wallet/index.ts` to keep the import chain `script → networks → provider` cycle-free)
 ├── forfeit.ts               # Forfeit transaction construction
 │
 ├── wallet/                  # Wallet implementations
 │   ├── wallet.ts            # Wallet, ReadonlyWallet, waitForIncomingFunds; per-script persistence in updateDbAfterOffchainTx / updateDbAfterSettle (rows grouped by owning script, routed to each contract's address); fail-fast on undecodable wallet address in getVtxosFromRepo; `extractArkProviderUrl(provider)` structurally reads `serverUrl` off the injected ArkProvider so the indexer is built from the same host as a custom arkProvider (no longer silently paired with the public arkade.computer default). `WalletConfig.walletMode` (auto|static|hd|DescriptorProvider) drives receive-rotation wiring through WalletReceiveRotator. `offchainTapscript` exposed as a getter over a `protected` backing field; the only sanctioned write is `setOffchainTapscriptForRotation` (@internal, on the RotatableWallet surface). `updateDbAfterOffchainTx` / `_sendImpl` / `sendBitcoin` snapshot `offchainTapscript` synchronously at `_txLock` entry so a concurrent `rotate()` cannot stamp the change VTXO with mixed scripts. `signInputsByOwner` removed in favour of the InputSignerRouter; signing entry points hand the router explicit InputSigningJob[] derived from the source VTXO script. `getVtxoManager` caches the manager only AFTER `_receiveRotator.install` resolves (failing install leaves the cache untouched). `dispose` wraps rotator teardown in try/catch and rethrows after manager + super disposal so a rotator failure can't leak the contract watcher. Since 0.4.28 (#492): public `restore({ gapLimit }): Promise<void>` gap-scan recovery; coalesces concurrent callers (later callers join the in-flight promise; their `gapLimit` is silently ignored — `_restoreInFlight` checked BEFORE `gapLimit` validation so a coalescer with an invalid `gapLimit` doesn't throw); `_runRestore` detects HD via `instanceof HDDescriptorProvider` (not duck-typed method names — a non-HD provider exposing `materializeDescriptorAt`/`advanceLastIndexUsed` is correctly excluded) and computes the static-branch descriptor lazily so HD wallets skip the `xOnlyPublicKey()` derivation; `dispose()` awaits `_restoreInFlight?.catch(() => undefined)` before tearing down managers
 │   ├── onchain.ts           # OnchainWallet (on-chain fee payment, anchor bumping)
-│   ├── ramps.ts             # Ramps (onboard/offboard)
+│   ├── ramps.ts             # Ramps (onboard/offboard); since 0.4.28 pre-checks residual change against the wallet's dust threshold and throws typed DustChangeError (closes #458) before forwarding the intent to arkd — wallet layer can catch and offer to exit the full balance. DustChangeError re-exported from src/index.ts
 │   ├── batch.ts             # Batch session (round participation, tree signing)
 │   ├── vtxo-manager.ts      # VtxoManager (renewal, recovery, expiry monitoring); revalidateBeforeSettle pre-flight + maybeRefreshAfterVtxoSpent reactive recovery on VTXO_ALREADY_SPENT (surgical refreshOutpoints, falls back to refreshVtxos when no outpoint metadata)
 │   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party); `delegate` filter uses an `isAnnotated` type guard narrowing `ContractVtxo` to `ContractVtxo & ExtendedVirtualCoin` (checks `tapTree`, `forfeitTapLeafScript`, `intentTapLeafScript`) instead of an unsafe `as ExtendedVirtualCoin` cast
 │   ├── asset-manager.ts     # AssetManager (issue, reissue, burn)
 │   ├── asset.ts             # Asset types and helpers
 │   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support; Math.ceil(feeRate) before BigInt() to tolerate fractional sat/vB
-│   ├── utils.ts             # Wallet utilities
+│   ├── utils.ts             # Wallet utilities; since 0.4.28 hosts shared `getDustAmount(wallet): bigint` (reads `wallet.dustAmount` when present, else falls back to `FALLBACK_WALLET_DUST_AMOUNT = 330n`) — used by ramps.ts (DustChangeError pre-check) and vtxo-manager.ts; previously duplicated inline
 │   ├── hdDescriptorProvider.ts # HDDescriptorProvider — allocator (getNextSigningDescriptor) + ReceiveRotatorFactory (createReceiveRotator delegates to WalletReceiveRotator.defaultBoot); getCurrentSigningDescriptor re-derives last-used index without advancing for stable boot replay. Since 0.4.28 (#492): public `materializeDescriptorAt(index)` materializes a concrete descriptor at an arbitrary HD index (used by `ContractManager.scanContracts` to probe handlers' `discoverAt(descriptor)`) and `advanceLastIndexUsed(index)` monotonically nudges the persisted `lastIndexUsed` forward (never backs off; restore uses it to fast-forward the receive cursor past discovered hits)
 │   ├── walletReceiveRotator.ts # WalletReceiveRotator — owns DescriptorProvider + vtxo_received subscription + rotation chain + boot pubkey lookup (pickActiveReceive) + contract registration on rotate. ReceiveRotatorFactory / ReceiveRotatorBoot / ReceiveRotatorBootOpts interfaces; hasReceiveRotatorFactory duck-typed guard. resolveDescriptorProvider TODO(hd-maturation) keeps 'auto' === 'static' until soak time builds. Exponential backoff (1s → 60s cap) on consecutive rotate() failures. Pluggable Logger interface. NonRangeableDescriptorError typed error replaces the prior wildcard-descriptor string match. Since 0.4.28 (#492): `pickActiveReceive` deterministically tiebreaks on the highest HD index when multiple `metadata.source === 'wallet-receive'` contracts coexist (parses trailing `/N)` from each contract's `metadata.signingDescriptor` via the documented `/\/(\d+)\)\s*$/` regex; restore can create several `wallet-receive` rows ahead of the current cursor, so deterministic tiebreak is load-bearing). `WALLET_RECEIVE_SOURCE = 'wallet-receive'` is now sourced from `src/contracts/metadata.ts` (re-exported from here for backward compatibility — the source-of-truth declaration moved to the dependency-free leaf to break the `contracts → wallet` import cycle that blocked `contracts/handlers/default.ts` from reading it). `deriveDescriptorLeafPubKey` extracted to `identity/descriptor` so the rotator and the new contract-handler `discoverAt` paths share leaf-pubkey derivation
 │   ├── inputSignerRouter.ts # InputSignerRouter — per-input signer dispatch. InputSigningJob { index; lookupScript }. Routes default/delegate contracts with non-baseline owner → DescriptorProvider.signWithDescriptor (uses metadata.signingDescriptor); everything else → Identity; unmatched inputs skipped silently
@@ -61,11 +61,11 @@ packages/ts-sdk/src/
 │   │   ├── background.ts    # /wallet/expo/background subpath — defineExpoBackgroundTask / registerExpoBackgroundTask / unregisterExpoBackgroundTask, DefineBackgroundTaskOptions / PersistedBackgroundConfig; uses static `import * from "expo-task-manager"` / `"expo-background-task"` so Metro sees them in the static dependency graph (lazy require() in the previous shape was invisible to the collector, #486). Only module in the package that imports the two expo-* optional peer deps
 │   │   └── expo-modules.d.ts # Ambient declarations for expo-task-manager + expo-background-task (the subset of APIs background.ts uses) so tsc type-checks without pulling the optional peer packages into the build
 │   └── serviceWorker/       # Service worker wallet
-│       ├── wallet.ts        # ServiceWorkerWallet, ServiceWorkerReadonlyWallet
+│       ├── wallet.ts        # ServiceWorkerWallet, ServiceWorkerReadonlyWallet. Since 0.4.28: `ServiceWorkerWallet.restore({ gapLimit })` mirror of `Wallet.restore` — sends `RESTORE_WALLET` message via `sendMessageWithEvents` (streaming/long-running path so the bus deadline does not race the worker-side scan); detects `SerializedAggregateError` in the rejection payload and reconstructs via `deserializeAggregateError` so callers can inspect `.errors`. URL deprecations: `ServiceWorkerWalletOptions.arkServerUrl` / `indexerUrl` / `esploraUrl` / `delegatorUrl` all `@deprecated` — pass provider instances instead
 │       ├── worker.ts        # Worker (runs in service worker context)
 │       ├── request.ts       # Request serialization
 │       ├── response.ts      # Response serialization
-│       ├── wallet-message-handler.ts # Service-worker proxy handlers (incl. REFRESH_OUTPOINTS message for surgical VTXO_ALREADY_SPENT recovery)
+│       ├── wallet-message-handler.ts # Service-worker proxy handlers (incl. REFRESH_OUTPOINTS message for surgical VTXO_ALREADY_SPENT recovery). Since 0.4.28: `RequestRestoreWallet` / `ResponseRestoreWallet` types + `RESTORE_WALLET` / `RESTORE_WALLET_SUCCESS` case, added to `isLongRunningRequest()` so the bus deadline never enforces inactivity timeout on the multi-minute scan. `SerializedAggregateError` wire envelope (`{ name: 'AggregateError', message, errors: { name; message }[] }`) + `serializeAggregateError` (worker → wire) + `deserializeAggregateError` + `isSerializedAggregateError` guard (page-side reconstruction); the worker's `restore` handler catches `instanceof AggregateError`, serializes it, and posts as the rejection payload
 │       └── utils.ts         # Service worker registration helpers
 │
 ├── identity/                # Key management
@@ -79,19 +79,19 @@ packages/ts-sdk/src/
 │   └── serialize.ts         # Identity serialize/hydrate (envelope.descriptor stores wildcard template)
 │
 ├── providers/               # External service communication
-│   ├── ark.ts               # RestArkProvider (arkd REST + SSE)
-│   ├── indexer.ts           # RestIndexerProvider (indexer REST + streaming)
-│   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments)
+│   ├── ark.ts               # RestArkProvider (arkd REST + SSE); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL` (imported from `../networks`) — `new RestArkProvider()` resolves to mainnet without explicit arg
+│   ├── indexer.ts           # RestIndexerProvider (indexer REST + streaming); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
+│   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments); since 0.4.28 `baseUrl` parameter defaults to `ESPLORA_URL[DEFAULT_NETWORK_NAME]` (bitcoin entry of the default map)
 │   ├── electrum.ts          # ElectrumOnchainProvider (WebSocket Electrum) + ELECTRUM_WS_URL / ELECTRUM_TCP_HOST defaults
 │   ├── delegator.ts         # RestDelegatorProvider (delegator REST)
-│   ├── expoArk.ts           # ExpoArkProvider (React Native SSE)
-│   ├── expoIndexer.ts       # ExpoIndexerProvider (React Native streaming)
+│   ├── expoArk.ts           # ExpoArkProvider (React Native SSE); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
+│   ├── expoIndexer.ts       # ExpoIndexerProvider (React Native streaming); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
 │   ├── expoUtils.ts         # Expo streaming utilities
 │   ├── errors.ts            # ArkError, error handling
 │   └── utils.ts             # Provider utilities
 │
 ├── script/                  # Bitcoin script construction
-│   ├── base.ts              # VtxoScript, TapLeafScript, TapTreeCoder, getSequence; VtxoScript.exitPaths now compares isScriptValid === true (prior truthy check routed ConditionCSV leaves to CSV's decode)
+│   ├── base.ts              # VtxoScript, TapLeafScript, TapTreeCoder, getSequence; VtxoScript.exitPaths now compares isScriptValid === true (prior truthy check routed ConditionCSV leaves to CSV's decode). Since 0.4.28: `VtxoScript.address(prefix?)` defaults `prefix` to `DEFAULT_NETWORK.hrp` and `VtxoScript.onchainAddress(network?)` defaults `network` to `DEFAULT_NETWORK` (both imported from `../networks`)
 │   ├── address.ts           # ArkAddress encoding/decoding
 │   ├── default.ts           # DefaultVtxo script
 │   ├── delegate.ts          # Delegation script

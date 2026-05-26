@@ -63,3 +63,18 @@
 - `logql_query` annotation updated to include the same regexp so the linked Grafana Explore query reproduces the label extraction
 
 **No doc-file updates needed**: alert was not previously documented in `system/alert-rules.md`; only sync tracking is updated.
+
+---
+
+## 2026-05-26 - Ark Go Metrics dashboard: stable uid
+**From**: `52a8856524cbb27139b04d9db134a800abc16eac`
+**To**: `fc63ce96e470215d94e7e119877701cc5fe9ea46`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `fc63ce9` Add uid to Ark application metrics dashboard
+
+**Dashboard changes**:
+- `dashboards/Ark_Go_metrics.json`: set top-level `uid` to `ark-application-metrics` (previously empty). Gives Grafana a stable identifier so the dashboard keeps the same URL/permalinks across provisioning reloads and can be deep-linked from alerts/annotations.
+
+**No doc-file updates needed**: cosmetic provisioning-metadata change; panels, queries, and behavior are unchanged. `system/dashboards.md` describes panels (not Grafana uids), so no edit required. Only sync tracking is updated.

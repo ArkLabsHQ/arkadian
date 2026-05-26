@@ -1,5 +1,37 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-26 - Documentation Sync
+**Commit**: `81a29b0b87ae4e94d123164a0981d5f6435f1747`
+**Previous Sync**: `9848c02c3ea72d8a004c703ea9d7577bbd946bf4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `81a29b0b` Upgrade ts-sdk 0.4.28 - boltz-swap 0.3.33 (#631)
+
+**Dependency Updates** (PR #631, commit 81a29b0b):
+- `@arkade-os/sdk`: 0.4.27 → 0.4.28
+- `@arkade-os/boltz-swap`: 0.3.32 → 0.3.33
+- `pnpm-lock.yaml` regenerated.
+
+**Features Added / Modified / Removed**: None — package.json dependency-version bumps only.
+**Configuration Changes**: None
+**Breaking Changes**: None
+
+**Files Touched in Repo** (2 files):
+- `package.json`
+- `pnpm-lock.yaml`
+
+**Files Updated**:
+- `docs/INDEX.md` (wallet Key Capabilities + Dependencies: sdk 0.4.27 → 0.4.28, boltz-swap 0.3.32 → 0.3.33)
+- `docs/projects/wallet/INDEX.md` (frontmatter `version` 1.2.11 → 1.2.12 + `last_sync_commit`; Arkade Integration sdk/boltz-swap versions)
+- `docs/projects/wallet/system/project_overview.md` (sdk/boltz-swap versions in Technology Stack + Dependencies footer)
+- `docs/projects/wallet/system/tech-stack.md` (`@arkade-os/sdk` heading 0.4.27 → 0.4.28; `@arkade-os/boltz-swap` heading 0.3.32 → 0.3.33)
+- `docs/projects/wallet/change-log/last-sync.txt` → `81a29b0b87ae4e94d123164a0981d5f6435f1747`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+---
+
 ## 2026-05-21 - Documentation Sync
 **Commit**: `9848c02c3ea72d8a004c703ea9d7577bbd946bf4`
 **Previous Sync**: `447f01866732aca287f791caad60791cc8244739`
