@@ -1,5 +1,35 @@
 # Arkade Explorer -- Sync History
 
+## 2026-05-27 -- Incremental Documentation Sync
+**Commit**: `50b81819687e4287c468ee020a2eff6bbb8c3095`
+**Previous Sync**: `453b0b152469a1929b2b359c478040864b6cc453`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+- `50b8181` fix: pin pnpm to 10.29.2 and allowlist esbuild to fix Docker build (#27)
+- `5898ea5` fix: prevent tx page crash when packet has extension but no asset (#26)
+- `31bae69` chore: terminology improvements (#25)
+
+**Changes**:
+- **PR #27 (Docker build fix)**: `Dockerfile` now pins pnpm to `10.29.2` (was `corepack prepare pnpm@latest`); pnpm 11.x treats unbuilt dependency scripts as a hard install error and broke `pnpm install --frozen-lockfile` with `[ERR_PNPM_IGNORED_BUILDS] esbuild@0.25.12`. `esbuild` added to `onlyBuiltDependencies` in `pnpm-workspace.yaml` so its postinstall runs under pnpm 10.x. App code unchanged.
+- **PR #26 (tx page crash fix)**: `PacketSection` only early-returned when both `hasAssetGroups` was false and `extensions` was empty. A packet with an extension (e.g. HTLC/CLTV) but no type-0 asset packet yields `assetPacket === null` with non-empty `extensions`, so the guard fell through to `assetPacket.groups.map(...)` and threw `TypeError: Cannot read properties of null (reading 'groups')`, blanking the tx page. The groups render is now guarded by `hasAssetGroups` so extension-only packets still show their extension badges. (`src/components/shared/transaction-detail.tsx`)
+- **PR #25 (terminology)**: "Ark protocol" → "Arkade protocol" (README); "Ark indexer" → "Arkade indexer" (README); `VITE_ARK_URL` description "Ark server URL" → "Arkade operator URL" (README); OG image footer "Ark Protocol Explorer" → "Arkade Explorer" (`functions/_middleware.js`); commitment-tx browser title "Round X..." → "Commitment transaction X..." (`src/pages/commitment-tx.tsx`); activity-stream comment "round/batch events" → "batch events".
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md (frontmatter: last_sync_commit + version 1.1.1)
+- docs/projects/arkade-explorer/system/project_overview.md ("Arkade protocol" terminology; extension-only Packet note)
+- docs/projects/arkade-explorer/system/integration-with-arkd.md ("Arkade protocol" terminology)
+- docs/projects/arkade-explorer/testing/how_to_run.md (Docker pnpm pin + esbuild note)
+- docs/projects/arkade-explorer/sop/development-workflow.md (Docker pnpm pin rationale)
+- docs/projects/arkade-explorer/testing/troubleshooting.md (ERR_PNPM_IGNORED_BUILDS Docker build entry + error table row)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
+**Note**: Master `docs/INDEX.md` arkade-explorer entry already reflected current terminology and capabilities; no change required.
+
+---
+
 ## 2026-05-02 -- Incremental Documentation Sync
 **Commit**: `453b0b152469a1929b2b359c478040864b6cc453`
 **Previous Sync**: `070ce396acde683e39021ca6f403db4412847ea3`

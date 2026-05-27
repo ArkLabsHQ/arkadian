@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.5.0
-last_sync_commit: 6ec1a7a474f3a98e843224b7b2de604d923426ef
-last_sync_date: 2026-05-16T00:00:00Z
+version: 1.5.1
+last_sync_commit: 6bcd75dfdba0dc3158a91ee0ba4e24bdb5307b54
+last_sync_date: 2026-05-27T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -232,13 +232,14 @@ make clean-local-state ENV=prod
 ### Ingress & Routing
 - **cloudflared** — Cloudflare Tunnel for secure ingress (legacy path; still used on prod)
 - **traefik** (443, 8080*) — Reverse proxy + SSL termination
-- **Shared ALB → arkd** (staging, since 2026-05) — `modules/ark/arkd.tf` adds three target groups on port 7070 fronted by the same ALB that hosts Grafana:
+- **Shared ALB → arkd** (staging + prod, since 2026-05) — `modules/ark/arkd.tf` adds three target groups on port 7070 fronted by the same ALB that hosts Grafana:
   - **arkdg-*** (`HTTP/GRPC`, health `/grpc.health.v1.Health/Check` matcher `0`) — listener rule priority 10, host header in `arkd_hosts`, `content-type: application/grpc*`
   - **arkds-*** (`HTTP1` if `arkd_http1_support=true` else `HTTP2`, health `/v1/info`) — listener rule priority 15, host header + path in `arkd_sse_streaming_endpoint_paths` (`/v1/batch/events`, `/v1/txs`, `/v1/indexer/script/subscription/*`)
   - **arkdr-*** — REST catch-all on the same host
   - ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge)
   - Access + connection logs to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30 days, staging 7)
   - Spot-check: `scripts/alb-spot-check.sh <host>` exercises gRPC, REST `/v1/info`, and SSE streams over HTTP/1.1 and HTTP/2
+  - **Endpoints** — staging: `staging.arkade.sh` / `staging-cf.arkade.sh`, Grafana `telemetry.staging.arkade.sh`. Prod (live since 2026-05-26, `apps/ark/prod/`): `prod.arkade.sh` / `prod-cf.arkade.sh`, Grafana `telemetry.prod.arkade.sh`; app instance `i-0f3d436aad5dbf55e`, `alb_log_retention_days = 30`, ACM cert SANs `*.prod.arkade.sh` + `prod-cf.arkade.sh`
 
 ### Data Stores
 - **PostgreSQL** (RDS) — projection, event, nbxplorer databases

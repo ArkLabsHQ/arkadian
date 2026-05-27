@@ -4,7 +4,7 @@
 
 Arkade Explorer is a modern blockchain explorer for the Arkade Protocol, providing a web-based interface to browse and search commitment transactions, Arkade transactions, asset details, and VTXO (Virtual Transaction Output) addresses. Built with React 18 and TypeScript, it features a distinctive retro Space Invaders-inspired visual theme with light/dark mode support.
 
-The explorer connects to the Arkade Indexer API (default: `https://indexer.arkadeos.com`) to fetch real-time data about the Ark protocol state.
+The explorer connects to the Arkade Indexer API (default: `https://indexer.arkadeos.com`) to fetch real-time data about the Arkade protocol state.
 
 ## Core Features
 
@@ -35,7 +35,7 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 ### 3. Asset Explorer (`/asset/:assetId`)
 - View asset details by asset ID
 - Asset amount display with custom formatting via `AssetAmountDisplay` (ticker + icon) — used in tx outputs, inputs, and packet section instead of raw "X units · assetId"
-- Asset badges for visual identification, including extension-type badges ("Asset", "Extension #N") on the Packet card and per-output "Asset" badges
+- Asset badges for visual identification, including extension-type badges ("Asset", "Extension #N") on the Packet card and per-output "Asset" badges; the Packet section also renders correctly for extension-only packets (e.g. HTLC/CLTV) that carry no type-0 asset packet
 - Asset amounts shown inline in VTXO table/dense rows (not only when expanded)
 - Verified asset icon system with user approval flow
 

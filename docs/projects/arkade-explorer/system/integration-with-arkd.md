@@ -2,7 +2,7 @@
 
 ## Overview
 
-Arkade Explorer integrates with the Ark protocol ecosystem through the **Arkade Indexer API**, a REST service that provides indexed access to commitment transactions, VTXOs, and asset data managed by arkd. The explorer does not connect to arkd directly; it consumes pre-indexed data from the indexer.
+Arkade Explorer integrates with the Arkade protocol ecosystem through the **Arkade Indexer API**, a REST service that provides indexed access to commitment transactions, VTXOs, and asset data managed by arkd. The explorer does not connect to arkd directly; it consumes pre-indexed data from the indexer.
 
 ## Integration Architecture
 
@@ -16,7 +16,7 @@ Arkade Explorer integrates with the Ark protocol ecosystem through the **Arkade 
          v
 +-------------------+         +-------------------+
 |  Arkade Indexer   | <------ |  arkd Server      |
-|  API              |  index  |  (Ark Protocol)   |
+|  API              |  index  |  (Arkade Protocol)|
 +-------------------+         +-------------------+
 ```
 
@@ -59,7 +59,7 @@ Retrieves asset details by asset ID. Used by AssetPage via the `useAssetDetails`
 
 ## Integration with Arkade Assets
 
-The explorer displays Arkade Assets (fungible/non-fungible tokens on the Ark protocol):
+The explorer displays Arkade Assets (fungible/non-fungible tokens on the Arkade protocol):
 
 1. **Asset Page** (`/asset/:assetId`): Displays asset details fetched from the indexer
 2. **AssetAmountDisplay**: Formats asset amounts with proper denomination

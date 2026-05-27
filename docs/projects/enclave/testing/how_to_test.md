@@ -83,6 +83,8 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 | 34 | `pcr0_signature` is present on `/v1/enclave-info` (Tofu provisioned the signing block) and carries non-empty `pubkey_pem` / `pcr0_hex` / `signature_b64` |
 | 35 | ECDSA-P384 PCR0 signature verifies via `openssl pkeyutl -verify` against the embedded public key + raw PCR0 bytes |
 
+**Upstream-app crash resilience** (`run.sh` step `[5.5/9]`, issue #122) runs between the integration tests and the migration flow. It `POST`s `/test/crash` on the test app (which exits the process ~100 ms after responding), waits for the runtime to observe the child exit, then asserts the runtime survived: `/health` still returns `200`, `/v1/enclave-info` reports `upstream_app.exited == true`, and a route proxied to the now-dead app returns `502`. The app stays dead until the migration step replaces the EIF, so the intervening cooldown step only touches `/v1/*` runtime endpoints.
+
 **Migration verification** then runs a full locked-key migration and confirms:
 
 - Secrets decrypted from the new KMS key
@@ -152,7 +154,7 @@ The `lint-vet.yml` GitHub Actions workflow runs the same.
 ## Other Test Files
 
 - `cli/build_test.go`, `cli/cli_test.go`, `cli/config_test.go`, `cli/setup_test.go`, `cli/template_test.go` — CLI-level Go unit tests.
-- `runtime/acme_cache_test.go`, `runtime/acme_directory_test.go`, `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/tls_test.go`, `runtime/tracing_test.go` — runtime unit tests (the `acme_*` / `tls_test.go` set was added with the v0.0.78 deploy-time ACME support — they cover the storage-backed cert cache, the custom directory client + `Location`-header `RoundTripper`, and `certForHello`'s nameless-ClientHello fallback).
+- `runtime/acme_cache_test.go`, `runtime/acme_directory_test.go`, `runtime/environment_test.go`, `runtime/log_test.go`, `runtime/metrics_test.go`, `runtime/migrate_test.go`, `runtime/policy_builder_test.go`, `runtime/runtime_test.go`, `runtime/tls_test.go`, `runtime/tracing_test.go` — runtime unit tests (the `acme_*` / `tls_test.go` set was added with the v0.0.78 deploy-time ACME support — they cover the storage-backed cert cache, the custom directory client + `Location`-header `RoundTripper`, and `certForHello`'s nameless-ClientHello fallback; `runtime_test.go` gained the upstream-app exit-latch tests — `MarkUpstreamExited` / `UpstreamExited` and the `upstream_app` field on `/v1/enclave-info` — with issue #122).
 - `supervisor/gvproxy_test.go` — supervisor unit tests.
 - `client/verify_test.go` — client attestation verification tests.
 

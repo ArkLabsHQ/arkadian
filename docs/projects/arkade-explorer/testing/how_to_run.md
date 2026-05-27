@@ -86,7 +86,7 @@ docker build -t arkade-explorer .
 docker run -p 8080:80 arkade-explorer
 ```
 
-The Dockerfile uses a multi-stage build: Node 22 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html).
+The Dockerfile uses a multi-stage build: Node 22 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html). pnpm is pinned to `10.29.2` (via `corepack prepare pnpm@10.29.2`) to match the committed `pnpm-lock.yaml`; `esbuild` is listed under `onlyBuiltDependencies` in `pnpm-workspace.yaml` so its postinstall runs.
 
 The published GHCR image (`ghcr.io/arklabshq/arkade-explorer:latest`) is multi-arch (`linux/amd64` and `linux/arm64`); `docker run` will pull the variant matching your host automatically.
 

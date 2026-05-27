@@ -36,9 +36,18 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Supervisor health (`ready` / `degraded`) |
-| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `metrics`, and — when the Tofu module's PCR0-signing block was applied — a `pcr0_signature: { pubkey_pem, pcr0_hex, signature_b64 }` sub-object (`omitempty`; absent on deployments where signing isn't provisioned). |
+| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `metrics`, an `upstream_app: { exited, error }` object reporting whether the user app process has exited (see below), and — when the Tofu module's PCR0-signing block was applied — a `pcr0_signature: { pubkey_pem, pcr0_hex, signature_b64 }` sub-object (`omitempty`; absent on deployments where signing isn't provisioned). |
 | `GET` | `/enclave/attestation` | NSM attestation document (served by nitriding, COSE Sign1) |
-| `*` | `/*` | All other requests reverse-proxied to user app on `:7074` |
+| `*` | `/*` | All other requests reverse-proxied to user app on `:7074`. After the user app has exited, these return **502** via the reverse proxy's `ErrorHandler` while `/v1/*` and `/enclave/*` runtime routes keep responding. |
+
+#### `upstream_app` — user-app exit state (issue #122)
+
+`upstream_app` always present. The runtime stays alive when the user app process exits (so admin endpoints like `/v1/start-migration` remain reachable through a migration); this object reports the app's state.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `exited` | bool | `true` once the user app process has exited (crash or clean shutdown), `false` while it is running |
+| `error` | string | exit error message (`omitempty`; empty on a clean exit or while still running — check `exited` first) |
 
 While Init is still running the runtime returns HTTP 503 with body `{version, previous_pcr0, initializing: true}` regardless of the underlying cause.
 

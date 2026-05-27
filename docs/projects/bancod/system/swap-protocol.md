@@ -28,7 +28,7 @@ Offer {
 
 ## Taker (Solver) Flow
 
-1. Bot subscribes to arkd tx stream via `banco.SubscribeArkd()`
+1. The solver runtime subscribes the banco plugin to the arkd tx stream via `arkdsource.Source.Subscribe(ctx, plugin.Filter())` — one upstream stream per plugin; the plugin's CEL filter is plumbed for forward-compatible server-side filtering (not yet active)
 2. For each PSBT packet, `banco.Plugin.Match()`:
    - Decodes offer from TLV extension
    - Looks up matching pair in PairRepository
@@ -49,3 +49,7 @@ Pairs are configured via the gRPC/REST API:
 - Price feed URL (CoinGecko format)
 - Invert flag for inverse price calculation
 - Stored in SQLite via PairRepository
+
+## Reference
+
+- In-repo working-draft spec: `wiki/Banco-Swap-Protocol.md` (Banco Swap Protocol V1)

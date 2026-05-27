@@ -61,7 +61,7 @@ Analysis and summaries of pull requests.
 | Module | `github.com/ArkLabsHQ/introspector-enclave` |
 | Repository | `${ENCLAVE_REPO}` |
 | GitHub | `ArkLabsHQ/enclave` |
-| Latest Release | `v0.0.78` (see `cli/runtime-hashes.json`) |
+| Latest Release | `v0.0.79` (see `cli/runtime-hashes.json`) |
 | Components | `cli/`, `runtime/` (+ `runtime/nitriding/` leaf utils), `supervisor/`, `client/`, `client-rs/`, `awsmocks/`, `runner/` |
 | Default Ports | `:443` (TLS edge, `runtime.Runtime` `pubSrv`, ALPN `h2`/`http/1.1`), `127.0.0.1:8080` (internal loopback admin/attestation mux, `privSrv` — was `:7073` pre-v0.0.76), `:7074` (user app, h2c-capable), `127.0.0.1:8443` (host supervisor management API; reached over SSM Session Manager port-forwarding by `log` / `trace` / `metrics`) |
 | Upstream Protocol | `ENCLAVE_NITRIDING_UPSTREAM` selects the `revProxy → user app` HTTP version: `auto` (default — match inbound per request via `protocolSwitchTransport`), `h2c` (pin HTTP/2 cleartext, required for gRPC), or `h1` (pin HTTP/1.1). |
@@ -113,7 +113,7 @@ EC2 Instance (Amazon Linux 2023, Nitro)
  └── Nitro Enclave (EIF) — single runtime.Runtime process (nitriding.Enclave folded in @ v0.0.76)
      ├── pubSrv (TLS :443, ALPN h2 / http/1.1)
      │   ├── /enclave/* attestation handlers
-     │   ├── /v1/enclave-info — incl. pcr0_signature (Tofu-provisioned, omitempty)
+     │   ├── /v1/enclave-info — incl. pcr0_signature (Tofu-provisioned, omitempty) + upstream_app {exited,error}
      │   ├── /v1/* admin handlers (storage, secrets, migration)
      │   ├── /v1/{metrics,traces,logs} OTLP-spec ingest (POST) + /v1/enclave-{metrics,traces,logs} JSON snapshots (GET)
      │   ├── Schnorr response signing (BIP-340) — bypassed for application/grpc* + application/grpc-web*

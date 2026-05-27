@@ -37,3 +37,8 @@ Currently v1 only supports the `enforcePayTo` shape:
 `preimage.CreateClaim` builds the address + TLV packet from local primitives:
 - Takes preimage, receiver address, solver pubkey
 - Returns funding address and extension packet
+
+## Reference
+
+- In-repo working-draft spec: `wiki/Preimage-Claim-Protocol.md` (Preimage Claim Protocol V1)
+- Plugin internals: `pkg/preimage/README.md` (Match → Decode → Solve walkthrough)

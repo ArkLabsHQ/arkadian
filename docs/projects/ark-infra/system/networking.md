@@ -37,7 +37,7 @@ Ark infrastructure uses a multi-layered networking approach:
 
 **Ingress (cloudflared path, prod)**: Internet → Cloudflare → cloudflared → traefik → arkd
 
-**Ingress (ALB path, staging+ since 2026-05)**: Internet (or Cloudflare proxy for `staging-cf.*`) → shared ALB → arkd target groups (`arkdg-*` gRPC, `arkds-*` SSE, `arkdr-*` REST) on port 7070. ALB idle timeout 180s (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge). ALB access + connection logs ship to `ark-logs-${env}-${account_id}` S3 bucket.
+**Ingress (ALB path, staging + prod since 2026-05)**: Internet (or Cloudflare proxy for `staging-cf.*` / `prod-cf.*`) → shared ALB → arkd target groups (`arkdg-*` gRPC, `arkds-*` SSE, `arkdr-*` REST) on port 7070. Direct A-record hosts `staging.arkade.sh` / `prod.arkade.sh` alias to the ALB (Route53 zones in `aws/dev-438465126741/route53.tf` and `aws/prod-982590065524/route53.tf`). ALB idle timeout 180s (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge). ALB access + connection logs ship to `ark-logs-${env}-${account_id}` S3 bucket.
 
 **Egress**: 
 - AWS services → VPC endpoints (private, no NAT)

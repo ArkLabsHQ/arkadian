@@ -1,5 +1,24 @@
 # Bancod — Sync History
 
+## 2026-05-27 — solver `Source` abstraction + per-plugin CEL filter, wiki specs, dashboard
+- **Range**: 138bbd5f8f082285726c54f58050ec74d4b05d62..5ce9637acc4898127fa2aebb1fb62f540998176f
+- **Commits analyzed**: 3 (`c752a8b add filter to Plugin interface`, `24b3d73 spec wiki`, `5ce9637 fix dashboard`)
+- **Source changes**:
+  - `pkg/solver/solver.go`: `Plugin` gains `Filter() string` (server-side CEL expression; empty = full stream). New `Source` interface `Subscribe(ctx, filter) (<-chan *psbt.Packet, error)`. `Solver.Run` now takes a `Source` instead of a raw channel — it subscribes each plugin with its own filter, consumes each stream in its own goroutine (new `consume` helper), and skips (logs) a plugin whose `Subscribe` fails while the rest continue.
+  - `pkg/solver/builder/builder.go`: added `WithFilter(cel)`; the built `plugin[T]` now implements `Filter()`.
+  - `pkg/solver/arkdsource/arkdsource.go`: refactored from a `Subscribe(...)` function into a `Source` struct with `New(client.Client, log)` constructor and a `Subscribe(ctx, filter)` method (opens a fresh upstream stream per call). Now imports `arkd/pkg/client-lib/client` directly instead of `go-sdk` (`arksdk.Wallet`). The `filter` arg is accepted for forward compatibility — arkd's CEL filtering is not yet wired through, so subscriptions remain unfiltered.
+  - `internal/core/application/{swap_service,preimage_service}.go`: updated to build a `Source` via `arkdsource.New(client.Client(), log)` and pass it to `Solver.Run`.
+  - `pkg/preimage/README.md` (new): plugin internals walkthrough (Match → Decode → Solve).
+  - `wiki/Banco-Swap-Protocol.md`, `wiki/Preimage-Claim-Protocol.md` (new): V1 working-draft protocol specs.
+  - `internal/interface/web/static/{app.js,index.html,styles.css,favicon.svg}`: dashboard UI fix/refresh (cosmetic; no behavioral/API impact).
+- **Doc updates**:
+  - `docs/projects/bancod/INDEX.md`: bumped `last_sync_commit`/`last_sync_date`.
+  - `docs/projects/bancod/system/architecture.md`: Data Flow rewritten for the `Source`-based per-plugin subscription model and `Subscribe`-error isolation; Key Interfaces add `Plugin.Filter()`, `solver.Source`/`arkdsource.Source`, and `Builder.WithFilter`; Package Structure lists `pkg/solver/builder` and `pkg/solver/arkdsource`.
+  - `docs/projects/bancod/system/project_overview.md`: Plugin Architecture feature notes `Filter` + per-plugin `Source` stream and the forward-compatible CEL filter.
+  - `docs/projects/bancod/system/swap-protocol.md`: taker step 1 updated to `arkdsource.Source.Subscribe`; added Reference to `wiki/Banco-Swap-Protocol.md`.
+  - `docs/projects/bancod/system/preimage-protocol.md`: added Reference to `wiki/Preimage-Claim-Protocol.md` and `pkg/preimage/README.md`.
+  - Master `docs/INDEX.md`: solver-runtime capability now reads `Filter+Match+Solve` with per-plugin `Source`/CEL note; added `cel` tag.
+
 ## 2026-05-09 — Initial sync
 - **Commit**: c3088a46bf36cb23760a6b3eec99cb2485348563
 - **Action**: Project added to Arkadian documentation registry

@@ -46,8 +46,8 @@ packages/ts-sdk/src/
 │   ├── ramps.ts             # Ramps (onboard/offboard); since 0.4.28 pre-checks residual change against the wallet's dust threshold and throws typed DustChangeError (closes #458) before forwarding the intent to arkd — wallet layer can catch and offer to exit the full balance. DustChangeError re-exported from src/index.ts
 │   ├── batch.ts             # Batch session (round participation, tree signing)
 │   ├── vtxo-manager.ts      # VtxoManager (renewal, recovery, expiry monitoring); revalidateBeforeSettle pre-flight + maybeRefreshAfterVtxoSpent reactive recovery on VTXO_ALREADY_SPENT (surgical refreshOutpoints, falls back to refreshVtxos when no outpoint metadata)
-│   ├── delegator.ts         # DelegatorManager (VTXO delegation to third-party); `delegate` filter uses an `isAnnotated` type guard narrowing `ContractVtxo` to `ContractVtxo & ExtendedVirtualCoin` (checks `tapTree`, `forfeitTapLeafScript`, `intentTapLeafScript`) instead of an unsafe `as ExtendedVirtualCoin` cast
-│   ├── asset-manager.ts     # AssetManager (issue, reissue, burn)
+│   ├── delegate.ts          # DelegateManager (VTXO delegation to third-party; renamed from delegator.ts in 0.4.29 / #519 — `DelegateManagerImpl` / `IDelegateManager`, `DelegatorManagerImpl` / `IDelegatorManager` kept as `@deprecated` aliases). `delegate` filter uses an `isAnnotated` type guard narrowing `ContractVtxo` to `ContractVtxo & ExtendedVirtualCoin` (checks `tapTree`, `forfeitTapLeafScript`, `intentTapLeafScript`) instead of an unsafe `as ExtendedVirtualCoin` cast
+│   ├── asset-manager.ts     # AssetManager / ReadonlyAssetManager (issue, reissue, burn); since 0.4.29 both classes + the IAssetManager / IReadonlyAssetManager types are exported from the package root
 │   ├── asset.ts             # Asset types and helpers
 │   ├── unroll.ts            # Unroll (unilateral exit) — prepareUnrollTransaction (build + sign) split from completeUnroll (broadcast); completeUnroll passes wallet.network to addOutputAddress for regtest bech32 support; Math.ceil(feeRate) before BigInt() to tolerate fractional sat/vB
 │   ├── utils.ts             # Wallet utilities; since 0.4.28 hosts shared `getDustAmount(wallet): bigint` (reads `wallet.dustAmount` when present, else falls back to `FALLBACK_WALLET_DUST_AMOUNT = 330n`) — used by ramps.ts (DustChangeError pre-check) and vtxo-manager.ts; previously duplicated inline
@@ -83,7 +83,7 @@ packages/ts-sdk/src/
 │   ├── indexer.ts           # RestIndexerProvider (indexer REST + streaming); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
 │   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments); since 0.4.28 `baseUrl` parameter defaults to `ESPLORA_URL[DEFAULT_NETWORK_NAME]` (bitcoin entry of the default map)
 │   ├── electrum.ts          # ElectrumOnchainProvider (WebSocket Electrum) + ELECTRUM_WS_URL / ELECTRUM_TCP_HOST defaults
-│   ├── delegator.ts         # RestDelegatorProvider (delegator REST)
+│   ├── delegate.ts          # RestDelegateProvider + DelegateProvider interface (delegate REST; renamed from delegator.ts in 0.4.29 / #519 — `RestDelegatorProvider` / `DelegatorProvider` kept as `@deprecated` aliases). `DelegateInfo.delegatorAddress` now optional alongside the canonical `delegateAddress`; `isDelegateInfo` accepts either non-empty string; `getDelegateInfo` normalizes `delegateAddress` by explicit string type check (not truthiness)
 │   ├── expoArk.ts           # ExpoArkProvider (React Native SSE); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
 │   ├── expoIndexer.ts       # ExpoIndexerProvider (React Native streaming); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
 │   ├── expoUtils.ts         # Expo streaming utilities
@@ -167,7 +167,7 @@ All external communication is abstracted behind provider interfaces:
 - `ArkProvider` — arkd server (settlement events, transaction submission, info)
 - `IndexerProvider` — Indexer (address subscriptions, VTXO updates, tx history)
 - `OnchainProvider` — Block explorer (UTXOs, transactions, broadcasting)
-- `DelegatorProvider` — Delegator service (VTXO renewal delegation)
+- `DelegateProvider` — Delegate service (VTXO renewal delegation); renamed from `DelegatorProvider` in 0.4.29 (#519), old name kept as a deprecated alias
 
 Each provider has a REST implementation (`RestArkProvider`, etc.) and Expo-compatible variants for React Native.
 

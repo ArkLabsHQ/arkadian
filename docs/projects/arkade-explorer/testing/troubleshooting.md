@@ -121,6 +121,19 @@ Server doesn't handle SPA routing. Configure fallback:
 **Vercel**: Pre-configured via `vercel.json`
 **Netlify**: Pre-configured via `netlify.toml`
 
+### Docker Build Fails with `ERR_PNPM_IGNORED_BUILDS` (esbuild)
+
+`pnpm install --frozen-lockfile` aborts in the Docker build because pnpm 11.x
+treats an unbuilt dependency's postinstall (e.g. `esbuild@0.25.x`) as a hard
+error. The Dockerfile must pin pnpm to a 10.x version and allowlist the
+dependency:
+
+- `Dockerfile`: `corepack prepare pnpm@10.29.2 --activate` (not `pnpm@latest`)
+- `pnpm-workspace.yaml`: add `esbuild` under `onlyBuiltDependencies`
+
+Keep the pinned version in sync with the pnpm version recorded in
+`pnpm-lock.yaml`.
+
 ---
 
 ## Browser-Specific Issues
@@ -146,6 +159,7 @@ The Clipboard API may fail in older Safari. The app uses `navigator.clipboard.wr
 | `Network Error` | API unreachable | Check indexer URL and connectivity |
 | `Invalid hook call` | Hooks outside component | Move hooks inside function component |
 | `Cannot read property of undefined` | Null data access | Add null checks or optional chaining |
+| `ERR_PNPM_IGNORED_BUILDS` | pnpm 11.x rejects unbuilt dep (esbuild) in Docker | Pin pnpm to `10.29.2` and add `esbuild` to `onlyBuiltDependencies` |
 
 ---
 

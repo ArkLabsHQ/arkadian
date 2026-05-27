@@ -39,8 +39,8 @@ Since 2026-05-22 the repository is a **pnpm workspace monorepo** that vendors tw
 
 | Workspace path | npm package | Version | Purpose |
 |----------------|-------------|---------|---------|
-| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.28` | This SDK (wallet, providers, crypto, repositories) — npm-published path inside the tarball is unchanged |
-| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.33` | Sibling Boltz Lightning/chain-swap library (docs under `docs/projects/boltz-swap/`) |
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.29` | This SDK (wallet, providers, crypto, repositories) — npm-published path inside the tarball is unchanged |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.34` | Sibling Boltz Lightning/chain-swap library (docs under `docs/projects/boltz-swap/`) |
 
 devDeps, prettier config, `tsup` base config, and the `scripts/regtest.sh` regtest driver are hoisted to the repo root. Releases are package-scoped via `pnpm run release -- {sdk|boltz-swap|all} <bump>`.
 
@@ -85,7 +85,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.28` |
+| Version | `0.4.29` |
 | Repo Layout | pnpm workspace monorepo — `packages/ts-sdk/` + `packages/boltz-swap/` (since 2026-05-22) |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |
@@ -108,7 +108,7 @@ Analysis and summaries of pull requests.
 │  ├── OnchainWallet               (on-chain fee payment)      │
 │  ├── Ramps                       (onboard / offboard)        │
 │  ├── VtxoManager                 (renewal / recovery)        │
-│  ├── DelegatorManager            (VTXO delegation)           │
+│  ├── DelegateManager             (VTXO delegation)           │
 │  └── AssetManager                (issue / reissue / burn)    │
 ├──────────────────────────────────────────────────────────────┤
 │  Identity Layer                                              │
@@ -131,7 +131,7 @@ Analysis and summaries of pull requests.
 │  ├── RestIndexerProvider         (indexer REST + streaming)   │
 │  ├── EsploraProvider             (HTTP block explorer)       │
 │  ├── ElectrumOnchainProvider     (WebSocket Electrum)        │
-│  ├── RestDelegatorProvider       (delegator REST)            │
+│  ├── RestDelegateProvider        (delegate REST)             │
 │  └── Expo variants               (React Native adapters)     │
 ├──────────────────────────────────────────────────────────────┤
 │  Crypto Layer                                                │
@@ -167,7 +167,9 @@ Analysis and summaries of pull requests.
 - **Boarding**: Converting on-chain BTC to off-chain VTXOs
 - **Settlement / Batch**: Participating in Ark rounds to settle VTXOs
 - **Ramps**: Onboard (BTC→VTXO) and offboard (VTXO→BTC) operations
-- **Delegation**: Outsourcing VTXO renewal to a third-party delegator service
+- **Delegation**: Outsourcing VTXO renewal to a third-party delegate service. Managed via `DelegateManager` (`IDelegateManager` / `DelegateManagerImpl`) and the `DelegateProvider` interface (`RestDelegateProvider`)
+- **Delegator → Delegate Rename** *(0.4.29, #519)*: The public delegation surface was renamed `delegator` → `delegate`, with the old names kept as `@deprecated` aliases (no runtime break). New canonical names exported from the package root: `DelegateProvider`, `RestDelegateProvider`, `DelegateManagerImpl`, `IDelegateManager`, `DelegateNotConfiguredError`; the prior `DelegatorProvider`, `RestDelegatorProvider`, `DelegatorManagerImpl`, `IDelegatorManager`, `DelegatorNotConfiguredError` remain as aliases. `IWallet.getDelegateManager()` is the canonical accessor (`getDelegatorManager()` is a deprecated alias); `BaseWalletConfig.delegateProvider` is the canonical config field (`delegatorProvider` deprecated alias). Source files renamed `src/providers/delegator.ts` → `delegate.ts` and `src/wallet/delegator.ts` → `delegate.ts`. The service worker still sends **both** `delegateUrl` and `delegatorUrl` to the worker for backward compat with pre-#519 service workers. `DelegateInfo.delegatorAddress` is now **optional**: the new canonical field is `delegateAddress`, and the `isDelegateInfo` guard accepts a payload when *either* `delegateAddress` or `delegatorAddress` is a non-empty string (validating each only when present) — keeping current Fulmine (`delegatorAddress`-only) responses valid while being forward-compatible with the server switching to `delegateAddress`. `RestDelegateProvider.getDelegateInfo` normalizes the returned `delegateAddress` by explicit string type check (not truthiness), so the field is always a string even when the preferred source field is a non-string value
+- **AssetManager Export** *(0.4.29)*: `AssetManager` and `ReadonlyAssetManager` (plus the `IAssetManager` / `IReadonlyAssetManager` types) are now exported from the package root, so consumers can construct/type the asset manager directly instead of only reaching it via `Wallet.assetManager`
 - **Unilateral Exit**: Withdrawing funds without server cooperation via unroll + timelock. Since 0.4.24 the unroll flow splits `prepareUnrollTransaction` (build + sign, no broadcast) from `completeUnroll` (broadcast); `completeUnroll` passes `wallet.network` to `tx.addOutputAddress` so regtest bech32 (`bcrt1...`) addresses no longer fall through to mainnet base58 decoding. Tapscript validation centralised under per-namespace `isScriptValid` helpers returning `true | Error`; `VtxoScript.exitPaths` now checks `=== true` (truthy `Error` objects no longer route ConditionCSV scripts to CSV's decode)
 - **Assets**: Issuing, reissuing, burning, and transferring assets on Ark. `Asset.amount`, `AssetDetails.supply`, and the `IssuanceParams` / `ReissuanceParams` / `BurnParams` `amount` fields are typed as `bigint` (since 0.4.23, breaking) so values above `Number.MAX_SAFE_INTEGER` round-trip without truncation; persistence goes through `serializeAssets` / `deserializeAssets` (decimal-string on-disk form, accepts legacy number/string/bigint inputs)
 - **ArkNote**: Serializable representation of Ark payment data

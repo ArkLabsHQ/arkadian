@@ -1,5 +1,39 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-27 - Documentation Update
+**Commit**: `6bcd75dfdba0dc3158a91ee0ba4e24bdb5307b54`
+**Previous Sync**: `6ec1a7a474f3a98e843224b7b2de604d923426ef`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Highlights**:
+- 🚀 **Prod `ark` app deployed** (`6bcd75d`): new `apps/ark/prod/` OpenTofu entry point composes
+  `modules/ark` with `env = "prod"` — the prod equivalent of the staging stack landed in the
+  previous sync. `main.tf` uses S3 backend `ark-prod-terraform-state` (key
+  `apps/ark/prod/terraform.tfstate`, region `eu-central-1`, DynamoDB `terraform-state-lock`) and
+  standard `default_tags` (`Application=ark`, `Environment=prod`, `ManagedBy=opentofu`,
+  `Repository=ark-infra`, `Owner=platform`). `vpc.tf` / `data.tf` look up the existing
+  `ark-vpc-prod` VPC, `ark-private-*` / `ark-public-*` subnets, and `ark-app-sg-prod` /
+  `ark-vpc-endpoints-sg-prod` security groups by `Name` tag. `ark.tf` wires app instance
+  `i-0f3d436aad5dbf55e` (ark-app-prod), `ssm_prefix = /ark/prod`,
+  `arkd_hosts = ["prod.arkade.sh", "prod-cf.arkade.sh"]`, `arkd_http1_support = true`,
+  `telemetry_grafana_host = telemetry.prod.arkade.sh`, ACM cert
+  `…/certificate/57e4dfc4-2a6f-4b20-aa60-c2617e9e4bd2` (domain `prod.arkade.sh`, SANs
+  `*.prod.arkade.sh`, `prod-cf.arkade.sh`), `alb_log_retention_days = 30`, and
+  `ark_infra_branch` / `ark_telemetry_branch = master`. Two Route53 A-record aliases point
+  `prod.arkade.sh` and `telemetry.prod.arkade.sh` at `module.ark.alb_dns_name`.
+- 🌍 **Prod-account Route53 zone** (`aws/prod-982590065524/route53.tf`): new
+  `aws_route53_zone "prod"` for `prod.arkade.sh` at the prod account (`982590065524`) level,
+  consumed by the `apps/ark/prod/` stack via `data.aws_route53_zone.prod`.
+
+**Files Updated**:
+- docs/INDEX.md (new capability line for the prod stack: `apps/ark/prod/`, `ark-prod-terraform-state`, prod endpoints/Grafana/ACM SANs, prod-account Route53 zone)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.5.1; ALB → arkd now "staging + prod"; new Endpoints bullet covering prod hosts, app instance, log retention, ACM SANs)
+- docs/projects/ark-infra/system/project_overview.md (repo structure: `apps/ark/{staging,prod}/`; ALB → arkd subsection adds prod endpoints)
+- docs/projects/ark-infra/system/networking.md (Traffic Flow ALB path now "staging + prod", adds direct A-record hosts and prod-account Route53 zone reference)
+
 ## 2026-05-16 - Documentation Update
 **Commit**: `6ec1a7a474f3a98e843224b7b2de604d923426ef`
 **Previous Sync**: `a981284ec1ad09a66ece6dcf0fa132b86318fd51`

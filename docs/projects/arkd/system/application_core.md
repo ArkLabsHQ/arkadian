@@ -147,9 +147,16 @@ Provides read-only query APIs for wallets and explorers.
 - `GetVirtualTxs()` - Virtual transaction details
 
 **Subscription Methods (server-streaming):**
-- `SubscribeForScripts()` / `UnsubscribeForScripts()` - Two-step flow: create/extend a subscription, then attach via `GetSubscription`.
+- `SubscribeForScripts()` / `UnsubscribeForScripts()` - Two-step flow: create/extend a subscription, then attach via `GetSubscription`. `UnsubscribeForScripts` with an empty scripts list only tears down the listener when no tx filters remain, so tx-only subscriptions are not silently dropped.
 - `GetSubscription()` - Server-streaming RPC. If `subscription_id` is empty the server creates a subscription inline, applies the optional initial `SubscriptionFilter`, and emits a `SubscriptionStartedEvent` carrying the generated id as the first message; if `subscription_id` is set the stream attaches to the existing listener (legacy flow). Bound to both `/v1/indexer/script/subscription/{subscription_id}` (legacy) and `/v1/indexer/subscription` (single-connection).
-- `UpdateSubscription()` - Atomic, in-place filter mutation on an existing subscription. Generic `SubscriptionFilter` (currently `ScriptsFilter` with mutually-exclusive `modify` add/remove or `overwrite`) is validated end-to-end before any topic mutation; requires `indexer:write` macaroon permission.
+- `UpdateSubscription()` - Atomic, in-place filter mutation on an existing subscription; requires `indexer:write` macaroon permission. All inputs are validated end-to-end before any topic mutation, so an `InvalidArgument` response guarantees the subscription is unchanged. Errors map to `NotFound` (unknown subscription) and `InvalidArgument` (CEL compile error, script parse error, or per-subscription expressions cap exceeded).
+
+**Subscription Filters (`SubscriptionFilter`):**
+A flattened filter carrying two independent, combinable fields (no longer mutually exclusive):
+- `expressions` - A list of CEL (Common Expression Language) tx filter expressions, OR-combined. On `UpdateSubscription` the list is always overwritten as a whole (an empty list clears all expressions); duplicates are deduplicated and the total is bounded by a server-side per-subscription cap.
+- `scripts` - A `ScriptFilter` with `add`/`remove` lists. Unset leaves scripts untouched; set with both lists empty clears all scripts; `add`/`remove` may be combined, with `remove` taking precedence on overlap. Operations are idempotent. (On initial `GetSubscription` creation, `remove` and the clear-all behavior are no-ops.)
+
+At runtime, a tx event is dispatched to a subscription when **any** of its CEL expressions evaluates to `true` on the event's tx, **or** when the event carries a VTXO whose script is in the subscription's script set. CEL filters are implemented by the internal `txfilter` package (`internal/interface/grpc/handlers/txfilter/`), which lifts each tx into a `tx` envelope exposing `tx.extension` (a `map<int, string>` of ARK OP_RETURN packet types to hex payloads) and a `hasPacket(extension, packetType)` helper; CEL evaluation is cost-limited per call.
 
 ### Admin Service (`admin.go`)
 Provides administrative operations for ASP operators.

@@ -64,7 +64,7 @@ const wallet = await Wallet.create({
   arkServerUrl: 'https://mutinynet.arkade.sh',  // arkd REST endpoint
   esploraUrl: 'https://mutinynet.com/api',       // optional: custom esplora
   storage: new LocalStorageAdapter(),             // optional: persistence
-  delegatorProvider: new RestDelegatorProvider(url), // optional: delegation
+  delegateProvider: new RestDelegateProvider(url), // optional: delegation (was delegatorProvider / RestDelegatorProvider, deprecated aliases since 0.4.29 #519)
 })
 ```
 
@@ -76,7 +76,7 @@ const wallet = await Wallet.create({
 | Identity | SingleKey, SeedIdentity, MnemonicIdentity | In-memory client |
 | Storage | Pluggable adapters (5 options) | BadgerDB, SQLite |
 | Platforms | Browser, Node.js, React Native, SW | Server-side only |
-| Delegation | Built-in DelegatorManager | N/A |
+| Delegation | Built-in DelegateManager | N/A |
 | Assets | AssetManager (issue/reissue/burn) | N/A |
 | Service Worker | ServiceWorkerWallet | N/A |
 

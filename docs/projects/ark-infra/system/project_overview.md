@@ -31,7 +31,9 @@ ark-infra/
 │   ├── dev-438465126741/              # Dev account (ArkDev* roles + organizations.tf for developer sandbox sub-accounts)
 │   └── prod-982590065524/             # Prod account (ArkProd* roles)
 ├── apps/                              # Per-app, per-env OpenTofu entry points
-│   └── ark/staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
+│   └── ark/
+│       ├── staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
+│       └── prod/                      # Prod stack (since 2026-05) — composes `modules/ark` (env=prod); S3 backend `ark-prod-terraform-state`, Route53 aliases for prod.arkade.sh + telemetry.prod.arkade.sh
 ├── modules/                           # Reusable OpenTofu modules
 │   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning
 │   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert, 180s idle, access+conn logs)
@@ -160,12 +162,13 @@ ark-infra/
    - Server-Sent Events (SSE) handling
    - Dashboard on localhost:8080
 
-3. **Shared ALB → arkd** (new in 2026-05, staging-first)
+3. **Shared ALB → arkd** (new in 2026-05; staging-first, prod live since 2026-05-26)
    - Three target groups on port 7070: `arkdg-*` (gRPC), `arkds-*` (SSE), `arkdr-*` (REST)
    - Listener rules route by host header (`arkd_hosts`), `content-type: application/grpc*`, and SSE path patterns
    - HTTP/1.1 default (`arkd_http1_support = true`); idle timeout 180s (exceeds arkd 60s heartbeat + Cloudflare 120s edge)
    - Access + connection logs to `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`)
    - Staging endpoints: `staging.arkade.sh` (direct A record), `staging-cf.arkade.sh` (Cloudflare proxied, TLS Full Strict)
+   - Prod endpoints: `prod.arkade.sh` (direct A record), `prod-cf.arkade.sh` (Cloudflare proxied); Grafana at `telemetry.prod.arkade.sh`; ACM cert SANs `*.prod.arkade.sh`, `prod-cf.arkade.sh`; `alb_log_retention_days = 30`
 
 ### Telemetry Stack
 

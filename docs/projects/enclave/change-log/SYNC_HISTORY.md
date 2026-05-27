@@ -1,5 +1,24 @@
 # Documentation Sync History - Simple Enclave
 
+## 2026-05-27 - Upstream-app exit resilience (issue #122) + release v0.0.79
+**From**: `6faf626e7c06c8a014c8c20ae0c567d4fba8d6ed`
+**To**: `1a9c8ac9b4e2d77ae05ad5b5e6a8df5cebeb9db8`
+**Synced By**: /update-project enclave
+**Status**: Documentation updated — runtime now survives upstream-app exit instead of tearing itself down (issue #122), surfaced as `upstream_app` on `/v1/enclave-info`; release v0.0.79; stale `7073` port forward removed from `GVPROXY_FORWARD_PORTS` (internal cleanup, no doc surface).
+
+**Commits Analyzed** (3):
+- `04482a1` feat(runtime): enhance upstream app exit handling and resilience tests — `cmd/runtime/main.go` no longer calls `stop()` when the user-app child process exits; it records the exit via the new `Runtime.MarkUpstreamExited(err)` and then waits for explicit shutdown (`ctx.Done()`) or a listener failure (`ListenErr()` → `os.Exit(1)`), so the runtime keeps serving admin endpoints (`/v1/start-migration`, `/health`, `/v1/enclave-info`) — without the latch the whole runtime used to be torn down, voiding an in-flight migration (issue #122). `runtime/runtime.go` adds `upstreamExited atomic.Bool` + `upstreamErr atomic.Value` with `MarkUpstreamExited` / `UpstreamExited` accessors. `runtime/runtime_handlers.go` adds the `UpstreamAppInfo { Exited bool; Error string }` struct and embeds it as `upstream_app` on `RuntimeInfo` (`GET /v1/enclave-info`). `runtime/runtime_test.go` (+82) adds exit-latch unit tests. `test/app/cmd/main.go` adds a `POST /test/crash` handler (exits the process ~100 ms after responding); `test/run.sh` adds a `[5.5/9]` resilience step asserting `/health=200`, `upstream_app.exited=true`, and `502` for routes to the dead app.
+- `b8335b5` refactor: remove unused port mappings from GVPROXY_FORWARD_PORTS — drops the stale `7073` entry (leftover from the pre-v0.0.76 runtime-proxy hop) from `GVPROXY_FORWARD_PORTS` in `cli/framework_files.go` (`443 7073` → `443`), `runner/main.go` (`8443:443 7073` → `8443:443`), and `test/app/tofu/modules/enclave/templates/user_data.sh.tftpl`, plus `test/acme-test.sh` / `test/run.sh`. Internal cleanup — `GVPROXY_FORWARD_PORTS` is not a documented config surface, so no doc change.
+- `1a9c8ac` release v0.0.79 — bumps `cli/runtime-hashes.json` (rev/hash). Latest Release advanced `v0.0.78` → `v0.0.79`.
+
+**Documentation Updates**:
+- `INDEX.md` (project) — Latest Release `v0.0.78` → `v0.0.79`; Architecture Overview diagram's `/v1/enclave-info` line now notes the `upstream_app {exited,error}` field.
+- `system/architecture.md` — new "Upstream-App Exit Resilience (issue #122)" section after the Boot Sequence; File Map `runtime/` row notes the `MarkUpstreamExited` / `UpstreamExited` latch on `runtime.go` and the `UpstreamAppInfo` embed on `runtime_handlers.go`.
+- `system/project_overview.md` — new "Upstream-app exit resilience" capability bullet alongside the existing "Listener-error propagation" bullet.
+- `testing/api-reference.md` — `/v1/enclave-info` row lists the `upstream_app` object; catch-all `/*` row notes `502` after app exit; new `upstream_app` field-table subsection.
+- `testing/how_to_test.md` — new "Upstream-app crash resilience" paragraph documenting `run.sh` step `[5.5/9]`; `runtime/runtime_test.go` added to the runtime unit-test list with the exit-latch note.
+- `INDEX.md` (master) — new "Upstream-app exit resilience" Key Capability bullet; tags extended with `upstream-app-exit`, `resilience`; triggers extended with `upstream app crash` / `runtime stays alive` / `upstream_app exited` (ask_question), `MarkUpstreamExited` / `UpstreamExited` / `UpstreamAppInfo` (develop), `app crashed enclave` / `502 dead app` / `runtime died after app exit` (debug).
+
 ## 2026-05-26 - `enclave tofu` subcommand group + backend bootstrap + SSM-scan env overlay
 **From**: `d795bc7166551f7752e59428ebbefe2cbdc7dd2f`
 **To**: `6faf626e7c06c8a014c8c20ae0c567d4fba8d6ed`

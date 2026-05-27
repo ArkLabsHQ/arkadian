@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
-version: 1.1.0
-last_sync_commit: 453b0b152469a1929b2b359c478040864b6cc453
+version: 1.1.1
+last_sync_commit: 50b81819687e4287c468ee020a2eff6bbb8c3095
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]

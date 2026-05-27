@@ -1,5 +1,43 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-27 - Delegator → Delegate rename (#519) + AssetManager export + 0.4.29 release
+**From**: `d682eac52d1fc7e92662a859cd69db5bd8bff156`
+**To**: `45d639c820ae0cfb81bf25d70bea0cbaa1221e00`
+**Synced By**: update-project skill
+**Status**: Released cut — `@arkade-os/sdk` bumps `0.4.28 → 0.4.29` and `@arkade-os/boltz-swap` `0.3.33 → 0.3.34` (`pnpm run release -- all patch`). Headline ts-sdk change is the **delegator → delegate public-surface rename** (PR #519), shipped non-breaking via `@deprecated` aliases. Two small additive exports also landed: `AssetManager` / `ReadonlyAssetManager` from the SDK root, and `InMemorySwapRepository` from the boltz-swap root (the latter tracked under `docs/projects/boltz-swap/`).
+
+**Commits analyzed** (8 non-merge commits):
+
+*ts-sdk — additive root exports:*
+- `33e23b3e` feat: export AssetManager — `AssetManager` + `ReadonlyAssetManager` (and the `IAssetManager` / `IReadonlyAssetManager` types) now re-exported from `src/index.ts`.
+
+*ts-sdk — delegator → delegate rename (#519):*
+- `4538f7fe` chore: rename delegator -> delegate — renames the public delegation surface across providers, wallet, service worker, and message bus. Files `src/providers/delegator.ts` → `delegate.ts` and `src/wallet/delegator.ts` → `delegate.ts`. New canonical exports `DelegateProvider`, `RestDelegateProvider`, `DelegateManagerImpl`, `IDelegateManager`, `DelegateNotConfiguredError`; the prior `Delegator*` names kept as `@deprecated` aliases. `IWallet.getDelegateManager()` + `BaseWalletConfig.delegateProvider` are canonical (`getDelegatorManager()` / `delegatorProvider` deprecated aliases). README + tests renamed to match.
+- `ec48a8da` fix: coderabbit feedback on PR #519.
+- `d3e7bce1` chore: follow-up cleanups for delegator -> delegate rename — makes the deprecated `DelegateInfo.delegatorAddress` optional; normalizes `delegateAddress` at the single `getDelegateInfo()` boundary so `delegate()` reads `delegateInfo.delegateAddress` directly; documents why both `delegateUrl` and `delegatorUrl` are still posted to the worker (pre-#519 service-worker compat); renames `delegator*.test.ts` → `delegate*.test.ts`.
+- `dd9b58e6` fix: make isDelegateInfo consistent with optional delegatorAddress — the guard accepts the payload when either `delegateAddress` or `delegatorAddress` is a non-empty string (each validated only when present), keeping current Fulmine (`delegatorAddress`-only) responses valid and forward-compatible with the server switching to `delegateAddress`.
+- `1250ee12` fix: normalize delegateAddress by type, not truthiness — selects the returned `delegateAddress` by explicit string type check so it is always a string even when the preferred source field is a non-string value; adds `RestDelegateProvider.getDelegateInfo` unit tests for the non-string case + the guard rejection path.
+
+*boltz-swap (carried in the same range — tracked under `docs/projects/boltz-swap/`):*
+- `3a45d57a` feat: export InMemorySwapRepository — re-exports `InMemorySwapRepository` from `@arkade-os/boltz-swap`'s root.
+
+*Release:*
+- `45d639c8` chore: release @arkade-os/sdk@0.4.29, @arkade-os/boltz-swap@0.3.34 — package.json version bumps.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — workspace table + Quick Reference Version bumped (`0.4.28 → 0.4.29`, `0.3.33 → 0.3.34`); architecture diagram `DelegatorManager → DelegateManager` and `RestDelegatorProvider → RestDelegateProvider`; "Delegation" key concept rewritten and two new key concepts added ("Delegator → Delegate Rename" with the full canonical/alias mapping + `DelegateInfo` semantics; "AssetManager Export").
+- `docs/projects/ts-sdk/system/project_overview.md` — workspace table + Version bumped; URL Config Deprecation row notes `delegatorProvider` is itself a deprecated alias; Asset Management row gained the root-export note; VTXO Delegation row rewritten with the rename + `DelegateInfo` details; Integration Points "Delegator" → "Delegate" (`RestDelegateProvider`).
+- `docs/projects/ts-sdk/system/architecture.md` — `wallet/delegator.ts` → `delegate.ts` (DelegateManager + alias note); `providers/delegator.ts` → `delegate.ts` (RestDelegateProvider + `DelegateInfo` normalization); `asset-manager.ts` entry notes the root export; provider list `DelegatorProvider` → `DelegateProvider`.
+- `docs/projects/ts-sdk/system/integration-with-arkd.md` — wallet config example uses `delegateProvider: new RestDelegateProvider(url)`; "Built-in DelegatorManager" → "DelegateManager".
+- `docs/INDEX.md` — ts-sdk Key Capabilities: asset bullet gained the root-export note; VTXO delegation bullet rewritten with the full rename + `DelegateInfo` semantics; stale "version still 0.4.27" note corrected to "current published version 0.4.29". Tags add `delegate-manager`, `delegator-delegate-rename`, `asset-manager-export`.
+
+**Notes**:
+- **No breaking changes for typical consumers**: the delegator → delegate rename ships entirely via `@deprecated` aliases — every old name (`DelegatorProvider`, `RestDelegatorProvider`, `DelegatorManagerImpl`, `IDelegatorManager`, `DelegatorNotConfiguredError`, `getDelegatorManager()`, `delegatorProvider`) still resolves at runtime. `AssetManager` / `ReadonlyAssetManager` exports are purely additive.
+- `DelegateInfo.delegatorAddress` becoming optional is non-breaking for readers (it was already populated by Fulmine); writers/implementers gain the option to populate `delegateAddress` instead.
+- The boltz-swap `InMemorySwapRepository` export in this range is tracked under `docs/projects/boltz-swap/`; this sync touches only ts-sdk + master registry docs.
+
+---
+
 ## 2026-05-26 - Provider mainnet defaults + URL-config deprecation + DustChangeError + ServiceWorkerWallet.restore()
 **From**: `0fa19be5f59d50435d19806ba182754b3689a80f`
 **To**: `d682eac52d1fc7e92662a859cd69db5bd8bff156`

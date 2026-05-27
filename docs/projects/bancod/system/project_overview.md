@@ -8,7 +8,7 @@ Bancod is a Go-based **solver bot** for the Arkade virtual mempool. It watches t
 
 - **Banco Swap Plugin**: Automated market-making bot that watches arkd tx stream, decodes TLV-encoded swap offers (PacketType 0x03), validates price within 1% of feed, and fulfills atomically
 - **Preimage Claim Plugin**: Stateless preimage-gated VTXO claims using ECIES encryption (PacketType 0x04) — no per-claim persistence
-- **Plugin Architecture**: Generic solver runtime (`pkg/solver`) with pluggable `Plugin` interface (`Match` + `Solve`)
+- **Plugin Architecture**: Generic solver runtime (`pkg/solver`) with pluggable `Plugin` interface (`Filter` + `Match` + `Solve`). Each plugin subscribes to its own `solver.Source` stream with an optional per-plugin CEL filter (forward-compatible; arkd-side filtering not yet wired through)
 - **Trading Pair Management**: Configurable pairs (base/quote, min/max amounts, price feed URL, invert flag) via gRPC/REST API
 - **Price Feed Integration**: Pluggable price sources with TTL caching (default 5 min), CoinGecko implementation included
 - **gRPC + REST API**: Full API with grpc-gateway (gRPC on port 7070, HTTP/REST on port 7071)

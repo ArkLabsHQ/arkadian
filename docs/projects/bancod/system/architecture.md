@@ -43,8 +43,10 @@ Bancod follows a hexagonal (ports & adapters) architecture similar to arkd and f
 ### `pkg/` (importable by external projects)
 - `pkg/banco/` — Banco swap plugin, pair/offer types, price feed interface
 - `pkg/banco/contract/` — Wire-protocol primitives: Offer TLV, maker/taker helpers, taproot tree construction
-- `pkg/preimage/` — Preimage claim plugin, ECIES encryption, maker helpers
-- `pkg/solver/` — Generic plugin runtime: Plugin interface, Solver, Run loop
+- `pkg/preimage/` — Preimage claim plugin, ECIES encryption, maker helpers (see in-repo spec `pkg/preimage/README.md`)
+- `pkg/solver/` — Generic plugin runtime: `Plugin` + `Source` interfaces, `Solver`, per-plugin Run loop
+- `pkg/solver/builder/` — Fluent `Builder[T]` for assembling plugins (filters, decode, validators, `WithFilter` CEL expression)
+- `pkg/solver/arkdsource/` — arkd-backed `solver.Source` (`arkdsource.New(client.Client, log)`); keeps the solver package free of any arkd/go-sdk dependency
 
 ### `internal/`
 - `internal/config/` — Environment-based configuration (BANCOD_* vars)
@@ -62,16 +64,18 @@ Bancod follows a hexagonal (ports & adapters) architecture similar to arkd and f
 ## Data Flow
 
 1. `bancod` boots, initializes a single-key identity (file-backed store in `BANCOD_DATADIR`) and loads/creates the ark wallet with `WithIdentity(...)`
-2. Each enabled plugin owns its own `Solver` and arkd subscription — there is no shared multiplexer
-3. arkd streams PSBT packets over gRPC; `Solver.Run()` drains the channel and calls `Plugin.Match()` sequentially, then spawns a goroutine per matched `Solve()`
-4. Panics in `Match` or `Solve` are recovered so one buggy plugin can't take the bot down; `Run` waits for in-flight solves to drain on shutdown
+2. `Solver.Run(ctx, source)` takes a `solver.Source` (no longer a raw channel). For each plugin it calls `source.Subscribe(ctx, plugin.Filter())`, opening a **fresh upstream arkd stream per plugin** so a per-plugin server-side CEL filter can drop unrelated txs before they reach the bot
+3. arkd streams PSBT packets over gRPC; each plugin's subscription is drained in its own goroutine (`consume`), calling `Plugin.Match()` then spawning a goroutine per matched `Solve()`
+4. Panics in `Match` or `Solve` are recovered so one buggy plugin can't take the bot down; a `Subscribe` error skips just that plugin while the rest continue, and `Run` waits for all in-flight solves to drain on shutdown
 5. For banco: decodes TLV offer → checks pair config → validates price → calls `contract.FulfillOffer()`
 6. For preimage: decodes TLV packet → ECIES decrypts → validates arkade-script → claims VTXO
 7. Fulfillment events are emitted to listeners (trade persistence to SQLite)
 
 ## Key Interfaces
 
-- `solver.Plugin` — `Match(ctx, *psbt.Packet) (intent, bool)` + `Solve(ctx, intent)`
+- `solver.Plugin` — `Filter() string` (server-side CEL filter; empty = full stream) + `Match(ctx, *psbt.Packet) (intent, bool)` + `Solve(ctx, intent)`
+- `solver.Source` — `Subscribe(ctx, filter) (<-chan *psbt.Packet, error)`; produces a filtered tx stream. `arkdsource.Source` (`arkdsource.New(client.Client, log)`) is the arkd-backed implementation, opening a fresh upstream stream per `Subscribe`. The CEL filter is plumbed for **forward compatibility** — arkd-side filtering is not yet wired through, so subscriptions are currently unfiltered
+- `solver.Builder.WithFilter(cel)` — sets a built plugin's CEL filter (default empty)
 - `banco.PairRepository` — Read-only pair config storage
 - `banco.PriceFeed` — Pluggable price source
 - `banco.FulfillmentListener` — Post-fulfillment event handler

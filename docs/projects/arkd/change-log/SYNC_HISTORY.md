@@ -1,5 +1,41 @@
 # Documentation Sync History - Arkd
 
+## 2026-05-27 - Documentation Update
+**Commit**: `c4f16324` (arkd repository)
+**Previous Sync**: `299b7ad6`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `c4f16324` Add tx filters to indexer.GetSubscription (#1074)
+- `4473e23c` client-lib: Fix indexer auto-pagination and chunk large vtxo filters (#1081)
+
+**Features Added (indexer subscriptions, CEL tx filters)**:
+- New internal package `internal/interface/grpc/handlers/txfilter/` providing CEL (Common Expression Language) based filters that the indexer evaluates against each parsed tx to decide whether a subscription receives an event. A `Filter` is a compiled CEL program that must return `bool`. The CEL environment exposes a single variable `tx` of type `txfilter.Tx`, whose `tx.extension` field is a `map<int, string>` of ARK OP_RETURN extension packet types to hex-encoded payloads (only set when the tx carries an ARK OP_RETURN extension; `has(tx.extension)` is the presence guard). A `hasPacket(extension, packetType) -> bool` helper is provided in addition to the CEL standard library. `event.Tx` is parsed as PSBT base64 with hex fallback. Includes `README.md` and table-driven tests with testdata fixtures.
+- `indexer.GetSubscription` / `UpdateSubscription` now accept CEL tx filter expressions. At runtime a tx event is dispatched to a subscription when **any** of its CEL expressions evaluates `true`, **or** when the event carries a VTXO whose script is in the subscription's script set. CEL evaluation is cost-limited per call, tx filters are capped per listener, and a listener is kept alive on disconnect when only tx filters are set. `UnsubscribeForScripts` with an empty scripts list now only tears down the listener when no tx filters remain, so tx-only subscriptions are not silently dropped. `UnsubscribeForScripts` not-found now maps to gRPC `NotFound`.
+
+**Breaking Changes (indexer proto API — `api-spec/protobuf/ark/v1/indexer.proto`)**:
+- ⚠️ `SubscriptionFilter` was **flattened and redesigned**. The previous `oneof filter { ScriptsFilter scripts }` (with nested `ScriptsFilter`/`ModifyScripts`/`OverwriteScripts` and mutually-exclusive `modify`/`overwrite`) is **removed**. It is replaced by two independent, combinable fields: `repeated string expressions` (CEL, OR-combined) and `ScriptFilter scripts` (new message with `repeated string add` / `repeated string remove`).
+- ⚠️ `UpdateSubscriptionResponse` is now **empty** — the `oneof result { ScriptsFilterResult scripts }` and the `ScriptsFilterResult` message (`added`/`removed`/`all`) were removed (no result echo).
+- `UpdateSubscription` semantics: `subscription_id` must be non-empty and `filter` present (else `InvalidArgument`). `expressions` is always overwritten as a whole (empty list clears them), deduplicated, and bounded by a per-subscription cap. `scripts` unset = untouched; set with both lists empty = clear all; `add`/`remove` combinable with `remove` taking precedence on overlap; operations are idempotent. Validation is atomic (all inputs validated before any mutation), so `InvalidArgument` guarantees the subscription is unchanged. On initial `GetSubscription` creation, `scripts.remove` and the clear-all behavior are no-ops.
+- These regenerated `api-spec/protobuf/gen/...` Go bindings and `api-spec/openapi/swagger/.../indexer.openapi.json` accordingly. The redesigned subscription API was only just introduced (PR #951, 2026-05-22) and remains pre-stable.
+
+**Bug Fixes (client-lib, `pkg/client-lib/indexer/grpc`)**:
+- Fixed indexer auto-pagination in `paginatedFetch`: page index now starts at `1` (was `0`) and the loop termination check uses `page.GetCurrent() >= page.GetTotal()` (was `page.GetNext() >= page.GetTotal()`), so paginated indexer queries no longer stop short / off-by-one.
+- `paginatedGetVtxos` now chunks large `Scripts` and `Outpoints` filter lists into `maxPageSize`-sized batches (fetched and concatenated) to avoid oversized requests; added `formatOutpoints` helper.
+
+**Files Updated**:
+- docs/INDEX.md (added CEL-based indexer subscription filter capability to the arkd entry; added `indexer`, `subscription` tags)
+- docs/projects/arkd/INDEX.md (sync commit + date, version bump)
+- docs/projects/arkd/system/application_core.md (rewrote Indexer subscription methods to reflect flattened `SubscriptionFilter`, CEL `expressions` + `ScriptFilter` add/remove, combinable filters, atomicity/error semantics, and the `txfilter` package)
+- docs/projects/arkd/system/project_overview.md (new "CEL-Based Indexer Subscription Filters" recent-feature entry)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: The `SubscriptionFilter` / `UpdateSubscription` proto reshaping is a **breaking change** to the indexer streaming API, but it revises an API surface that landed only days earlier (#951) and is still pre-stable. The CEL tx-filter capability is additive. The client-lib pagination changes are internal bug fixes with no API-surface impact.
+
+---
+
 ## 2026-05-23 - Documentation Update
 **Commit**: `299b7ad6` (arkd repository)
 **Previous Sync**: `700026fe`

@@ -60,6 +60,12 @@ CI (`.github/workflows/docker.yml`) publishes the GHCR image for both
 `linux/amd64` and `linux/arm64` using `docker/setup-qemu-action` and
 `docker/setup-buildx-action`.
 
+The Dockerfile pins pnpm to `10.29.2` (matching `pnpm-lock.yaml`) instead of
+`pnpm@latest`; pnpm 11.x treats unbuilt dependency scripts as a hard install
+error. `esbuild` is also added to `onlyBuiltDependencies` in
+`pnpm-workspace.yaml` so its postinstall (platform binary setup) runs under
+pnpm 10.x. Bump these together if the lockfile's pnpm version changes.
+
 Note: `netlify.toml` is intentionally left using npm in case pnpm is not
 supported by the Netlify build environment.
 
