@@ -115,7 +115,7 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.5`, `ghcr.io/arkade-os/arkd-wallet:v0.9.5`). ECR remains used
+     (`ghcr.io/arkade-os/arkd:v0.9.6`, `ghcr.io/arkade-os/arkd-wallet:v0.9.6`). ECR remains used
      for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -137,10 +137,13 @@ ark-infra/
    - Backs up wallet seed to Secrets Manager
    - Zero manual intervention required
 
-4. **nbxplorer** (Auto-managed)
+4. **nbxplorer** (Auto-managed, `2.6.7`)
    - Bitcoin blockchain indexer
    - Dedicated PostgreSQL database
    - Connects to bitcoind (prod) or external node (regtest)
+   - Built from local `compose/Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`) — base image lacks curl/wget for reliable HTTP health checks
+   - Tagged `ark-infra/nbxplorer:2.6.7-curl`; health check posts a JSON-RPC `getblockchaininfo` to `/v1/cryptos/BTC/rpc` (60 retries × 5s)
+   - `arkd-wallet` now declares `depends_on: { nbxplorer: { condition: service_healthy } }` in both prod and regtest compose files
 
 5. **bitcoind** (Production only)
    - Full Bitcoin mainnet node

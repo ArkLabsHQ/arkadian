@@ -1,5 +1,46 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-28 - Per-call renewVtxos threshold (#388) + dependency hygiene + 0.4.30 release
+**From**: `45d639c820ae0cfb81bf25d70bea0cbaa1221e00`
+**To**: `7493534396de2f90db32ef4e03b700faac4f04a3`
+**Synced By**: update-project skill
+**Status**: Released cut — `@arkade-os/sdk` bumps `0.4.29 → 0.4.30` and `@arkade-os/boltz-swap` `0.3.34 → 0.3.35` (`pnpm run release -- all patch`). Headline ts-sdk change is the **per-call `thresholdSeconds` override on `renewVtxos`** (PR #388), mirrored through the ServiceWorker message bus and runtime-validated to reject malformed payloads. Two small additional ts-sdk changes: `RealmLike.create` mode widened to `boolean | string`, and a workspace-wide override bump clearing 19 Dependabot advisories. The boltz-swap chain-swap `lockupDetails.timeouts` restoration fix is carried in the same range and tracked under `docs/projects/boltz-swap/`.
+
+**Commits analyzed** (8 non-merge commits):
+
+*ts-sdk — per-call renewVtxos threshold (#388):*
+- `0ddfb077` feat(vtxo-manager): per-call threshold on renewVtxos — adds optional `RenewVtxosOptions` payload to `IVtxoManager.renewVtxos(eventCallback?, options?)` whose `thresholdSeconds` overrides the renewal threshold for that call only. Resolution order: `options.thresholdSeconds` (×1000) → `settlementConfig.vtxoThreshold` (×1000) → `DEFAULT_RENEWAL_CONFIG.thresholdMs` (3 days); the manual API bypasses the `settlementConfig === false` gate so it always works. Mirrored across the ServiceWorker message bus — `RequestRenewVtxos` gains an optional `payload: RenewVtxosOptions` field, `ServiceWorkerWallet.renewVtxos(eventCallback?, options?)` attaches it, and the worker handler forwards `message.payload` as the second arg to the underlying manager call. `RenewVtxosOptions` re-exported from `src/index.ts`.
+- `e0a50c6b` fix(vtxo-manager): validate thresholdSeconds on renewVtxos — rejects non-number, non-finite, and non-positive `thresholdSeconds` values with `TypeError` BEFORE mutating any state. Rationale: the payload can arrive over the worker `MessageBus` so `thresholdSeconds` is not guaranteed to be a number at runtime despite its type, and a `0` / `<=100ms` threshold would silently revert to the 3-day default via the `isVtxoExpiringSoon` guard (corrupting the expiry intent). Adds a message-handler test covering `thresholdSeconds` payload forwarding.
+
+*ts-sdk — small typing widening:*
+- `0b789a35` fix: widen RealmLike.create mode to boolean | string — `RealmLike.create(schemaName, values, mode?)` mode arg type widened from `string` to `boolean | string`, matching Realm's actual `UpdateMode` overload signature. Repository-internal type only; no public API impact.
+
+*ts-sdk / repo-wide — dependency hygiene:*
+- `4ba6da03` fix: bump deps to clear Dependabot advisories — `pnpm-workspace.yaml` overrides updated: `brace-expansion` `^2.0.2 → ^2.0.3`, `minimatch` `9.0.3 → 9.0.7`, `@xmldom/xmldom` `^0.8.13` (new), `node-forge` `^1.4.0` (new), `postcss` `>=8.5.10` (new), `vite` `^7.3.2` (new), `ws@8` `>=8.20.1` (new). Boltz-swap vite bumped to `7.3.3`. Clears 19 alerts including the runtime `ws` path via `ws-electrumx-client`.
+- `c79e6543` fix: align boltz-swap vite specifier with workspace override — boltz-swap-only `package.json` vite specifier alignment.
+- `a9da3a38` fix: cap postcss override at <9.0.0 — `postcss: ">=8.5.10"` → `^8.5.10` so a future postcss 9.x with breaking changes cannot be resolved. No change to the resolved version (8.5.15).
+
+*boltz-swap (carried in the same range — tracked under `docs/projects/boltz-swap/`):*
+- `cd4d7b83` fix: set lockupDetails.timeouts for restored chain swaps — `restoreSwaps` previously omitted `timeouts` on restored chain swaps so `refundArk` threw "missing timeouts" and ARK→BTC refunds were impossible after restart. A shared `resolveVhtlcTimeouts` helper now sets them (server value or tree-derived) across all restore branches and guards incomplete trees.
+
+*Release:*
+- `74935343` chore: release @arkade-os/sdk@0.4.30, @arkade-os/boltz-swap@0.3.35 — `package.json` version bumps via `pnpm run release -- all patch`.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — workspace table + Quick Reference Version bumped (`0.4.29 → 0.4.30`, `0.3.34 → 0.3.35`); new "Per-Call Renewal Threshold" Key Concept covering the `RenewVtxosOptions` payload, resolution order, manual-API gate bypass, runtime validation rationale, and ServiceWorker message-bus forwarding.
+- `docs/projects/ts-sdk/system/project_overview.md` — workspace table + Version bumped; VTXO Operations row gained the `renewVtxos(eventCallback?, options?)` paragraph (override resolution, runtime validation, ServiceWorker mirror, `RenewVtxosOptions` root export).
+- `docs/projects/ts-sdk/system/architecture.md` — `wallet/vtxo-manager.ts` entry now documents the `RenewVtxosOptions` payload, resolution order, and the pre-state-mutation type guard; `wallet/serviceWorker/wallet.ts` entry notes the new `options?` arg on `renewVtxos` and the `RequestRenewVtxos.payload` attachment; `wallet/serviceWorker/wallet-message-handler.ts` entry covers the optional `payload` field on `RequestRenewVtxos` and the handler's payload forwarding.
+- `docs/INDEX.md` — ts-sdk Key Capabilities gain a new "Per-call renewal threshold" bullet (full feature paragraph mirroring the project INDEX). "current published version" in the Build (tsup) bullet corrected `0.4.29 → 0.4.30`. Tags add `renew-vtxos-threshold`.
+
+**Notes**:
+- **No breaking changes for typical consumers**: the new `options` arg on `renewVtxos` is optional and additive at every layer (manager interface, manager impl, ServiceWorker wallet, message envelope). Callers that don't pass it keep the prior behaviour (`settlementConfig.vtxoThreshold` or 3-day default). The runtime validation only fires when an invalid override is supplied — well-formed values flow through unchanged.
+- **Validation is intentionally pre-state-mutation**: throwing `TypeError` before touching `renewalInProgress` keeps the invariant that a rejected call leaves the manager in the exact state it was in before the call. The validation guards against three concrete failure modes — `NaN` / `Infinity` (would compare unexpectedly inside `isVtxoExpiringSoon`), `<=0` (would silently widen the filter to "all VTXOs"), and non-`number` types (e.g. `"3600"` from a JSON-deserialized worker payload). Documented in the inline rationale comment.
+- **No public API change for the dependency-override bumps** — they only alter what pnpm resolves transitively. The runtime `ws` path consumed via `ws-electrumx-client` for the `ElectrumOnchainProvider` WebSocket transport is now on `ws >= 8.20.1`, clearing the known CVE without changing the SDK's source.
+- The `RealmLike.create` mode widening is a repository-backend type-only change; the Realm SDK's actual `UpdateMode` parameter accepts boolean (legacy) and `'never' | 'modified' | 'all'` strings — the prior `string`-only typing forced unnecessary casts at call sites. Public `WalletRepository` API is untouched.
+- The boltz-swap chain-swap `lockupDetails.timeouts` restoration fix in this range is tracked under `docs/projects/boltz-swap/`; this sync touches only ts-sdk + master registry docs.
+
+---
+
 ## 2026-05-27 - Delegator → Delegate rename (#519) + AssetManager export + 0.4.29 release
 **From**: `d682eac52d1fc7e92662a859cd69db5bd8bff156`
 **To**: `45d639c820ae0cfb81bf25d70bea0cbaa1221e00`

@@ -1,5 +1,48 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-28 - Operational Memory Sync (no doc changes)
+**Commit Range**: `c9eb25ca..800a9948` (24 commits, all `memory(*)` agent activity)
+**Previous Sync**: `36b3e64e0f4a2cc2b6f45bb58989e5eff7cc22ec`
+**Caller-Asserted From**: `c9eb25cafe07fc4563038cbe3d4239ea03aedf2e` (newer than previous sync — repo had advanced before this run; the intermediate commits are routine memory updates)
+**Current Sync**: `800a99482cb1b077c62a6964adb554345217ecb8`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+645/-78), all under `memory/` (`MEMORY.md`; `agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,research-monitor,security-triage,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/research-updates.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-05-27 08:00Z → 2026-05-28 04:00Z (~20h): security-triage on 4-hourly slots (08/12/16/20/00/04Z), release-coordinator on 4-hourly slots (08/12/16/20/00Z), issue-triage on ~2h slots (10:47/14:49/18:50/22:51Z 27th, 02:52Z 28th), and one-per-day runs of daily-briefing, executive-digest, linear-sync, research-monitor, slack-monitor, repo-detector, and repo-sync for 2026-05-27
+- Notable operational events captured in memory only:
+  - **repo-detector 2026-05-28T02:30Z — MAJOR ARCHIVE REVERSAL**: third major restructuring in 4 days; all 37 repos archived on 2026-05-24 restored to ArkLabsHQ; new totals **51 ArkLabsHQ + 20 arkade-os** (was 54+17 on 2026-05-27)
+  - **NEW REPO DETECTED — `solver` (arkade-os)**: first appearance in scan set; added to security-triage scope by 2026-05-28T04:00Z run; bancod → solver rename now confirmed
+  - **ts-sdk v0.4.30 RELEASED 2026-05-27T16:00Z** (release-coordinator): #524 CRITICAL restoreSwaps chain timeout RESOLVED via #528 merge; #525 Dependabot fix shipped
+  - **ts-sdk #524 RESOLVED** (security-triage 2026-05-27T16:00Z): good-governance day after multi-day money-at-risk window
+  - **ts-sdk #529 perf fix opened** (security-triage 2026-05-27T20:00Z): #521 O(n) getVtxos/getBalance follow-up
+  - **arkd v0.9.6 retroactive review noted** (release-coordinator 2026-05-28T00:00Z, security-triage 2026-05-28T00:00Z): well-governed release after the fact
+  - **dotnet-sdk #105 BOLT12 opened, CHANGES_REQUESTED** (release-coordinator 2026-05-27T20:00Z and 2026-05-28T00:00Z)
+  - **emulator #81 migration bump** (issue-triage 2026-05-27T10:47Z): only ticket of the morning slot
+  - **solver #2 refactor PRD** (issue-triage 2026-05-27T22:51Z)
+  - **executive-digest afternoon flush 2026-05-27**: queue cleared
+  - **research-monitor 2026-05-27**: research update logged (+27 lines)
+  - **linear-sync 2026-05-27**: state snapshot, no Linear changes (streak continues)
+  - **slack-monitor 2026-05-27**: daily scan appended
+  - **daily-briefing 2026-05-27**: morning briefing logged
+  - Most overnight/morning triage runs report "quiet" — 3 CRITICAL items tracked at 2026-05-27T08:00Z reduced to clean board by 2026-05-28T04:00Z
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+- Master `docs/INDEX.md` arkana-knowledge entry not modified (no material change to capabilities, tags, dependencies, or relationships; the bancod→solver rename and the archive reversal are ecosystem facts tracked in Arkana's memory, already covered by the existing "All ArkLabsHQ + arkade-os repos" dependency-graph entry)
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 800a9948…`, `last_sync_date: 2026-05-28T04:00:00Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `800a99482cb1b077c62a6964adb554345217ecb8`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no changes required (capabilities, agent roster, endpoints unchanged)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-27 - Operational Memory Sync (no doc changes)
 **Commit Range**: `c92b9543..36b3e64e` (22 commits, all `memory(*)` agent activity)
 **Previous Sync**: `fad6260fc16798a708f15c0d22b5c5528b672dc6`

@@ -1,5 +1,38 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-28 - Documentation Sync
+**Commit**: `712c3189c5a258cb4d8b69df28d9b48af4b46f59`
+**Previous Sync**: `81a29b0b87ae4e94d123164a0981d5f6435f1747`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `712c3189` Fix swap info page (#633)
+
+**Bug Fixes** (PR #633, commit 712c3189):
+- `src/screens/Apps/Boltz/Swap.tsx` — Chain Swap info page now shows the correct destination BTC address for ARK→BTC swaps. Was incorrectly reading `swapInfo.response.lockupDetails?.lockupAddress` (the user's funded ARK side) instead of the on-chain claim destination; now uses `swapInfo.toAddress` (the BTC address the user is sending to). The BTC→ARK branch (`swapInfo.response.claimDetails?.lockupAddress`) is unchanged.
+- `src/test/e2e/swap.test.ts` — "send funds to Bitcoin" e2e now asserts the displayed `BTC Address` cell equals `prettyLongText(someOnchainAddress)`, guarding against this regression.
+
+**Features Added / Modified / Removed**: None — UI-display bugfix to the Chain Swap info screen.
+**Configuration Changes**: None
+**Dependencies**: None
+**Breaking Changes**: None
+
+**Files Touched in Repo** (2 files):
+- `src/screens/Apps/Boltz/Swap.tsx`
+- `src/test/e2e/swap.test.ts`
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` (frontmatter `version` 1.2.12 → 1.2.13 + `last_sync_commit`)
+- `docs/projects/wallet/change-log/last-sync.txt` → `712c3189c5a258cb4d8b69df28d9b48af4b46f59`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/INDEX.md` — no tracked field affected (Key Capabilities, Tags, Dependencies, Triggers, dep versions all unchanged by this bugfix).
+- `docs/projects/wallet/system/*` and `testing/*` — no architectural, API, env-var, or feature surface change; the fix swaps one field reference inside an existing info table.
+
+---
+
 ## 2026-05-26 - Documentation Sync
 **Commit**: `81a29b0b87ae4e94d123164a0981d5f6435f1747`
 **Previous Sync**: `9848c02c3ea72d8a004c703ea9d7577bbd946bf4`

@@ -1,5 +1,42 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-05-28 - Documentation Update
+**Commit**: `4bd46fa06d1399940634b4c723b426abca2c09f2`
+**Previous Sync**: `6bcd75dfdba0dc3158a91ee0ba4e24bdb5307b54`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Highlights**:
+- 📦 **arkd release bump to v0.9.6** (#76, `4bd46fa`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arkade-os/arkd:v0.9.6` and `ghcr.io/arkade-os/arkd-wallet:v0.9.6` (previously
+  `v0.9.5`). Production-only change; regtest compose unchanged.
+- 🩺 **NBXplorer upgrade `2.5.30-1` → `2.6.7` with curl-enabled health checks** (#74,
+  `e64e5e9`): the upstream `nicolasdorier/nbxplorer` base image ships without `curl` or `wget`,
+  preventing reliable HTTP health probes. A new local `compose/Dockerfile.nbxplorer` wraps it
+  (`FROM nicolasdorier/nbxplorer:${NBXPLORER_VERSION}` + `apt-get install -y --no-install-recommends curl`)
+  and is built by both compose files via a `build:` block (context `.`, `args: NBXPLORER_VERSION=2.6.7`),
+  tagged `ark-infra/nbxplorer:2.6.7-curl`. The health check moved from a stub `GET /health` to a
+  JSON-RPC `POST /v1/cryptos/BTC/rpc` with body
+  `{"jsonrpc":"1.0","method":"getblockchaininfo","params":[]}`, grepping for `"result"`; retry
+  budget doubled from 30 to 60 (5s interval). Applied identically to
+  `compose/docker-compose.ark.prod.yaml` and `compose/docker-compose.ark.regtest.yaml`.
+- 🔗 **`arkd-wallet depends_on nbxplorer` (service_healthy)**: in both prod and regtest compose
+  files, `arkd-wallet` now declares `depends_on: { nbxplorer: { condition: service_healthy } }`
+  so the wallet sidecar only starts once nbxplorer's JSON-RPC probe is green. Combined with the
+  new health probe, this eliminates the previous race where arkd-wallet booted against an
+  unindexed nbxplorer.
+
+**Files Updated**:
+- docs/INDEX.md (capability lines: arkd/arkd-wallet `v0.9.5` → `v0.9.6`; new NBXplorer `2.6.7` line covering the local Dockerfile override, JSON-RPC health check, and `arkd-wallet depends_on nbxplorer`; tags: `nbxplorer`, `healthcheck`, `dockerfile-override`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.5.2; Core Services nbxplorer bullet now lists `2.6.7`, local `Dockerfile.nbxplorer`, JSON-RPC health check, and the new `arkd-wallet` health dependency)
+- docs/projects/ark-infra/system/project_overview.md (ECR note: GHCR image tags `v0.9.5` → `v0.9.6`; nbxplorer service section expanded with version, Dockerfile override rationale, health check, and `arkd-wallet` dependency)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-27 - Documentation Update
 **Commit**: `6bcd75dfdba0dc3158a91ee0ba4e24bdb5307b54`
 **Previous Sync**: `6ec1a7a474f3a98e843224b7b2de604d923426ef`
