@@ -95,6 +95,16 @@ For plain Bitcoin/Ark sends (no asset), use `sendTransaction` / `quoteSendTransa
 
 ---
 
+## `setup:dev` leaves a submodule working tree empty / patch step fails to find files
+
+**Symptom:** A previously checked-out submodule (e.g. `packages/pear-wrk-wdk`) has an empty or partial working tree after `npm run setup:dev`, and the patch step then fails because target files are missing.
+
+**Cause:** The submodule was already initialised (its HEAD matched the recorded commit) but the working tree had been wiped or left in a dirty state. Plain `git submodule update --init --recursive` is a no-op in that case, so files are never restored.
+
+**Resolution:** Fixed in `af4d6b3` — `scripts/setup-dev.js` now passes `--force` (`git submodule update --init --recursive --force`), which resets the submodule working tree to the recorded commit even when HEAD already matches. Re-run `npm run setup:dev`. If you are running the bare submodule init manually, use the same `--force` flag.
+
+---
+
 ## Patches do not apply after a fresh clone
 
 **Symptom:** `npm run setup:dev` reports patch hunks that no longer match.

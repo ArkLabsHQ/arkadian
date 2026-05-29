@@ -26,9 +26,9 @@
 **"nigiri not found"**
 - Install nigiri: `curl https://getnigiri.vulpemventures.com | bash`
 
-**Introspector not starting**
-- Check `docker-compose.introspector.yml` is present
-- Verify `.env.regtest` has correct image tags
+**Emulator not starting**
+- Check `docker-compose.emulator.yml` is present (file was renamed from `docker-compose.introspector.yml` in the May 2026 ts-sdk bump)
+- Verify `.env.regtest` has correct image tags; image is `ghcr.io/arkade-os/emulator:v0.0.1`, exposed on port 7073
 
 **arkd wallet not initialized**
 - `regtest:start` auto-runs `ark init --password secret`
@@ -38,4 +38,12 @@
 
 - Use `vitest --reporter=verbose` for detailed test output
 - Check arkd logs: `docker logs arkd`
-- Check introspector logs: `docker logs introspector`
+- Check emulator logs: `docker logs emulator`
+
+### "EventSource is not defined" in E2E tests
+
+- The ts-sdk opens SSE subscriptions in the background (`ContractWatcher`); Node lacks a global `EventSource`. `test/e2e/utils.ts` installs a no-op stub if missing — keep that polyfill if you add new test files.
+
+### Asset amount type errors (`Type 'number' is not assignable to type 'bigint'`)
+
+- After the May 2026 ts-sdk bump, asset amounts are `bigint`. Wrap numeric literals with `BigInt(...)` (or use `n` suffix) when calling `assetManager.issue({ amount })`, `wallet.send({ assets: [...] })`, or comparing returned `asset.amount` values.

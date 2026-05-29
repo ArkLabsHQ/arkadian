@@ -22,7 +22,7 @@ scripts:
   setup_dev: "npm run setup:dev"
   release: "npm run release"
   generate_patches: "node scripts/generate-patches.js"
-  submodules_init: "git submodule update --init --recursive"
+  submodules_init: "git submodule update --init --recursive --force"
 ---
 
 # Arkade WDK — Project Index

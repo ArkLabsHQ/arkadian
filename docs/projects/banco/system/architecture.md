@@ -63,9 +63,11 @@ The swap VTXO has up to 3 tap leaves:
 
 | Leaf | Script | Signers | Condition |
 |------|--------|---------|-----------|
-| Fulfill | Arkade covenant | introspector + server | Covenant satisfied |
+| Fulfill | Arkade covenant | emulator + server | Covenant satisfied |
 | Cancel | CLTV multisig | maker + server | After cancelDelay |
 | Exit | CSV multisig | maker + server | After exitTimelock |
+
+The Arkade tap leaf is built via `arkade.ArkadeVtxoInput` with `emulators: [offer.emulatorPubkey]` (renamed from `introspectors` in the ts-sdk bump).
 
 ## Covenant Scripts
 

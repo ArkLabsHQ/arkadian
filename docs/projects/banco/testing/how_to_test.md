@@ -9,7 +9,7 @@ pnpm test
 
 ## E2E Tests
 
-Require running regtest environment (nigiri + arkd + introspector).
+Require running regtest environment (nigiri + arkd + emulator).
 
 ```sh
 pnpm regtest:start    # boot stack

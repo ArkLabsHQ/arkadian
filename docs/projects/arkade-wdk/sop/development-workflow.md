@@ -39,7 +39,7 @@ Submodules are independent repos. Treat each touched submodule as its own delive
    ```
 3. Repeat for other touched submodules.
 
-If you cannot push to the submodule's upstream (vendor repo), use the patch workflow instead.
+If you cannot push to the submodule's upstream (vendor repo), use the patch workflow instead. As of `af4d6b3`, `packages/pear-wrk-wdk` is sourced from the `ArkLabsHQ/pear-wrk-wdk` fork, so changes there should go via the **bump-pointer** path (push to the fork, then update the submodule pointer in the parent repo) rather than the patch workflow. `packages/wdk-react-native-provider` and `examples/wdk-starter-react-native` remain vendor repos — use the patch workflow for them.
 
 ## Patch Workflow
 
@@ -54,7 +54,7 @@ node scripts/generate-patches.js --base origin/v2  # or against a specific base 
 npm run setup:dev
 ```
 
-`scripts/setup-dev.js` uses `git apply --reverse --check` per patch, so reruns are safe — already-applied patches are skipped.
+`scripts/setup-dev.js` uses `git apply --reverse --check` per patch, so reruns are safe — already-applied patches are skipped. As of `af4d6b3`, the script also calls `git submodule update --init --recursive --force` so that a wiped-but-still-initialised submodule working tree is restored before patches are applied (without `--force`, git would short-circuit when HEAD already matches and leave the working tree empty).
 
 Commit the refreshed patch file in the parent repo:
 

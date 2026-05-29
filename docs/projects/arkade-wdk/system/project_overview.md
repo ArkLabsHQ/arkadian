@@ -80,11 +80,11 @@ Every account exposes the same three receive surfaces from its underlying wallet
 
 | Path | Repo Role |
 |------|-----------|
-| `packages/pear-wrk-wdk` | Bare-kit worklet runtime (HRPC schema + handlers) |
+| `packages/pear-wrk-wdk` | Bare-kit worklet runtime (HRPC schema + handlers) — sourced from `ArkLabsHQ/pear-wrk-wdk` (own fork; previously pointed at `tetherto/pear-wrk-wdk`) |
 | `packages/wdk-react-native-provider` | React Native provider (WDK service, contexts, UI wiring) |
 | `examples/wdk-starter-react-native` | Expo example app exercising the full stack |
 
-Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/setup-dev.js`.
+Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/setup-dev.js`. The `pear-wrk-wdk` fork allows direct submodule-pointer bumps without a patch overlay (the corresponding `patches/pear-wrk-wdk.patch` was already removed in `7eb1607`).
 
 ## Use Cases
 

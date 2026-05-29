@@ -22,8 +22,8 @@ arkade-wdk/
 │   ├── __tests__/                          # node:test specs (.js)
 │   └── index.js                            # public package exports
 ├── packages/                               # submodules
-│   ├── pear-wrk-wdk/
-│   └── wdk-react-native-provider/
+│   ├── pear-wrk-wdk/                       # ArkLabsHQ/pear-wrk-wdk (own fork)
+│   └── wdk-react-native-provider/          # tetherto/wdk-react-native-provider (vendor)
 ├── examples/
 │   └── wdk-starter-react-native/
 ├── patches/                                # patches applied to submodules
@@ -160,7 +160,7 @@ examples/wdk-starter-react-native (Expo app)
 @tetherto/wdk-react-native-provider  (packages/wdk-react-native-provider, patched)
         │
         ▼ talks HRPC to
-pear-wrk-wdk                         (packages/pear-wrk-wdk, patched)
+pear-wrk-wdk                         (packages/pear-wrk-wdk, ArkLabsHQ fork — no patch)
         │
         ▼ runs Arkade wallet on RN side (post-3640315 refactor)
 @arkade-os/wdk + @arkade-os/sdk
@@ -187,6 +187,10 @@ The `packages/` and `examples/` directories are git submodules. Local modificati
 2. From the parent repo, run `node scripts/generate-patches.js` to refresh patch files (defaults the base ref to the parent's pinned submodule SHA).
 3. Commit the updated patch file in the parent repo.
 4. After fresh clones, `npm run setup:dev` initialises submodules, applies all patches idempotently, and symlinks packages into one another's `node_modules` (bypassing `npm link` to avoid the `prepare` lifecycle re-running).
+
+`scripts/setup-dev.js` now runs `git submodule update --init --recursive --force` (added in `af4d6b3`). The `--force` resets each submodule's working tree to the recorded commit even when it is already initialised — without it, a submodule whose working tree was wiped or left dirty but whose HEAD already matches would be treated as up-to-date and never restored, which then breaks the subsequent patch step.
+
+Because `pear-wrk-wdk` is now sourced from the `ArkLabsHQ` fork (`af4d6b3`), local changes there can be committed and pushed directly to the fork rather than carried as a patch overlay; `wdk-react-native-provider` and `wdk-starter-react-native` remain vendor repos and still use the patch workflow.
 
 ## Build & Output
 

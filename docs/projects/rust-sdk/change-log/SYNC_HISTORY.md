@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-29 - 0.9.1 release + introspector emulator env fix
+**From**: `1d778429e7fc281bb05a68a5264011e740a2a001`
+**To**: `70eaa75ad5a910e4b35a7002137cc769e9973268`
+**Synced By**: update-project skill
+**Commits analyzed**: 2 (no merges)
+
+**Summary**: Patch release sync — no API or behavior changes. Every publishable crate bumped from `0.9.0` to `0.9.1` (incl. all intra-workspace `path = "..", version = "..."` pins and the install snippets in per-crate READMEs and the root README). Operational fix to the `justfile` `introspector-docker-run` recipe: it now also exports the four `EMULATOR_*` env vars (mirroring the existing `INTROSPECTOR_*` ones) so the dockerized introspector emulator can find the local arkd via `host.docker.internal` for `e2e_arkade_script` runs.
+
+**Changes**:
+- `chore: prepare 0.9.1 release` (`739c6aa`) — bumps `version` from `0.9.0` → `0.9.1` for `ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`, `ark-script`, `ark-introspector-client`; updates intra-workspace path-dep pins to match; refreshes the version strings in the per-crate `README.md` install snippets and the root `README.md` crate index. `ark-client-sample` workspace member also bumped. No code changes.
+- `fix: set emulator env for introspector` (`62eee99`) — `justfile`: `introspector-docker-run` target additionally passes `-e EMULATOR_SECRET_KEY=...`, `-e EMULATOR_NO_TLS=true`, `-e EMULATOR_ARKD_URL=host.docker.internal:7070`, `-e EMULATOR_LOG_LEVEL=6` to the dockerized introspector container alongside the existing `INTROSPECTOR_*` vars. Required by the current introspector image, which reads the emulator-prefixed names; without this, the e2e arkade-script suite couldn't reach the regtest arkd from inside the container.
+
+**Breaking changes**: None.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`, workspace crates bumped to v0.9.1, opening Key Concepts note)
+- `docs/projects/rust-sdk/system/project_overview.md` (new top entry under Recent Additions for the 0.9.1 release + emulator env fix; all `(v0.9.0)` → `(v0.9.1)`; project status line)
+- `docs/INDEX.md` (rust-sdk description — v0.9.0 → v0.9.1 alignment note)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-26 - Batch event waits honour client timeout
 **From**: `241e2291dc615dcfe7a276a976f8d3a9f13eab75`
 **To**: `1d778429e7fc281bb05a68a5264011e740a2a001`

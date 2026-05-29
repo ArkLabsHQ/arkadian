@@ -1,5 +1,29 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-05-29 — Self-host `pear-wrk-wdk` submodule + force submodule reset in `setup-dev`
+**Previous Commit**: `f24a17340cdcbfd88c147494c7a6d746e63e8b2a`
+**Current Commit**: `af4d6b3f1d3fff150192123b6b3fa69ef7a9dae1`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated
+
+**Commits Analyzed** (1):
+- `af4d6b3` Use our repo for pear-wrk-wdk and force submodules update — `.gitmodules` repoints `packages/pear-wrk-wdk` from `https://github.com/tetherto/pear-wrk-wdk` → `https://github.com/ArkLabsHQ/pear-wrk-wdk` (own fork), and `scripts/setup-dev.js` adds `--force` to `git submodule update --init --recursive` so a wiped-but-already-initialised submodule working tree is reset to its recorded commit before patches are applied (without `--force`, git short-circuits when HEAD already matches and the patch step then breaks).
+
+**Changes**:
+- `system/project_overview.md` — Submodules table now annotates `packages/pear-wrk-wdk` as the `ArkLabsHQ/pear-wrk-wdk` fork (previously `tetherto/pear-wrk-wdk`) and notes that the corresponding `patches/pear-wrk-wdk.patch` was already removed in `7eb1607`, so the fork now allows direct submodule-pointer bumps without a patch overlay.
+- `system/architecture.md` — Repository Layout tree annotates `packages/pear-wrk-wdk/` as the ArkLabsHQ fork and `packages/wdk-react-native-provider/` as the Tether vendor repo; HRPC dependency-flow diagram reflects `pear-wrk-wdk` as ArkLabsHQ fork (no patch); Submodule + Patch Model section gained a paragraph on the `--force` flag added to `git submodule update --init --recursive` and clarifies that `pear-wrk-wdk` is now self-hosted (no patch), while the other two submodules remain vendor repos with the patch workflow.
+- `sop/development-workflow.md` — "Daily Loop (Submodule Changes)" notes the `pear-wrk-wdk` fork can now take direct pushes (use the bump-pointer flow) while `wdk-react-native-provider` / `wdk-starter-react-native` keep the patch workflow; "Patch Workflow" paragraph documents the new `--force` behaviour of `scripts/setup-dev.js`.
+- `testing/troubleshooting.md` — New entry "`setup:dev` leaves a submodule working tree empty / patch step fails to find files" describes the wiped-but-initialised symptom and points at the `--force` fix.
+- `INDEX.md` (project frontmatter) — `submodules_init` script command updated to `git submodule update --init --recursive --force` to match `scripts/setup-dev.js`.
+- Master `docs/INDEX.md` — Not modified. The arkade-wdk entry does not surface submodule URLs or the submodule init command, so the change has no effect on the master registry.
+
+**Notes**:
+- No source or public API changes. `WalletManagerArkade` / `WalletAccountArkade` / `WalletAccountReadOnlyArkade` are byte-identical with `f24a173`; `package.json#version` is still `0.1.3`.
+- Dependency pins are unchanged: `@arkade-os/sdk@0.4.25`, `@arkade-os/boltz-swap@0.3.29`, `@tetherto/wdk-wallet ^1.0.0-beta.5`.
+- The submodule SHA pinned in the parent repo did not change in this commit (only the URL changed). After pulling, contributors with a previously cloned `packages/pear-wrk-wdk` need to run `git submodule sync && npm run setup:dev` so the remote URL is rewritten to the fork.
+
+---
+
 ## 2026-05-26 — v0.1.3: terminology refresh (Ark → Arkade) in source comments and README
 **Previous Commit**: `519d9097d3692a23b04d51ed568e653c3832f124`
 **Current Commit**: `f24a17340cdcbfd88c147494c7a6d746e63e8b2a`

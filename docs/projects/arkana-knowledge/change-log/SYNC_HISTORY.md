@@ -1,5 +1,44 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-29 - Operational Memory Sync (no doc changes)
+**Commit Range**: `800a9948..9f149b58` (24 commits, all `memory(*)` agent activity)
+**Previous Sync**: `800a99482cb1b077c62a6964adb554345217ecb8`
+**Current Sync**: `9f149b5878f5ad9282a6e75027b3f6edb12ac81b` (committed 2026-05-29T04:59:41Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+674/-34), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,repo-sync,sdk-parity,security-triage,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/sdk-parity.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-05-28 08:00Z → 2026-05-29 08:00Z (~24h): security-triage at 4-hourly slots (28th 08/12/16/20Z, 29th 04/08Z), release-coordinator at 4-hourly slots (28th 12/16/20Z, 29th 04Z), issue-triage at ~4h slots (28th 10:55/14:57/18:58/23:01Z, 29th 03:02Z), and one-per-day runs of daily-briefing, executive-digest, linear-sync, slack-monitor, sdk-parity, repo-sync, and repo-detector
+- Notable operational events captured in memory only:
+  - **security-triage 2026-05-28T08:00Z** (b36a1b8): rust-sdk v0.9.1 ships unreviewed VHTLC + unfixed DoS; dotnet-sdk #107 nonce leak gated
+  - **security-triage 2026-05-28T12:00Z** (380a7d0): nonce leak cascade gated across 2 repos; GOV#84-87 raised
+  - **security-triage 2026-05-28T16:00Z** (2cbf4dc): wallet #636 BIP21 fund-loss gated; 4 critical gates holding
+  - **security-triage 2026-05-28T20:00Z** (d8a5467): quiet evening, all gates holding
+  - **security-triage 2026-05-29T04:00Z/08:00Z** (fce1ecd, 9f149b5): quiet overnight and morning
+  - **issue-triage 2026-05-28T10:55Z** (2c20c30): wallet #635 iOS clipboard paste bug
+  - **issue-triage 2026-05-28T18:58Z** (abe5b12): **arkd #1085 ConditionCLTVMultisigClosure gap flagged protocol-critical**
+  - **executive-digest 2026-05-28** (2229154): critical release violations digest flushed
+  - **repo-sync 2026-05-28T18:00Z** (cb13306): token restored, 12 repos updated, 1 new repo cloned (`pear-wrk-wdk`)
+  - **repo-detector 2026-05-29** (f32eac3): `pear-wrk-wdk` confirmed; organizational structure stable
+  - **release-coordinator 2026-05-28T16:00Z/20:00Z, 2026-05-29T04:00Z** (90a2420, 8aca961, 95c933e): release checks quiet, gates holding
+  - **sdk-parity 2026-05-28** (1f67e1e): parity check logged
+  - **linear-sync 2026-05-28** (90901ed): state snapshot
+  - **slack-monitor 2026-05-28** (dd276c8): daily scan appended
+  - **daily-briefing 2026-05-28** (60f73e8): morning briefing logged
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `change-log/last-sync.txt` → `9f149b5878f5ad9282a6e75027b3f6edb12ac81b`
+- `INDEX.md` frontmatter (`last_sync_commit`, `last_sync_date`)
+- `change-log/SYNC_HISTORY.md` (this entry)
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; entry has no per-project sync timestamp field
+
+---
+
 ## 2026-05-28 - Operational Memory Sync (no doc changes)
 **Commit Range**: `c9eb25ca..800a9948` (24 commits, all `memory(*)` agent activity)
 **Previous Sync**: `36b3e64e0f4a2cc2b6f45bb58989e5eff7cc22ec`

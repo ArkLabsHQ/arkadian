@@ -1,8 +1,8 @@
 ---
 project_id: banco
 version: 1.0.0
-last_sync_commit: 86d4c7c3d01c45f52a6b22e103cb525839fd7dda
-last_sync_date: 2026-05-26T00:00:00Z
+last_sync_commit: 428ae68dd9ed63be2c3bc4e93345151cc20aed00
+last_sync_date: 2026-05-28T00:00:00Z
 repository_path: ${BANCO_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/banco
 commits_behind_upstream: 0
@@ -30,7 +30,7 @@ scripts:
 
 # Banco — Project Index
 
-**banco** (`@arkade-os/banco`) is a TypeScript library implementing the non-interactive banco swap protocol for Ark. It enables trustless atomic swaps between BTC and assets (or asset-to-asset) on the Ark network without requiring both parties to be online simultaneously, using covenant-based VTXO scripts with introspection opcodes.
+**banco** (`@arkade-os/banco`) is a TypeScript library implementing the non-interactive banco swap protocol for Ark. It enables trustless atomic swaps between BTC and assets (or asset-to-asset) on the Ark network without requiring both parties to be online simultaneously, using covenant-based VTXO scripts with introspection opcodes. The library uses the **Emulator** terminology throughout its public API and wire format (TLV field `0x08` is `emulatorPubkey`, providers are `RestEmulatorProvider`, packets are `EmulatorPacket`); the legacy `introspector` identifiers have been removed.
 
 ## Directory Structure
 

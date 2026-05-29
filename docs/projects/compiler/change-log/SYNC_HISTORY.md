@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-05-29 — Terminology cleanup (Ark → Arkade)
+**Commit Range**: `63dc58e4` → `4dcfdc3f`
+**Synced By**: /update-project compiler
+**Status**: No-op for Arkadian registry — in-repo cosmetic change only
+
+**Commits Analyzed** (1):
+- `4dcfdc3` docs: use Arkade terminology, remove stray "Ark" protocol references (#36)
+
+**Changes**:
+- PR #36 replaces stray "Ark" references with "Arkade" across in-repo files: `README.md` (last paragraph on `<VTXO:...>` placeholder resolution), `docs/ArkadeKitties.md` (title + intro), `docs/arkade-primitives-spec.md` (one comment in StabilityVault ASM), `examples/htlc.ark` / `single_sig.ark` / `threshold_multisig_htlc.ark` (header comments), `playground/codegen.js` (3 user-facing strings), `src/validator/mod.rs` (2 doc-comment lines), `tests/asm_structural_test.rs` (1 string assertion), and the `arkade-bindgen` crate (`ir.rs`, `targets/go.rs`, `targets/typescript.rs`, plus matching test fixtures in `tests/go_test.rs` / `tests/typescript_test.rs` — emitted Go/TS code comments now read "Arkade server" / "Arkade contract instance").
+- No grammar, parser, AST, codegen, or validator behaviour changes. No new opcodes, no new contract examples, no new tests.
+- Net diff: 14 files, +23/-20 lines.
+
+**Documentation Updates**:
+- None. The Arkadian-side compiler docs (`INDEX.md`, `system/project_overview.md`, `system/architecture.md`, `testing/*.md`, `sop/*.md`) already use "Arkade" terminology throughout — no stray "Ark protocol/server/node/runtime/VTXO/contract" references exist to be rewritten.
+- Master `docs/INDEX.md` compiler entry is already aligned (description uses "Arkade Script", "Arkade Operator", etc.) — no edits needed.
+
+**Notes**:
+- This is the exact case the skill's "Smart Update Detection" rule calls out: an in-repo cosmetic refactor with zero observable impact on the registry. Sync tracking files are updated so the next run starts from `4dcfdc3f`; no Arkadian content files were modified.
+
+---
+
 ## 2026-05-23 — Options Contracts (CoveredCall, CashSecuredPut) + Exit-Leaf Pubkey Filtering
 **Commit Range**: `d42674e0` → `63dc58e4`
 **Synced By**: /update-project compiler

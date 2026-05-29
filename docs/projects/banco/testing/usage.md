@@ -11,7 +11,7 @@ pnpm add @arkade-os/banco
 ```ts
 import { Maker } from "@arkade-os/banco";
 
-const maker = new Maker(wallet, arkServerUrl, introspectorUrl);
+const maker = new Maker(wallet, arkServerUrl, emulatorUrl);
 
 const { offer, swapPkScript, packet } = await maker.createOffer({
   wantAmount: 10_000n,    // 10k sats
@@ -27,7 +27,7 @@ await wallet.send({ address: swapAddress, amount: 50_000 });
 ```ts
 import { Taker } from "@arkade-os/banco";
 
-const taker = new Taker(wallet, arkServerUrl, introspectorUrl);
+const taker = new Taker(wallet, arkServerUrl, emulatorUrl);
 
 // From hex-encoded offer
 const { txid } = await taker.fulfill(offerHex);

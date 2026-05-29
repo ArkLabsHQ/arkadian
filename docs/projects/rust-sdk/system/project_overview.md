@@ -14,6 +14,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Recent Additions
 
+- **0.9.1 release + introspector emulator env fix** — every publishable crate (`ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`, `ark-script`, `ark-introspector-client`) bumped from `0.9.0` → `0.9.1`; all intra-workspace `path = "..", version = "0.9.0"` dependency pins updated to `0.9.1`; root and per-crate `README.md` install-snippets refreshed accordingly. No API or behavior changes. The `justfile` `introspector-docker-run` recipe now also exports the four `EMULATOR_*` env vars (`EMULATOR_SECRET_KEY`, `EMULATOR_NO_TLS=true`, `EMULATOR_ARKD_URL=host.docker.internal:7070`, `EMULATOR_LOG_LEVEL=6`) alongside the existing `INTROSPECTOR_*` ones, so the dockerized introspector emulator picks up the local arkd in `nigiri` for `e2e_arkade_script` runs without manual env tweaks.
 - **Batch event waits honour the client timeout** — `ark-client::batch` now wraps `stream.next()` in `timeout_op(self.inner.timeout, …)` on both the settlement and delegate-settlement loops. Previously a stalled `arkd` round stream could hang the client indefinitely; the call now returns `Error::transaction` with context `"timed out waiting for batch event"` after the configured timeout, so callers can surface the failure and retry.
 - **SDK build-version handshake (BREAKING for `ark-rest::Client::new`)** — every gRPC and REST request now carries an `x-build-version` header set to `env!("CARGO_PKG_VERSION")` of the calling crate. In `ark-grpc`, this is injected by a `VersionInterceptor` wrapping the `tonic::transport::Channel` (so both `ArkServiceClient` and `IndexerServiceClient` carry the header); in `ark-rest`, the header is plumbed in as a `reqwest::Client` default header. Servers reject too-old SDKs by returning gRPC `FailedPrecondition` with message `BUILD_VERSION_TOO_OLD` (REST surfaces the same marker in the error body). Both crates expose a new `Error::is_version_mismatch()` helper so callers can detect the rejection without string-matching the source error. `ark_rest::Client::new(url)` now returns `Result<Self, Error>` (the wrapped `reqwest::Client::builder().build()` is fallible) — direct callers must `?` the result. Resolves #195.
 - **Optional BOLT11 invoice description on reverse swaps** — `ark-client`'s `get_ln_invoice(amount, expiry_secs, description)` and `get_ln_invoice_with_preimage_hash(amount, expiry_secs, preimage_hash_sha256, description)` gained a trailing `description: Option<String>` argument. The value is validated against `MAX_BOLT11_DESCRIPTION_BYTES = 639` (BOLT11 tagged-field cap of `floor(1023 * 5 / 8)`) and forwarded as the `description` field on `POST /v2/swap/reverse` (skipped when `None`). It ends up in the BOLT11 `d` field, visible to the payer. **Breaking** for direct callers — the sample app threads `None` to take the default.
@@ -40,7 +41,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Workspace Crates
 
-### ark-core (v0.9.0)
+### ark-core (v0.9.1)
 Core types and protocol primitives:
 - `ArkAddress`: Ark address encoding/decoding (bech32)
 - `Vtxo`, `VtxoList`: Virtual transaction output management — including delegator (3-of-3) VTXOs and split forfeit / unilateral-exit keys
@@ -55,7 +56,7 @@ Core types and protocol primitives:
 - **Asset support** (Arkade Asset V1): `AssetId`, `Packet`/`AssetGroup` OP_RETURN encoding, asset issuance / reissuance / burn transaction builders, settlement asset preservation
 - **Introspector packet builder** (`introspector::packet`): strict-validating packet construction for the introspector co-signer; appended via the new `extension` module as Ark extensions
 
-### ark-client (v0.9.0)
+### ark-client (v0.9.1)
 High-level client API:
 - `OfflineClient` → `Client` connection lifecycle (delegator pubkey + historical pubkeys configured at OfflineClient layer)
 - `send_vtxo()`: Send off-chain payments (now backed by a generic offchain transaction builder shared with asset sends)
@@ -72,28 +73,28 @@ High-level client API:
 - Boltz submarine and reverse submarine swaps
 - Swap storage (in-memory or SQLite, with new `chain_swaps` table)
 
-### ark-grpc (v0.9.0)
+### ark-grpc (v0.9.1)
 gRPC transport layer (default):
 - tonic-based gRPC client
 - Protobuf message types (prost)
 - Native TLS support
 - Test utilities
 
-### ark-rest (v0.9.0)
+### ark-rest (v0.9.1)
 REST transport layer:
 - reqwest-based HTTP client
 - WASM-compatible (browser builds)
 - OpenAPI-generated client types
 
-### ark-bdk-wallet (v0.9.0)
+### ark-bdk-wallet (v0.9.1)
 Bitcoin Development Kit integration:
 - On-chain wallet operations
 - BDK wallet wrapper for Ark boarding/exit
 
-### ark-fees (v0.9.0)
+### ark-fees (v0.9.1)
 Fee estimation for Ark transactions.
 
-### ark-delegator (v0.9.0)
+### ark-delegator (v0.9.1)
 REST client for Ark delegator services. A delegator is a third-party service (e.g. fulmine) that automatically renews VTXOs before they expire, allowing wallets to stay offline without losing funds.
 - `DelegatorClient::info()` — fetch delegator pubkey, fee, on-chain address (`GET /v1/delegator/info`)
 - `DelegatorClient::delegate()` — submit signed intent + forfeit PSBTs (`POST /v1/delegate`)
@@ -152,7 +153,7 @@ Reference implementation for understanding Ark protocol internals (round signing
 
 ## Project Status
 
-Active development, version 0.9.0 across all publishable crates (release-prep with crates.io metadata aligned). MIT licensed.
+Active development, version 0.9.1 across all publishable crates (0.9.x release line, crates.io metadata aligned). MIT licensed.
 
 **Repository**: https://github.com/arkade-os/rust-sdk
 **MSRV**: Rust 1.86
