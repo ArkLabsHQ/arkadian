@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.13
-last_sync_commit: 712c3189c5a258cb4d8b69df28d9b48af4b46f59
+version: 1.2.14
+last_sync_commit: 32c7773670551bdf1373e7e6354b7b51344ff23d
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -301,6 +301,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **Dev mode toggle** (PR #618): Triple-tapping the loading logo toggles a global dev mode persisted in `localStorage`. The tap logic lives in the new `DevModeProvider` (`src/providers/devMode.tsx`) so every `LoadingLogo` in the app shares the same state.
 - **Contracts screen** (PR #618, `src/screens/Settings/Contracts.tsx`): When dev mode is enabled, a "Contracts" entry appears in **Settings → Advanced**. It renders all `ContractManager` contracts sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled.
 - **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI (with Lightning fallback) immediately, no submenu.
+- **BIP21 parser case-insensitive** (PR #636, commit 32c77736): `decodeBip21` (`src/lib/bip21.ts`) now accepts uppercase URI query parameters (`ARK`, `ASSETID`, `AMOUNT`, `LIGHTNING`) alongside their lowercase forms — matches BIP21 canonical-uppercase QR encodings emitted by other wallets. `Bip21Decoded` is now initialised with `assetId`/`assetAmount`/`arkAddress` explicitly `undefined`, and missing-address inputs (e.g. ARK-only payment URIs) no longer assign an empty `address` string. `isBTCAddress` (`src/lib/address.ts`) regexes (segwit + legacy) gained the `i` flag so uppercase BTC addresses are recognised. A new "should decode a valid bip21 URI with uppercase" test in `src/test/lib/bip21.test.ts` guards the regression. Dev: `@playwright/test` bumped to 1.60.0.
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning via SwapManager

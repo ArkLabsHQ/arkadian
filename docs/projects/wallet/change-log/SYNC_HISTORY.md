@@ -1,5 +1,44 @@
 # Documentation Sync History - Wallet
 
+## 2026-05-30 - Documentation Sync
+**Commit**: `32c7773670551bdf1373e7e6354b7b51344ff23d`
+**Previous Sync**: `712c3189c5a258cb4d8b69df28d9b48af4b46f59`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `32c77736` fix bip21 parser (#636)
+
+**Bug Fixes** (PR #636, commit 32c77736):
+- `src/lib/bip21.ts` — `decodeBip21` now accepts uppercase URI query parameters (`ARK`/`ASSETID`/`AMOUNT`/`LIGHTNING`) alongside the lowercase forms, matching BIP21 QR encoders that uppercase-encode the URI for denser QR codes. `Bip21Decoded` is now initialised with `assetId`/`assetAmount`/`arkAddress` explicitly `undefined` so destructuring yields stable shapes. Empty addresses (e.g. ARK-only payment URIs like `bitcoin:?ark=...`) no longer write an empty `address` string into the result. The lightning branch reads the lightning param once into a local before lowercase-prefix checks.
+- `src/lib/address.ts` — `isBTCAddress` segwit + legacy regexes gained the `i` flag so uppercase BTC addresses (also valid in BIP21 uppercase URIs) pass validation.
+- `src/test/lib/bip21.test.ts` — new "should decode a valid bip21 URI with uppercase" test exercising `BITCOIN:?ARK=...&LIGHTNING=LNURL...` end-to-end.
+
+**Dev Dependency**:
+- `@playwright/test` 1.55.x → 1.60.0 (E2E test runner; `package.json` + `pnpm-lock.yaml`).
+
+**Features Added / Modified / Removed**: None — robustness bugfix to existing BIP21 parser.
+**Configuration Changes**: None
+**Breaking Changes**: None — change is permissive (accepts more inputs); behaviour for previously-accepted lowercase URIs is unchanged.
+
+**Files Touched in Repo** (5 files):
+- `package.json`
+- `pnpm-lock.yaml`
+- `src/lib/address.ts`
+- `src/lib/bip21.ts`
+- `src/test/lib/bip21.test.ts`
+
+**Files Updated**:
+- `docs/INDEX.md` — wallet **Key Capabilities** BIP21 bullet now notes PR #636 (uppercase query params + `isBTCAddress` `i` flag).
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.13 → 1.2.14 + `last_sync_commit`; new "BIP21 parser case-insensitive" capability bullet under Developer / Diagnostics.
+- `docs/projects/wallet/change-log/last-sync.txt` → `32c7773670551bdf1373e7e6354b7b51344ff23d`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/projects/wallet/system/*` and `testing/*` — no architectural, env-var, API, build/test-command, or end-user feature surface change; the fix only loosens input acceptance inside two existing `lib/` utilities, and the Playwright bump is a dev-only patch already covered by the generic Playwright reference in `system/tech-stack.md`.
+
+---
+
 ## 2026-05-28 - Documentation Sync
 **Commit**: `712c3189c5a258cb4d8b69df28d9b48af4b46f59`
 **Previous Sync**: `81a29b0b87ae4e94d123164a0981d5f6435f1747`

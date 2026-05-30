@@ -1,5 +1,51 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-30 - Operational Memory Sync (no doc changes)
+**Commit Range**: `65932842..a912095e` (18 commits, all `memory(*)` agent activity)
+**Previous Sync**: `9f149b5878f5ad9282a6e75027b3f6edb12ac81b`
+**Caller-Asserted From**: `65932842259831ee9bb8c6fcf2073072ad89456a` (newer than previous sync — repo had advanced before this run)
+**Current Sync**: `a912095eb149adbb824a6da5c342c72b9fbe40af` (committed 2026-05-30T02:30:44Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 14 files changed, all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,research-monitor,sdk-parity,security-triage,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/{research-updates,sdk-parity}.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-05-29 09:01Z → 2026-05-30 02:30Z (~17h): security-triage at 4-hourly slots (29th 12/16/20Z), release-coordinator at 4-hourly slots (29th 12/16/20Z, 30th 04Z), issue-triage at ~4h slots (29th 11:05/15:07/19:08Z), and one-per-day runs of daily-briefing, executive-digest, linear-sync, slack-monitor, sdk-parity, research-monitor for 2026-05-29 plus repo-detector 2026-05-30T02:30Z and a repo-sync queue-state update
+- Notable operational events captured in memory only:
+  - **repo-detector 2026-05-30T02:30Z** (a912095): `fulmine` flagged as "new" in ArkLabsHQ scan set (already documented in project registry; org now reports **51 ArkLabsHQ + 19 arkade-os = 70 active repos**)
+  - **slack-monitor 2026-05-29** (d87367a): **CRITICAL SECURITY — MuSig2 nonce leaked across remote-signer transport**, same-day fix merged; **PROTOCOL-CRITICAL** recursive-covenant lending pool with fan-in/fan-out PR opened; dotnet-sdk CI 7 failures (all-time worst); ts-sdk CI 6 failures; Playwright ^1.60.0 fix for wallet CI hang; **Codex AI-authored code merged to production** (governance note); ts-sdk 0.4.32 + boltz-swap 0.3.37 downstream PR (4 version jumps)
+  - **sdk-parity 2026-05-29** (0098bcf): **ts-sdk v0.4.32 ships Arkadescript / Arkade extension system** (ArkadeScript codec, ArkadeVtxoScript, createArkadeBatchHandler, EmulatorPacket, RestEmulatorProvider, sendOffChain extensions hook) → new parity gap: go-sdk ❌, dotnet-sdk ❌, rust-sdk ⚠️ low-level only; dotnet-sdk watch-only + remote-signing (#107), MuSig2 nonce fix (#113); go-sdk 56 days no release
+  - **executive-digest 2026-05-29/30** (a088d7b): **15 CRITICAL items flushed** — btcpay-arkade E2E 9 failures (regtest version change); arkd secrets backup unverified (e2ee.vtxos.com affected); SDK parity gaps; compiler#37 lending pool (3 critical bugs then fixes approved); arkd#1031 crash on graceful shutdown (14min downtime); dotnet-sdk#111 MuSig2 nonce leak (observable private key extraction); dotnet-sdk#113 nonce fix (2 critical impl bugs, breaks MuSig2); ark-infra#80 missing IAM perms; ts-sdk#532 Arkade script (consensus divergence risk); **GOV: 3 consecutive dotnet-sdk PRs (#107, #113, #114) merged bot-only on protocol-critical wallet/signer code — Kukks systematically merging on bot approval alone**; **85+ governance violations total**
+  - **release-coordinator 2026-05-29T16:00Z** (eeb88fd): **dotnet-sdk#113 (MuSig2 nonce fix, security-critical) merged 13:53Z bot-only** with arkanaai-only approval; code-review flagged 2 critical runtime bugs at 12:30Z, fixed and re-approved by arkanaai 13:41Z, merged 12 minutes later — mirrors rust-sdk#228/#230 violation pattern
+  - **release-coordinator 2026-05-29T20:00Z** (dc9af1a): go-sdk VHTLC PRs **#190 (CHANGES_REQUESTED, protocol-critical) + #191** opened today → adds to go-sdk HARD BLOCK; dotnet-sdk#115 net10 upgrade APPROVED bot-only; arkd#1031 crash still no fix PR
+  - **release-coordinator 2026-05-30T04:00Z** (e99d423): rust-sdk#233 (gRPC TLS fix) opened overnight, APPROVED bot-only; all release gates unchanged
+  - **release-coordinator 2026-05-29T12:00Z** (2fc2377): compiler#37 bot-approved (all critical fixes verified) but **HARD BLOCK holds pending human sign-off**; arkd#1031 crash confirmed on production v0.9.6 via graceful restart; arkd#1083+#1043 APPROVED as v0.9.7 candidates
+  - **issue-triage 2026-05-29T11:05Z** (ef16621): dotnet-sdk#111 **MuSig2 nonce leak** (security)
+  - **issue-triage 2026-05-29T19:08Z** (67079ae): 6 issues triaged — ts-sdk#521 (O(n) VTXO annotation perf), #522 (wallet reset/clearLocalData), #524 (chain swap restoreSwaps money-at-risk), wallet#635 (iOS paste button), arkd#1085 (ConditionCLTVMultisigClosure gap), ts-sdk#534 (finalizePendingTxs CI regression since #530)
+  - **research-monitor 2026-05-29** (8a5af28): **BIP449 OP_TWEAKADD** (tapscript key tweaking, could simplify VTXO key derivation); Eclair v0.14.0 (splicing + taproot channels + zero-fee commitments finalized); Bitcoin Core #35017 (package child removal on parent failure, relevant to connector trees); CLN assertion DoS patched; Chimera CEXT launched 2026-05-27 with no post-TGE metrics; CTV still 0% at 14+ weeks
+  - **linear-sync 2026-05-29** (b3b69b0): **44th consecutive day of zero Linear activity**; escalation 17 days unacknowledged; no new blockers
+  - **daily-briefing 2026-05-29** (9c47bba): morning briefing logged
+  - **security-triage 2026-05-29T12/16/20Z** (cd0ce8e, 66883e2, 640ef3a): all quiet
+  - **issue-triage 2026-05-29T15:07Z** (0beccb6): quiet afternoon
+  - **repo-sync queue-state** (6a49e32): sync queue state refreshed
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: a912095e…`, `last_sync_date: 2026-05-30T02:30:44Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `a912095eb149adbb824a6da5c342c72b9fbe40af`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; `fulmine` is already in the project registry, and the "All ArkLabsHQ + arkade-os repos" dependency-graph entry already covers Arkana's scan scope
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-29 - Operational Memory Sync (no doc changes)
 **Commit Range**: `800a9948..9f149b58` (24 commits, all `memory(*)` agent activity)
 **Previous Sync**: `800a99482cb1b077c62a6964adb554345217ecb8`

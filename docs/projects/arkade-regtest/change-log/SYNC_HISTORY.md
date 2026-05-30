@@ -1,5 +1,36 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-05-30 - Sync update
+**From**: `dc23da2ce658ac3483fa191282f71982f2ffe239`
+**To**: `cd473132e0fcdf82bc709534784abc94d3002163`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 6
+
+**Upstream commits**:
+- `428b4a4` make emulator default-on, opt-out via EMULATOR_IMAGE=
+- `f5d8e2d` feat: opt-in emulator overlay for arkade-script
+- `d2d307c` show all images in final report
+- `0b076bd` makes boltz rescan interval 30 seconds instead of default 300
+- `eaea8c0` fix(start-env): always fund ark CLI client wallet via redeem-notes
+- `65d6a2d` fix: remove env vars not recognized by arkd
+
+**Changes**:
+- `INDEX.md` (project) — Updated intro to mention the arkade-script emulator; added the Emulator row to the Bundled Services table (port `7073`, default-on, opt-out via `EMULATOR_IMAGE=`).
+- `system/project_overview.md` — Added emulator to the bundled-services intro, the Self-Contained Stack feature, and the Relationship-to-Other-Ark-Projects list; added a new "Default-On Emulator Overlay" feature subsection; added `docker/docker-compose.emulator.yml` to the repository layout table.
+- `system/architecture.md` — Extended the launcher steps to cover the emulator startup (step 10) and the new client-wallet redeem-notes funding (step 9); added a Compose Layer subsection describing the emulator overlay (default-on, ordering after arkd, tmpfs storage); added the Emulator row to the Networking ports table.
+- `system/configuration.md` — Removed `ARKD_SCHEDULER_TYPE`, `ARKD_ALLOW_CSV_BLOCK_TYPE`, and `ARKD_ROUND_INTERVAL` from the arkd configuration table (no longer recognized by arkd) with an explanatory note; added a new "Emulator (arkade-script signing service, default-on)" section covering `EMULATOR_IMAGE`, `EMULATOR_PORT`, `EMULATOR_SECRET_KEY`, `EMULATOR_ARKD_URL`, `EMULATOR_LOG_LEVEL`.
+- `testing/usage.md` — Added the Emulator endpoint row to the Service Endpoints table; updated the start-flow sequence to reflect the new client-wallet faucet step and the emulator readiness gate.
+- `docs/INDEX.md` (master) — Updated description to mention the emulator; added three new key-capability bullets (default-on emulator overlay, CLI client wallet auto-funding via redeem-notes, Boltz `rescanInterval = 30`); added `emulator` and `arkade-script` tags; added emulator-related trigger keywords (`ask_question`, `develop`, `debug`); added `arkade-os/emulator` to the Dependencies list.
+
+**Notes**:
+- The emulator overlay is now part of the default stack — downstream projects that don't use arkade-script must explicitly set `EMULATOR_IMAGE=` in their override to keep boot time and surface area unchanged. The change is opt-out, not opt-in, so existing consumers that pull this version get the new service by default (≈5s slower boot, new host port 7073).
+- arkd configuration variables `ARKD_SCHEDULER_TYPE`, `ARKD_ALLOW_CSV_BLOCK_TYPE`, and `ARKD_ROUND_INTERVAL` were dropped from `.env.defaults` because current arkd builds no longer recognize them; consumer overrides that still set these are now silently ignored.
+- The CLI client wallet is now always funded with 100M sats offchain via `arkd note` / `ark redeem-notes` on the happy path; previously it was only funded in the fallback branch. Falls back to a `WARNING:` log on older arkd versions that don't support `redeem-notes`.
+- Boltz `rescanInterval` is now `30` seconds (down from default 300) to make swap pickup snappier in tests; defined inline in `docker/docker-compose.ark.yml` (not configurable via env).
+- Cosmetic: `start-env.sh` now prints every image (Boltz, Nginx, LNURL, Wallet, Fulmine, Boltz LND, Emulator) in the final startup banner.
+
+---
+
 ## 2026-05-14 - Sync update
 **From**: `6333e4b889edad99e3651e62c25875d009adc854`
 **To**: `dc23da2ce658ac3483fa191282f71982f2ffe239`

@@ -102,6 +102,63 @@ For EF Core implementations, use `NArk.Storage.EfCore`:
 services.AddArkEfCoreStorage<MyDbContext>();
 ```
 
+## Wallet Types (HD / SingleKey × Local / Watch-Only / Remote-Signed)
+
+Wallets have two orthogonal axes (PR #107). `WalletType { HD, SingleKey }` is the key-derivation shape; signing capability is decided at `IWalletProvider.GetSignerAsync` time, not by a flag on `ArkWalletInfo`.
+
+```csharp
+// Local HD wallet (Secret = mnemonic).
+var hd = await WalletFactory.CreateWallet(mnemonic, destination: null, serverInfo, ct);
+await walletStorage.SaveWallet(hd, ct);
+
+// Local SingleKey wallet (Secret = nsec).
+var sk = await WalletFactory.CreateWallet("nsec1...", destination: null, serverInfo, ct);
+await walletStorage.SaveWallet(sk, ct);
+
+// Watch-only OR remote-signed: Secret = null on the record. WalletType is inferred
+// from the descriptor's wildcard (* → HD, bare pubkey → SingleKey) at creation time.
+var nonLocal = await WalletFactory.CreateWatchOnlyWallet(
+    accountDescriptor: "tr([abcd1234/86'/1'/0']tpub.../0/*)",
+    destination: null,
+    serverInfo, ct);
+await walletStorage.SaveWallet(nonLocal, ct);
+```
+
+Which one of "watch-only" vs "remote-signed" a null-Secret wallet ends up as is decided by whether you register an `IRemoteSignerTransport` whose `KnowsWalletAsync(walletId)` returns `true`:
+
+```csharp
+public class HardwareSignerTransport : IRemoteSignerTransport
+{
+    public Task<bool> KnowsWalletAsync(string walletId, CancellationToken ct)
+        => _bridge.IsPairedAsync(walletId, ct);
+
+    // GenerateNoncesAsync returns MusigPubNonce only — the secret half stays
+    // server-side. SignMusigAsync looks the secret nonce up by (walletId, sessionId).
+    public Task<MusigPubNonce> GenerateNoncesAsync(string walletId, OutputDescriptor descriptor,
+        MusigContext context, string sessionId, CancellationToken ct)
+        => _bridge.GenerateNoncesAsync(walletId, descriptor.ToString(), context, sessionId, ct);
+
+    public Task<MusigPartialSignature> SignMusigAsync(string walletId, OutputDescriptor descriptor,
+        MusigContext context, string sessionId, CancellationToken ct)
+        => _bridge.SignMusigAsync(walletId, descriptor.ToString(), context, sessionId, ct);
+
+    public Task<ECPubKey> GetPubKeyAsync(string walletId, OutputDescriptor descriptor, CancellationToken ct)
+        => _bridge.GetPubKeyAsync(walletId, descriptor.ToString(), ct);
+
+    public Task<(ECXOnlyPubKey, SecpSchnorrSignature)> SignAsync(string walletId, OutputDescriptor descriptor,
+        uint256 hash, CancellationToken ct)
+        => _bridge.SignAsync(walletId, descriptor.ToString(), hash, ct);
+}
+
+services.AddSingleton<IRemoteSignerTransport, HardwareSignerTransport>();
+```
+
+`DefaultWalletProvider.GetSignerAsync` returns a `CompositeArkadeWalletSigner` wrapping `RemoteTransportSigningSource` when the transport claims the wallet, and `null` for true watch-only. The `IRemoteSignerTransport` dependency is **optional** on `DefaultWalletProvider` — apps that don't need remote signing don't have to register one. Long-lived transports should add an eviction policy (TTL or bounded count) for abandoned nonces; in-process signing sources rely on remove-on-consume because their lifetime is the batch session.
+
+`TreeSignerSession` and `TransactionHelpers` hoist the null-signer check above their per-VTXO loops so watch-only wallets surface a clear `InvalidOperationException` before any signing work starts (the forfeit-sign path specifically calls out that watch-only wallets can't participate in batches that demand a forfeit).
+
+To plug in something the SDK doesn't ship (HWI, threshold key share, in-browser session signer): implement `IDescriptorSigningSource` and either compose with `DefaultWalletProvider` (when follow-up enriches the wiring) or replace `DefaultWalletProvider` outright with one that builds the composite however you want. The sources `Bip39SigningSource` / `NsecSigningSource` / `RemoteTransportSigningSource` are reference implementations.
+
 ## HD Wallet Recovery
 
 After re-importing an HD wallet from its mnemonic, rebuild local contract state by running the gap-limit scanner. `AddArkCoreServices()` registers `HdWalletRecoveryService`, the indexer probe, and (when an `IBoardingUtxoProvider` is also registered) the boarding probe; `AddArkSwapServices()` adds the Boltz probe. Custom probes implement `IContractDiscoveryProvider` and are picked up via DI automatically.

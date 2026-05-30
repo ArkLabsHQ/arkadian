@@ -39,8 +39,8 @@ Since 2026-05-22 the repository is a **pnpm workspace monorepo** that vendors tw
 
 | Workspace path | npm package | Version | Purpose |
 |----------------|-------------|---------|---------|
-| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.31` | This SDK (wallet, providers, crypto, repositories) — npm-published path inside the tarball is unchanged |
-| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.36` | Sibling Boltz Lightning/chain-swap library (docs under `docs/projects/boltz-swap/`) |
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.32` | This SDK (wallet, providers, crypto, repositories) — npm-published path inside the tarball is unchanged |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.37` | Sibling Boltz Lightning/chain-swap library (docs under `docs/projects/boltz-swap/`) |
 
 devDeps, prettier config, `tsup` base config, and the `scripts/regtest.sh` regtest driver are hoisted to the repo root. Releases are package-scoped via `pnpm run release -- {sdk|boltz-swap|all} <bump>`.
 
@@ -85,7 +85,7 @@ Analysis and summaries of pull requests.
 | Item | Value |
 |------|-------|
 | Package | `@arkade-os/sdk` |
-| Version | `0.4.31` |
+| Version | `0.4.32` |
 | Repo Layout | pnpm workspace monorepo — `packages/ts-sdk/` + `packages/boltz-swap/` (since 2026-05-22) |
 | Language | TypeScript |
 | Runtime | Browser, Node.js, React Native, Service Worker |

@@ -80,15 +80,29 @@ Override any of these to test specific upstream versions.
 ### arkd Configuration (override mode only)
 | Variable                    | Default    | Meaning                                                |
 | --------------------------- | ---------- | ------------------------------------------------------ |
-| `ARKD_SCHEDULER_TYPE`       | `gocron`   | Round scheduler implementation                         |
-| `ARKD_ALLOW_CSV_BLOCK_TYPE` | `false`    | Allow CSV block-locktime closures                      |
 | `ARKD_VTXO_TREE_EXPIRY`     | `1024`     | VTXO tree expiry (blocks)                              |
 | `ARKD_UNILATERAL_EXIT_DELAY`| `512`      | Unilateral exit delay (blocks)                         |
 | `ARKD_BOARDING_EXIT_DELAY`  | `2048`     | Boarding exit delay (blocks)                           |
 | `ARKD_LIVE_STORE_TYPE`      | `inmemory` | Live store backend (`inmemory` or `redis`)             |
 | `ARKD_LOG_LEVEL`            | `4`        | arkd log level                                         |
 | `ARKD_SESSION_DURATION`     | `30`       | Round session duration (seconds)                       |
-| `ARKD_ROUND_INTERVAL`       | `10`       | Round interval (seconds)                               |
+
+`ARKD_SCHEDULER_TYPE`, `ARKD_ALLOW_CSV_BLOCK_TYPE`, and `ARKD_ROUND_INTERVAL` were removed from `.env.defaults` because current arkd builds don't recognize them.
+
+### Emulator (arkade-script signing service, default-on)
+| Variable             | Default                                  | Meaning                                                                 |
+| -------------------- | ---------------------------------------- | ----------------------------------------------------------------------- |
+| `EMULATOR_IMAGE`     | `ghcr.io/arkade-os/emulator:v0.0.1`      | Image for the arkade-script Emulator. Set to `""` to disable the overlay. |
+| `EMULATOR_PORT`      | `7073`                                   | Host port mapped to the emulator's `/v1/info` HTTP API.                 |
+| `EMULATOR_SECRET_KEY`| (32-byte hex; see `.env.defaults`)       | Deterministic signing key; the matching x-only pubkey is reported on `/v1/info`. |
+| `EMULATOR_ARKD_URL`  | `ark:7070`                               | arkd hostname:port reachable from inside the `nigiri` network. Use `arkd:7070` when running a custom `ARKD_IMAGE` that renames the container. |
+| `EMULATOR_LOG_LEVEL` | `4`                                      | Emulator log level.                                                     |
+
+The overlay is **default-on** — `start-env.sh` brings it up after arkd is wallet-ready and waits up to 30 attempts for `/v1/info` before returning. Disable it for a faster boot:
+
+```bash
+EMULATOR_IMAGE=     # in your .env override
+```
 
 ### Faucet & Wallet Setup
 | Variable                | Default | Meaning                                  |

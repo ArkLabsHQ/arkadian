@@ -2,7 +2,7 @@
 
 ## Introduction
 
-**arkade-regtest** is a self-contained regtest environment for Ark protocol development. It orchestrates Nigiri (Bitcoin + Liquid regtest), `arkd` (Ark Server), `arkd-wallet`, Fulmine, Boltz Backend, an LND Lightning node, an LNURL server, an Nginx CORS proxy, and a browser-based Wallet PWA into a single reproducible Docker Compose stack.
+**arkade-regtest** is a self-contained regtest environment for Ark protocol development. It orchestrates Nigiri (Bitcoin + Liquid regtest), `arkd` (Ark Server), `arkd-wallet`, Fulmine, Boltz Backend, an LND Lightning node, an LNURL server, an Nginx CORS proxy, a browser-based Wallet PWA, and the arkade-script Emulator signing service into a single reproducible Docker Compose stack.
 
 The repository is intentionally lightweight — it ships shell scripts and Compose files only. Heavy lifting (image builds, regtest nodes) is delegated to upstream projects so arkade-regtest stays focused on **orchestration**: the right services, configured the right way, on the right ports.
 
@@ -25,7 +25,10 @@ Local Ark development needs more than a single binary. A realistic test loop exe
 ## Key Features
 
 ### Self-Contained Stack
-One command brings up Bitcoin + arkd + Fulmine + Boltz + LND + LNURL + Wallet + Nginx. No manual coordination, no port juggling.
+One command brings up Bitcoin + arkd + Fulmine + Boltz + LND + LNURL + Wallet + Nginx + Emulator. No manual coordination, no port juggling.
+
+### Default-On Emulator Overlay
+The arkade-script signing service (`ghcr.io/arkade-os/emulator:v0.0.1`) is part of the default stack on port `7073`. `start-env.sh` waits for `GET /v1/info` before returning and prints the signer pubkey in the startup banner so tests can pin to it. Consumers that don't need arkade-script can disable the overlay by setting `EMULATOR_IMAGE=` (empty) in their override — `start-env.sh` then skips it entirely for a faster boot.
 
 ### Submodule-First Design
 Intended to be added as a git submodule (typically at `regtest/`) inside consumer repos. The launcher script auto-detects `../.env.regtest` in the parent directory so consumers can pin versions without modifying arkade-regtest.
@@ -67,6 +70,7 @@ The default uses nigiri's bundled `arkd`. Setting `ARKD_IMAGE` (and `ARKD_WALLET
 | `lib/env.sh`                              | Shared `load_env` helper used by scripts               |
 | `docker/docker-compose.ark.yml`           | Boltz, Fulmine, LND, Wallet, Nginx, LNURL              |
 | `docker/docker-compose.arkd-override.yml` | Optional arkd override compose                         |
+| `docker/docker-compose.emulator.yml`      | Default-on arkade-script Emulator overlay              |
 | `docker/cors.nginx.conf`                  | Nginx CORS configuration                               |
 | `helpers/create-invoice.sh`               | Create Lightning invoice on Boltz LND                  |
 | `helpers/pay-invoice.sh`                  | Pay Lightning invoice from Boltz LND                   |
@@ -79,6 +83,7 @@ The default uses nigiri's bundled `arkd`. Setting `ARKD_IMAGE` (and `ARKD_WALLET
 - **fulmine** — exercised as a wallet + Boltz client
 - **boltz-backend** — exercised as the swap orchestrator
 - **wallet** — Ark Wallet PWA included for end-to-end browser testing
+- **arkade-os/emulator** — arkade-script signing service, bundled by default for projects (e.g. banco, coinflip) experimenting with arkade-script
 - **go-sdk / ts-sdk / rust-sdk / dotnet-sdk** — SDK consumers point their integration tests at this stack
 - **boltz-swap** — Boltz swap web UI; can be brought up against this stack
 - **arkade-explorer** — explorer UI; can be pointed at this stack for manual inspection

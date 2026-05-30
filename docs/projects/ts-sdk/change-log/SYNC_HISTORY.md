@@ -1,5 +1,25 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-05-30 - 0.4.32 / 0.3.37 release-only cut (no source changes)
+**From**: `08644c637f76137dc8cc09fb683641dd8182d8f4`
+**To**: `a511cba0c8e59c53ed0f628d811bce32561d43b9`
+**Synced By**: update-project skill
+**Status**: Release-only cut — `@arkade-os/sdk` bumps `0.4.31 → 0.4.32` and `@arkade-os/boltz-swap` `0.3.36 → 0.3.37` (`pnpm run release -- all patch`). No source changes in this range, only the two `package.json` version fields.
+
+**Commits analyzed** (1 non-merge commit):
+- `a511cba0` chore: release @arkade-os/sdk@0.4.32, @arkade-os/boltz-swap@0.3.37 — `packages/ts-sdk/package.json` `0.4.31 → 0.4.32`, `packages/boltz-swap/package.json` `0.3.36 → 0.3.37`.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — workspace table + Quick Reference Version bumped (`0.4.31 → 0.4.32`, `0.3.36 → 0.3.37`).
+- `docs/projects/ts-sdk/system/project_overview.md` — Monorepo Layout workspace table + Package row Version bumped.
+- `docs/INDEX.md` — Build (tsup) bullet "current published version" corrected `0.4.31 → 0.4.32`.
+
+**Notes**:
+- **No source changes**: only `packages/ts-sdk/package.json` and `packages/boltz-swap/package.json` differ between `08644c63` and `a511cba0`. Every Key Concept / Key Capability paragraph (including the `*(0.4.31)*`-tagged Per-Contract Tapscript Memoization and Boarding History De-duplication entries) remains exactly as it was at the previous sync — those tags mark the version in which each feature was *introduced* and stay anchored to 0.4.31.
+- **No breaking changes**: trivially — there are no changes.
+
+---
+
 ## 2026-05-29 - Per-contract tapscript memoization (#521) + boarding history dedup + 0.4.31 release
 **From**: `7493534396de2f90db32ef4e03b700faac4f04a3`
 **To**: `08644c637f76137dc8cc09fb683641dd8182d8f4`

@@ -23,7 +23,7 @@ scripts:
 
 # Arkade Regtest — Project Index
 
-**arkade-regtest** is a self-contained regtest environment for Ark protocol development. It orchestrates Nigiri (Bitcoin + Liquid regtest), arkd, Fulmine, Boltz, and an LND node into a single reproducible Docker Compose stack. Designed to be embedded as a git submodule in projects that need a local Ark test network.
+**arkade-regtest** is a self-contained regtest environment for Ark protocol development. It orchestrates Nigiri (Bitcoin + Liquid regtest), arkd, Fulmine, Boltz, an LND node, and the arkade-script emulator into a single reproducible Docker Compose stack. Designed to be embedded as a git submodule in projects that need a local Ark test network.
 
 ## Directory Structure
 
@@ -104,6 +104,7 @@ When `ARKD_IMAGE` is set, `start-env.sh` stops nigiri's arkd container and start
 | Wallet (PWA)     | `ghcr.io/arkade-os/wallet:latest`                   | 3003                   | Browser wallet                                   |
 | Nginx            | `nginx:alpine`                                      | 9069                   | CORS proxy / static fronting                     |
 | Delegator        | (configurable)                                      | 7010 / 7011 / 7012     | Optional delegated-signing service               |
+| Emulator         | `ghcr.io/arkade-os/emulator:v0.0.1`                 | 7073                   | arkade-script signing service (default-on; opt-out via `EMULATOR_IMAGE=`) |
 
 All ports are configurable via `.env.defaults` overrides.
 

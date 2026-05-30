@@ -22,7 +22,8 @@ This will:
 3. Start nigiri (Bitcoin + arkd + arkd-wallet + electrs/esplora/chopsticks).
 4. Optionally swap nigiri's arkd for `ARKD_IMAGE` if it's set.
 5. Bring up the Ark compose stack (Boltz, Fulmine, LND, Wallet, Nginx, LNURL).
-6. Run faucet flows (fund Ark wallet, fulmine, Boltz LND, open LN channel).
+6. Run faucet flows (fund Ark server wallet, ark CLI client wallet via redeem-notes, fulmine, Boltz LND, open LN channel).
+7. Bring up the arkade-script Emulator overlay (unless `EMULATOR_IMAGE=` is set to disable it) and wait for `GET /v1/info`.
 
 First run takes longer (nigiri source build). Subsequent runs are fast — the binary is cached in `_build/`.
 
@@ -63,6 +64,7 @@ After startup, services are reachable on `localhost`:
 | Boltz LND P2P    | `localhost:9736`       |                                        |
 | Boltz LND RPC    | `localhost:10010`      |                                        |
 | Wallet (PWA)     | `localhost:3003`       | Open in browser                        |
+| Emulator         | `localhost:7073`       | arkade-script signer (`GET /v1/info`); disable with `EMULATOR_IMAGE=` |
 
 Other nigiri services (electrs, esplora, chopsticks) keep their standard nigiri ports.
 

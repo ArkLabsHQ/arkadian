@@ -37,7 +37,8 @@ Entry point. Responsibilities, in order:
 6. Bring up nigiri (Bitcoin + arkd by default).
 7. Optionally swap nigiri's arkd for an override image (`ARKD_IMAGE`).
 8. Bring up the Ark compose stack (Boltz, Fulmine, LND, Wallet, Nginx, LNURL).
-9. Run faucet flows so wallets and LND start with usable balances.
+9. Run faucet flows so wallets and LND start with usable balances. The CLI client wallet is always funded with 100M sats offchain via `arkd note` / `ark redeem-notes` on the happy path (falls back to a `WARNING:` log on older arkd versions that don't support redeem-notes).
+10. If `EMULATOR_IMAGE` is set (default), bring up the arkade-script Emulator overlay on the `nigiri` network and wait for `GET /v1/info` to respond before returning.
 
 ### 2. Environment Layer (`lib/env.sh` + `.env.defaults`)
 Centralized environment loading shared by `start-env.sh` (via the script). Behavior:
@@ -71,6 +72,8 @@ Compose project name is `nigiri` (intentional — services attach to the same ne
 
 A second compose file (`docker-compose.arkd-override.yml`) is conditionally applied when `ARKD_IMAGE` is set, replacing nigiri's bundled arkd with an explicit image and propagating all `ARKD_*` configuration variables.
 
+A third compose file (`docker-compose.emulator.yml`) brings up the arkade-script Emulator signing service on the same `nigiri` network. It is applied **by default** (the `EMULATOR_IMAGE` is pinned in `.env.defaults`) and skipped when an override clears the variable. The overlay starts after arkd is wallet-ready because `EMULATOR_ARKD_URL` must resolve to a live arkd that accepts `SubmitTx` — the emulator forwards finalized arkade transactions back to arkd. Data is held in a tmpfs (stateless across regtest sessions; the signing identity lives in `EMULATOR_SECRET_KEY`).
+
 ### 5. Helper Layer (`helpers/`)
 Convenience scripts that wrap `lncli` calls inside the `boltz-lnd` (or `lnd`) container:
 - `create-invoice.sh [--secondary]` — generate a Lightning invoice
@@ -96,6 +99,7 @@ All services run on the Docker network created by the `nigiri` compose project. 
 | Nginx (CORS proxy) | 9069         |
 | LNURL Server       | 9090         |
 | Wallet (PWA)       | 3003         |
+| Emulator           | 7073         |
 
 Nigiri-managed services (Bitcoin RPC, electrs, esplora, chopsticks, arkd) keep their standard nigiri ports.
 
