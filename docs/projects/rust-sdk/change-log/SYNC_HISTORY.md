@@ -1,5 +1,33 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-05-31 - 0.9.2 release + ark-grpc TLS fix + crates release CI
+**From**: `70eaa75ad5a910e4b35a7002137cc769e9973268`
+**To**: `8c0e8e3d91ab80e8107415072cf6351573eac19f`
+**Synced By**: update-project skill
+**Commits analyzed**: 5 (no merges)
+
+**Summary**: Patch release `0.9.2` with one real code fix in `ark-grpc` (manually built `Endpoint` now applies `ClientTlsConfig`, so TLS `arkd` URLs connect under tonic 0.14), plus new GitHub Actions release plumbing for crates.io. No public API change beyond the version bump.
+
+**Changes**:
+- `fix(grpc): set tls_config on manual endpoint connect` (`100c53a`) — `ark-grpc/src/client.rs::Client::connect` no longer chains `.connect()` directly off `Endpoint::from_shared(...)`. Under `cfg(any(feature = "tls-webpki-roots", feature = "tls-native-roots"))` it now constructs a `tonic::transport::ClientTlsConfig`, adds `with_webpki_roots()` and/or `with_native_roots()` per feature flag, and calls `endpoint.tls_config(tls)?` before `.connect()`. Required because tonic 0.14 no longer infers TLS purely from the URL scheme on a manually built `Endpoint`; without this, connecting to an `https://...` `arkd` from `ark-grpc` (when used outside of the URL helper path) would fail with a transport error.
+- `fix formatting` (`2e9bbb3`) — cosmetic 2-line whitespace fix in the new TLS branch.
+- `ci: add crates release workflows` (`9190d0d`) — adds two workflows:
+  - `.github/workflows/draft_release_crates.yml` (161 lines): manual `workflow_dispatch` with a `version` input, sets up Rust toolchain (1.86 + nightly fmt), runs `cargo fmt`, validates SemVer, bumps every publishable crate's `version` and intra-workspace `path = "..", version = "..."` pins to the requested version via `cargo set-version`, refreshes the per-crate `README.md` install snippets and the root `README.md` crate index, then opens a `release/crates-<version>` PR.
+  - `.github/workflows/create_release_crates.yml` (174 lines): triggers on merged PRs whose head ref starts with `release/crates-`. Extracts the version from the branch name, requires `CARGO_REGISTRY_TOKEN`, verifies every publishable crate matches that version via `cargo metadata`, runs `cargo test --workspace --all-features`, then `cargo publish` for each crate in topological dependency order and finally `git tag v<version>`.
+- `chore: prepare 0.9.2 release` (`4608a06`, github-actions bot via the new draft workflow) — bumps `version` from `0.9.1` → `0.9.2` for `ark-rs`, `ark-core`, `ark-client`, `ark-grpc`, `ark-rest`, `ark-bdk-wallet`, `ark-fees`, `ark-delegator`, `ark-script`, `ark-introspector-client`; updates intra-workspace path-dep pins to match; refreshes the version strings in the per-crate `README.md` install snippets and the root `README.md` crate index. `ark-client-sample` workspace member also bumped. No code changes.
+- `ci: fix crates release recovery` (`e535af3`) — makes `create_release_crates.yml` re-runnable after a partial failure: the publish step probes `https://crates.io/api/v1/crates/<crate>/<version>` and skips `cargo publish` for any crate already on crates.io at that version, and the tagging step tolerates an existing `v<version>` tag. Lets a re-merge or manual re-run safely resume past whichever crate failed previously.
+
+**Breaking changes**: None.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`; Workspace Crates header bumped to v0.9.2 with note on release CI; per-crate version tags `(v0.9.1) → (v0.9.2)`; `ark-grpc` entry annotated with the TLS-config fix)
+- `docs/projects/rust-sdk/system/project_overview.md` (new top entry under Recent Additions for the 0.9.2 release + ark-grpc TLS fix + release CI; all `(v0.9.1) → (v0.9.2)`; project status line bumped + note on automated release pipeline)
+- `docs/projects/rust-sdk/system/architecture.md` (Transport Abstraction section: added paragraph on the explicit `tls_config(...)` requirement under tonic 0.14)
+- `docs/INDEX.md` (rust-sdk description — v0.9.2 alignment + release-CI mention; Key Capabilities gRPC bullet annotated with the TLS-config fix)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-29 - 0.9.1 release + introspector emulator env fix
 **From**: `1d778429e7fc281bb05a68a5264011e740a2a001`
 **To**: `70eaa75ad5a910e4b35a7002137cc769e9973268`

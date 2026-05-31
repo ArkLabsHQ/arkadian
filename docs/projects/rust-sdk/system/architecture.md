@@ -85,6 +85,8 @@ e2e-tests ──► ark-client + ark-core + ark-bdk-wallet
 ### Transport Abstraction
 `ark-client` abstracts over transport — gRPC (native) or REST (WASM). The `NetworkClient` trait allows swapping transport without changing application code. gRPC is the default for native builds; REST enables browser/WASM support.
 
+`ark-grpc::Client::connect` builds the `tonic::transport::Endpoint` manually and, when compiled with `tls-webpki-roots` or `tls-native-roots`, attaches a `ClientTlsConfig` (`with_webpki_roots()` / `with_native_roots()`) to it before connecting. Without this explicit `tls_config(...)`, tonic 0.14 will not infer TLS from the URL scheme, so TLS-enabled `arkd` endpoints would fail at connect time.
+
 ### OfflineClient → Client Pattern
 Clients start as `OfflineClient` (configured but not connected), then call `.connect()` to create a `Client` with server info. This separates configuration from network operations.
 

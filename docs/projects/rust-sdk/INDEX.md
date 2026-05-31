@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
 version: 1.3.0
-last_sync_commit: 70eaa75ad5a910e4b35a7002137cc769e9973268
+last_sync_commit: 8c0e8e3d91ab80e8107415072cf6351573eac19f
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -59,18 +59,18 @@ Feature specifications and implementation tracking.
 ## Key Concepts
 
 ### Workspace Crates
-All publishable crates aligned at **v0.9.1** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish.
+All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish. A pair of GitHub Actions workflows now drives the crates.io release flow (`draft_release_crates.yml` → `create_release_crates.yml`, the latter idempotent against already-published versions).
 
-- **ark-core** (v0.9.1): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
-- **ark-client** (v0.9.1): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
-- **ark-grpc** (v0.9.1): gRPC transport for arkd communication (tonic-based)
-- **ark-rest** (v0.9.1): REST transport for arkd (reqwest-based, WASM-compatible)
-- **ark-bdk-wallet** (v0.9.1): BDK integration for on-chain wallet operations
-- **ark-fees** (v0.9.1): Fee estimation utilities
-- **ark-delegator** (v0.9.1): REST client for Ark delegator services (auto-renewal of VTXOs)
-- **ark-script** (v0.9.1): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
-- **ark-introspector-client** (v0.9.1): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
-- **ark-rs** (v0.9.1): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
+- **ark-core** (v0.9.2): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
+- **ark-client** (v0.9.2): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
+- **ark-grpc** (v0.9.2): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
+- **ark-rest** (v0.9.2): REST transport for arkd (reqwest-based, WASM-compatible)
+- **ark-bdk-wallet** (v0.9.2): BDK integration for on-chain wallet operations
+- **ark-fees** (v0.9.2): Fee estimation utilities
+- **ark-delegator** (v0.9.2): REST client for Ark delegator services (auto-renewal of VTXOs)
+- **ark-script** (v0.9.2): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
+- **ark-introspector-client** (v0.9.2): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
+- **ark-rs** (v0.9.2): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
 - **ark-client-sample**: Example client application (with `watch-delegated` command) — not published
 - **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector) — not published
 

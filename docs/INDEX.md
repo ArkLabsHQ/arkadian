@@ -1155,13 +1155,13 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 **GitHub**: `${RUST_SDK_GITHUB}`
 
 **Description**:
-Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection, Arkade Asset V1, introspector packet builder), ark-client (high-level API with VTXO watcher and chain swaps), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), ark-delegator (REST client for delegator services), ark-fees (fee estimation), ark-script (Arkade scripting extension — standalone), and ark-introspector-client (HTTP client for the Go introspector co-signer). Supports WASM compilation for browser use. All publishable crates aligned at **v0.9.1** with crates.io metadata (keywords/categories) and per-crate READMEs ready for publish.
+Collection of Rust crates for building Bitcoin wallets with Ark protocol support. Workspace includes ark-core (protocol types, MuSig2, coin selection, Arkade Asset V1, introspector packet builder), ark-client (high-level API with VTXO watcher and chain swaps), ark-grpc/ark-rest (transport), ark-bdk-wallet (BDK integration), ark-delegator (REST client for delegator services), ark-fees (fee estimation), ark-script (Arkade scripting extension — standalone), and ark-introspector-client (HTTP client for the Go introspector co-signer). Supports WASM compilation for browser use. All publishable crates aligned at **v0.9.2** with crates.io metadata (keywords/categories) and per-crate READMEs ready for publish; release pipeline runs via GitHub Actions (`draft_release_crates.yml` + `create_release_crates.yml`, idempotent for already-published crates / existing tag).
 
 **Key Capabilities**:
 - Core Ark protocol types (ArkAddress, VTXO, BoardingOutput, ArkNote, vHTLC)
 - High-level client API (send VTXOs, settle rounds, check balances, transaction history)
 - Generic offchain transaction builder (shared by VTXO and asset sends)
-- gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2
+- gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2; `ark-grpc::Client::connect` now attaches `ClientTlsConfig` (webpki / native roots, per feature) to the manually built `Endpoint`, so TLS-enabled `arkd` URLs connect cleanly under tonic 0.14 (no longer relying on URL-scheme TLS inference)
 - MuSig2 cooperative signing for round participation — batch event waits in `ark-client` now honour the configured client timeout (no more indefinite hangs on stalled round streams)
 - BDK wallet integration for on-chain operations
 - Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap rows now persist BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, configurable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 `description` (max 639 bytes) via a new trailing `description: Option<String>` arg on `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` (**breaking**)

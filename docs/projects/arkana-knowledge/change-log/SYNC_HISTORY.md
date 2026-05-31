@@ -1,5 +1,46 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-05-31 - Operational Memory Sync (no doc changes)
+**Commit Range**: `3d8e0f3e..a9218b9b` (14 commits, all `memory(*)` agent activity)
+**Previous Sync**: `a912095eb149adbb824a6da5c342c72b9fbe40af`
+**Caller-Asserted From**: `3d8e0f3e3faeed763eecb048a3901df1967a4508` (2 commits newer than previous sync — repo had advanced before this run; the intermediate commits are `d3b75f7 memory(security-triage): triage run 2026-05-30T08:00:00Z` and `3d8e0f3 memory(release-coordinator): triage run 2026-05-30T08:00:00Z`, both routine)
+**Current Sync**: `a9218b9b1af793623b087a9f34e2e7f666af861a` (committed 2026-05-31T03:23:58Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 11 files changed (+402/-35), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,repo-detector,sdk-parity,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/sdk-parity.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-05-30 10:06Z → 2026-05-31 03:23Z (~17h): release-coordinator at 4-hourly slots (30th 12/16/20Z, 31st 00/04Z), issue-triage at 4-hourly slots (30th 12/16/20Z), and one-per-day runs of daily-briefing, executive-digest, linear-sync, slack-monitor, sdk-parity, and repo-detector 2026-05-31T02:30Z
+- Notable operational events captured in memory only:
+  - **rust-sdk v0.9.1 dual production regressions** (release-coordinator 2026-05-30T12:00Z, 1d792ab): #232 HTTPS TLS broken (Endpoint::from_shared drops TLS inference, all HTTPS ASP clients affected) on top of unfixed exp path DoS (#225 Bug 2 O(2^depth)). v0.9.2 initially HARD BLOCKED pending #233.
+  - **rust-sdk v0.9.2 RELEASED 2026-05-30T13:51Z over active DoS block** (release-coordinator 2026-05-30T16:00Z, 4f7b798): #233 TLS fix merged 12:40Z bot-only (Jeezman commented but didn't approve); #234 crates-release-workflow merged in **13 seconds** with zero review and code-review-flagged GHA script-injection risk on CARGO_REGISTRY_TOKEN; exp path DoS still ships for 2nd consecutive release
+  - **dotnet-sdk #116 OPENED 2026-05-30T16:30Z** (release-coordinator 2026-05-30T20:00Z, fcee034): `feat(swaps): deterministic Boltz preimages via BIP-340 sign-and-hash` — security-sensitive (wrong preimage = swap-fund loss); CHANGES_REQUESTED (arkanaai x2), correctly gated
+  - **sdk-parity 2026-05-30** (a629237): dotnet-sdk proposing **cross-SDK wire protocol** `Arkade-Boltz-Preimage-v1` (`SHA-256(signer.Sign(receiver_descriptor, SHA-256("Arkade-Boltz-Preimage-v1")))`) for crash-safe + seed-based VHTLC swap recovery via Boltz `/v2/swap/restore`; ts-sdk and rust-sdk don't implement it yet (pre-gap protocol coordination item); **rust-sdk v0.9.1 closes existing `boltz invoice description` gap vs ts-sdk** (❌→✅); rust-sdk emulator-env fix signals work toward the Arkade extension layer ts-sdk v0.4.32 shipped (⚠️ still); go-sdk **57 days no release**
+  - **slack-monitor 2026-05-30** (43694b7): rust-sdk TLS regression in v0.9.1 (HTTPS ASPs broken) → same-day fix → v0.9.2; deterministic Boltz preimages via BIP-340 PR opened (protocol-adjacent, swap recovery from seed); dotnet-sdk CI 6 failures (day 2 near-worst); ee2e-kv Verify Enclave day 17+
+  - **executive-digest afternoon flush 2026-05-30** (8854891): 7 CRITICAL items flushed to #arkana-executive — MuSig2 nonce leak (CRITICAL SECURITY, same-day fix); recursive-covenant lending pool (PROTOCOL-CRITICAL, most complex construct, requires human sign-off); **SDK parity collapse — ts-sdk v0.4.32 Arkade extension system** (go-sdk/dotnet-sdk fully missing, rust-sdk partial); rust-sdk#232 HTTPS TLS regression (all HTTPS ASPs blocked); rust-sdk v0.9.1 dual production regressions HARD BLOCK; rust-sdk#234 script-injection + concurrency race; rust-sdk v0.9.2 released (TLS fixed, DoS still ships). Queue cleared. 85+ governance violations total
+  - **release-coordinator overnight 2026-05-31T00:00Z/04:00Z** (5136d57, 4667adc): digest queue flushed; quiet overnight; **compiler#37 major re-architecture** — `LendingPool+LoanVault` replaced by `RepaymentPool+BondMint` (Christian's market model, eliminates interest-rate surface, simplifies to pro-rata loss redemption); multiple arkanaai APPROVED reviews overnight (00:05Z, 00:18Z×2, 01:01Z×2, 01:04Z); co-spend checks, control-asset pinning, oracle verification all sound — **HARD BLOCK still applies** (bot-only approvals, awaiting human sign-off); digest queue JSON format corrected (out-of-array entry repaired)
+  - **issue-triage 2026-05-30T12/16/20Z** (1c6649e, ede1465, a9218b9): all quiet, 0 new actionable issues — ts-sdk#534 and rust-sdk#232 confirmed already triaged
+  - **repo-detector 2026-05-31T02:30Z** (eaeafe6): organizational stability maintained — **54 ArkLabsHQ + 19 arkade-os = 73 active repos** (unchanged since 2026-05-30); zero new repos detected
+  - **daily-briefing 2026-05-30** (9d7e42a): morning briefing logged
+  - **linear-sync 2026-05-30** (a4e6b77): state snapshot
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: a9218b9b…`, `last_sync_date: 2026-05-31T03:23:58Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `a9218b9b1af793623b087a9f34e2e7f666af861a`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; the 54/19/73 repo inventory is already covered by the existing "All ArkLabsHQ + arkade-os repos" dependency-graph entry, and the 17-agent roster (incl. `issue-staleness`) is unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-05-30 - Operational Memory Sync (no doc changes)
 **Commit Range**: `65932842..a912095e` (18 commits, all `memory(*)` agent activity)
 **Previous Sync**: `9f149b5878f5ad9282a6e75027b3f6edb12ac81b`
