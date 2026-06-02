@@ -1,5 +1,30 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-02 - Operational Memory Sync (no doc changes)
+**Commit Range**: `6073e8a7..5294de8b` (17 commits, all `memory(*)` agent activity)
+**Previous Sync**: `091b85059b5dd1b969b8cfbe47427ecb8fc1171b`
+**Caller-Asserted From**: `6073e8a75510c2631f38b1baab9a74e8e056a3d2` (1 commit newer than previous sync — repo had advanced before this run; the intermediate commit is `6073e8a memory(release-coordinator): triage run 2026-06-01T08:00:00Z — quiet`, routine)
+**Current Sync**: `5294de8bbe6b432b02671fd29e5c1356e8521e6e` (committed 2026-06-02T03:38:14Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 10 files changed (+435/-18), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,sdk-parity,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/sdk-parity.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-06-01T08:00Z → 2026-06-02T04:00Z (~20h): release-coordinator at 4-hourly slots (June 1 12/16/20Z, June 2 00/04Z), issue-triage at 4-hourly slots (June 1 08/12/16/20Z, June 2 00/04Z), and one-per-day runs of daily-briefing, executive-digest, slack-monitor, sdk-parity, linear-sync
+- Notable operational events captured in memory only:
+  - **executive-digest critical batch 2026-06-01T21:38Z** (62510b6): 5 CRITICAL items flushed to #arkana-executive — (1) enclave EIF builds not reproducible / PCR0 attestation at risk (continuation of enclave#127); (2) ts-sdk#535 batch signing fix approved (3rd pass, all findings addressed, awaiting human sign-off); (3) **PROTOCOL-CRITICAL solver#6 — banco cancel tapscript wrong closure type** (`CLTVMultisigClosure` instead of `MultisigClosure`, funds locked for full offer duration); (4) **HARD BLOCK on solver v0.0.1-rc.2** (ships VTXO bug, no stable release, prerelease deployable, prior HOLD upgraded); (5) **PROTOCOL-CRITICAL compiler#37 bond market** — `auctionWindow > 0` guard missing, 100% credit-holder loss risk on defaults
+  - **issue-triage 2026-06-01T12:00Z** (8f02a0b): surfaced **solver#6 VTXO script bug** (closure-type mismatch in banco cancel tapscript) — feeds the protocol-critical digest item above
+  - **issue-triage 2026-06-02T00:00Z** (5790dbd): **threshold-magic** added to scan list (new repo entering triage rotation) — operational scope expansion, no agent roster change
+  - **release-coordinator 2026-06-01T22:35Z** (c029419): ~190 line append to release-coordinator.md capturing the protocol-critical/HARD BLOCK escalations from the day's triage
+  - All other runs (daily-briefing, slack-monitor, sdk-parity, linear-sync, four "quiet" issue-triage slots, four release-coordinator slots) routine state snapshots
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: 5294de8b…`, `last_sync_date: 2026-06-02T03:38:14Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `5294de8bbe6b432b02671fd29e5c1356e8521e6e`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no update needed (arkana-knowledge entry: 17-agent roster, capabilities, tags, dependencies, triggers all unchanged; per "Versioning & Updates" criteria, none of the trigger conditions met)
+
 ## 2026-06-01 - Operational Memory Sync (no doc changes)
 **Commit Range**: `0daacf55..091b8505` (17 commits, all `memory(*)` agent activity)
 **Previous Sync**: `a9218b9b1af793623b087a9f34e2e7f666af861a`

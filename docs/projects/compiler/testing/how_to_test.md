@@ -26,7 +26,9 @@ cargo test htlc_claim
 cargo test asset_introspection
 ```
 
-## Test Files (25 total)
+## Test Files (27 total)
+
+Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
 
 ### Contract Compilation Tests
 | Test File | Covers |
@@ -38,6 +40,8 @@ cargo test asset_introspection
 | `stability_vault_test.rs` | StabilityVault settlement paths (`seekerExit`, `providerExit`) with oracle-signed price witness and per-second funding via `tx.offchainTime`; asserts `OP_CAT` + `OP_SHA256` reconstruction of `sha256(ticker + price + time)`; covers the no-oracle vs oracle-required boundary on `settleAndUpdateFunding`, `addCapital`, `removeCapital`; regression guards `test_vault_transfer_is_pure_keyswap` and `test_vault_split_is_pure_keyswap` for no-oracle paths; `merge` consolidation emits `OP_PUSHCURRENTINPUTINDEX` for self-vs-sibling identification |
 | `covered_call_test.rs` | Single-locked physical CoveredCall: 9 tests covering compile shape (4 functions × cooperative+exit = 8 variants), `exercise(buyerSig)` uses only buyer signature and asset/value output checks (no oracle), `reclaim(sellerSig)` uses only seller signature with `expiryHeight + graceBlocks` CLTV, pre-expiry guard `require(tx.time < expiryHeight)` on both transfer functions, and exit-leaf pubkey filtering — no introspection / N-of-N appears in exit variants of `exercise`/`reclaim`/`transferSeller`/`transferBuyer`. Includes `test_asset_id_decomposes_to_txid_and_gidx`, `test_settle_binds_oracle_time_to_expiry`, `test_exit_leaf_excludes_oracle_pubkey`, `test_transfers_guarded_by_expiry` regressions covering compiler-side invariants. |
 | `cash_secured_put_test.rs` | Mirror of `covered_call_test.rs` (9 tests). Same shape and same four regression tests, against the cash-secured-put contract that locks `stableAmount` stablecoin instead of BTC. |
+| `repayment_pool_test.rs` | Fixed-maturity bond pool ASM tests: phased-lifecycle time gates per function (`issue`, `acceptRepayment`, `rollOut`, `rollIn`, `liquidate`, `acceptAuction`, `redeem`); strict-equality debit/credit burn invariants (`test_all_burn_checks_are_strict_equality` source-greps both contracts); deployment-invariant guards (`test_issue_enforces_deployment_invariants`, `test_roll_pair_enforces_all_deployment_invariants`) cover `initRatioBps > liqThresholdBps`, `liqThresholdBps > 0`, `auctionWindow > 0`, and targeted 3-token-window assertions on the `auctionDiscountBps ∈ [0, 10000)` guard; `test_issue_uses_ceiling_division_on_required_collateral` asserts the literal `9999` token in the origination ASM to prevent dust-mint regression; `test_roll_out_extinguishes_old_obligation_at_witness_index` regression-guards the borrower-signature defence against the `vault.liquidate × pool.rollOut` force-liquidation pairing; `test_redeem_is_pro_rata_post_window`. |
+| `bond_mint_test.rs` | Per-issuance bond vault ASM tests: 4-function compile shape (`repay`, `liquidate`, `auction`, `roll`), borrower-signature and time-gate placement, strict-equality debit burn on every settlement path, output-pin conflicts that block wrong-pair co-spends. |
 | `arkade_kitties_test.rs` | CryptoKitties-style collectibles with asset groups |
 | `token_vault_test.rs` | Token vault with group sum validation |
 | `controlled_mint_test.rs` | Controlled asset minting |
@@ -63,7 +67,7 @@ cargo test asset_introspection
 | `asm_structural_test.rs` | BSST-style structural checks: balanced `OP_IF`/`OP_ELSE`/`OP_ENDIF`, well-formed `<placeholder>` tokens, no empty instructions |
 | `validation_error_test.rs` | AST validator errors and warnings (duplicate names, missing `options.exit`, require-guard warning) |
 | `type_system_test.rs` | Typechecker behaviour and `ArkType` resolution |
-| `compilation_roundtrip_test.rs` | Compile-then-re-parse round-trip parity across example contracts |
+| `compilation_roundtrip_test.rs` | Compile-then-re-parse round-trip parity across example contracts (refreshed to include the `bonds/` examples) |
 
 ## What Tests Verify
 

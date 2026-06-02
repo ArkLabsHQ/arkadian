@@ -97,11 +97,14 @@ compiler/
 │   ├── stability/          # BTC-collateralised USD position contracts (oracle-signed witness)
 │   │   ├── stability_vault.ark
 │   │   └── stability_offer.ark
-│   └── options/            # Rysk-faithful single-locked physical options (no oracle)
-│       ├── covered_call.ark
-│       └── cash_secured_put.ark
-├── tests/                  # 25 integration test files
-└── docs/                   # Internal documentation (specs, opcodes, stability.md, options.md design docs)
+│   ├── options/            # Rysk-faithful single-locked physical options (no oracle)
+│   │   ├── covered_call.ark
+│   │   └── cash_secured_put.ark
+│   └── bonds/              # Fixed-maturity bond market with margin call + phased lifecycle
+│       ├── repayment_pool.ark
+│       └── bond_mint.ark
+├── tests/                  # 27 integration test files (shared helpers in tests/common/mod.rs)
+└── docs/                   # Internal documentation (specs, opcodes, stability.md, options.md, bonds.md design docs)
 ```
 
 ## Security Model

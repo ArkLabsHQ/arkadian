@@ -120,8 +120,9 @@ src/
 
 ## Testing Architecture
 
-25 dedicated integration test files cover individual contract types, language features, and compiler self-checks:
-- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard, exit-leaf pubkey filtering)
+27 dedicated integration test files cover individual contract types, language features, and compiler self-checks. Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
+
+- **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard, exit-leaf pubkey filtering), `repayment_pool_test` / `bond_mint_test` (fixed-maturity bond market: phased-lifecycle time gates, strict-burn equality, deployment-invariant assertions including `auctionWindow > 0` / `auctionDiscountBps ∈ [0, 10000)`, ceiling-division origination floor, force-liquidation co-spend regression guards)
 - **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
 - **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
 - **Asset groups**: `group_properties_test`

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.14
-last_sync_commit: 32c7773670551bdf1373e7e6354b7b51344ff23d
+version: 1.2.15
+last_sync_commit: 00983717ffd73c674d1663734ac98435050ff924
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -194,8 +194,8 @@ pnpm run format:check
 - **shadcn migration of core components (PR #593)**: `Modal`, `Checkbox`, `Select`, and `Toggle` now sit on shadcn primitives. `Modal` uses Framer Motion `AnimatePresence` with new `open`/`onOpenChange`/`onExitComplete` controlled-modal props (Burn/Reissue use `onExitComplete` for async coordination; Backup/Announcement use controlled props). `Checkbox` wraps shadcn `Checkbox` with label-bound control path and same-state event guard. `Select` migrates to shadcn `RadioGroup` (preserves arrow-key navigation). `Toggle` uses shadcn `Switch` with a new `lg` size variant (iOS-like three-layer shadow, 44 px minimum tap target). `MAX_DECIMALS` raised to 8. New `vitest.config.ts` split out from `vite.config.ts`. Uses `cmdk-base` / `vaul-base` and `@base-ui/react`. `bun.lock` restored at repo root for Cloudflare Pages deploys.
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.28): Ark protocol SDK (wallet operations, VTXOs)
-- **@arkade-os/boltz-swap** (0.3.33): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps)
+- **@arkade-os/sdk** (0.4.32): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.28 in PR #637
+- **@arkade-os/boltz-swap** (0.3.37): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.33 in PR #637. PR #637 also moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography
@@ -302,6 +302,11 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **Contracts screen** (PR #618, `src/screens/Settings/Contracts.tsx`): When dev mode is enabled, a "Contracts" entry appears in **Settings → Advanced**. It renders all `ContractManager` contracts sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled.
 - **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI (with Lightning fallback) immediately, no submenu.
 - **BIP21 parser case-insensitive** (PR #636, commit 32c77736): `decodeBip21` (`src/lib/bip21.ts`) now accepts uppercase URI query parameters (`ARK`, `ASSETID`, `AMOUNT`, `LIGHTNING`) alongside their lowercase forms — matches BIP21 canonical-uppercase QR encodings emitted by other wallets. `Bip21Decoded` is now initialised with `assetId`/`assetAmount`/`arkAddress` explicitly `undefined`, and missing-address inputs (e.g. ARK-only payment URIs) no longer assign an empty `address` string. `isBTCAddress` (`src/lib/address.ts`) regexes (segwit + legacy) gained the `i` flag so uppercase BTC addresses are recognised. A new "should decode a valid bip21 URI with uppercase" test in `src/test/lib/bip21.test.ts` guards the regression. Dev: `@playwright/test` bumped to 1.60.0.
+- **BIP21 parser polish** (PR #639): `Bip21Decoded.lnurl` field renamed to `lnUrl` (camelCase) — `decodeBip21` writes to `result.lnUrl` and the Send form consumes `sendInfo.lnUrl`. `src/lib/lnurl.ts` now exports `LnUrlResponse`, and `checkResponse` rejects when the JSON body contains `status === 'ERROR'` (using `data.reason` as the rejection value). The Send form's amount/fee branches are reorganised to keep millisatoshi vs satoshi units consistent. E2E `src/test/e2e/bip21.test.ts` and unit `src/test/lib/bip21.test.ts` updated accordingly.
+- **Send "Max" in fiat mode** (PR #640): tapping Max while the amount input is in fiat mode now displays the fiat-converted balance using `fiatDecimalsFor(config.fiat)` decimals, instead of the raw satoshi string. Internal satoshi state is unchanged.
+- **Toast deduplication** (PR #641): `ToastProvider` (`src/components/Toast.tsx`) sets sonner `<Toaster visibleToasts={1}>` so at most one notification renders at a time, preventing stacked toasts when several actions complete in quick succession.
+- **Pull-to-refresh threshold** (PR #642): `Refresher` (`src/components/Refresher.tsx`) doubles the drag distance required to trigger a refresh, reducing accidental refreshes from short downward scrolls.
+- **Skip LNURL checks when ARK address present** (PR #643): in `src/screens/Wallet/Send/Form.tsx`, the LNURL-conditions `useEffect` now early-returns when `sendInfo.arkAddress` is set, and `sendInfo.arkAddress` is added to the dependency array — pasting a unified BIP21 URI with both `ark=` and `lightning=lnurl…` no longer fires an unnecessary LNURL fetch. `encodeBip21` (`src/lib/bip21.ts`) refactored to build the query progressively, omitting empty `ark=` segments and trimming trailing `&`/`?` so e.g. `bitcoin:<addr>` with no ARK/LN/amount no longer leaves a dangling `?`. New `src/test/e2e/form.test.ts` E2E suite covers these Send-form interactions.
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning via SwapManager

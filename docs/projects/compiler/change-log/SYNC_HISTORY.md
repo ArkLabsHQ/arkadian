@@ -1,5 +1,56 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-06-02 — Fixed-Maturity Bond Market (RepaymentPool + BondMint)
+**Commit Range**: `4dcfdc3f` → `d021899c`
+**Synced By**: /update-project compiler
+**Status**: New example contract suite + new in-repo design spec
+
+**Commits Analyzed** (2):
+- `7dc8b7d` feat(bonds): fixed-maturity bond market with margin call + phased lifecycle (#37)
+- `d021899` fix(bonds): deployment guards + dust-mint defence (#38)
+
+**Changes**:
+
+**PR #37 — Fixed-maturity bond market**
+
+- **New example folder `examples/bonds/`** containing `repayment_pool.ark` (per-maturity pool singleton, 7 functions: `issue`, `acceptRepayment`, `rollOut`, `rollIn`, `liquidate`, `acceptAuction`, `redeem`) and `bond_mint.ark` (per-issuance vault, 4 functions: `repay`, `liquidate`, `auction`, `roll`). Net function count: 11 functions × cooperative+exit = 22 tapleaves across both contracts.
+- **Phased lifecycle.** Three time windows tracked on `tx.time` (Bitcoin block height): REPAY (`tx.time < maturity`), AUCTION (`tx.time >= maturity AND tx.time < maturity + auctionWindow`), REDEEM (`tx.time >= maturity + auctionWindow`). Each pool function and each vault function is gated to exactly one window; in-window co-spend safety derives from per-function output-pin conflicts plus pool-side borrower signatures on every state-mutating user-driven path.
+- **Credit/debit token model.** Issuance mints `mintedAmount` credit + `mintedAmount` debit against `required = (amount × initRatioBps + 9999) / 10000` BTC collateral. Credit is sold for USDT on the order book (typical entry: `non_interactive_swap`); debit is custodied in the `BondMint`. Pool accounting tracks `usdtBalance`, `totalCreditOutstanding`, `totalDebitOutstanding`.
+- **Settlement paths.** Three terminal paths per vault: (1) voluntary `repay` pre-maturity, (2) permissionless `liquidate` margin call when `collateralValue < liqThresholdBps × mintedAmount / 10000`, (3) permissionless `acceptAuction` post-maturity in the auction window. Margin call and auction share the same two-branch payout math (over-cover branch: collateral split between auctioneer and excess-to-borrower; shortfall branch: all collateral to auctioneer, deficit socialised at redemption rate). `auctionDiscountBps` is the on-chain incentive spread.
+- **Single-tx loan roll.** Three new functions (`BondMint.roll`, `RepaymentPool.rollOut`, `RepaymentPool.rollIn`) use witness-supplied output indices (`outIdxPool`, `outIdxVault`, `outIdxCredit`) instead of hard-coded `output[0]`, removing the cross-covenant output-index conflict that previously blocked composition. Borrower atomically migrates collateral to the next maturity without fronting USDT — the order book supplies the discharging counterparty via a `non_interactive_swap` fill in the same transaction. **Borrower signature on rollOut is mandatory**: an earlier draft without it was vulnerable to a P0 force-liquidation pairing (`vault.liquidate × pool.rollOut` pays par USDT to seize healthy vaults bypassing the oracle gate).
+- **Strict-burn invariant.** Every settlement-side debit-burn check uses `==` equality (never `>=`). Multi-vault batching attacks fail closed because the global debit delta would exceed the single accounted `mintedAmount`. Symmetric on every pool burn (`acceptRepayment`, `liquidate`, `acceptAuction`, `rollOut`, `redeem`) and every vault burn (`repay`, `liquidate`, `auction`, `roll`). Regression: `test_all_burn_checks_are_strict_equality` source-greps both contract files.
+- **In-repo `docs/bonds.md`** documents roles, phased lifecycle table, per-function time gates, pre-maturity co-spend safety analysis (strict-burn equality + output-pin conflicts + borrower signature triad), strict-equality settlement math, margin-call-vs-auction rationale, unilateral-exit story (per-vault clean exits; pool resolves through redeem into per-holder `SingleSig` UTXOs), trust model with server front-running risk disclosure, monetisation surfaces (`auctionDiscountBps` wired; `originationBps`/redemption fee/order-book fee enumerated as follow-ups), and follow-up tracker (R1–R4 robustness, C1–C3 int64 ceilings, E1–E5 capability extensions, T1 time-axis clarity, M1–M3 monetisation, H1–H2 trust hardening, K1–K2 test infra).
+- **New tests**: `tests/repayment_pool_test.rs` and `tests/bond_mint_test.rs` covering compile shape, time-gate placement, strict-burn equality (cross-contract source grep), and force-liquidation regression guards. Test count: 25 → 27.
+- **Shared test infrastructure (K1 → DONE)**: `tests/common/mod.rs` extracts `asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures` previously duplicated across test files. Each test binary now uses `mod common; use common::*`.
+- `tests/compilation_roundtrip_test.rs` updated to cover the new `bonds/` examples.
+- **CI/playground**: `.github/workflows/deploy-playground.yml` + `pr-preview.yml` and `playground/build.sh` / `playground/main.js` touched for the new contracts. No language semantic changes.
+
+**PR #38 — Deployment guards + dust-mint defence (review follow-up)**
+
+Addressed three actionable items from arkanaai's automated review of #37 (one P1, two P2):
+
+- **P1 — `auctionWindow > 0` deployment guard** on both `issue` and `rollIn`. Without it, the `tx.time >= maturity AND tx.time < maturity` auction gate collapses to the empty set; no defaulted vault could ever be settled and `mintedAmount` would stay in `totalDebitOutstanding` forever, forcing credit holders to absorb 100% of every default.
+- **P2 — `auctionDiscountBps ∈ [0, 10000)` validation at deployment** on `issue` and `rollIn`. Previously checked only at runtime in `liquidate`/`acceptAuction`; an out-of-range discount bricked both settlement paths but didn't block issuance. Runtime checks kept for defence-in-depth.
+- **P2 — Ceiling division on the origination floor**. Replaced `required = amount × initRatioBps / 10000` (floors to 1 for `amount=1, initRatioBps=14999`) with `required = (amount × initRatioBps + 9999) / 10000` (ceiling). Closes the dust-issuance hole where 1 sat of collateral could mint 1 credit + 1 debit and flood the auction window with unsettleable dust defaults. R1 (configurable `minAmount`/`minCollateral` floor) kept as a separate follow-up.
+- **Test follow-up commit**: tightened `auctionDiscountBps` assertions from a loose `OP_GREATERTHANOREQUAL64 >= 1` count to a targeted 3-token sliding-window check `contains_window_3(..., "<auctionDiscountBps>", "OP_GREATERTHANOREQUAL", "0")` plus the `< 10000` symmetric. Both arkanaai (O1) and CodeRabbit flagged the original assert as too loose — five other asset-amount `>=` checks in `issue()` masked deletion of the discount guard. Regression-injection verified.
+- Tests: 255 → 256 (one new ceiling-division regression).
+
+**Documentation Updates**:
+- `docs/projects/compiler/INDEX.md` — example contracts table adds `bonds/repayment_pool.ark` (7 functions / 14 tapleaves, four deployment invariants, strict-burn, ceiling-division floor, force-liquidation regression guards) and `bonds/bond_mint.ark` (4 functions / 8 tapleaves with phase-gated time windows).
+- `system/project_overview.md` — project structure adds `examples/bonds/`; test count 25 → 27 with note about shared `tests/common/mod.rs`; in-repo docs note adds `bonds.md`.
+- `system/architecture.md` — Testing Architecture: count 25 → 27; shared-helpers paragraph for `tests/common/mod.rs`; Contract compilation row adds `repayment_pool_test`/`bond_mint_test` with the deployment-invariant / ceiling-division / force-liquidation regression descriptions.
+- `testing/how_to_test.md` — count 25 → 27; shared-helpers callout; new rows for `repayment_pool_test.rs` (phased lifecycle, strict-burn cross-contract grep, deployment invariants, ceiling division, force-liquidation guard, redeem rate) and `bond_mint_test.rs` (4-function shape, output-pin conflicts); `compilation_roundtrip_test.rs` row notes refresh for the `bonds/` examples.
+- `sop/development-workflow.md` — stale PR-checklist count corrected from 23 → 27.
+- Master `docs/INDEX.md` — compiler entry: new Key Capabilities bullet for the bonds suite (RepaymentPool + BondMint, phased lifecycle, deployment invariants, ceiling-division floor, single-tx witness-indexed loan roll); tags add `bonds`, `repayment-pool`, `bond-mint`, `fixed-maturity`, `margin-call`, `auction`, `credit-debit`, `loan-roll`, `strict-burn`, `ceiling-division`, `deployment-invariant`; ask_question triggers add `bonds`, `bond market`, `repayment pool`, `bond mint`, `credit token`, `debit token`, `fixed maturity`, `margin call`, `liquidate`, `auction window`, `redeem`, `loan roll`, `rollOut`, `rollIn`, `auctionDiscountBps`, `auctionWindow`, `initRatioBps`, `liqThresholdBps`, `strict burn`, `ceiling division`, `dust mint`, `deployment invariant`; develop triggers add `bond contract`, `bond mint`, `repayment pool`, `loan roll`.
+
+**Notes**:
+- This is a **contracts + tests + in-repo-spec** PR pair. No grammar, parser, AST type, validator, or codegen changes — the compiler emitted both contracts using existing language features (witness output indices for `rollOut`/`rollIn`/`roll` reuse the same primitive as witness-indexed input lookups already in use). Total touched: 13 files, +2,572 / −40 across the two commits.
+- The bond contracts compose with two prior primitives: `non_interactive_swap` (the borrower's loan AND the order-book entry for lenders), and `single_sig` (the per-holder destination of every successful `redeem`). No new compiler features needed to support either composition.
+- Follow-up R2 (ceiling division) is now **WIRED** with the new regression test. R1 (configurable `minAmount`/`minCollateral` deployment floor) is still open — ceiling alone closes the unit-boundary hole but does not make very-small-but-non-dust amounts economically liquidatable.
+- Out-of-scope review item: arkanaai's P2.4 (`loan_vault.ark` using `>= burn` checks) is a separate contract on a different PR — not addressed here.
+
+---
+
 ## 2026-05-29 — Terminology cleanup (Ark → Arkade)
 **Commit Range**: `63dc58e4` → `4dcfdc3f`
 **Synced By**: /update-project compiler

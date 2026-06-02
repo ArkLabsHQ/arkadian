@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.5.2
-last_sync_commit: 4bd46fa06d1399940634b4c723b426abca2c09f2
-last_sync_date: 2026-05-28T00:00:00Z
+version: 1.5.3
+last_sync_commit: 2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd
+last_sync_date: 2026-06-02T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -248,6 +248,8 @@ make clean-local-state ENV=prod
 ### Telemetry Stack
 
 > **Architecture note (2026-05):** the telemetry stack now runs on a **separate EC2 instance** (Auto Scaling Group, default `t3.medium`) provisioned by `modules/ark/`. Grafana is exposed publicly via a **shared ALB** (HTTPS, ACM cert) using Google SSO. App instances run only `otel-agent` + `cadvisor` (bundled in the Ark Compose stack) and forward OTLP to the telemetry instance via AWS Cloud Map service discovery. New required env var on app hosts: `ARK_TELEMETRY_COLLECTOR_ENDPOINT` (e.g. `telemetry.ark-staging.internal:4317`).
+>
+> **Persistent state update (2026-06, #80):** the telemetry ASG is now **pinned to a single subnet/AZ** (new required `telemetry_subnet_id`) and mounts a **re-attachable encrypted EBS data volume** (`aws_ebs_volume.telemetry_data`, `gp3`, tag `ark-telemetry-data-${env}`) at `/dev/xvdb` → `/mnt/data`, with Docker's `data-root` relocated to `/mnt/data/docker`. Prometheus / Loki / Grafana state therefore survives instance recycles, trading multi-AZ HA for stateful telemetry. Staging: t3.small + 20 GB data, `subnet-0929002f609855e83` (eu-central-1b). Prod: t3.large + 30 GB data, `subnet-0aa4bfb28c983f5be` (eu-central-1b). Bootstrap scripts renamed: `scripts/user-data.sh` → `scripts/user-data-telemetry.sh`, `ansible/playbook.yml` → `ansible/telemetry-playbook.yml`; Ansible requirements bumped to `amazon.aws >= 10.3.1` plus `community.general`, `ansible.posix`. New vars: `telemetry_data_volume_size` (default 20), `telemetry_root_volume_size` (default 20), `telemetry_subnet_id` (required).
 
 **Telemetry instance (separate EC2 + ALB):**
 - **otel-collector** (4317/4318) — OTLP ingress from app instances

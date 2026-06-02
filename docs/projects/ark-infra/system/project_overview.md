@@ -43,8 +43,8 @@ ark-infra/
 │   │   ├── outputs.tf                 # alb_dns_name, alb_zone_id (consumed by Route53 aliases)
 │   │   ├── telemetry.tf               # Telemetry EC2 ASG + IAM + SGs + Grafana target group (priority 100)
 │   │   ├── service_discovery.tf       # Cloud Map private DNS for telemetry collector
-│   │   ├── scripts/user-data.sh       # Bootstraps Ansible from SSM-stored GitHub token
-│   │   ├── ansible/playbook.yml       # Telemetry instance provisioning (Docker, ark-telemetry clone, systemd)
+│   │   ├── scripts/user-data-telemetry.sh # Bootstraps Ansible from SSM-stored GitHub token (renamed 2026-06, #80)
+│   │   ├── ansible/telemetry-playbook.yml # Telemetry instance provisioning (Docker, EBS data volume mount, ark-telemetry clone, systemd; renamed 2026-06, #80)
 │   │   └── agent/otel-agent-config.yaml # Local OTLP collector config used on app hosts
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
 │   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
@@ -177,7 +177,7 @@ ark-infra/
 
 As of 2026-05, the telemetry stack is **split across two instances**:
 
-- **Telemetry instance (separate EC2, ASG, fronted by shared ALB)** — provisioned by `modules/ark/telemetry.tf` and bootstrapped by `modules/ark/ansible/playbook.yml`. Hosts:
+- **Telemetry instance (separate EC2, ASG, fronted by shared ALB)** — provisioned by `modules/ark/telemetry.tf` and bootstrapped by `modules/ark/ansible/telemetry-playbook.yml`. Hosts:
   - **Prometheus** (port 9090)
   - **Grafana** (port 3000, public via ALB on `telemetry_grafana_host`, Google SSO enabled)
   - **Loki**, **Jaeger** (16686), **Alertmanager** (9093), **Pyroscope** (4040)
@@ -187,6 +187,8 @@ As of 2026-05, the telemetry stack is **split across two instances**:
   - **cadvisor** (`v0.56.2`) — container metrics
 
 App ↔ telemetry resolution uses **AWS Cloud Map** private DNS; the telemetry instance registers/deregisters itself on boot via `servicediscovery:RegisterInstance`.
+
+**Persistent state (2026-06, #80):** the telemetry ASG is pinned to a single subnet/AZ (`telemetry_subnet_id`) and mounts a **re-attachable `gp3` EBS data volume** (`aws_ebs_volume.telemetry_data`) at `/dev/xvdb` → `/mnt/data`, with Docker's `data-root` relocated to `/mnt/data/docker`. Prometheus / Loki / Grafana state survives instance recycles; cost is loss of multi-AZ HA. Volume is encrypted, tagged `ark-telemetry-data-${env}`, sized via `telemetry_data_volume_size` (default 20 GB; prod 30 GB). On boot the Ansible playbook cleans stale `/mnt/data/docker/containers` metadata from the previous instance before starting Docker. IAM additions: `ec2:Describe{Volumes,VolumeStatus,VolumeAttribute,Instances,Tags}` plus `ec2:AttachVolume`/`DetachVolume` scoped by `ec2:ResourceTag/Environment`. Ansible requirements bumped to `amazon.aws >= 10.3.1` and `community.general`, `ansible.posix` added.
 
 ## Key Features
 

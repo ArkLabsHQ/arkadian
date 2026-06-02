@@ -1,5 +1,53 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-02 - Documentation Sync
+**Commit**: `00983717ffd73c674d1663734ac98435050ff924`
+**Previous Sync**: `32c7773670551bdf1373e7e6354b7b51344ff23d`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 6 non-merge commits
+- `00983717` don't check lnUrl conditions if ark address is present (#643)
+- `7f26a4f6` double the distance needed to trigger pull-to-refresh (#642)
+- `38863d68` fix multiple notification toasts (#641)
+- `683db88a` fix send all fiat (#640)
+- `1f590c32` fix bip21 parser (#639)
+- `891531b8` Upgrade ts sdk 0.4.32 boltz swap 0.3.37 (#637)
+
+**Dependency Bump** (PR #637, commit 891531b8):
+- `@arkade-os/sdk` 0.4.28 → 0.4.32 and `@arkade-os/boltz-swap` 0.3.33 → 0.3.37 in `package.json` (and `pnpm-lock.yaml`).
+- pnpm build-dependency configuration (`onlyBuiltDependencies: ['@arkade-os/sdk']` + `ignoredBuiltDependencies: ['esbuild']`) relocated from `package.json` `pnpm` block into `pnpm-workspace.yaml`.
+
+**Bug Fixes**:
+- **PR #639 (`1f590c32`) — BIP21 parser polish.** Renamed `Bip21Decoded.lnurl` → `lnUrl` (camelCase) in `src/lib/bip21.ts`; `decodeBip21` writes `result.lnUrl`. `src/lib/lnurl.ts` now exports the `LnUrlResponse` type, and `checkResponse` `await`s the JSON body and rejects with `data.reason || 'LNURL error'` when the body sets `status === 'ERROR'`. Send-form (`src/screens/Wallet/Send/Form.tsx`) reorganised so millisatoshi vs satoshi units stay consistent across LNURL/Lightning amount paths. E2E `src/test/e2e/bip21.test.ts` and unit `src/test/lib/bip21.test.ts` updated to match.
+- **PR #640 (`683db88a`) — Send "Max" in fiat mode.** In `src/screens/Wallet/Send/Form.tsx`, the Max-tap handler now sets `amountTextValue` to `toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat))` when `useFiat` is true (still the raw `liquidBalance.toString()` in sats mode). New import: `fiatDecimalsFor` from `@/lib/fiat`. Internal `satoshis` state unchanged.
+- **PR #641 (`38863d68`) — Toast deduplication.** `src/components/Toast.tsx` `ToastProvider` adds `visibleToasts={1}` to `<Toaster>` so at most one sonner notification renders at a time; eliminates stacked notifications during rapid sequential actions.
+- **PR #642 (`7f26a4f6`) — Pull-to-refresh threshold.** `src/components/Refresher.tsx` doubles the trigger distance — fewer accidental refreshes from short scroll gestures.
+- **PR #643 (`00983717`) — Skip LNURL checks when ARK address present.** `src/screens/Wallet/Send/Form.tsx` LNURL-conditions `useEffect` early-returns when `sendInfo.arkAddress` is set; `sendInfo.arkAddress` added to the dep array. `encodeBip21` (`src/lib/bip21.ts`) rewritten to build the query progressively — empty `ark=` is omitted, and trailing `&`/`?` are trimmed so e.g. `bitcoin:<addr>` with no extras no longer leaves a dangling `?`. `src/components/Error.tsx` reformatted (one-line tweak). New E2E suite `src/test/e2e/form.test.ts` exercises Send-form interactions; shared E2E helpers (`utils.ts`) extended; `nostr.test.ts`/`restore.test.ts`/`swap.test.ts` updated to consume the new helpers.
+
+**Features Added / Modified / Removed**: None — all six commits are dependency bumps or bug-fix/polish.
+**Configuration Changes**: pnpm build-dependency lists relocated from `package.json` to `pnpm-workspace.yaml` (no behavioural change).
+**Breaking Changes**: `Bip21Decoded.lnurl` → `lnUrl` is a rename in the in-tree return type — internal to the wallet (no public API contract changes for downstream consumers).
+
+**Files Touched in Repo** (16 files):
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+- `src/components/Error.tsx`, `src/components/Refresher.tsx`, `src/components/Toast.tsx`
+- `src/lib/bip21.ts`, `src/lib/lnurl.ts`
+- `src/screens/Wallet/Send/Form.tsx`
+- `src/test/e2e/bip21.test.ts`, `src/test/e2e/form.test.ts` (new), `src/test/e2e/nostr.test.ts`, `src/test/e2e/restore.test.ts`, `src/test/e2e/swap.test.ts`, `src/test/e2e/utils.ts`
+- `src/test/lib/bip21.test.ts`
+
+**Files Updated**:
+- `docs/INDEX.md` — wallet **Key Capabilities** SDK-versions bullet updated (0.4.32 / 0.3.37 + pnpm relocation note); new bullet summarising PRs #639–#643; **Dependencies** line bumped to `@arkade-os/sdk` 0.4.32 + `@arkade-os/boltz-swap` 0.3.37.
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.14 → 1.2.15 + `last_sync_commit`; **Arkade Integration** SDK + boltz-swap version lines bumped with a note about the `pnpm-workspace.yaml` relocation; five new Developer / Diagnostics bullets covering PRs #639–#643.
+- `docs/projects/wallet/change-log/last-sync.txt` → `00983717ffd73c674d1663734ac98435050ff924`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/projects/wallet/system/*` and `testing/*` — no architectural change, no new env var, no new build/test command, no new end-user surface; all five fixes are localised tweaks to existing components/utilities and the SDK bump is a patch-version dependency upgrade.
+
+---
+
 ## 2026-05-30 - Documentation Sync
 **Commit**: `32c7773670551bdf1373e7e6354b7b51344ff23d`
 **Previous Sync**: `712c3189c5a258cb4d8b69df28d9b48af4b46f59`

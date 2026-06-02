@@ -1,5 +1,61 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-02 - Documentation Update
+**Commit**: `2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd`
+**Previous Sync**: `4bd46fa06d1399940634b4c723b426abca2c09f2`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (PR #80, "Persistent EBS volume for telemetry data")
+
+**Highlights**:
+- 💾 **Persistent EBS data volume for telemetry** (#80, `2f2b2e1`): `modules/ark/telemetry.tf`
+  adds `aws_ebs_volume.telemetry_data` (encrypted `gp3`, tag `ark-telemetry-data-${env}`,
+  sized by new `telemetry_data_volume_size` var, default 20 GB). New `data "aws_subnet" "telemetry"`
+  resolves the AZ from a new required `telemetry_subnet_id` so the volume and ASG live in the
+  same AZ. The ASG `vpc_zone_identifier` is narrowed from `var.vpc_private_subnet_ids` to
+  `[var.telemetry_subnet_id]` — **HA trade-off**: telemetry is now single-AZ, but Prometheus /
+  Loki / Grafana state survives instance recycles.
+- 🔐 **IAM additions on `aws_iam_role_policy.telemetry`**: `ec2:Describe{Volumes,VolumeStatus,VolumeAttribute,Instances,Tags}`
+  (Resource `"*"`) plus `ec2:AttachVolume`/`DetachVolume` scoped to the volume ARN and
+  `instance/*` conditioned on `ec2:ResourceTag/Environment = var.env`.
+- 📦 **Bootstrap rename + Docker data-root relocation**: `scripts/user-data.sh` →
+  `scripts/user-data-telemetry.sh`, `ansible/playbook.yml` → `ansible/telemetry-playbook.yml`.
+  The renamed playbook now: (1) gathers EC2 metadata via `amazon.aws.ec2_metadata_facts`,
+  (2) attaches the data volume via `amazon.aws.ec2_vol` (retries 12 × 10s) at `/dev/xvdb`,
+  (3) formats `/dev/nvme1n1` ext4 if new, (4) mounts by UUID at `/mnt/data` via `ansible.posix.mount`,
+  (5) cleans stale `/mnt/data/docker/containers` from previous instance, (6) rewrites
+  `/etc/docker/daemon.json` to point `data-root` at `/mnt/data/docker` and restarts Docker —
+  but **only when current Docker root != target** (idempotency fix). User-data template now
+  receives `data_volume_id` from Terraform.
+- 📚 **Ansible collections bumped**: `requirements.yml` now `amazon.aws >= 10.3.1`
+  (was `>= 7.0.0`), plus new `community.general >= 8.0.0` and `ansible.posix >= 1.5.0`.
+- 📏 **Root volume parameterized**: launch template `ebs.volume_size` is now
+  `var.telemetry_root_volume_size` (default 20, was hardcoded 60).
+- 🖥️ **Per-env sizing landed in apps**: `apps/ark/staging/ark.tf` adds
+  `telemetry_instance_type = "t3.small"` + `telemetry_subnet_id = "subnet-0929002f609855e83"`
+  (eu-central-1b) — staging downgraded from default `t3.medium`. `apps/ark/prod/ark.tf` adds
+  `telemetry_instance_type = "t3.large"` + `telemetry_data_volume_size = 30` +
+  `telemetry_subnet_id = "subnet-0aa4bfb28c983f5be"` (eu-central-1b) — **initial prod
+  telemetry config**.
+
+**Files Updated**:
+- docs/INDEX.md (new Persistent telemetry state bullet under ark-infra; telemetry split bullet's
+  playbook path updated to `telemetry-playbook.yml`; tags appended: `ebs`, `persistent-volume`,
+  `telemetry-state`, `single-az`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.5.3, `last_sync_commit`,
+  `last_sync_date`; Telemetry Stack architecture note gains a Persistent state update paragraph
+  covering subnet pinning, EBS volume, `/mnt/data` / Docker data-root, renamed bootstrap files,
+  Ansible collection bumps, and the new variables)
+- docs/projects/ark-infra/system/project_overview.md (Repository Structure paths renamed for
+  `user-data-telemetry.sh` / `telemetry-playbook.yml`; Telemetry Stack section gains a
+  Persistent state paragraph with EBS volume, IAM permissions, Docker data-root, and Ansible
+  requirement bumps)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-28 - Documentation Update
 **Commit**: `4bd46fa06d1399940634b4c723b426abca2c09f2`
 **Previous Sync**: `6bcd75dfdba0dc3158a91ee0ba4e24bdb5307b54`
