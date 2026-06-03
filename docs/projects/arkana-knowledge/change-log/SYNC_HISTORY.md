@@ -1,5 +1,37 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-03 - Operational Memory Sync (no doc changes)
+**Commit Range**: `5294de8b..a97d6c1f` (18 commits, all `memory(*)` agent activity)
+**Previous Sync**: `5294de8bbe6b432b02671fd29e5c1356e8521e6e`
+**Caller-Asserted From**: `5294de8bbe6b432b02671fd29e5c1356e8521e6e` (matches previous sync — no intermediate commits)
+**Current Sync**: `a97d6c1f27c7f7ef1329218e65af8bf1c45b84a6` (committed 2026-06-03T03:44:52Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 13 files changed (+600/-29), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,research-monitor,sdk-parity,self-improver,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/{research-updates,sdk-parity}.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-06-02T07:39Z → 2026-06-03T03:44Z (~20h): release-coordinator at 4-hourly slots (June 2 08/16/20Z, June 3 00Z), issue-triage at 4-hourly slots (June 2 08/12/12/16/20Z, June 3 00/04Z — note dual 12Z run), and one-per-day runs of daily-briefing, executive-digest, slack-monitor, sdk-parity, linear-sync, research-monitor (Tue invocation), self-improver (weekly audit)
+- Notable operational events captured in memory only:
+  - **executive-digest 2026-06-02T21:39Z** (a6177f7): 5 items posted to #arkana-executive — (1) **ChillDKG FROST DKG zero reviews** (most cryptographically sensitive, threshold-magic); (2) nigiri removal from arkade-regtest (persistent CI instability); (3) threshold-magic + 4-SDK nigiri simultaneous CI risk; (4) **go-sdk#191 VHTLC 7 critical findings** (fund loss, key leak, races) caught by code-review; (5) Weekly audit: **FIRST QUIET GOVERNANCE WEEK** (zero new violations — milestone). Queue cleared. ChillDKG zero-review and enclave incident day 11 no owner remain open
+  - **self-improver weekly audit 2026-06-02T20:45Z** (07f5898): Week 7 report — first quiet governance week (78 total violations, unchanged), threshold-magic ChillDKG zero-review DKG flagged, go-sdk#191 7 criticals caught by code-review, enclave incident day 11 no named owner, EIF reproducibility risk compounding. Fleet quality high; human response loop remains bottleneck
+  - **release-coordinator 2026-06-02T20:00Z** (f63e1ce): **emulator OP_CODESEPARATOR flagged** — emulator release gate addition; ~34 line append to release-coordinator.md + 8-line digest queue entry
+  - **release-coordinator 2026-06-02T08:00Z** (781b44f): non-quiet morning check (~32 line append); release gates re-stated
+  - All other runs (daily-briefing, slack-monitor, sdk-parity, linear-sync, research-monitor, five "quiet" issue-triage slots, two other release-coordinator slots) routine state snapshots
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: a97d6c1f…`, `last_sync_date: 2026-06-03T03:44:52Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `a97d6c1f27c7f7ef1329218e65af8bf1c45b84a6`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no update needed (arkana-knowledge entry: 17-agent roster, capabilities, tags, dependencies, triggers all unchanged; per "Versioning & Updates" criteria, none of the trigger conditions met)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-02 - Operational Memory Sync (no doc changes)
 **Commit Range**: `6073e8a7..5294de8b` (17 commits, all `memory(*)` agent activity)
 **Previous Sync**: `091b85059b5dd1b969b8cfbe47427ecb8fc1171b`

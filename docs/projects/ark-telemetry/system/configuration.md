@@ -318,6 +318,12 @@ slack_configs:
       {{ if eq .Status "firing" }}danger{{ else }}good{{ end }}
 ```
 
+### Jaeger (jaeger-config.yaml)
+
+Located at: `${ARK_TELEMETRY_REPO}/jaeger-config.yaml` (added in PR #13 alongside the `jaegertracing/jaeger:2.18.0` upgrade).
+
+Configures the Jaeger v2 binary: BadgerDB storage extension (`/badger/key`, `/badger/data`, ephemeral=false, 72h span TTL), `jaeger_query` extension reading from the same backend, OTLP receivers on gRPC `0.0.0.0:4317` and HTTP `0.0.0.0:4318`, a `batch` processor, and a `jaeger_storage_exporter` that writes to the badger backend. Mounted read-only into the container at `/etc/jaeger/config.yaml` and selected via `command: ["--config", "/etc/jaeger/config.yaml"]`. A `jaeger-init` sidecar (same image, run as root) creates `/badger/{key,data}` and chowns to UID 10001 before jaeger starts.
+
 ## Docker Compose Configuration
 
 ### Service Ports
@@ -336,12 +342,14 @@ ports:
 
 The previously-required external Docker networks (`nigiri` for dev, `ark` for prod) were removed; the stack now runs on its own default compose network.
 
-### Pinned Container Versions (PR #9)
+### Pinned Container Versions
 
-| Service        | Image                                                                                       |
-|----------------|---------------------------------------------------------------------------------------------|
-| otel-collector | `ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.151.0` |
-| cadvisor       | `ghcr.io/google/cadvisor:0.56.2`                                                            |
+| Service        | Image                                                                                       | Pinned in |
+|----------------|---------------------------------------------------------------------------------------------|-----------|
+| otel-collector | `ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.151.0` | PR #9     |
+| cadvisor       | `ghcr.io/google/cadvisor:0.56.2`                                                            | PR #9     |
+| jaeger         | `jaegertracing/jaeger:2.18.0` (replaces `jaegertracing/all-in-one:latest`)                  | PR #13    |
+| jaeger-init    | `jaegertracing/jaeger:2.18.0` (sidecar that pre-creates `/badger/{key,data}`)               | PR #13    |
 
 Example customization (change Grafana port):
 ```yaml
@@ -358,7 +366,9 @@ volumes:
   prometheus_data:     # Time-series metrics
   grafana_data:        # Dashboards and settings
   alertmanager_data:   # Alert state
-  loki_data:          # Log chunks
+  loki_data:           # Log chunks
+  pyroscope_data:      # Continuous profiles
+  jaeger_data:         # Jaeger BadgerDB traces (PR #13)
 ```
 
 To use host directories instead of volumes:

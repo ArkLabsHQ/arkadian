@@ -152,7 +152,7 @@ Alerts are split by `host_role` (`app` vs `telemetry`):
 - **HighCPUUsage_App** / **HighCPUUsage_Telemetry** — CPU >70% for 2 min
 - **HighMemoryUsage_App** / **HighMemoryUsage_Telemetry** — RAM >85% for 2 min
 - **RootDiskHighUsage_App** / **RootDiskHighUsage_Telemetry** — `/` >70% for 5 min
-- **DataDiskHighUsage** — `/mnt/data` >70% for 5 min (app only)
+- **DataDiskHighUsage_App** / **DataDiskHighUsage_Telemetry** — `/mnt/data` >70% for 5 min (PR #12 added telemetry variant; alert was previously `DataDiskHighUsage`, app-only)
 - **ServiceMissing** — Ark service stopped exporting metrics
 
 ---

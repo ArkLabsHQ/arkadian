@@ -159,19 +159,43 @@ services.AddSingleton<IRemoteSignerTransport, HardwareSignerTransport>();
 
 To plug in something the SDK doesn't ship (HWI, threshold key share, in-browser session signer): implement `IDescriptorSigningSource` and either compose with `DefaultWalletProvider` (when follow-up enriches the wiring) or replace `DefaultWalletProvider` outright with one that builds the composite however you want. The sources `Bip39SigningSource` / `NsecSigningSource` / `RemoteTransportSigningSource` are reference implementations.
 
-## HD Wallet Recovery
+## Wallet Recovery
 
-After re-importing an HD wallet from its mnemonic, rebuild local contract state by running the gap-limit scanner. `AddArkCoreServices()` registers `HdWalletRecoveryService`, the indexer probe, and (when an `IBoardingUtxoProvider` is also registered) the boarding probe; `AddArkSwapServices()` adds the Boltz probe. Custom probes implement `IContractDiscoveryProvider` and are picked up via DI automatically.
+After re-importing a wallet into empty storage, rebuild its local state — contracts (including legacy script variants under deprecated server signers), the HD derivation index, funds (VTXOs), and boltz swap data — via the unified, wallet-type-agnostic `IWalletRecoveryService` (PR #104). `AddArkSwapServices()` registers it alongside `HdWalletRecoveryService`, the indexer / boarding / Boltz discovery probes, and the pending-tx recovery service. Custom probes implement `IContractDiscoveryProvider` and are picked up via DI automatically.
 
 ```csharp
-var recovery = sp.GetRequiredService<HdWalletRecoveryService>();
-var report = await recovery.ScanAsync(walletId);                                  // gap=20, max=10000
-var deep   = await recovery.ScanAsync(walletId, new RecoveryOptions(GapLimit: 50));
-var resume = await recovery.ScanAsync(walletId, new RecoveryOptions(StartIndex: 200));
-// report.HighestUsedIndex, report.ProviderHits, report.DiscoveredContracts
+var recovery = sp.GetRequiredService<IWalletRecoveryService>();
+var report   = await recovery.RecoverAsync(walletId);
+// report.WalletType         — HD or SingleKey
+// report.HdScan             — RecoveryReport for HD wallets (null for SingleKey)
+// report.ContractsRecovered — contracts newly persisted by THIS run (delta, not total)
+// report.RestoredSwaps      — SingleKey direct-restore results (HD swaps land in SwapAudit)
+// report.SwapAudit          — post-recovery SwapRecoveryInfo for every known swap
+// report.FinalizedPendingTxIds — in-flight Arkade txs finalized during recovery
+// report.FundsScriptsSynced — VTXOs synced from the indexer for recovered offchain scripts
 ```
 
-Single-key wallets throw (no notion of indexing). The orchestrator dedupes contracts by script and never lowers `wallet.LastUsedIndex`. See `docs/articles/recovery.md` in the repo for full provider semantics and tuning.
+The facade dispatches by wallet type: **HD** wallets get a gap-limit index scan that discovers contracts across **every server signer** (current + each deprecated signer arkd reports — server-key rotation leaves earlier funds under a different script) and restores boltz swaps in-line via the discovery provider; **SingleKey** wallets re-derive their one deterministic default contract (if storage is empty) and restore swaps directly for the wallet's `AccountDescriptor` (throws if it's null). Both paths then finalize any in-flight Arkade transactions and resync funds from the indexer.
+
+To also probe **delegate** (auto-renewal) scripts during recovery — funds locked under an `ArkDelegateContract` derived from a delegation pubkey rather than the default `ArkPaymentContract` — register a `RecoveryDelegateConfig` with the delegate descriptors:
+
+```csharp
+services.AddSingleton(new RecoveryDelegateConfig
+{
+    Delegates = new[] { OutputDescriptor.Parse("...", network) }
+});
+```
+
+On **mainnet**, recovery also pairs each signer with the historical 7-day unilateral-exit delay (`MAINNET_UNILATERAL_EXIT_DELAY = 605184s`) alongside the arkd-advertised one — arkd only advertises the CURRENT delay, so wallets that minted VTXOs while mainnet still ran the original delay would otherwise silently fail discovery after the operator shortened it.
+
+Tuning via `RecoveryOptions`:
+
+```csharp
+var deep   = await recovery.RecoverAsync(walletId, new RecoveryOptions(GapLimit: 50));
+var resume = await recovery.RecoverAsync(walletId, new RecoveryOptions(StartIndex: 200));
+```
+
+`RecoveryOptions` is HD-only — it's ignored for SingleKey wallets. The lower-level `HdWalletRecoveryService.ScanAsync` is still resolvable from DI for HD-specific callers that don't want the unified pre/post steps. See `docs/articles/recovery.md` in the repo for full provider semantics and tuning.
 
 ## Spending VTXOs
 

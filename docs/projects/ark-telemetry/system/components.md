@@ -211,22 +211,28 @@ Jaeger is the distributed tracing backend that stores and visualizes traces from
 
 ### Key Features
 
-- **All-in-One Deployment**: Combined collector, query service, and UI
-- **OTLP Support**: Native support for OpenTelemetry traces
+- **Jaeger v2 binary** (`jaegertracing/jaeger:2.18.0`, PR #13) — config-driven deployment replacing the legacy `all-in-one` image
+- **OTLP Support**: Native support for OpenTelemetry traces (OTLP gRPC `:4317` and HTTP `:4318` receivers)
 - **Trace Search**: Search traces by service, operation, tags, and duration
 - **Service Dependency Graph**: Visualizes service relationships
 - **Performance Analysis**: Identifies slow operations and bottlenecks
 
 ### Configuration
 
-Endpoints:
-- **UI**: http://localhost:16686 (Jaeger query UI)
-- **Collector**: port 14250 (gRPC endpoint for OTel Collector)
-- **OTLP**: Enabled via COLLECTOR_OTLP_ENABLED=true
+Driven by `jaeger-config.yaml` mounted at `/etc/jaeger/config.yaml` (PR #13). A `jaeger-init` sidecar (same image, run as root) pre-creates `/badger/{key,data}` and chowns them to UID `10001` before the main jaeger container starts (`depends_on … service_completed_successfully`).
 
-Storage:
-- **Backend**: In-memory (suitable for development and testing)
-- **Note**: For production, consider external storage (Elasticsearch, Cassandra)
+Endpoints:
+- **UI / Query API**: http://localhost:16686
+- **OTLP gRPC**: `0.0.0.0:4317` (receiver)
+- **OTLP HTTP**: `0.0.0.0:4318` (receiver)
+- **Note**: the legacy `14250` gRPC collector port and the `COLLECTOR_OTLP_ENABLED=true` env var are gone — Jaeger v2 receives OTLP directly via its own receiver pipeline rather than the all-in-one collector
+
+Storage (PR #13):
+- **Backend**: BadgerDB on the local filesystem (named volume `jaeger_data` → `/badger`)
+- **Keys**: `/badger/key` — **Values**: `/badger/data`
+- **Ephemeral**: `false` (traces persist across container restarts)
+- **TTL**: `72h` for spans
+- **Pipeline**: `otlp` receiver → `batch` processor → `jaeger_storage_exporter` (badger_store); query served by the `jaeger_query` extension
 
 ### Use Cases
 

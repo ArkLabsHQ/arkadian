@@ -78,3 +78,33 @@
 - `dashboards/Ark_Go_metrics.json`: set top-level `uid` to `ark-application-metrics` (previously empty). Gives Grafana a stable identifier so the dashboard keeps the same URL/permalinks across provisioning reloads and can be deep-linked from alerts/annotations.
 
 **No doc-file updates needed**: cosmetic provisioning-metadata change; panels, queries, and behavior are unchanged. `system/dashboards.md` describes panels (not Grafana uids), so no edit required. Only sync tracking is updated.
+
+---
+
+## 2026-06-03 - Jaeger v2 + persistent BadgerDB storage; telemetry-host data-disk alert
+**From**: `fc63ce96e470215d94e7e119877701cc5fe9ea46`
+**To**: `13fb7db303e7cdfa2eed3efb8165e441676b6063`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 2
+- `bde16fb` jaeger: Upgrade to `2.18.0` and store traces on filesystem (#13)
+- `13fb7db` Disk usage alert for Telemetry data volume (#12)
+
+**Jaeger upgrade (PR #13)**:
+- Image: `jaegertracing/all-in-one:latest` → **`jaegertracing/jaeger:2.18.0`** (Jaeger v2 binary) in both `docker-compose.otel.yaml` and `docker-compose.otel.dev.yaml`
+- Container is now config-driven (`command: ["--config", "/etc/jaeger/config.yaml"]`); `COLLECTOR_OTLP_ENABLED=true` env var dropped
+- Removed legacy `14250` gRPC collector port; OTLP receivers on `0.0.0.0:4317` (gRPC) and `0.0.0.0:4318` (HTTP) defined in the new config file
+- New `jaeger-config.yaml` configures: `jaeger_storage` extension with **BadgerDB** backend (`/badger/key`, `/badger/data`, `ephemeral: false`, `ttl.spans: 72h`); `jaeger_query` extension reading the same store; OTLP receiver → `batch` processor → `jaeger_storage_exporter` pipeline
+- New named volume `jaeger_data` mounted at `/badger` for trace persistence across restarts
+- New **`jaeger-init` sidecar** (same image, `user: root`) that creates `/badger/{key,data}` and chowns to UID `10001` before jaeger starts (`depends_on … service_completed_successfully`)
+
+**Alerting (PR #12)**:
+- `prometheus.alert.rules.yml`: previous `DataDiskHighUsage` (app-only) **renamed to `DataDiskHighUsage_App`**, and a new **`DataDiskHighUsage_Telemetry`** alert added for `mountpoint="/mnt/data",host_role="telemetry"` (5m, severity `warning`). Closes the gap left by PR #9, where the telemetry host's `/mnt/data` had no usage alert — now needed because Jaeger persists traces there via the `jaeger_data` volume.
+
+**Doc-file updates**:
+- `INDEX.md` — Alert Rules section: `DataDiskHighUsage` → `DataDiskHighUsage_App` / `DataDiskHighUsage_Telemetry`
+- `system/alert-rules.md` — renamed section, added telemetry variant YAML
+- `system/components.md` — Jaeger section rewritten: v2 image, OTLP `:4317`/`:4318` receivers, BadgerDB storage, 72h TTL, `jaeger-init` sidecar; legacy `14250` / `COLLECTOR_OTLP_ENABLED` references removed
+- `system/configuration.md` — pinned-versions table extended with `jaeger` + `jaeger-init` (PR #13); added "Jaeger (jaeger-config.yaml)" config section; volume list adds `jaeger_data` and `pyroscope_data`
+- `sop/jaeger-manual.md` — added PR #13 note at top covering version, persistence and OTLP-direct receiver
+- master `docs/INDEX.md` — `ark-telemetry` entry: Jaeger capability bullet expanded with v2/BadgerDB/72h-TTL details; alert-rules bullet calls out the new per-host `DataDiskHighUsage_*` split

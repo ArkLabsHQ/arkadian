@@ -144,6 +144,7 @@ npm run dev
 - **PostgreSQL**: Primary database (production)
 - **SQLite**: Development and testing
 - **Sequelize ORM**: Database abstraction layer
+- **Swap routing metadata** (`swap_metadata` table, PR #1423): optional client-supplied opaque blob (`BYTEA`, ≤ **1024 bytes**, primary key `swap_id`, `created_at` timestamp) attached at swap creation and surfaced on the rescue/restore endpoint. Sequelize migration `2026-05-27-000000-0000_swap_metadata` (also shipped as a Diesel migration under `boltzr/migrations/` so the Rust sidecar's `SwapMetadataHelper` can read it). TypeScript writer: `SwapMetadataRepository.add(swapId, Buffer)` from `SwapRouter` after each `create*Swap` succeeds; Rust reader: `SwapRescue::attach_metadata` populates `RestorableSwap.metadata` (HEX) during `/v2/swap/restore`.
 
 ### Lightning Integration
 - **LND**: gRPC integration

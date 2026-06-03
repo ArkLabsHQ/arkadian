@@ -75,6 +75,7 @@ Create a new submarine swap (Chain → Lightning).
 - `orderSide`: `sell` for submarine, `buy` for reverse
 - `invoice`: Lightning invoice (optional, can set later with `/setinvoice`)
 - `refundPublicKey`: Public key for refund transaction
+- `metadata` *(optional, PR #1423)*: client-supplied opaque blob encoded as HEX (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes**). Persisted to the `swap_metadata` table keyed by swap id and returned on `/v2/swap/restore` for the same swap. Accepted on all three swap-create endpoints (`/v2/swap/submarine`, `/v2/swap/reverse`, `/v2/swap/chain`). Invalid hex or out-of-range length yields `INVALID_PARAMETER('metadata')`.
 
 **Response**:
 ```json

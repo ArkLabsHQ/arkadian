@@ -1,5 +1,28 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-06-02 - Documentation Update
+**Commit**: `c0e5b66c` (boltz-backend repository)
+**Previous Sync**: `df549e03`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Features Added**:
+- feat: store swap metadata (#1423) (`c0e5b66c`) — new opaque client-supplied **swap routing metadata** persisted alongside each swap. Sequelize migration `2026-05-27-000000-0000_swap_metadata` (and matching Diesel migration under `boltzr/migrations/`) creates a new `swap_metadata` table (`swap_id` VARCHAR(255) PK → `data` BYTEA NOT NULL, `created_at` TIMESTAMPTZ DEFAULT NOW()). New TypeScript `SwapMetadata` Sequelize model (`lib/db/models/SwapMetadata.ts`) registered in `lib/db/Database.ts` and `SwapMetadataRepository` (`add(swapId, Buffer)` / `get(swapId)`). New Rust `SwapMetadataHelper` (`boltzr/src/db/helpers/swap_metadata.rs`) with matching `schema.rs` entry, wired into `service/mod.rs`, `grpc/service.rs`, and `main.rs`. `SwapRouter` (`lib/api/v2/routers/SwapRouter.ts`, +71 lines) accepts an optional `metadata` HEX string on POST `/v2/swap/submarine`, `/v2/swap/reverse`, and `/v2/swap/chain`, validated via a new `parseMetadata` (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes** — out-of-range or invalid hex throws `INVALID_PARAMETER('metadata')`) and persisted via a new `persistMetadata` after each successful `create*Swap` call. `boltzr/src/service/rescue.rs` adds an `Option<String> metadata` field to `RestorableSwap` and a `SwapRescue::attach_metadata` step that the `restore` flow runs to populate it (HEX-encoded) before sorting. `swagger-spec.json` documents the new request field on all three create endpoints and the response field on the restore schema. New unit tests: `test/unit/api/v2/routers/SwapRouter.spec.ts` (+170 lines) covering parser bounds + persistence, and `test/integration/db/repositories/SwapMetadataRepository.spec.ts` (+40 lines).
+
+**Tooling / Chores**:
+- chore: env var override for mempool.space in CI (#1425) (`3abe544d`) — `boltzr/src/chain/mempool_client.rs` test helper `mempool_api()` now reads the `MEMPOOL_API_URL` env var (trimmed, trailing-slash-stripped, empty → default `https://mempool.space/api`) so the network-dependent `MempoolSpace`/client test cases can be retargeted in CI; `.github/workflows/ci.yml` `build-rust` job adds `permissions: contents: read` and exposes `MEMPOOL_API_URL: ${{ vars.MEMPOOL_API_URL }}` to `cargo test`. Test-only / CI-only; no production behaviour, config schema, or API surface change.
+
+**Documentation Impact**:
+- `INDEX.md` (project): added a **Swap routing metadata** bullet under **Database / Configuration** describing the new `swap_metadata` table, the size cap (1024 bytes), Sequelize + Diesel migration, and the writer (`SwapMetadataRepository`) / reader (`SwapMetadataHelper` + `SwapRescue::attach_metadata`) call sites.
+- `system/architecture.md`: added the **Swap metadata table** bullet to the **Database** subsection.
+- `testing/api-reference.md`: documented the new optional `metadata` HEX field on the swap-create POST bodies (length/regex/error code) and noted that it is returned by `/v2/swap/restore`.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** gained a **swap routing metadata** bullet; tags extended with `swap-metadata`.
+- The mempool.space CI env-var change is test/CI-only and has no docs surface.
+
+---
+
 ## 2026-05-24 - Documentation Update
 **Commit**: `df549e03` (boltz-backend repository)
 **Previous Sync**: `1bbc85c1`

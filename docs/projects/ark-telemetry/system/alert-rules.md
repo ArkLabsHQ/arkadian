@@ -105,16 +105,20 @@ The telemetry variant swaps `host_role="app"` → `"telemetry"`.
     host_role: app
 ```
 
-### DataDiskHighUsage
+### DataDiskHighUsage_App / DataDiskHighUsage_Telemetry
 
-**Purpose**: Detect when the app instance's `/mnt/data` volume fills past 70% (this alert is **app-only** — the telemetry host does not mount `/mnt/data`).
+**Purpose**: Detect when the `/mnt/data` volume fills past 70% on either the app or telemetry host.
+
+> **PR #12 (June 2026)**: split into per-`host_role` variants. The previous single `DataDiskHighUsage` alert (app-only) was renamed `DataDiskHighUsage_App`, and a new `DataDiskHighUsage_Telemetry` variant was added so the telemetry host's `/mnt/data` (now used to persist Jaeger badger traces and other stack data) is monitored as well.
 
 ```yaml
-- alert: DataDiskHighUsage
+- alert: DataDiskHighUsage_App
   expr: |
     100 *
-    sum without(state)(system_filesystem_usage_bytes{state="used",mountpoint="/mnt/data",host_role="app"}) /
-    sum without(state)(system_filesystem_usage_bytes{mountpoint="/mnt/data",host_role="app"}) > 70
+    sum without(state)(system_filesystem_usage_bytes{state="used",mountpoint="/mnt/data",host_role="app"})
+      /
+    sum without(state)(system_filesystem_usage_bytes{mountpoint="/mnt/data",host_role="app"})
+    > 70
   for: 5m
   labels:
     severity: warning
@@ -122,6 +126,21 @@ The telemetry variant swaps `host_role="app"` → `"telemetry"`.
   annotations:
     summary: "Data volume (/mnt/data) usage >70%"
     description: "App instance /mnt/data is above 70% capacity for 5 minutes."
+
+- alert: DataDiskHighUsage_Telemetry
+  expr: |
+    100 *
+    sum without(state)(system_filesystem_usage_bytes{state="used",mountpoint="/mnt/data",host_role="telemetry"})
+      /
+    sum without(state)(system_filesystem_usage_bytes{mountpoint="/mnt/data",host_role="telemetry"})
+    > 70
+  for: 5m
+  labels:
+    severity: warning
+    host_role: telemetry
+  annotations:
+    summary: "Data volume (/mnt/data) usage >70%"
+    description: "Telemetry instance /mnt/data is above 70% capacity for 5 minutes."
 ```
 
 ### ServiceMissing

@@ -113,6 +113,7 @@ Features:
 - **Migrations**: Schema versioning (Sequelize + diesel for `boltzr`)
 - **Claim transactions table** (`claim_transactions`): records broadcast claim TXIDs for reverse/chain swaps, with a Postgres trigger enforcing `swap_id ∈ reverseSwaps ∪ chainSwaps`. Cooperative claims on UTXO chains are not stored.
 - **JWT tokens table** (`jwt_tokens`): persists gRPC auth tokens issued by `IssueJwt` (id, label, allowed methods, issued/expires/revoked-at), consulted by the `AuthInterceptor` on every gRPC call.
+- **Swap metadata table** (`swap_metadata`, PR #1423): opaque client-supplied routing/context blob attached to a swap at creation (`swap_id` PK → `BYTEA` data, max **1024 bytes**, `created_at` timestamp). Written by the TS `SwapMetadataRepository` from `SwapRouter` after each submarine/reverse/chain swap is created; read by the Rust `SwapMetadataHelper` and surfaced as HEX on `/v2/swap/restore` via `SwapRescue::attach_metadata`.
 
 Supported databases:
 - PostgreSQL (production)
