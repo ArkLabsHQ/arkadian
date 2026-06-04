@@ -1,5 +1,22 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-04 - regtest submodule bump: publish Postgres on host :39372 (no SDK changes)
+**From**: `569bfcff7c58628e8c83cbeb339833950942fa34`
+**To**: `89bb5faaed3e7b3a54e3185d1f090c9172906449`
+**Synced By**: update-project skill
+**Status**: No documentation updates needed
+
+**Commits Analysed**: 1 squash-merge PR (#120 — `chore(regtest): bump denigiri pin to publish Postgres on :39372`).
+
+**Changes**:
+- `regtest` submodule pointer moved from `fae8d91072269b7c8329fdb5e9299033bff2a1c0` to `20c0851c7eb592d8a75711ce5c56b746312cc1e2`. Advances to `arkade-regtest` denigiri-regtest @ `20c0851`, which publishes the Postgres container on the host (`${POSTGRES_PORT:-39372}:5432`, trust auth) so external consumers — notably the BTCPay plugin E2E whose `ServerTester` reads NBXplorer's DB via `explorer.postgres` — can reach it directly, removing the prior socat side-car + extra Postgres workaround. Sole change in the dotnet-sdk repo at this revision.
+
+**Impact on dotnet-sdk docs**: None. No source files, public APIs, NuGet package metadata, DI registrations, configuration knobs, dependencies, or build/test scripts in this repo changed. NNark's own E2E is unaffected — nbxplorer still talks to Postgres on the internal Docker network. The `arkade-regtest` shared environment is already documented as an external submodule consumed by E2E; updates to its contents (and the new host-published Postgres port for downstream consumers) are tracked under the `arkade-regtest` project, not here.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `89bb5faaed3e7b3a54e3185d1f090c9172906449`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
 ## 2026-05-30 - Wallet/signer architecture rewrite: two-axis model (watch-only + remote-signing as signer-provider capabilities), `IDescriptorSigningSource` composition behind `CompositeArkadeWalletSigner`, MuSig2 secret nonce stays inside the signer, regtest arkd bump v0.9.3 → v0.9.6
 **From**: `1d09d58be080dff307827cb113860064ced66acc`
 **To**: `6b69b9e26f9a05ebc825e580e0a0f28cb3b9c33c`

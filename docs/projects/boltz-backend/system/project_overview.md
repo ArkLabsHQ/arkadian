@@ -99,7 +99,7 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Redis for caching and rate limiting
 
 ### Observability
-- Prometheus metrics
+- Prometheus metrics — including new per-key **async-lock metrics** (`lock_pending`, `lock_hold_age_seconds`, `lock_rejections`) exposed by the `InstrumentedLock` wrapper for Node-side cooperative-signing locks (PR #1427)
 - OpenTelemetry distributed tracing
 - Loki log aggregation
 

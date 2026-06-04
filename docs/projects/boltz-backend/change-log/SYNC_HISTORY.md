@@ -1,5 +1,29 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-06-04 - Documentation Update
+**Commit**: `dc9c6f83` (boltz-backend repository)
+**Previous Sync**: `c0e5b66c`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+
+**Features Added**:
+- feat: add metrics to Node async locks (#1427) (`4ed9ac87`) — new `lib/InstrumentedLock.ts` (135 LoC) wraps `async-lock` with per-key holder/pending/rejection tracking and exposes a `snapshot()` of live state. Three new Prometheus gauges on the swap registry: `lock_pending{name,key}` (queue depth), `lock_hold_age_seconds{name,key,op}` (current holder age), and `lock_rejections{name,key}` (cumulative "Too many pending tasks" overflows). Overflow errors are re-thrown to the waiter enriched with `lock <name>.<key> overflow (op=<op>); holder=<op> held for <ms>ms, <n> pending`. Rolled out in `lib/service/Renegotiator.ts`, `lib/service/cooperative/ChainSwapSigner.ts`, `lib/service/cooperative/EipSigner.ts`, and `lib/wallet/ethereum/contracts/Commitments.ts` (replaces the bare `AsyncLock` usage and passes the `op` label at each `acquire` site). Covered by new 128-line `test/unit/InstrumentedLock.spec.ts`.
+
+**Refactors**:
+- refactor: get lightning gossip also from LND (#1424) (`dc9c6f83`) — `boltzr/src/service/lightning_info.rs` (single file, CLN-only) was split into a module: `mod.rs` (the new transport-agnostic `GraphLightningInfo` aggregator + previous public types/helpers), `cln.rs` (CLN-side gossip from `listchannels`/`listnodes`), and `lnd.rs` (new LND-side gossip from `describe_graph`). `lnd::mod` adds a `describe_graph` helper around `lnd_rpc::ChannelGraphRequest` (`include_unannounced=false`, `include_auth_proof=false`); the `lnd_rpc` proto module is now `pub(crate)` so the `lightning_info::lnd` submodule can use its types. `boltzr/src/service/mod.rs` swaps `Box::new(ClnLightningInfo::new(...))` for `Box::new(GraphLightningInfo::new(...))` in both prod construction and the test fixture; gossip in `service::lightning_info` is now sourced from **both** LND and CLN. A new `boltzr/src/lightning/lnd/mod.rs` test helper `lnd_client(node, port)` is added for the LND-side integration tests; no public REST/gRPC API, env-var, `boltz.conf` schema, or DB-migration change.
+- chore: bump CLN to v26.06 (#1426) (`9bcd02e1`) — `docker/build.py` `C_LIGHTNING_VERSION` bumped from `26.04.1` → `26.06`; `lib/VersionCheck.ts` CLN range updated to `minimal=26.04`, `maximal=26.06`. With v26.06 in the supported range, the legacy `disableMpp` config option was removed from `lib/lightning/cln/ClnClient.ts` and `lib/lightning/cln/Types.ts` (the `xpay` call now always uses an empty `layers: []` instead of `['auto.no_mpp_support']`), and the `# disableMpp = false` line was removed from `docs/boltz.conf`. `boltzr/src/lightning/cln/mod.rs` dropped the 24.08-specific `list_configs` / `experimental-offers` startup check, and with it the entire `boltzr/src/lightning/mod.rs::Error::NoBolt12Support` enum (the file is now just `pub mod cln; pub mod invoice; pub mod lnd;`). `lib/lightning/cln/Router.ts` migrated from the deprecated `GetRoute` RPC to `GetRoutes` (`GetroutesRequest`), which requires the local node id as a `source` argument — `ClnClient.queryRoutes` now passes `this.id` to both the direct and routing-hint `getRoute` calls. Regenerated `proto/cln/node.proto` (+1238 lines) and `proto/cln/primitives.proto` (+44 lines); `regtest` submodule advanced to the matching v26.06 image. Tests cleaned up: integration `Router.spec.ts` adapts to the new RPC signature, integration `ClnClient.spec.ts` drops the now-obsolete `disableMpp` cases, and `test/unit/VersionCheck.spec.ts` is updated for the new min/max boundary.
+
+**Documentation Impact**:
+- `INDEX.md` (project): **Lightning Integration** section reworded — LND bullet now mentions the `lnd_rpc::ChannelGraphRequest` / `describe_graph` gossip contribution and the new `GraphLightningInfo` aggregator (PR #1424); CLN bullet bumped to **v26.06** with notes on the `disableMpp` / experimental-offers / `GetRoute → GetRoutes` removals (PR #1426). **Observability** section gained a per-key async-lock metrics paragraph covering `InstrumentedLock` and the three new gauges (PR #1427).
+- `system/architecture.md`: **Lightning Integration** subsection rewritten — `LndClient` now references the `describe_graph` gossip contribution, `ClnClient` updated to **v26.06** with the same removal notes plus the deletion of the `Error::NoBolt12Support` Rust enum. **Monitoring** subsection updated with the `InstrumentedLock` + lock-overflow enrichment.
+- `system/project_overview.md`: **Observability** capability bullet expanded to mention the new lock metrics.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** — Lightning bullet updated to **CLN v26.06** with a note on the `disableMpp` / experimental-offers / `GetRoute → GetRoutes` removals; new bullets added for the LND-side gossip contribution (PR #1424) and the per-key async-lock instrumentation (PR #1427). Tags extended with `lightning-gossip`, `async-lock-metrics`.
+- `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — the CLN bump only affects the pinned image / internal RPC plumbing (no public REST surface), the LND gossip refactor is internal to the `boltzr` service layer, and the lock-metrics rollout is observability-only (new gauges are exposed on the existing Prometheus `/metrics` endpoint).
+
+---
+
 ## 2026-06-02 - Documentation Update
 **Commit**: `c0e5b66c` (boltz-backend repository)
 **Previous Sync**: `df549e03`

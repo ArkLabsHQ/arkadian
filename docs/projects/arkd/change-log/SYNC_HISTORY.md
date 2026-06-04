@@ -1,5 +1,40 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-04 - Documentation Update
+**Commit**: `ab8e64ef` (arkd repository)
+**Previous Sync**: `c4f16324`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `ab8e64ef` Bulk vtxo pubkey lookup + optimize WatchScripts on startup (#1084)
+
+**Features Added (sweeper startup, `internal/core/application/service.go` + repo layer)**:
+- New `VtxoRepository.GetVtxoPubKeysByCommitmentTxids(ctx, commitmentTxids, withMinimumAmount)` bulk method on the domain interface (`internal/core/domain/vtxo_repo.go`) and on all three backends. Returns the deduped union of pubkeys whose VTXO row references any of the supplied commitment txids and whose amount is `>= withMinimumAmount` (inclusive predicate, locked by an explicit `amount == min_amount` row in test).
+  - **sqlite** (`internal/infrastructure/db/sqlite/{sqlc/query.sql,vtxo_repo.go,sqlite/sqlc/queries/query.sql.go}`): new query uses `sqlc.slice` twice (the generator only rewrites the first occurrence per query, so both `vtxo_commitment_txid` and `vtxo_vw.commitments LIKE …` membership scans had to be sliced explicitly). The Go wrapper batches at SQLite's parameter limit and unions per-batch results. New `internal/infrastructure/db/sqlite/vtxo_repo_batching_test.go` covers the multi-batch path; `export_test.go` exposes the param-limit knob.
+  - **postgres** (`internal/infrastructure/db/postgres/{sqlc/query.sql,sqlc/queries/query.sql.go,vtxo_repo.go}`): new query uses `ANY($1::text[])` and joins against the new `vtxo_commitment_txid` index.
+  - **badger** (`internal/infrastructure/db/badger/vtxo_repo.go`): scans VTXOs once, filters with an in-memory commitment-txid set; review feedback fixed an off-by-one in the `>=` amount predicate.
+- `internal/core/application/service.go` rewires both the boot path (`restoreWatchingVtxos`) and the shutdown path (`Stop()`) from per-round `GetVtxoPubKeysByCommitmentTxid` loops to a single bulk call. DB calls drop from `1+N` to `2` regardless of round count. `restoreWatchingVtxos` also adds defensive `hex.DecodeString` + 32-byte length validation on each pubkey row before lifting to a taproot script, so a corrupted DB row cannot poison the entire boot-time `WatchScripts` payload. Explicit log lines were added on Stop/restoreWatching failure paths.
+- **Benchmarks** (added by the PR, `internal/infrastructure/db/vtxo_repo_bench_test.go`): on sqlite + badger localhost, per-txid `45.46s` vs bulk `35.1ms` at 1000 rounds (≈1297× faster), `266ms` bulk at 5000 rounds; the per-txid path did not complete in 3 minutes at 10000 rounds.
+- New migration `20260527150000_vtxo_commitment_txid_index.{up,down}.sql` on both sqlite and postgres adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk join scales linearly with result size, not with total round count.
+
+**Features Added (wallet client, `internal/infrastructure/wallet/wallet_client.go`)**:
+- New `chunkStrings(in, size)` helper + `defaultWatchScriptsChunkSize = 2000` package constant. `WatchScripts` and `UnwatchScripts` now split the scripts list into chunks of `effectiveChunkSize()` (`chunkSize` field can be overridden by tests via the new test seam; production callers always get the default) and issue one gRPC call per chunk. At ~75 bytes per encoded taproot script + protobuf overhead, 2000 scripts ≈ 150 KiB per call — well under the default 4 MiB gRPC max-message cap that the original single-call path was hitting at 100k+ scripts during boot-time restore.
+- `chunkStrings` panics on `size <= 0` (deliberate: silently returning a single full chunk would defeat the purpose). Returned sub-slices share backing storage with the input.
+- New `internal/infrastructure/wallet/wallet_client_test.go` covers `TestChunkStrings`, `TestWalletClientWatchScriptsChunking`, and `TestWalletClientUnwatchScriptsChunking` (chunk boundaries, large inputs, mid-chunk error short-circuit).
+
+**Files Updated**:
+- docs/INDEX.md (new arkd capability bullet for the bulk sweeper-restore path + `WatchScripts`/`UnwatchScripts` chunking; added `sweeper`, `startup-performance` tags)
+- docs/projects/arkd/INDEX.md (sync commit + date, version bump)
+- docs/projects/arkd/system/repo_manager.md (added the bulk `GetVtxoPubKeysByCommitmentTxids` method to the VtxoRepository section, with backend-specific notes; called out the new `20260527150000_vtxo_commitment_txid_index` migration in the PostgreSQL implementation notes)
+- docs/projects/arkd/system/application_core.md (new "Startup / Shutdown Watch Restore" sub-section under Sweeper Service documenting the bulk lookup, hex validation, and the chunked `WatchScripts`/`UnwatchScripts` path)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Performance / scalability fix on the sweeper boot path. The new domain method is additive (the per-txid `GetVtxoPubKeysByCommitmentTxid` is still on the interface), so external implementors of `VtxoRepository` must add `GetVtxoPubKeysByCommitmentTxids` to compile against the new interface — this is the only API-shape change in this sync. No proto / gRPC / config surface changed. The migration is forward-only safe (additive index).
+
+---
+
 ## 2026-05-27 - Documentation Update
 **Commit**: `c4f16324` (arkd repository)
 **Previous Sync**: `299b7ad6`

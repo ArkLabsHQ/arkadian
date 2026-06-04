@@ -108,3 +108,18 @@
 - `system/configuration.md` — pinned-versions table extended with `jaeger` + `jaeger-init` (PR #13); added "Jaeger (jaeger-config.yaml)" config section; volume list adds `jaeger_data` and `pyroscope_data`
 - `sop/jaeger-manual.md` — added PR #13 note at top covering version, persistence and OTLP-direct receiver
 - master `docs/INDEX.md` — `ark-telemetry` entry: Jaeger capability bullet expanded with v2/BadgerDB/72h-TTL details; alert-rules bullet calls out the new per-host `DataDiskHighUsage_*` split
+
+---
+
+## 2026-06-04 - Alertmanager: throttle info-level Slack duplicates
+**From**: `13fb7db303e7cdfa2eed3efb8165e441676b6063`
+**To**: `18a32c6d40fbc58f4ef59a2d3324e5a898feb8c2`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `18a32c6` Remove info duplicate alerts (#14)
+
+**Alertmanager routing change (PR #14)**:
+- `alertmanager.yml.tmpl`: on the `severity = info` route (→ `slack-notifications-info` receiver), `group_interval` raised from **`1s` → `30s`**. `group_wait: 0s` and `repeat_interval: 1m` unchanged. With the prior 1-second group interval, info-level alerts (e.g. round-finalized notifications) were re-fanned into Slack almost immediately after each firing, producing duplicate messages; 30s gives Alertmanager a real window to batch them into a single group update.
+
+**No doc-file updates needed**: route-timer values are not documented in `system/configuration.md` (only generic examples are shown), `system/alert-rules.md` (rule definitions only, not routing), or `INDEX.md`. Master `docs/INDEX.md` `ark-telemetry` entry — capabilities, tags, dependencies — is unaffected. Only sync tracking is updated.

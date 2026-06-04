@@ -1,5 +1,41 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-04 - Operational Memory Sync (no doc changes)
+**Commit Range**: `845f0fae..b44f173b` (15 commits, all `memory(*)` agent activity)
+**Previous Sync**: `a97d6c1f27c7f7ef1329218e65af8bf1c45b84a6` (2026-06-03T03:44:52Z)
+**Caller-Asserted From**: `845f0fae4686c6cb7b47e240c3101b20fb1bea2f` (1 commit newer than previous sync — repo had advanced before this run; the intermediate commit is `845f0fa memory(release-coordinator): release check 2026-06-03T04:00:00Z — quiet`, routine)
+**Current Sync**: `b44f173b10774d36bbd66901311441ef925734c7` (committed 2026-06-04T03:53:01Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Changes Analyzed**:
+- 10 files changed (+366/-37), all under `memory/` (`agent-logs/{daily-briefing,executive-digest,issue-triage,linear-sync,release-coordinator,sdk-parity,slack-monitor}.md`; `executive-digest-queue.json`; `project-context/sdk-parity.md`; `slack-log.md`)
+- Routine agent activity spanning 2026-06-03T08:00Z → 2026-06-04T04:00Z (~20h): issue-triage at 4-hourly slots (June 3 08/12/16/20Z, June 4 00/04Z — six runs); release-coordinator at 4-hourly slots (June 3 08/12/16/20Z — four runs); one-per-day runs of daily-briefing, executive-digest, slack-monitor, sdk-parity, linear-sync
+- Notable operational events captured in memory only:
+  - **executive-digest 2026-06-03T21:41Z** (f22e114): 7 items posted to #arkana-executive — (1) **MILESTONE: VTXO_ALREADY_SPENT race condition FIXED** (17-day path closed); (2) CI CRISIS — dotnet-sdk 13 failures (all-time worst); (3) DLEQ proof for blinded-signature (cryptographic primitive); (4) **emulator#92 OP_CODESEPARATOR merged** (protocol-critical); (5) post-merge OP_CODESEPARATOR in main (expert review needed); (6) **emulator v0.0.2 RELEASED** (OP_CODESEPARATOR, no migration guide); (7) **emulator#96 Cashu nullifier-pool PoC** (highest complexity). Queue cleared. MAJOR: OP_CODESEPARATOR now in production (script-VM change); MAJOR: Cashu nullifier-pool PoC (trust-minimized ecash in Arkade Script). Closes first quiet governance week
+  - **release-coordinator 2026-06-03T12:00Z** (70cba3d): **emulator v0.0.2 shipped** + Cashu nullifier-pool PoC flagged (~35 line append + 16-line digest queue entry)
+  - **release-coordinator 2026-06-03T16:00Z** (472de06): **arkd v0.9.7 imminent** — release window opening (~34 line append)
+  - **release-coordinator 2026-06-03T08:00Z** (d4ea38c): emulator OP_CODESEPARATOR merged, arkd v0.9.7 window open
+  - **slack-monitor 2026-06-03T22:24Z** (7e32a5c): Indexer VTXO pending-finalization gap flagged + fix PR opened; `feat: require csvTimelock` MERGED (protocol-adjacent, breaking); AWS regtest shutdown + Graviton/arm64 migration issue; Nigiri removal 3rd attempt (arkade-regtest base stack PR); Boarding HD rotation + collision fix PR (protocol-adjacent); CovVHTLC covenant claim PR closed; OP_CODESEPARATOR merged; ts-sdk CI 5+ failures; ee2e-kv Verify Enclave day 21+
+  - **sdk-parity 2026-06-03T22:32Z** (cd73d20): ts-sdk indexer `isSpent` check in `virtualStatus.state` fix (VTXO pending-finalization now distinguishable) + wallet guard pending-tx filters against spent VTXOs (both unreleased on master); dotnet-sdk denigiri regtest migration complete + CI fix; go-sdk no new commits (v0.10.0); rust-sdk no new commits (v0.9.2). **No new parity gaps**
+  - **linear-sync 2026-06-03T21:43Z** (ff6beec): 49th consecutive day of zero Linear activity; escalation 22 days unacknowledged; no new blockers
+  - **daily-briefing 2026-06-03T22:13Z** (e53a268): morning briefing posted
+  - All issue-triage runs (six in window) "quiet" except 2026-06-03T16:00Z (3bc2ffc, wallet#647 stub expanded) and 2026-06-03T12:00Z (02a21ac, arkd#1088 feature labeled)
+- No changes to code, architecture, configuration, dependencies, APIs, agent prompts, MCP server, Slack bot, webhook relay, infrastructure, policies, the 17-agent roster, or the production endpoint surface
+
+**Files Updated**:
+- `docs/projects/arkana-knowledge/INDEX.md` → `last_sync_commit: b44f173b…`, `last_sync_date: 2026-06-04T03:53:01Z`
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` → `b44f173b10774d36bbd66901311441ef925734c7`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` → this entry
+- `docs/INDEX.md` → no update needed (arkana-knowledge entry: 17-agent roster, capabilities, tags, dependencies, triggers all unchanged; per "Versioning & Updates" criteria, none of the trigger conditions met)
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Documentation files under `system/`, `testing/`, and `sop/` remain accurate
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-03 - Operational Memory Sync (no doc changes)
 **Commit Range**: `5294de8b..a97d6c1f` (18 commits, all `memory(*)` agent activity)
 **Previous Sync**: `5294de8bbe6b432b02671fd29e5c1356e8521e6e`

@@ -1,5 +1,46 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-04 - Documentation Sync
+**Commit**: `760cbc0840a06e121fa40762148778a4290e776a`
+**Previous Sync**: `00983717ffd73c674d1663734ac98435050ff924`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `760cbc08` contracts view: copy encoded params, empty state, active/inactive sections (#645)
+
+**Features Modified** (PR #645, commit 760cbc08): Contracts dev-mode screen overhaul (`src/screens/Settings/Contracts.tsx`, ~75 line rewrite).
+- **Encoded parameters row**: imports `encodeArkContract` from `@arkade-os/sdk` and wraps it in a `useMemo` + `try/catch` — on success a third `CopyRow label='parameters'` is rendered with the encoded string; on failure the row is omitted (guards against malformed `contract.params` white-screening the Contracts screen).
+- **Empty state**: when `contracts.length === 0`, the screen renders `<TextSecondary>No contracts found.</TextSecondary>` instead of an empty `FlexCol`.
+- **Active / Inactive sections**: contracts are split into `active = contracts.filter(c => c.state === 'active')` and `inactive = contracts.filter(c => c.state !== 'active')` and rendered via a new local `Section({ title, contracts })` component (returns `null` if the group is empty). Outer `FlexCol gap='2rem'` between sections; section title uses `<Text capitalize color='neutral-500' smaller>`.
+- **Card layout**: inline `cardStyle` constant replaced by the existing `Shadow border` wrapper component. Each card now shows the `contract.label` (if present, top-left), `contract.type` (small/neutral-500, below label), `contract.state` (top-right, green for active else neutral-500), and `contract.createdAt` formatted via `prettyAgo` (top-right, below state) — with `'Unknown'` fallback when `createdAt` is absent.
+- **React key**: `ContractCard` keys switched from `contract.script` to `contract.address` (uniqueness improvement; addresses are guaranteed unique per contract).
+- **New import**: `prettyAgo` from `../../lib/format` (alongside existing `prettyLongText`).
+
+**Tests Updated** (`src/test/screens/settings/contracts.test.tsx`):
+- `mockContracts` entries gained `params: {}` and `createdAt: 1717000000000` fields to match the updated `Contract` shape consumed by `encodeArkContract` / `prettyAgo`.
+- New test case `'renders empty state when there are no contracts'` — mocks `getContracts: () => Promise.resolve([])` and asserts `'No contracts found.'` is rendered.
+
+**Bug Fixes**: review-pass hardening folded into the same PR — `encodeArkContract` wrapped in `try/catch` (no white-screen on missing/malformed `params`), `createdAt` falls back to `'Unknown'` rather than rendering an empty string, and the card React key uses the unique `contract.address` instead of `script`.
+**Configuration Changes**: None.
+**Dependencies**: None — `encodeArkContract` is already exported from the in-use `@arkade-os/sdk` 0.4.32.
+**Breaking Changes**: None — Contracts screen is gated behind dev-mode (Settings → Advanced).
+
+**Files Touched in Repo** (2 files):
+- `src/screens/Settings/Contracts.tsx`
+- `src/test/screens/settings/contracts.test.tsx`
+
+**Files Updated**:
+- `docs/INDEX.md` — wallet **Key Capabilities** Contracts-screen bullet expanded to describe the active/inactive sections, encoded-parameters copy row, `prettyAgo` createdAt display, empty state, and the `Shadow border` card layout (PR #645).
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.15 → 1.2.16 + `last_sync_commit`; **Contracts screen** Developer/Diagnostics bullet rewritten to reflect PR #645 (label/type, state + `prettyAgo` createdAt, copyable address/script/encoded parameters, active/inactive sections, empty state, `useMemo` + `try/catch` guard).
+- `docs/projects/wallet/change-log/last-sync.txt` → `760cbc0840a06e121fa40762148778a4290e776a`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/projects/wallet/system/*` and `testing/*` — no new env var, no new build/test command, no new architectural component; the change is a localised UI overhaul of a single dev-mode screen.
+
+---
+
 ## 2026-06-02 - Documentation Sync
 **Commit**: `00983717ffd73c674d1663734ac98435050ff924`
 **Previous Sync**: `32c7773670551bdf1373e7e6354b7b51344ff23d`

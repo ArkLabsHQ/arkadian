@@ -95,8 +95,8 @@ Supports:
 - Liquid daemon (elementsd **v23.3.3**)
 
 ### Lightning Integration (`lib/lightning/`)
-- **LndClient**: gRPC client for LND
-- **ClnClient**: gRPC client for Core Lightning (via boltzr) — CLN **v26.04.1**
+- **LndClient**: gRPC client for LND. The Rust `boltzr` sidecar's `lnd::describe_graph` (added in PR #1424) exposes LND's channel/node gossip to the new `GraphLightningInfo` aggregator alongside CLN's `listchannels` / `listnodes`, so Lightning gossip in `service::lightning_info` is sourced from both backends (the previous CLN-only `ClnLightningInfo` was replaced).
+- **ClnClient**: gRPC client for Core Lightning (via boltzr) — CLN **v26.06** (bumped from `v26.04.1`, PR #1426). The legacy `disableMpp` config knob was removed and the 24.08 `experimental-offers` startup check was deleted from `boltzr/src/lightning/cln/mod.rs` (and with it the `Error::NoBolt12Support` variant). Route construction in `lib/lightning/cln/Router.ts` migrated from the deprecated `GetRoute` to `GetRoutes`, which requires the local node id as a `source` argument.
 - **EclairClient**: pinned Eclair Docker image **v0.14.0** (bumped from `v0.13.1`)
 - **InvoiceManager**: Create and monitor invoices
 - **PaymentManager**: Execute Lightning payments
@@ -230,7 +230,7 @@ Command-line interface for boltzr operations:
 - Swap creation throttling
 
 ### Monitoring
-- Prometheus metrics for all operations
+- Prometheus metrics for all operations. `lib/InstrumentedLock.ts` (PR #1427) wraps `async-lock` with per-key holder/pending/rejection tracking and registers three new gauges on the swap registry (`lock_pending`, `lock_hold_age_seconds`, `lock_rejections`); rolled out in `ChainSwapSigner`, `EipSigner`, `Renegotiator`, and `Commitments` to make "Too many pending tasks" overflows debuggable (the failing waiter is re-thrown with the stuck holder, hold age, and queue depth).
 - OpenTelemetry tracing
 - Automated alerts for anomalies
 

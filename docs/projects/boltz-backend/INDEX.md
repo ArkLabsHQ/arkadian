@@ -147,8 +147,8 @@ npm run dev
 - **Swap routing metadata** (`swap_metadata` table, PR #1423): optional client-supplied opaque blob (`BYTEA`, ≤ **1024 bytes**, primary key `swap_id`, `created_at` timestamp) attached at swap creation and surfaced on the rescue/restore endpoint. Sequelize migration `2026-05-27-000000-0000_swap_metadata` (also shipped as a Diesel migration under `boltzr/migrations/` so the Rust sidecar's `SwapMetadataHelper` can read it). TypeScript writer: `SwapMetadataRepository.add(swapId, Buffer)` from `SwapRouter` after each `create*Swap` succeeds; Rust reader: `SwapRescue::attach_metadata` populates `RestorableSwap.metadata` (HEX) during `/v2/swap/restore`.
 
 ### Lightning Integration
-- **LND**: gRPC integration
-- **CLN**: gRPC integration (boltzr sidecar) — pinned to **v26.04.1**
+- **LND**: gRPC integration. The `boltzr` sidecar now also queries LND's `describe_graph` (`lnd_rpc::ChannelGraphRequest`, PR #1424) so Lightning gossip — node and channel info — is sourced from **both LND and CLN** via the new `GraphLightningInfo` aggregator (replaces the CLN-only `ClnLightningInfo`).
+- **CLN**: gRPC integration (boltzr sidecar) — pinned to **v26.06** (bumped from v26.04.1, PR #1426). The `disableMpp` config option and the 24.08 `experimental-offers` startup check were removed; `lib/lightning/cln/Router.ts` switched from the legacy `GetRoute` RPC to `GetRoutes`, which requires the local node id as a `source` argument.
 - **Eclair**: pinned to **v0.14.0** (Docker image, bumped from v0.13.1)
 - **BOLT12**: Support for offers and blinded paths (hardened)
 
@@ -178,7 +178,7 @@ npm run dev
 - Configurable periodic vHTLC state rescan via `rescanInterval` (seconds, default `300`); manual rescan also reachable via the chain-rescan service path for Ark currencies
 
 ### Observability
-- **Prometheus**: Metrics collection
+- **Prometheus**: Metrics collection. Node-side async-lock instrumentation added in PR #1427 — `lib/InstrumentedLock.ts` wraps `async-lock` with per-key holder, pending-task, and overflow-rejection tracking; rolled out in `ChainSwapSigner`, `EipSigner`, `Renegotiator`, and `Commitments`. Exposes three new gauges on the swap registry: `lock_pending{name,key}` (waiters per key), `lock_hold_age_seconds{name,key,op}` (current holder age), and `lock_rejections{name,key}` (cumulative "Too many pending tasks" overflows). Overflow rejections are also enriched with the stuck holder and queue depth so the failing waiter sees who is stuck.
 - **OpenTelemetry**: Distributed tracing
 - **Grafana**: Visualization (via Loki integration)
 

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.15
-last_sync_commit: 00983717ffd73c674d1663734ac98435050ff924
+version: 1.2.16
+last_sync_commit: 760cbc0840a06e121fa40762148778a4290e776a
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -299,7 +299,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### Developer / Diagnostics
 - **Dev mode toggle** (PR #618): Triple-tapping the loading logo toggles a global dev mode persisted in `localStorage`. The tap logic lives in the new `DevModeProvider` (`src/providers/devMode.tsx`) so every `LoadingLogo` in the app shares the same state.
-- **Contracts screen** (PR #618, `src/screens/Settings/Contracts.tsx`): When dev mode is enabled, a "Contracts" entry appears in **Settings → Advanced**. It renders all `ContractManager` contracts sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled.
+- **Contracts screen** (PR #618 / PR #645, `src/screens/Settings/Contracts.tsx`): When dev mode is enabled, a "Contracts" entry appears in **Settings → Advanced**. PR #645 reworked the layout: contracts are split into **Active** and **Inactive** sections (each via a local `Section` component that returns `null` when empty), and an empty state (`<TextSecondary>No contracts found.</TextSecondary>`) is rendered when there are no contracts. Each card now sits inside the shared `Shadow border` wrapper (the inline `cardStyle` constant was removed) and shows `contract.label` (if present, top-left) above `contract.type` (small/neutral-500), and `contract.state` (green for `active` else neutral-500) above `prettyAgo(contract.createdAt)` (top-right, falling back to `'Unknown'`). Copy rows: `address`, `script`, and — when `encodeArkContract(contract)` (imported from `@arkade-os/sdk`) succeeds inside a `useMemo` + `try/catch` — `parameters` (encoded contract params). React key switched from `contract.script` to `contract.address`. Pull-to-refresh is disabled.
 - **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI (with Lightning fallback) immediately, no submenu.
 - **BIP21 parser case-insensitive** (PR #636, commit 32c77736): `decodeBip21` (`src/lib/bip21.ts`) now accepts uppercase URI query parameters (`ARK`, `ASSETID`, `AMOUNT`, `LIGHTNING`) alongside their lowercase forms — matches BIP21 canonical-uppercase QR encodings emitted by other wallets. `Bip21Decoded` is now initialised with `assetId`/`assetAmount`/`arkAddress` explicitly `undefined`, and missing-address inputs (e.g. ARK-only payment URIs) no longer assign an empty `address` string. `isBTCAddress` (`src/lib/address.ts`) regexes (segwit + legacy) gained the `i` flag so uppercase BTC addresses are recognised. A new "should decode a valid bip21 URI with uppercase" test in `src/test/lib/bip21.test.ts` guards the regression. Dev: `@playwright/test` bumped to 1.60.0.
 - **BIP21 parser polish** (PR #639): `Bip21Decoded.lnurl` field renamed to `lnUrl` (camelCase) — `decodeBip21` writes to `result.lnUrl` and the Send form consumes `sendInfo.lnUrl`. `src/lib/lnurl.ts` now exports `LnUrlResponse`, and `checkResponse` rejects when the JSON body contains `status === 'ERROR'` (using `data.reason` as the rejection value). The Send form's amount/fee branches are reorganised to keep millisatoshi vs satoshi units consistent. E2E `src/test/e2e/bip21.test.ts` and unit `src/test/lib/bip21.test.ts` updated accordingly.

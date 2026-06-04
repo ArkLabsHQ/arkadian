@@ -52,8 +52,10 @@ Manages Virtual Transaction Outputs and their lifecycle.
 - `SpendVtxos(ctx, vtxos, arkTxid)` - Marks VTXOs as spent offchain
 - `SweepVtxos(ctx, vtxos)` - Marks VTXOs as swept
 - `UnrollVtxos(ctx, vtxos)` - Marks VTXOs as force-closed
+- `GetVtxoPubKeysByCommitmentTxid(ctx, commitmentTxid, withMinimumAmount)` - Returns distinct VTXO pubkeys for one commitment tx (legacy per-txid path)
+- `GetVtxoPubKeysByCommitmentTxids(ctx, commitmentTxids, withMinimumAmount)` - **Bulk** variant: returns the deduped union of pubkeys across all supplied commitment txids in a single roundtrip. Implemented across all three backends (sqlite uses `sqlc.slice` with internal param-limit batching; postgres uses `ANY($1::text[])`; badger iterates). Used by sweeper restore/stop paths to collapse the previous N+1 loop into a constant 2 DB calls regardless of the number of sweepable rounds (benchmarked >1000Ã— faster at 1000 rounds on sqlite). The `withMinimumAmount` predicate is inclusive (`>= min_amount`).
 
-**State Transitions:** Created ’ Spent (SettleVtxos or SpendVtxos) ’ Swept, or Created ’ Unrolled
+**State Transitions:** Created ï¿½ Spent (SettleVtxos or SpendVtxos) ï¿½ Swept, or Created ï¿½ Unrolled
 
 ### OffchainTxRepository
 Manages offchain (collaborative) transactions and checkpoint transactions.
@@ -121,9 +123,9 @@ Repositories handle conversion between domain types and database types:
 - **Database Types:** Storage representation (e.g., `queries.VtxoVw`)
 
 **Conversion Patterns:**
-- Numeric conversions: int64 ” uint64, int32 ” uint32
-- Nullable fields: sql.NullString ” string
-- Arrays: comma-separated strings ” []string
+- Numeric conversions: int64 ï¿½ uint64, int32 ï¿½ uint32
+- Nullable fields: sql.NullString ï¿½ string
+- Arrays: comma-separated strings ï¿½ []string
 - JSONB: map[uint32]string for tree children
 
 ## Best Practices
@@ -152,7 +154,7 @@ Distinguish between "not found" and actual errors - not found should return nil,
 - Uses sqlc for type-safe query generation
 - Complex views with string_agg for aggregations
 - JSONB for tree structures
-- golang-migrate for schema migrations
+- golang-migrate for schema migrations (latest: `20260527150000_vtxo_commitment_txid_index` adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk-pubkey join used by sweeper restore stays fast as the sweepable-round set grows)
 - Watermill for event streaming
 
 ### SQLite
