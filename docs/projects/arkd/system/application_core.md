@@ -164,13 +164,17 @@ At runtime, a tx event is dispatched to a subscription when **any** of its CEL e
 Provides administrative operations for ASP operators.
 
 **Methods:**
-- `GetRoundDetails()` - Comprehensive round information
+- `GetRoundDetails()` - Comprehensive round information; `FeesAmount` is now populated from the persisted `round.CollectedFees` (previously hard-coded `0`)
 - `GetRounds()` - List of round IDs within time range
 - `GetScheduledSweeps()` - All scheduled sweep tasks
 - `GetWalletAddress/Status()` - Wallet operations
 - `CreateNotes()` - Creates note VTXOs for onboarding
 - `GetMarketHourConfig/UpdateMarketHourConfig()` - Market hours management
 - `ListIntents/DeleteIntents()` - Intent queue management
+- `GetExpiringLiquidity()` / `GetRecoverableLiquidity()` - Liquidity analysis
+- `GetCollectedFees(ctx, after, before) (uint64, error)` - Aggregate sats collected by the operator across **completed (non-failed)** rounds in the `(after, before]` window (Unix-seconds, exclusive bounds; `0` means unbounded; range validated server-side: `after < 0` / `before < 0` / `after >= before` → `InvalidArgument`). Sums `round.CollectedFees` directly. For rounds finalized before fee persistence existed (`CollectedFees == 0` on disk) the value is recomputed on the fly: boarding input amounts are recovered by deserializing the finalized commitment tx, classifying each input as boarding via `isBoardingWitness` (taproot script-path control block: last witness element of length `33 + 32m` with leaf-version byte `0xc0`), and looking each prevout amount up via `walletSvc.GetTransaction`. The recompute is wrapped by `recomputeCollectedFees`, which returns a `complete` flag — only complete recomputations are persisted via `RoundRepository.PatchCollectedFees` in a background goroutine bounded by a `30s` `context.WithoutCancel` timeout (so the request's own context cancellation cannot abort the patch). Incomplete recomputations (boarding lookup failed) are still summed into the response but **never written**, so the on-disk value can be retried later. REST: `GET /v1/admin/fees/collected`. Macaroon: `manager:read`.
+
+**RoundFinalized event now carries `Fees uint64`:** computed at end-of-finalization via the new `calculateCollectedFees(round, boardingInputAmount) = max(0, totalIn − totalOut)` helper in `internal/core/application/utils.go` (boarding inputs come from `calculateBoardingInputAmount(psbt)` over the signed commitment PSBT; `Round.EndFinalization(forfeitTxs, finalCommitmentTx, collectedFees)` now takes the fee as a third argument and applies it to `round.CollectedFees` in the `on(RoundFinalized)` projection). The same `calculateCollectedFees` formula replaces the previous per-intent loop in `service.getBatchStats` (alert pipeline), removing the prior double-count where `BoardingInputAmount` was added once per intent.
 
 ## Service Coordination
 

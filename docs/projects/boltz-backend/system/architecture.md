@@ -77,6 +77,7 @@ Key endpoints:
 - **SwapNursery**: Monitors pending swaps
 - **ChannelNursery**: Monitors Lightning channels
 - **State Machine**: Manages swap state transitions
+- **Hooks** (`lib/swap/hooks/`): `CreationHook` and `TransactionHook` decide `ACCEPT` / `REJECT` over the shared `boltzrpc.Action` enum (the `HOLD` variant was removed in PR #1429; `TransactionHook` now defaults to `ACCEPT`, and the `HOLD` branches in `UtxoNursery` / `EthereumNursery` / `CreationHook` were deleted). `InvoicePaymentHook` carries its own `boltzrpc.InvoicePaymentHookAction` (`CONTINUE`, `HOLD`); when the hook returns `HOLD`, `NodeSwitch` / `PaymentHandler` short-circuit `payInvoice` so the swap stays unpaid until the hook later allows it.
 
 Swap states:
 - `swap.created` → `transaction.mempool` → `transaction.confirmed` → `invoice.paid` → `transaction.claimed`

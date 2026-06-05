@@ -1,5 +1,58 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-05 - Documentation Sync
+**Commit**: `917404814b786154b8a5d42d44ac6462cbf6aca2`
+**Previous Sync**: `760cbc0840a06e121fa40762148778a4290e776a`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `91740481` fix typescript build errors (tsc -b) (#646)
+
+**Bug Fixes / Type Hygiene** (PR #646, commit 91740481): TypeScript-build (`tsc -b`) cleanup pass — fixes a few real type errors so the project builds clean and standardises a Framer Motion typing detail. Folded into this PR:
+- **`functions/_middleware.ts`** — collapses the timing-safe-equal `if` onto a single line and adds `// @ts-expect-error Cloudflare runtime extension is not part of SubtleCrypto typings.` above the call, because `crypto.subtle.timingSafeEqual` is a Cloudflare-runtime-only extension that doesn't exist on the standard `SubtleCrypto` interface. No behavioural change to the Basic-Auth path.
+- **`src/lib/animations.ts`** — all `transition.ease` values switch from the `EASE_OUT_QUINT` named-string ease to `EASE_OUT_QUINT_TUPLE` (the existing tuple form), required by Framer Motion's typed `Transition` schema (cubic-bezier tuple, not named easings). Affects `pageTransitionVariants.animate/exit`, `overlaySlideUp.animate/exit`, `walletLoadInChild.animate`, and `onboardStaggerChild.animate`. Same easing curve at runtime — type-only fix.
+- **`src/providers/notifications.tsx`** — the Nostr-notifications effect now reads `config.nostrBackup` instead of the non-existent `config.nostr` (both in the `if (!config.nostrBackup)` guard and in the dependency array). This fixes a build error and means the relay connection in `NotificationsProvider` now opens/closes when the user toggles **Nostr backup** in settings (rather than tracking a property that didn't exist on the config type).
+- **`src/screens/Apps/Boltz/Settings.tsx`** — the `RecoveryRow` else-branch that set `blocksAway = Math.max(0, info.refundLocktime - info.currentBlockHeight)` is removed (it referenced `info.currentBlockHeight`, a field not on the type). Only the seconds-based `secondsAway` path remains for pre-CLTV recovery locktime guidance.
+- **`src/vite-plugin-eslint.d.ts`** (new, 12 lines) — ambient module declaration for `vite-plugin-eslint` (no upstream types). Declares `VitePluginESLintOptions` (include/exclude/cache plus a string-indexed bag) and a default-exported `eslint(options?): PluginOption` so `vite.config.ts` type-checks without `any`.
+- **`.gitignore`** — adds `tsconfig.tsbuildinfo` (the `tsc -b` incremental-build cache emitted by this PR's build mode).
+- **`pnpm-lock.yaml`** — `@testing-library/dom@10.4.1` transitive deps `@babel/code-frame`, `@babel/runtime`, and `@babel/helper-validator-identifier` bumped from `7.29.0`/`7.29.2` to `7.29.7`. **No `package.json` changes** — dev-only transitive churn.
+
+**Tests Updated** (same PR, type-shape fixes):
+- `src/test/lib/format.test.ts` — assertions broadened to satisfy the stricter inferred types from `format.ts` helpers.
+- `src/test/screens/mocks.ts` — mock shapes widened so screen tests compile against the latest provider/context types.
+- `src/test/screens/settings/contracts.test.tsx`, `src/test/screens/wallet/receive-qrcode.test.tsx`, `src/test/screens/wallet/transaction.test.tsx` — minor mock/assertion adjustments.
+
+**Features Added / Modified / Removed**: None — `tsc -b` build-error cleanup with two small folded-in functional fixes (notifications now react to `nostrBackup`; Boltz `RecoveryRow` no longer attempts the block-height fallback for pre-CLTV locktimes).
+**Configuration Changes**: None — no new env vars, no new build/test commands. `tsconfig.tsbuildinfo` added to `.gitignore`.
+**Dependencies**: No `package.json` changes (only dev-time transitive Babel bumps inside `pnpm-lock.yaml`).
+**Breaking Changes**: None.
+
+**Files Touched in Repo** (12 files):
+- `.gitignore`
+- `functions/_middleware.ts`
+- `pnpm-lock.yaml`
+- `src/lib/animations.ts`
+- `src/providers/notifications.tsx`
+- `src/screens/Apps/Boltz/Settings.tsx`
+- `src/test/lib/format.test.ts`
+- `src/test/screens/mocks.ts`
+- `src/test/screens/settings/contracts.test.tsx`
+- `src/test/screens/wallet/receive-qrcode.test.tsx`
+- `src/test/screens/wallet/transaction.test.tsx`
+- `src/vite-plugin-eslint.d.ts` (new)
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.16 → 1.2.17 + `last_sync_commit`.
+- `docs/projects/wallet/change-log/last-sync.txt` → `917404814b786154b8a5d42d44ac6462cbf6aca2`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/INDEX.md` — no tracked field affected (Key Capabilities, Tags, Dependencies, Triggers, dep versions are all unchanged by this build-fix PR; the notifications-effect dependency change is too localised to surface in the master registry).
+- `docs/projects/wallet/system/*` and `testing/*` — no architectural component, env var, API endpoint, or build/test command added; the only functional fixes are a one-line dep-array swap in `NotificationsProvider` and a dead-branch removal in `RecoveryRow`, neither of which alters documented surfaces.
+
+---
+
 ## 2026-06-04 - Documentation Sync
 **Commit**: `760cbc0840a06e121fa40762148778a4290e776a`
 **Previous Sync**: `00983717ffd73c674d1663734ac98435050ff924`

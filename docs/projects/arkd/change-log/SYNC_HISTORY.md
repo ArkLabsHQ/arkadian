@@ -1,5 +1,43 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-05 - Documentation Update
+**Commit**: `6db7a6b7` (arkd repository)
+**Previous Sync**: `ab8e64ef`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `6db7a6b7` Persist batch collected fees (#933)
+
+**Features Added (collected-fees persistence + admin aggregate-fee endpoint)**:
+- New domain field `Round.CollectedFees uint64` (`internal/core/domain/round.go`) and new event field `RoundFinalized.Fees uint64` (`internal/core/domain/round_event.go`). The `on(RoundFinalized)` projection lifts the event field into the round, so the value is reconstructed correctly under both direct read and event replay.
+- **Breaking domain signature change**: `Round.EndFinalization(forfeitTxs, finalCommitmentTx)` now takes a third `collectedFees uint64` argument. `service.finalizeRound` populates it from the new `calculateCollectedFees(round, boardingInputAmount)` helper (`internal/core/application/utils.go`) where `boardingInputAmount` comes from `calculateBoardingInputAmount(psbt)`, which scans the signed commitment PSBT and sums witness-utxo values of inputs detected by `isBoardingInput` (a non-nil `WitnessUtxo` with at least one `TaprootLeafScript`). The fee formula is `max(0, totalIn − totalOut)` over `boardingInputAmount + Σ intent.TotalInputAmount` and `Σ intent.TotalOutputAmount`.
+- `getBatchStats` (AlertManager batch-stats pipeline, `internal/core/application/alert.go`) now uses `calculateCollectedFees` instead of summing `intent.TotalInputAmount + a.BoardingInputAmount − intent.TotalOutputAmount` inside a `for _, intent := range round.Intents` loop — the previous loop added `BoardingInputAmount` once per intent, double-counting it for any round with multiple intents. The boarding-input detection inside `getBatchStats` also moves from a bare `len(input.TaprootLeafScript) > 0` check to the shared `isBoardingInput(input)` helper.
+- New `RoundRepository.PatchCollectedFees(ctx, feesByRoundId map[string]uint64) error` on the domain interface (`internal/core/domain/round_repo.go`) and on all three backends (`internal/infrastructure/db/{badger,postgres,sqlite}/...`). Used to lazily backfill rounds that were finalized before fee persistence existed. Implementations: sqlite/postgres iterate the map under a single transaction issuing parameterized `UPDATE round SET collected_fees = ? WHERE id = ?`; badger reads each round, sets the field, and re-saves.
+- `AdminService.GetCollectedFees(ctx, after, before) (uint64, error)` (`internal/core/application/admin.go`) sums `round.CollectedFees` across **completed (non-failed)** rounds in the `(after, before]` Unix-seconds window (using the existing `GetRoundIds(... onlyFailed=false, onlyCompleted=true)` repo predicate). For rounds whose stored `CollectedFees == 0` (finalized before the migration ran), the value is recomputed on the fly by `recomputeCollectedFees` → `boardingInputAmount`: the finalized commitment tx is deserialized, each input's witness is inspected by `isBoardingWitness` (a taproot script-path control block on the last witness element — `(33 + 32m)` bytes, leaf-version byte `0xc0` after masking the parity bit), and each boarding prevout amount is looked up via `walletSvc.GetTransaction(prevTxid)` since a raw tx carries no input amounts. `recomputeCollectedFees` returns a `complete` flag; **only complete recomputations are persisted** via `PatchCollectedFees` in a background goroutine that uses `context.WithoutCancel(ctx)` plus a `30s` timeout (so the originating request's cancellation cannot abort the patch; the `WithoutCancel` wrap is what addresses the gosec G118 patch-goroutine context issue called out in the PR). Incomplete recomputations are still summed into the response but never written, so a later call can retry. `AdminService.GetRoundDetails` now sets `FeesAmount` from `round.CollectedFees` (previously hard-coded to `0`).
+- New gRPC handler `adminHandler.GetCollectedFees` (`internal/interface/grpc/handlers/adminservice.go`) with explicit range validation: `after < 0`, `before < 0`, or `before > 0 && after >= before` map to `InvalidArgument`; repo failures map to `Internal`.
+- New macaroon permission entry: `AdminService/GetCollectedFees` requires `manager:read` (`internal/interface/grpc/permissions/permissions.go`).
+
+**Proto / REST API (additive, non-breaking)**:
+- New proto messages `GetCollectedFeesRequest { int64 after = 1; int64 before = 2; }` and `GetCollectedFeesResponse { uint64 collected_fees = 1; }`, and new RPC `AdminService.GetCollectedFees` bound to `GET /v1/admin/fees/collected` (`api-spec/protobuf/ark/v1/admin.proto` + regenerated `gen/...` + `api-spec/openapi/swagger/ark/v1/admin.openapi.json`). `after`/`before` are Unix seconds (UTC, **exclusive**, `0 = unbounded`).
+
+**Database Migrations**:
+- `internal/infrastructure/db/sqlite/migration/20260603111517_add_collected_fees.{up,down}.sql`
+- `internal/infrastructure/db/postgres/migration/20260603111520_add_collected_fees.{up,down}.sql`
+- Both are additive (`ALTER TABLE round ADD COLUMN collected_fees INTEGER NOT NULL DEFAULT 0`); pre-existing rows therefore default to `0` and are eligible for lazy backfill via `GetCollectedFees`.
+
+**Files Updated**:
+- docs/INDEX.md (new "Persisted per-round collected fees + admin aggregate-fee endpoint" capability bullet on the arkd entry; `admin-api` tag added; `collected fees` / `admin fee report` develop triggers added)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.5 → 1.3.6)
+- docs/projects/arkd/system/application_core.md (AdminService method list expanded with `GetExpiringLiquidity`/`GetRecoverableLiquidity`/`GetCollectedFees`, full semantics of `GetCollectedFees` including the lazy-recompute and lazy-persist paths, and a paragraph on the `RoundFinalized.Fees` field and the unified `calculateCollectedFees` helper that fixes the alert-pipeline double-count)
+- docs/projects/arkd/system/repo_manager.md (RoundRepository: added `PatchCollectedFees`, noted `AddOrUpdateRound` now persists `CollectedFees`; Schema: documented the new `collected_fees` column + the two `add_collected_fees` migrations + the event-replay correctness via `on(RoundFinalized)`)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: The only **breaking** signature change is the new third argument on `Round.EndFinalization(forfeitTxs, finalCommitmentTx, collectedFees)` — any external implementor of the domain `Round` API (in practice: none outside arkd) must update its call site. Everything else is additive: the migrations default to `0`, the new RPC and macaroon permission are net-new, and the lazy backfill path means upgraded operators get correct fee totals over their historical rounds **without** a one-shot batch job — the values just settle into storage as `GetCollectedFees` is called. The `isBoardingInput` / `isBoardingWitness` helpers are deliberately conservative: both carry an in-file `TODO` noting they assume only boarding inputs carry a `TaprootLeafScript` (PSBT-side) / are spent via taproot script path (raw-tx side), and would misclassify if `arkd-wallet` ever started populating `TaprootLeafScript` for other input types or if a future non-boarding input type used script-path spends in a commitment tx.
+
+---
+
 ## 2026-06-04 - Documentation Update
 **Commit**: `ab8e64ef` (arkd repository)
 **Previous Sync**: `c4f16324`

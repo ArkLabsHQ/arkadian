@@ -1,5 +1,33 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-05 - Handler authoring helpers exported + 0.4.33 / 0.3.38 release
+**From**: `4f5ce81a5ab53e455e10512b728f33c322388c24`
+**To**: `68b2019a13576b529722af001b3d4ba89e8d9794`
+**Synced By**: update-project skill
+**Status**: Release cut. `@arkade-os/sdk` bumps `0.4.32 → 0.4.33` and `@arkade-os/boltz-swap` bumps `0.3.37 → 0.3.38`. The only source change in this range is the package-root export of two pre-existing helper functions from `src/contracts/handlers/helpers.ts` — `isCsvSpendable` and `isCltvSatisfied` — so authors of custom `ContractHandler` implementations can reuse the canonical BIP-68 / BIP-65 timelock-maturity logic that the built-in handlers (`DefaultContractHandler` / `DelegateContractHandler` / `VHTLCContractHandler`) already use to implement `selectPath` / `getSpendablePaths`. Pure additions — no function signatures change elsewhere; no breaking impact for existing consumers.
+
+**Commits analyzed** (2 non-merge commits):
+
+*Custom-handler authoring surface:*
+- `44cdff0a` feat(contracts): export handler authoring helpers — `src/index.ts` adds a named import from `./contracts/handlers/helpers` for `isCsvSpendable` and `isCltvSatisfied` and re-exports both under a new comment block "Contract handler authoring helpers (spending-path selection)". The two functions already existed and were already used internally by the built-in contract handlers; this commit simply makes them part of the public package surface. `isCsvSpendable(context, sequence?)` returns `true` immediately when `sequence === undefined` (no CSV constraint encoded), otherwise compares against the BIP-68-encoded relative timelock; `isCltvSatisfied(context, locktime)` follows the BIP-65 convention — `locktime < 500_000_000n` interprets the value as a block height and compares against `context.blockHeight` (returns `false` if undefined), `>= 500_000_000n` interprets it as a Unix timestamp in seconds and compares against `Math.floor(context.currentTime / 1000)`. Rationale recorded in the commit body: exporting them "lets authors of custom ContractHandlers implement selectPath/getSpendablePaths consistently instead of reimplementing BIP-68/BIP-65 timelock-maturity logic".
+
+*Release:*
+- `68b2019a` chore: release @arkade-os/sdk@0.4.33, @arkade-os/boltz-swap@0.3.38 — Version bumps only. `packages/ts-sdk/package.json` `0.4.32 → 0.4.33`, `packages/boltz-swap/package.json` `0.3.37 → 0.3.38`. No source changes; the boltz-swap bump rides along under the monorepo's package-scoped release driver (mirrored patch when the SDK gets a patch). HEAD of `main` post-release.
+
+**Documentation Updates**:
+- `docs/projects/ts-sdk/INDEX.md` — Workspace-package table and Quick Reference version updated to `0.4.33` / `0.3.38`. New Key Concept "Contract Handler Authoring Helpers" (0.4.33) appended after the indexer spent-state classification entry — documents the two newly exported helpers, their semantics, and the rationale for the export.
+- `docs/projects/ts-sdk/system/project_overview.md` — Monorepo layout table and Package section version updated to `0.4.33` / `0.3.38`. New "Custom ContractHandler Authoring Helpers" row in Core Features documenting `isCsvSpendable` / `isCltvSatisfied` with their BIP-68 / BIP-65 semantics and noting that signatures are unchanged elsewhere.
+- `docs/projects/ts-sdk/system/architecture.md` — `src/index.ts` module-tree entry annotated with the 0.4.33 helper re-exports. New entry for `contracts/handlers/helpers.ts` documenting `resolveRole` (descriptor/pubkey-matched sender/receiver resolution, unchanged) alongside the now-public `isCsvSpendable` / `isCltvSatisfied` helpers and the built-in handlers that consume them.
+- `docs/INDEX.md` — ts-sdk Key Capabilities gain a new bullet "Custom ContractHandler authoring helpers exported" covering the export and its semantics, noted as released in `0.4.33` / `0.3.38`. Tags extended with `handler-authoring-helpers`, `is-csv-spendable`, `is-cltv-satisfied`.
+
+**Notes**:
+- **Public API addition, no removals**: this is the only kind of release that should require no consumer-side change. Existing callers that were already happy with the package-root exports remain happy; the new symbols are opt-in.
+- **Why exporting helps**: every `ContractHandler` is expected to implement `selectPath(context, paths)` and `getSpendablePaths(context)` against the same `PathContext` shape (block height + Unix-ms current time, optional descriptor / pubKey, etc.). Before this release, custom-handler authors who wanted to honour CSV / CLTV maturity correctly had to either re-import these from a deep path (no longer a stable contract) or re-derive the BIP-68 / BIP-65 thresholds themselves — the latter is the bug-prone path (especially the `500_000_000n` height/timestamp split for CLTV).
+- **boltz-swap version mirroring**: the `0.3.37 → 0.3.38` bump on `@arkade-os/boltz-swap` is a no-source-change side effect of the monorepo's package-scoped release CLI (`pnpm run release -- sdk patch` mirrors the SDK patch into boltz-swap to keep the two in lockstep). The release shipped at the documented HEAD and reflects the prior batch of post-0.4.32 work too — boarding contract type, required `csvTimelock`, and the indexer spent-state classification fix — which were all in source-only state under the prior sync.
+- **Helper file unchanged**: `src/contracts/handlers/helpers.ts` itself was not edited in this range; only `src/index.ts` and the two `package.json` files changed (4 insertions / 2 modifications total).
+
+---
+
 ## 2026-06-04 - Boarding contract type (registered handler) + required csvTimelock + indexer spent-state fix
 **From**: `9682dbebdc41af127d6f067337461eeebde5befe`
 **To**: `4f5ce81a5ab53e455e10512b728f33c322388c24`

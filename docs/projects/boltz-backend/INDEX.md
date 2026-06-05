@@ -177,6 +177,10 @@ npm run dev
 - Optimized startup call sequence to Fulmine
 - Configurable periodic vHTLC state rescan via `rescanInterval` (seconds, default `300`); manual rescan also reachable via the chain-rescan service path for Ark currencies
 
+### Swap Hooks
+- **Generic hooks** (`CreationHook`, `TransactionHook`) act on the two-variant `boltzrpc.Action` enum (`ACCEPT`, `REJECT`). The `HOLD` variant was removed from the shared enum in PR #1429; the `TransactionHook` default action moved from `HOLD` → `ACCEPT`; UTXO / Ethereum nurseries and `CreationHook` no longer have any `HOLD` branch.
+- **`InvoicePaymentHook`** now carries its own dedicated `boltzrpc.InvoicePaymentHookAction` enum (`CONTINUE = 0`, `HOLD = 1`) on `InvoicePaymentHookResponse.action` (PR #1429). When the hook returns `HOLD`, `NodeSwitch.invoicePaymentHook` propagates an `InvoicePaymentPreference { action: Hold }` and `PaymentHandler.payInvoice` short-circuits before reaching the pending-payment tracker — the swap stays in its current state and is not paid. `CONTINUE` keeps the prior `nodeId` / `timePreference` routing behaviour.
+
 ### Observability
 - **Prometheus**: Metrics collection. Node-side async-lock instrumentation added in PR #1427 — `lib/InstrumentedLock.ts` wraps `async-lock` with per-key holder, pending-task, and overflow-rejection tracking; rolled out in `ChainSwapSigner`, `EipSigner`, `Renegotiator`, and `Commitments`. Exposes three new gauges on the swap registry: `lock_pending{name,key}` (waiters per key), `lock_hold_age_seconds{name,key,op}` (current holder age), and `lock_rejections{name,key}` (cumulative "Too many pending tasks" overflows). Overflow rejections are also enriched with the stuck holder and queue depth so the failing waiter sees who is stuck.
 - **OpenTelemetry**: Distributed tracing

@@ -34,13 +34,14 @@ Manages immutable event streams for event sourcing.
 Manages round lifecycle and related data (intents, transactions, receivers).
 
 **Key Methods:**
-- `AddOrUpdateRound(ctx, round)` - Creates or updates complete round state
+- `AddOrUpdateRound(ctx, round)` - Creates or updates complete round state (now also persists `round.CollectedFees`)
 - `GetRoundWithId(ctx, id)` - Fetches round with all related data
 - `GetRoundWithCommitmentTxid(ctx, txid)` - Queries by commitment transaction
 - `GetSweepableRounds(ctx)` - Returns rounds ready for sweeping
 - `GetRoundVtxoTree(ctx, txid)` - Retrieves VTXO tree structure
+- `PatchCollectedFees(ctx, feesByRoundId map[string]uint64)` - Bulk-sets the `collected_fees` column for the given round ids. Used by `AdminService.GetCollectedFees` to lazily backfill rounds that were finalized before fee persistence existed (PR #933). Implementations: sqlite/postgres iterate the map under a single transaction issuing parameterized `UPDATE round SET collected_fees = ? WHERE id = ?`; badger reads each round, sets the field, and re-saves.
 
-**Schema:** Stores rounds, intents, receivers, transactions (commitment, forfeit, connectors, tree) with complex joins.
+**Schema:** Stores rounds, intents, receivers, transactions (commitment, forfeit, connectors, tree) with complex joins. The `round` row now carries a `collected_fees` column (added by migration `20260603111520_add_collected_fees` on postgres / `20260603111517_add_collected_fees` on sqlite — additive nullable-defaulting-to-zero INTEGER). Domain `Round.CollectedFees uint64` is set inside the `on(RoundFinalized)` event projection from the new `RoundFinalized.Fees` event field, so it is reconstructed correctly under event replay as well as direct read.
 
 ### VtxoRepository
 Manages Virtual Transaction Outputs and their lifecycle.

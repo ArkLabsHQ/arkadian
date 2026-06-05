@@ -1,5 +1,25 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-06-05 - Documentation Update
+**Commit**: `12efd926` (boltz-backend repository)
+**Previous Sync**: `dc9c6f83`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Refactors**:
+- refactor: hold in invoice payment hook (#1429) (`12efd926`) — `HOLD` was decoupled from the generic swap action and moved into a dedicated invoice-payment hook surface. `proto/boltzrpc.proto`: the shared `Action` enum dropped its `HOLD = 2` variant (now only `ACCEPT` / `REJECT`); a new `InvoicePaymentHookAction` enum (`CONTINUE = 0`, `HOLD = 1`) was added and surfaced as `InvoicePaymentHookResponse.action`. `lib/swap/hooks/InvoicePaymentHook.ts`: the result type became a discriminated union (`InvoicePaymentHookHold` | `InvoicePaymentHookContinue`), `parseGrpcAction` now branches on the new enum (with a `parseHookAction` helper warning on unknown actions and falling back to `Continue`), and `logHookResult` learned to log `returned hold`. `lib/swap/NodeSwitch.ts`: `invoicePaymentHook` now returns a new `InvoicePaymentPreference` (also exported) — either `{ action: Hold }` or `{ action: Continue, client?, timePreference? }`. `lib/swap/PaymentHandler.ts`: `getPreferredNode` returns the same shape, and `payInvoice` short-circuits with a debug `held by hook` log before the pending-payment-tracker step when the action is `Hold`. `lib/swap/hooks/TransactionHook.ts`: default action flipped from `Hold` → `Accept`. `lib/swap/hooks/CreationHook.ts`, `lib/swap/UtxoNursery.ts` (both swap and chain-swap paths, plus the now-unused `logHoldingTransaction` helper), and `lib/swap/EthereumNursery.ts` (both EtherSwap and ERC20Swap paths): all `Action.Hold` branches were deleted. Tests: `test/unit/swap/hooks/TransactionHook.spec.ts` (+151 lines, new file covering accept/reject behaviour with the new default), `test/unit/swap/hooks/InvoicePaymentHook.spec.ts` (+104 lines, covers the new enum / hold branch / parser fallbacks), `test/unit/swap/PaymentHandler.spec.ts` (+35 lines, exercises the hold short-circuit), `test/unit/swap/SwapNursery.spec.ts` (+51 lines), `test/unit/swap/NodeSwitch.spec.ts` updated for the new return type; the obsolete `EthereumNursery.spec.ts` / `UtxoNursery.spec.ts` / `CreationHook.spec.ts` `Action.Hold` cases were removed. No `boltz.conf`, REST API, env-var, or DB-migration change.
+
+**Documentation Impact**:
+- `INDEX.md` (project): new **Swap Hooks** subsection added under **Configuration**, describing the two hook enums (`boltzrpc.Action` now `ACCEPT` / `REJECT`; new `boltzrpc.InvoicePaymentHookAction` with `CONTINUE` / `HOLD`), the `TransactionHook` default flip, the removed nursery branches, and the `NodeSwitch` / `PaymentHandler` short-circuit behaviour when the invoice payment hook returns `HOLD`.
+- `system/architecture.md`: **Swap Logic** section gained a **Hooks** bullet summarising the same change.
+- `system/project_overview.md`: no edit — overview-level capabilities unchanged.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** gained an "Invoice-payment hold" bullet covering the proto enum split, the `TransactionHook` default flip, and the `payInvoice` short-circuit; **Tags** extended with `invoice-payment-hook`.
+- `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — the change is internal to the gRPC hook surface (no public REST/CLI surface, no `boltz.conf` schema change, no migration).
+
+---
+
 ## 2026-06-04 - Documentation Update
 **Commit**: `dc9c6f83` (boltz-backend repository)
 **Previous Sync**: `c0e5b66c`
