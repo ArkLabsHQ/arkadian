@@ -380,7 +380,14 @@ volumes:
 
 ### Resource Limits
 
-Currently unlimited. Add resource constraints:
+The base `docker-compose.otel.yaml` leaves resources unconstrained. Two host-class override files ship with the repo for telemetry instances sized to fit a specific EC2 type — apply with `docker compose -f docker-compose.otel.yaml -f docker-compose.resources.<class>.yaml up -d`:
+
+| Override file                          | Target host | otel-collector | cadvisor | prometheus | grafana | alertmanager | loki   | jaeger | pyroscope |
+|----------------------------------------|-------------|----------------|----------|------------|---------|--------------|--------|--------|-----------|
+| `docker-compose.resources.small.yaml`  | t3.small (2GB RAM)  | 256m | 128m | 400m | 350m | 64m  | 400m  | 256m | 256m |
+| `docker-compose.resources.medium.yaml` | t3.medium (8GB RAM) | 512m | 256m | 2g   | 512m | 256m | 1536m | 1g   | 1g   |
+
+Only `deploy.resources.limits.memory` is set; no CPU limits or reservations. Add custom constraints inline if needed:
 
 ```yaml
 otel-collector:

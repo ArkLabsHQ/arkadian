@@ -123,3 +123,22 @@
 - `alertmanager.yml.tmpl`: on the `severity = info` route (→ `slack-notifications-info` receiver), `group_interval` raised from **`1s` → `30s`**. `group_wait: 0s` and `repeat_interval: 1m` unchanged. With the prior 1-second group interval, info-level alerts (e.g. round-finalized notifications) were re-fanned into Slack almost immediately after each firing, producing duplicate messages; 30s gives Alertmanager a real window to batch them into a single group update.
 
 **No doc-file updates needed**: route-timer values are not documented in `system/configuration.md` (only generic examples are shown), `system/alert-rules.md` (rule definitions only, not routing), or `INDEX.md`. Master `docs/INDEX.md` `ark-telemetry` entry — capabilities, tags, dependencies — is unaffected. Only sync tracking is updated.
+
+---
+
+## 2026-06-06 - Resource limit override files for t3.small / t3.medium
+**From**: `18a32c6d40fbc58f4ef59a2d3324e5a898feb8c2`
+**To**: `dbf9aeea2359c794d0d29e29266746e520ac2541`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `dbf9aee` Resource limit override configuration
+
+**Compose changes**:
+- New `docker-compose.resources.small.yaml` — memory limits sized for **t3.small (2GB RAM)**: otel-collector 256m, cadvisor 128m, prometheus 400m, grafana 350m, alertmanager 64m, loki 400m, jaeger 256m, pyroscope 256m
+- New `docker-compose.resources.medium.yaml` — memory limits sized for **t3.medium (8GB RAM)**: otel-collector 512m, cadvisor 256m, prometheus 2g, grafana 512m, alertmanager 256m, loki 1536m, jaeger 1g, pyroscope 1g
+- Both are pure overrides (only `deploy.resources.limits.memory`); apply with `-f docker-compose.otel.yaml -f docker-compose.resources.<class>.yaml`. The base compose file remains unconstrained.
+
+**Doc-file updates**:
+- `system/configuration.md` — "Resource Limits" section: replaced the stale "Currently unlimited" lead with a table of per-service memory limits for both override files and how to layer them onto the base compose command
+- master `docs/INDEX.md` — `ark-telemetry` capabilities: added bullet for the new per-host-class memory-limit override files

@@ -1,5 +1,25 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-06-06 - Documentation Update
+**Commit**: `4fdd15c8` (boltz-backend repository)
+**Previous Sync**: `12efd926`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Features Added / Refactors**:
+- feat: instrument all async locks (#1428) (`4fdd15c8`) — completes the rollout of `lib/InstrumentedLock.ts` (introduced in PR #1427) to every remaining Node-side `async-lock` user, and adds **OpenTelemetry tracing** to the lock primitive itself. `lib/InstrumentedLock.ts`: `acquire(key, op, cb)` now opens a `lock <name> <op>` span (`SpanKind.INTERNAL`, attributes `lock.name`, `lock.key`, `lock.op`), records `lock.wait_ms` on acquisition and `lock.held_ms` on release, runs the callback inside the span context (`context.with(ctx, cb)` so downstream spans nest under the lock), records errors via `SpanStatusCode.ERROR`, and tolerates sync (`Promise<T> | T`) callbacks. The pending-counter map now self-deletes idle keys (decrement to `0` deletes the entry) so locks with dynamic keys no longer grow unbounded. **Rollout sites** (each replaces `new AsyncLock(…)` with `new InstrumentedLock(name, …)` and passes an `op` label at every `acquire`): `lib/swap/SwapNursery.ts` (the central swap/lockup/expiry/payment lock — ~870 lines reflowed for the new `acquire(key, op, cb)` signature), `lib/swap/SwapManager.ts`, `lib/swap/UtxoNursery.ts`, `lib/swap/ArkNursery.ts`, `lib/swap/LightningNursery.ts`, `lib/swap/RefundWatcher.ts`, `lib/service/cooperative/DeferredClaimer.ts`, `lib/service/cooperative/MusigSigner.ts`, `lib/rates/LockupTransactionTracker.ts`, `lib/lightning/SelfPaymentClient.ts`, `lib/wallet/ethereum/ConsolidatedEventHandler.ts`, `lib/wallet/ethereum/SequentialSigner.ts`. `eslint.config.mjs` (+19 lines): new `no-restricted-imports` rule under `lib/**` forbids importing `async-lock` directly (with the message "Import InstrumentedLock instead of using async-lock directly."); `lib/InstrumentedLock.ts` itself is the only exempt path. Tests: `test/unit/InstrumentedLock.spec.ts` rewritten/extended to **185 lines** covering the new tracing/attributes/sync-callback behaviour; `test/unit/swap/SwapManager.spec.ts`, `test/unit/service/cooperative/MusigSigner.spec.ts`, and `test/integration/service/cooperative/MusigSigner.spec.ts` updated for the new `acquire(key, op, cb)` signature. No `boltz.conf`, REST API, env-var, public gRPC, or DB-migration change — Prometheus surface is unchanged from PR #1427 (same three gauges); the new observability surface is OpenTelemetry spans on the existing tracer.
+
+**Documentation Impact**:
+- `INDEX.md` (project): **Observability** section rewritten — extends the InstrumentedLock rollout list from the original signer set to every remaining `async-lock` user, adds the ESLint guard, describes the new OpenTelemetry span (name, attributes, error handling, idle-key cleanup), and notes that OTel now includes per-lock spans.
+- `system/architecture.md`: **Monitoring** subsection rewritten with the same rollout/eslint/OTel notes.
+- `system/project_overview.md`: **Observability** capability bullet updated to call out PR #1428 (rollout completion + ESLint rule + per-lock OTel spans).
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** — the async-lock instrumentation bullet expanded with the full PR #1428 rollout list, the ESLint guard, and the OpenTelemetry span surface; **Tags** extended with `lock-tracing`.
+- `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — this is internal observability instrumentation with no public REST/CLI/config/schema change.
+
+---
+
 ## 2026-06-05 - Documentation Update
 **Commit**: `12efd926` (boltz-backend repository)
 **Previous Sync**: `dc9c6f83`

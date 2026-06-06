@@ -1,5 +1,34 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-06 - Documentation Sync
+**Commit**: `3d2c95d34f52c133a7c2b5e7c2065828d2f0f7fc`
+**Previous Sync**: `917404814b786154b8a5d42d44ac6462cbf6aca2`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `3d2c95d3` fix(Transaction): show roundTxid for offboarding batch transactions (#648)
+
+**Bug Fixes** (PR #648, commit `3d2c95d3`): the transaction-detail view's TXID fallback chain was missing `roundTxid`, so offboarding transactions that settle in a batch displayed no TXID. `src/screens/Wallet/Transaction.tsx` line 127 now reads `tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''` (third fallback added), so the batch's commitment TXID is shown when a transaction has neither a boarding TXID nor a redeem TXID. One-line change; the commit's PR description also mentions a folded-in "fix send all fiat" but no other files are touched in the diff between the two sync hashes, so any fiat-send adjustment landed via the same `Transaction.tsx` edit or in an earlier commit.
+
+**Features Added / Modified / Removed**: None — single bug fix to TXID display fallback for the transaction-detail screen.
+**Configuration Changes**: None — no new env vars, no new build/test commands.
+**Dependencies**: No `package.json` or `pnpm-lock.yaml` changes.
+**Breaking Changes**: None.
+
+**Files Touched in Repo** (1 file):
+- `src/screens/Wallet/Transaction.tsx`
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.17 → 1.2.18 + `last_sync_commit`.
+- `docs/projects/wallet/change-log/last-sync.txt` → `3d2c95d34f52c133a7c2b5e7c2065828d2f0f7fc`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+- `docs/INDEX.md` — added wallet Key Capability bullet for PR #648.
+
+**Files Not Updated** (intentional): `system/project_overview.md`, `system/architecture.md`, `testing/usage.md`, and the SOPs — the change is a one-line TXID fallback fix in the transaction-detail view with no architectural or workflow implications.
+
+---
+
 ## 2026-06-05 - Documentation Sync
 **Commit**: `917404814b786154b8a5d42d44ac6462cbf6aca2`
 **Previous Sync**: `760cbc0840a06e121fa40762148778a4290e776a`

@@ -22,7 +22,35 @@ Ark infrastructure uses a multi-layered networking approach:
 3. **redis_sg**: ElastiCache (port 6379 from app_sg only)
 4. **vpc_endpoints_sg**: Private endpoints (port 443 from app_sg) — rules defined as
    standalone `aws_security_group_rule` resources (since #73) so that other stacks can
-   add their own rules without causing plan drift
+   add their own rules without causing plan drift. In the new shared `modules/vpc`
+   the SG is **egress-only**; callers add their own ingress rules referencing
+   `module.vpc.vpc_endpoints_sg_id`.
+
+## Shared VPC Module (migration in progress, since #86 / 2026-06)
+
+`modules/vpc/` is a reusable VPC module intended to move VPC ownership out of
+`docker-compose/opentofu` and into per-account stacks (`aws/dev-438465126741/`,
+`aws/prod-982590065524/`) — invoked as `module.vpc_staging` / `module.vpc_prod`.
+
+- Inputs: `env`, `region` (default `eu-central-1`), `vpc_cidr` (default `10.10.0.0/16`),
+  `public_subnet_cidrs`/`private_subnet_cidrs` (maps keyed by AZ suffix), `nat_per_az`
+  (default `true`)
+- Creates: VPC, 3 public + 3 private subnets (tagged `Tier`), IGW, EIP/NAT/private RT
+  per NAT AZ, route table associations, egress-only `vpc_endpoints_sg`, six interface
+  endpoints (`ssm`, `ssmmessages`, `ec2messages`, `ecr.api`, `ecr.dkr`, `logs`), S3
+  gateway endpoint
+- Outputs: `vpc_id`, `vpc_cidr_block`, public/private subnet IDs (list + map by AZ),
+  IGW ID, NAT gateway IDs + EIPs by AZ, route table IDs, `vpc_endpoints_sg_id`
+- Migration: `scripts/migrate-vpc-state.sh [--dry-run] <staging|prod>` backs up both
+  states, imports the live resources into `module.vpc_{env}.*`, then prints (does not
+  run) the `tofu state rm` commands for the source stack. The old
+  `aws_security_group_rule.vpc_endpoints_ingress_app` is **removed but not re-imported**
+  — callers must add their own ingress rules
+- Expected first-apply drift after import: subnet `Tier` tag additions + endpoint SG
+  description change (intentional)
+- Not yet active: the `module "vpc" { source = "./modules/vpc" }` block in
+  `docker-compose/opentofu/main.tf` is commented out, and no `apps/ark/*` stack
+  consumes it yet
 
 ## VPC Endpoints
 **Interface Endpoints** (~$50/mo, span all 3 private AZs):

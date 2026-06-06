@@ -1,5 +1,61 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-06 - Documentation Update
+**Commit**: `fbcda79126342c37df6c7f50346ad54bf40595fd`
+**Previous Sync**: `2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (PR #86, "Vpc module")
+
+**Highlights**:
+- 🌐 **Shared VPC module extracted** (#86, `fbcda79`): new `modules/vpc/` (`main.tf`,
+  `vpc.tf`, `variables.tf`, `outputs.tf`, `README.md`) defines a reusable VPC owning
+  the VPC, public/private subnets across 3 AZs (keyed by AZ suffix `a`/`b`/`c`),
+  Internet Gateway, NAT topology (`nat_per_az` bool, default `true`), private
+  route tables, the egress-only `vpc_endpoints_sg`, six interface VPC endpoints
+  (`ssm`, `ssmmessages`, `ec2messages`, `ecr.api`, `ecr.dkr`, `logs`) created via
+  `for_each`, and the S3 gateway endpoint. Inputs: `env`, `region` (default
+  `eu-central-1`), `vpc_cidr` (default `10.10.0.0/16`), `public_subnet_cidrs`,
+  `private_subnet_cidrs`, `nat_per_az`. Required provider: `hashicorp/aws ~> 5.0`.
+- 🏷️ **Subnet `Tier` tags added** on import: module tags public subnets `Tier = "public"`
+  and private subnets `Tier = "private"` — the old `docker-compose/opentofu` stack
+  didn't set these, so the first `tofu plan` after import shows expected in-place
+  updates (resolves a longstanding TODO around data-source lookups by `Tier`).
+- 🔒 **VPC endpoint SG is egress-only**: ingress responsibility moves to callers
+  (`aws_security_group_rule "vpc_endpoints_ingress_app"` is no longer module-owned).
+  Import will show an in-place description update vs. the old SG — intentional.
+- 🧰 **State migration script** (`scripts/migrate-vpc-state.sh [--dry-run] <staging|prod>`):
+  4-phase workflow — (0) backs up both source `docker-compose/opentofu` and target
+  account state (`aws/dev-438465126741` / `aws/prod-982590065524`) to local
+  `.tfstate` files with a timestamp; (1) extracts AWS resource IDs from the source
+  workspace via `tofu state show`; (2) `tofu import`s VPC, IGW, subnets,
+  route tables + associations, NAT (EIP/NAT/RT per AZ that has one), VPC-endpoint
+  SG + egress rule, and all interface/gateway endpoints into `module.vpc_{env}.*`
+  in the target account stack; (3) prints `tofu plan` verification command;
+  (4) prints (but does not run) the `tofu state rm` commands to delete the migrated
+  resources from the docker-compose state. The old ingress rule is removed but
+  intentionally not re-imported.
+- 🔌 **Not yet wired into apps**: `docker-compose/opentofu/main.tf` contains a
+  commented-out `module "vpc" { source = "./modules/vpc" … }` invocation; no
+  `apps/ark/{staging,prod}` stack consumes the module yet. This PR ships the
+  module and migration tooling so that VPC ownership can move from
+  `docker-compose/opentofu` to per-account stacks in a follow-up apply.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities gains a shared VPC module bullet; tags
+  appended: `vpc-module`, `state-migration`, `subnet-tags`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.6.0, `last_sync_commit`,
+  `last_sync_date`; new `Configuration Files / Modules` mention of `modules/vpc/`
+  and `scripts/migrate-vpc-state.sh`)
+- docs/projects/ark-infra/system/networking.md (Security Groups section notes that
+  the new shared `modules/vpc` provisions `vpc_endpoints_sg` as egress-only with
+  caller-owned ingress; new "Shared VPC Module (migration)" paragraph)
+- docs/projects/ark-infra/system/project_overview.md (Repository Structure: add
+  `modules/vpc/` directory and `scripts/migrate-vpc-state.sh`)
+- docs/projects/ark-infra/change-log/last-sync.txt (commit hash updated)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-06-02 - Documentation Update
 **Commit**: `2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd`
 **Previous Sync**: `4bd46fa06d1399940634b4c723b426abca2c09f2`

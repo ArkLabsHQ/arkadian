@@ -1,5 +1,43 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-06 - Operational Memory Sync (no doc changes)
+**Commit Range**: `e3b88479..ad32259a` (13 commits, all `memory(*)` agent activity)
+**Previous Sync**: `42c7a11a2cf61c76beef09286ee896d7f543bc6b` (2026-06-05T00:00:00Z)
+**Caller-Asserted From**: `e3b88479ed71ddcbe492d2e4ec109fae3438a32f` (orchestrator's pre-fast-forward HEAD)
+**Current Sync**: `ad32259a878080942a509d41038e4c68177605b0`
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (13, all internal agent state)**:
+- `ad32259` memory(issue-triage): triage run 2026-06-06T04:00:00Z — quiet window
+- `8c374a3` memory(issue-triage): triage run 2026-06-06T00:00:00Z — quiet window
+- `45dee3e` memory(release-coordinator): release check 2026-06-05T14:00:00Z
+- `99377cb` memory(sdk-parity): parity check 2026-06-05
+- `14411dc` memory(slack-monitor): daily scan 2026-06-05
+- `0d527d5` memory(daily-briefing): morning briefing 2026-06-05
+- `9a0e1c8` memory(linear-sync): state snapshot 2026-06-05
+- `b489ac8` memory(executive-digest): milestone + SDK parity + enclave security 2026-06-05
+- `2da7f47` memory(issue-triage): triage 2026-06-05T20:00:00Z — enclave#131 security (SSM preseed), compiler#39 bug (reversed operands)
+- `1c91fc6` memory(issue-triage): triage 2026-06-05T16:00:00Z — enclave#130 security (migration attestation unverified)
+- `97192f0` memory(issue-triage): triage 2026-06-05T12:00:00Z — quiet
+- `9a0f4cc` memory(release-coordinator): check 2026-06-05T10:00:00Z — ts-sdk restore gap flagged
+- `aaa486a` memory(issue-triage): triage 2026-06-05T08:00:00Z — quiet
+
+**Files Changed (all under `memory/`)**: 11 files, +290/-50 lines
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, sdk-parity, slack-monitor
+- MEMORY.md (curated repo-org mapping expanded — adds coinflip, threat-models, checkout/covclaimd/delegatark/packages/tapscripts/skill/banco/arkdev-website; clarifies no `ArkLabsHQ/ark` exists)
+- executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. The MEMORY.md update enriches curated agent knowledge about *external* repo org mapping but does not alter arkana-knowledge's own structure, agent catalog, or capabilities documented in INDEX.md.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `ad32259a`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — this entry
+
+---
+
 ## 2026-06-05 - Operational Memory Sync (no doc changes)
 **Commit Range**: `ec153083..42c7a11a` (17 commits, all `memory(*)` agent activity)
 **Previous Sync**: `b44f173b10774d36bbd66901311441ef925734c7` (2026-06-04T03:53:01Z)

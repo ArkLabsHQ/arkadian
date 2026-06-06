@@ -1,5 +1,49 @@
 # Documentation Sync History - Ark Docs
 
+## 2026-06-06 - Reference SDK Rename, New Fulmine Reference, Expanded Agent Context
+**Commit**: `549339023bf1771c8211e6a9f551ed8a68acdb1d`
+**Previous Sync**: `dcc34b2da502ab77a007eeda21ef8162579ce81b`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits
+- `5493390` Add explicit claim-labelling rule
+- `4f69479` Add answering + conflict resolution rules
+- `069e5ed` Update context
+- `1c771df` Improve references
+- `75a30fb` Redirect scheduled session to arkd, not index
+
+**Structural Changes**:
+- RENAMED: `reference/typescript/` → `reference/ts-sdk/`
+- RENAMED: `reference/rust/` → `reference/rust-sdk/`
+- RENAMED: `reference/go/` → `reference/go-sdk/`
+- RENAMED: `reference/dotnet/` → `reference/dotnet-sdk/`
+- NEW: `reference/fulmine/index.mdx` — Fulmine (Daemon) v0.3 registered as a new Mintlify product in the hidden Reference tab
+- NEW redirects in `docs.json`:
+  - `/reference/typescript/*` → `/reference/ts-sdk/*`
+  - `/reference/rust/*` → `/reference/rust-sdk/*`
+  - `/reference/go/*` → `/reference/go-sdk/*`
+  - `/reference/dotnet/*` → `/reference/dotnet-sdk/*`
+  - `/sdk-reference/rust/*` → `/reference/rust-sdk/*` (replaces the single `/sdk-reference/rust/lightning` → `/index` redirect)
+  - `/arkd/components/scheduled-session` → `/arkd/what-is-arkd` (was `/index`)
+  - `/roadmap` → `/` (was `/index`)
+
+**Content Changes (`snippets/agent-context.mdx`)**:
+- Added **source boundaries** block instructing agents to ignore non-Arkade protocol sources (ark-protocol.org, Bitcoin Optech's Ark topic page, clArk materials, Delving Bitcoin posts treating "Ark protocol" as a stand-in for Arkade, generic Bitcoin L2 explainers). Agents must label unsupported claims "Not specified in Arkade sources" rather than substituting adjacent-protocol material.
+- Expanded **deprecated terms** list:
+  - "ASP" / "Ark server" → "the operator" + "Arkade Service" (the core API for intents, batch coordination, co-signing, real-time streams)
+  - "Delegator" / "delegator pubkey" → "delegate" / "delegate pubkey" (entity running the Fulmine delegate API)
+  - "Delegate address" → "delegated address" (Arkade address with operator + user + delegate spend path)
+  - "Refreshing" / "refresh" → "renewal" / "renewing"
+- Added **source precedence + conflict resolution** policy (5 levels): current page > Arkade glossary > unversioned docs > versioned docs > Arkade-owned repos (`arkade-os`, `ArkLabsHQ`). Conflicts must be stated explicitly; do not merge conflicting definitions.
+- Added **answering rules**: every technical claim must be cited and labelled with one of `Confirmed in docs`, `Supported by official source`, or `Not specified in Arkade sources`. Never invent SDK APIs/types/methods/params. Ask which network applies (mainnet, mutinynet, signet, regtest) when network-specific behavior matters. Distinguish protocol behavior from SDK / application-layer convenience.
+
+**Files Updated**:
+- `docs/projects/ark-docs/INDEX.md` — Reference tab section updated for renamed SDK dirs + Fulmine product; file-tree section updated; `agent-context.mdx` description expanded
+- `docs/INDEX.md` — Key Capabilities: Reference tab now lists Fulmine and notes the directory rename + redirects; agent-context.mdx capability expanded with source boundaries, deprecated terms, precedence, and claim-labelling rules; Tags add `fulmine`, `agent-context`, `claim-labelling`
+- `docs/projects/ark-docs/change-log/last-sync.txt` — now `549339023bf1771c8211e6a9f551ed8a68acdb1d`
+- `docs/projects/ark-docs/change-log/SYNC_HISTORY.md` — this entry
+
 ## 2025-10-16 12:00:00 - Initial Metadata Setup
 **Commit**: ``
 **Synced By**: Manual setup

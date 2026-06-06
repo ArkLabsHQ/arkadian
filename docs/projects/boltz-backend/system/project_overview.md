@@ -99,8 +99,8 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Redis for caching and rate limiting
 
 ### Observability
-- Prometheus metrics — including new per-key **async-lock metrics** (`lock_pending`, `lock_hold_age_seconds`, `lock_rejections`) exposed by the `InstrumentedLock` wrapper for Node-side cooperative-signing locks (PR #1427)
-- OpenTelemetry distributed tracing
+- Prometheus metrics — including per-key **async-lock metrics** (`lock_pending`, `lock_hold_age_seconds`, `lock_rejections`) exposed by the `InstrumentedLock` wrapper. PR #1427 introduced `InstrumentedLock` for cooperative-signing locks; **PR #1428** extended it to every remaining Node-side `async-lock` (swap nurseries, deferred claimer, refund watcher, lockup tracker, EVM signer/event handler, etc.) and added an ESLint rule forbidding direct `async-lock` imports under `lib/**`
+- OpenTelemetry distributed tracing — every instrumented `acquire(key, op, cb)` now opens a `lock <name> <op>` span with `lock.wait_ms` / `lock.held_ms` attributes (PR #1428)
 - Loki log aggregation
 
 ## Use Cases

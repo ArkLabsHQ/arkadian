@@ -46,8 +46,11 @@ ark-infra/
 │   │   ├── scripts/user-data-telemetry.sh # Bootstraps Ansible from SSM-stored GitHub token (renamed 2026-06, #80)
 │   │   ├── ansible/telemetry-playbook.yml # Telemetry instance provisioning (Docker, EBS data volume mount, ark-telemetry clone, systemd; renamed 2026-06, #80)
 │   │   └── agent/otel-agent-config.yaml # Local OTLP collector config used on app hosts
+│   ├── vpc/                           # Shared VPC module (since 2026-06, #86) — VPC, 3-AZ public/private subnets (tagged Tier=public|private), IGW, NAT (`nat_per_az` toggle), egress-only `vpc_endpoints_sg`, 6 interface endpoints + S3 gateway. Provider `aws ~> 5.0`. Not yet wired into apps/ark/*; migration via `scripts/migrate-vpc-state.sh`.
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
 │   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
+├── scripts/                           # Repo-level scripts
+│   └── migrate-vpc-state.sh           # VPC state migration: docker-compose/opentofu → aws/{dev,prod}/ (`--dry-run` supported; backs up state, imports into `module.vpc_{env}.*`, prints `state rm` commands)
 └── docker-compose/                    # Docker Compose + OpenTofu automation
     ├── README.md                      # Docker Compose documentation
     ├── Makefile                       # Automation commands

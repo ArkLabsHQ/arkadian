@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.5.3
-last_sync_commit: 2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd
-last_sync_date: 2026-06-02T00:00:00Z
+version: 1.6.0
+last_sync_commit: fbcda79126342c37df6c7f50346ad54bf40595fd
+last_sync_date: 2026-06-06T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -334,6 +334,13 @@ Defined in `aws/{prod-982590065524,dev-438465126741}/`, built from reusable modu
 ### Scripts
 - `scripts/user-data-prod.sh` — EC2 initialization for production
 - `scripts/user-data-regtest.sh` — EC2 initialization for regtest
+- `scripts/migrate-vpc-state.sh` — Migrate VPC resources from `docker-compose/opentofu` state into the per-account `module.vpc_{staging|prod}` (`--dry-run` supported; backs up both states, imports into target, prints `state rm` commands for the source — see `modules/vpc/README.md`)
+
+### Modules
+- `modules/vpc/` — Shared VPC module (since #86, 2026-06): VPC, public/private subnets across 3 AZs (keyed by AZ suffix), IGW, NAT gateway(s) controlled by `nat_per_az` (default `true`, HA), private route tables, egress-only `vpc_endpoints_sg` (callers add their own ingress rules), six interface VPC endpoints + S3 gateway endpoint. Subnets are tagged `Tier = "public"`/`"private"` for cleaner data-source lookups. Not yet consumed by `apps/ark/*` — invocation in `docker-compose/opentofu/main.tf` is commented out pending migration.
+- `modules/ark/` — Shared Ark app + telemetry module (ALB, arkd target groups, telemetry ASG, Cloud Map, Ansible provisioning, S3 buckets)
+- `modules/ark-iam-roles/` — SAML-federated IAM roles + guardrail policies (per account)
+- `modules/ark-gws-sync/` — Lambda syncing Google Workspace group membership to AWS role attribute
 
 ---
 
