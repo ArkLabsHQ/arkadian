@@ -1,5 +1,24 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-06-07 - Documentation Update
+**Commit**: `91502ead` (boltz-backend repository)
+**Previous Sync**: `4fdd15c8`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Tooling / Chores**:
+- chore: bump LND to v0.21.0-beta (#1432) (`91502ead`) — `docker/build.py` pinned-image bumps: `LND_VERSION` `0.20.1-beta` → `0.21.0-beta`, `C_LIGHTNING_VERSION` `26.06` → `26.06.1`, and `GOLANG_VERSION` `1.26.2-trixie` → `1.26.4-trixie`. `lib/VersionCheck.ts` ranges updated to match — `LndClient`: `maximal=0.20.1` → `0.21.0` (minimal stays `0.19.0`); `ClnClient`: `maximal=26.06` → `26.06.1` (minimal stays `26.04`). `regtest` submodule advanced to the matching v0.21.0-beta LND / v26.06.1 CLN image. Code cleanups that come with the LND 0.21 surface: `LightningClient.ts` drops the now-unused `LightningClient.serviceNameSendPayment` slot; `LndClient.ts` removes the `serviceNameSendPayment` field, an obsolete `getInfo` dance in `PendingPaymentTracker.checkPendingPaymentRecreated` (the `checkPaymentExists` path was deleted along with its `pendingPaymentExists` helper), and the related branches in `PaymentHandler.payInvoice` and `SwapNursery.handleInvoiceExpired`. `ClnClient.ts` drops a now-redundant `getNodeUri` re-declaration. `ChainSwapSigner.ts` removes a stale `chain.lockup.failed` short-circuit. `proto/lnd/router.proto` (-77 lines net) and `proto/lnd/rpc.proto` (-220 lines net) regenerated against LND 0.21 — most of the change is doc-comment churn from the upstream proto. Tests: `test/unit/service/TimeoutDeltaProvider.spec.ts` adjusts a single LND-version fixture; `test/unit/swap/PaymentHandler.spec.ts` (-50 lines) drops the deleted-helper cases, and `PendingPaymentTracker.spec.ts` / `ChainSwapSigner.spec.ts` are tidied for the removed branches. No `boltz.conf`, REST API, env-var, gRPC, or DB-migration change.
+
+**Documentation Impact**:
+- `INDEX.md` (project): **Lightning Integration** section — **LND** bullet now pins **v0.21.0-beta** (with the PR #1432 bump notes + `VersionCheck` `maximal=0.21.0`); **CLN** bullet bumped to **v26.06.1**.
+- `system/architecture.md`: **Lightning Integration** subsection — `LndClient` now references **v0.21.0-beta** (with the same `VersionCheck` notes); `ClnClient` bumped to **v26.06.1**.
+- Master `docs/INDEX.md`: boltz-backend **Key Capabilities** — Lightning bullet updated to **LND v0.21.0-beta** + **CLN v26.06.1** with PR #1432 references.
+- `system/project_overview.md`, `testing/usage.md`, `testing/api-reference.md`, `system/integration-with-arkd.md`: no edits — version pins live in the architecture/INDEX docs only; the `LightningClient.serviceNameSendPayment` / `PaymentHandler` cleanups are internal (no public REST/CLI surface, no `boltz.conf` schema change, no migration); the `GOLANG_VERSION` patch bump is build-only and not pinned anywhere in `docs/projects/boltz-backend/`.
+
+---
+
 ## 2026-06-06 - Documentation Update
 **Commit**: `4fdd15c8` (boltz-backend repository)
 **Previous Sync**: `12efd926`

@@ -142,3 +142,19 @@
 **Doc-file updates**:
 - `system/configuration.md` — "Resource Limits" section: replaced the stale "Currently unlimited" lead with a table of per-service memory limits for both override files and how to layer them onto the base compose command
 - master `docs/INDEX.md` — `ark-telemetry` capabilities: added bullet for the new per-host-class memory-limit override files
+
+---
+
+## 2026-06-07 - Ark Go dashboard: CPU panel unit fix (`percentunit` → `percent`)
+**From**: `dbf9aeea2359c794d0d29e29266746e520ac2541`
+**To**: `6f3164755e7a5ed23037f98db688a860b90c3e5c`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `6f31647` fix: Display Ark Go CPU metric as a percent
+
+**Dashboard fix**:
+- `dashboards/Ark_Go_metrics.json`: CPU utilization panel `fieldConfig.defaults.unit` changed from `percentunit` to `percent`. The underlying query returns a 0–100+ percentage value (100% = one full core, >100% = multi-core), but `percentunit` tells Grafana to interpret the value as a 0–1 fraction and multiply by 100 for display — so the panel was rendering values 100× too high. `percent` is the correct unit for an already-scaled percentage. Panel description text is unchanged.
+
+**No doc-file updates needed**: pure Grafana display-unit fix; no new capability, query, panel, alert, or behavior. `system/dashboards.md` describes the Ark Go dashboard in terms of Go-runtime panels (goroutines, heap, GC) and does not document panel units; master `docs/INDEX.md` `ark-telemetry` capabilities bullet ("Grafana dashboards …") is unaffected. Only sync tracking is updated.
+
