@@ -1,5 +1,46 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-08 - Operational Memory Sync (no doc changes)
+**Commit Range**: `b896f252..a0ff37ad` (17 commits, all `memory(*)` agent activity)
+**Previous Sync**: `b896f252e5ebafddd988e8e27f42eefdb5944ee7` (2026-06-07T04:21:55Z)
+**Caller-Asserted From**: `b896f252e5ebafddd988e8e27f42eefdb5944ee7` (matches previous sync — fast-forward only)
+**Current Sync**: `a0ff37add2df0a8a266a4f3eea61943568cb05f1` (committed 2026-06-08T04:00:00Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (17, all internal agent state)**:
+- `a0ff37a` memory(issue-triage): triage run 2026-06-08T04:00:00Z — quiet window
+- `3b3a4be` memory(release-coordinator): release check 2026-06-08T00:00:00Z — quiet window
+- `a83488f` memory(issue-triage): triage run 2026-06-08T00:00:00Z — quiet window
+- `8485257` memory(release-coordinator): release check 2026-06-07T20:00:00Z
+- `5372ed7` memory(sdk-parity): parity check 2026-06-07
+- `ebae2ff` memory(slack-monitor): daily scan 2026-06-07
+- `55e784c` memory(daily-briefing): morning briefing 2026-06-07
+- `62bca78` memory(linear-sync): state snapshot 2026-06-07
+- `148243e` memory(executive-digest): evening batch 2026-06-06
+- `3038304` memory(issue-triage): triage run 2026-06-07T20:00:00Z — quiet window
+- `e059cf0` memory(release-coordinator): release check 2026-06-07T16:00:00Z — quiet window
+- `33578c4` memory(issue-triage): triage run 2026-06-07T16:00:00Z — quiet window
+- `c22bcec` memory(release-coordinator): release check 2026-06-07T12:00:00Z — quiet window
+- `f7b5729` memory(issue-triage): triage run 2026-06-07T12:00:00Z — quiet window
+- `09c2632` memory(release-coordinator): release check 2026-06-07T08:00:00Z — quiet window
+- `63f1ae3` memory(issue-triage): triage run 2026-06-07T08:00:00Z — quiet window
+- `0ccb0dd` memory(release-coordinator): release check 2026-06-07T04:00:00Z — quiet window
+
+**Files Changed (all under `memory/`)**: 10 files, +179/-25 lines
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, sdk-parity, slack-monitor
+- executive-digest-queue.json, project-context/sdk-parity.md, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. SDK-parity tracks a ts-sdk `Wallet.restore()` batch-probing optimization and dotnet-sdk Boltz refactor in *other* repos; arkana-knowledge's own structure, 17-agent roster, and capabilities documented in INDEX.md are unchanged.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `a0ff37ad`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+---
+
 ## 2026-06-07 - Operational Memory Sync (no doc changes)
 **Commit Range**: `ad32259a..b896f252` (18 commits, all `memory(*)` agent activity)
 **Previous Sync**: `ad32259a878080942a509d41038e4c68177605b0` (2026-06-06T04:00:00Z)
