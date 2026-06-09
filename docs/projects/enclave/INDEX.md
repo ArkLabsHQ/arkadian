@@ -88,7 +88,12 @@ Analysis and summaries of pull requests.
 | `app.language` | `go`, `nodejs`, or `dotnet` |
 | `app.{nix_owner,nix_repo,nix_rev,nix_hash,nix_vendor_hash}` | Auto-populated by `enclave setup` |
 | `app.binary_name` | Output binary name |
+| `app.vendor` | (`go` / `rust` only) Switch the flake into vendor mode — Nix uses the committed `vendor/` directory in the upstream source tree instead of fetching deps via `cargoHash` / `vendorHash`. Mutually exclusive with `app.nix_vendor_hash` (clear the hash to flip). Survives upstream-dep disappearance regardless of cache state. `enclave setup` skips hash discovery when `true`. Node.js and .NET reject `vendor: true` at config-load time (`npmDepsHash` / `nugetDeps` already manifest-pin every package). |
 | `app.env` | Build-time env defaults (PCR0-attested schema) |
+| `nix.substituters` | Cachix substituter URLs (`https://<name>.cachix.org`) — non-Cachix URLs are rejected at config-load. Empty list = framework defaults only. |
+| `nix.trusted_public_keys` | Public keys for the substituters above (Cachix shows the key on the cache settings page). Required when `substituters` is non-empty. |
+| `nix.nixpkgs_rev` | 40-char hex commit SHA pinning the `nixpkgs` flake input — pins the derivation graph and therefore PCR0. Written by `enclave nixpkgs pin`. Must be set together with `nix.nixpkgs_hash`. |
+| `nix.nixpkgs_hash` | SRI-formatted (`sha256-…`) hash of the `nixpkgs` tarball at `nixpkgs_rev`. Validated by regex at config-load. |
 | `secrets[].{name,env_var}` | KMS-managed static secrets (env var injection) |
 | `is_kms_key_locked` | Permanent KMS lockdown flag |
 | `release_tag` | GitHub Release tag for `--remote` artifact pull |
@@ -141,6 +146,9 @@ EC2 Instance (Amazon Linux 2023, Nitro)
 | `enclave tofu update [--remote]` | Refresh `tofu/terraform.tfvars.json` from `enclave.yaml`. Module files and `backend.tf` are left untouched; run after editing `tls:`, `route53_zone_id`, runtime version, or the secrets list before `tofu apply`. |
 | `enclave tofu env --key K --value V [--key … --value …]` | Set/merge entries in `tofu/env_values.auto.tfvars.json` without hand-editing JSON. Keys must match `^[A-Z_][A-Z0-9_]*$`; existing entries are preserved (merged + sorted on write). The next `tofu apply` pushes the map to SSM at `/<deployment>/<app>/env/<key>` — the runtime overlays it on the process env at boot via `GetParametersByPath`. |
 | `enclave build` | Reproducible EIF build via Docker + Nix |
+| `enclave build --push-cache` | Build, then push the closure to the first Cachix substituter (requires `CACHIX_AUTH_TOKEN` + `cachix` CLI on PATH). Used by the CI workflow when `vars.CACHIX_CACHE_NAME` + `secrets.CACHIX_AUTH_TOKEN` are set. |
+| `enclave nixpkgs pin [--check]` | Pin `nixpkgs` to the current tip of `nixos-25.11` (writes `nix.nixpkgs_rev` + `nix.nixpkgs_hash` to `enclave.yaml` and `nixpkgs.url` to `flake.nix`). `--check` validates the existing pin without network. The framework ships a pinned default, so this is only needed when upgrading. See `BINARY-CACHE.md` for the full reproducibility model. |
+| `enclave vendor --path <dir>` | Vendor the upstream app's deps for offline builds — runs `cargo vendor` (Rust) or `go mod vendor` (Go) in the upstream source tree. Then commit `vendor/`, run `enclave setup` (skips hash discovery when `app.vendor: true`), set `app.vendor: true` in `enclave.yaml`. Not supported for Node.js (npm has no clean vendor-mode) or .NET (nugetDeps already manifest-pins every package). |
 | `enclave deploy` | Deploy CDK stack (VPC, EC2, KMS, IAM, S3, secrets) |
 | `enclave verify` | Verify attestation + PCR0 |
 | `enclave status` | Show deployment status |

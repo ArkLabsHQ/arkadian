@@ -85,6 +85,21 @@ secrets:
   - name: signing_key
     env_var: APP_SIGNING_KEY
 
+# Optional — vendor mode (go / rust only): skip nix_vendor_hash, use committed vendor/.
+# Run `enclave vendor --path <app-source>` first, commit vendor/, then flip this.
+#   app.vendor: true
+#   app.nix_vendor_hash: ""   # must be empty when vendor: true
+
+# Optional — Cachix substituters + pinned nixpkgs (see BINARY-CACHE.md).
+# Empty / absent leaves framework defaults in effect. All four fields are independent.
+nix:
+  substituters:
+    - "https://your-cache.cachix.org"     # only Cachix URLs are accepted
+  trusted_public_keys:
+    - "your-cache.cachix.org-1:<base64>=" # shown on the cache settings page
+  nixpkgs_rev:  ""                        # written by `enclave nixpkgs pin`
+  nixpkgs_hash: ""                        # written by `enclave nixpkgs pin`
+
 # Optional — pick the TLS cert source for the public :443 listener.
 # This is applied at deploy time (CLI → tofu → SSM → runtime), so
 # changing the domain is a redeploy, NOT an EIF rebuild.

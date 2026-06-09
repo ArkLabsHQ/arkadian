@@ -23,11 +23,11 @@ arkade-os/ts-sdk (repo root)
     │   ├── scripts/smoke-dist.mjs
     │   ├── tsup.config.ts     # extends ../../tsup.base.config.ts
     │   ├── tsconfig.json      # typecheck-only (noEmit), extends ../../tsconfig.base.json
-    │   └── package.json       # version 0.4.27
+    │   └── package.json       # version 0.4.33
     └── boltz-swap/            # @arkade-os/boltz-swap — depends on workspace ts-sdk
         ├── src/
         ├── test/
-        └── package.json       # version 0.3.32
+        └── package.json       # version 0.3.38
 ```
 
 devDeps (`tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fake-indexeddb`, `eventsource`) are hoisted to the root; per-package `package.json` keeps only package-unique deps.
@@ -81,7 +81,7 @@ packages/ts-sdk/src/
 ├── providers/               # External service communication
 │   ├── ark.ts               # RestArkProvider (arkd REST + SSE); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL` (imported from `../networks`) — `new RestArkProvider()` resolves to mainnet without explicit arg
 │   ├── indexer.ts           # RestIndexerProvider (indexer REST + streaming); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`. Post-0.4.32: `convertVtxo` ternary fixed to check `isSpent` first — `isSpent ? "spent" : isSwept ? "swept" : isPreconfirmed ? "preconfirmed" : "settled"`. The prior shape never returned `"spent"` so spent VTXOs were misclassified as `"settled"`. Correctness fix only — the `"spent"` state value was already part of `VirtualCoinStatus.state`
-│   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments); since 0.4.28 `baseUrl` parameter defaults to `ESPLORA_URL[DEFAULT_NETWORK_NAME]` (bitcoin entry of the default map)
+│   ├── onchain.ts           # EsploraProvider + ESPLORA_URL defaults (Ark Labs mempool deployments); since 0.4.28 `baseUrl` parameter defaults to `ESPLORA_URL[DEFAULT_NETWORK_NAME]` (bitcoin entry of the default map). **Post-0.4.33 (regtest migration)**: the `regtest` entry of `ESPLORA_URL` is now `http://localhost:3000/api` (was `http://localhost:3000`) — the in-house arkade-regtest stack exposes the mempool-spec Esplora API under `/api` (`7e34960a`). `EsploraProvider.getChainTip()` switched from `/blocks/tip` to the standard `/blocks` route (`abd86ec3`): `/blocks/tip` was electrs-only and mempool returns `[]` for it (surfaced as `No chain tip found` and cascaded into unroll / settle / sweep / delegate / vhtlc e2e); `/blocks` returns a newest-first array of recent blocks across every Esplora backend. `EsploraProvider.getFeeRate()` returns `undefined` on a 404 from `/fee-estimates` rather than throwing (`5f9a6845`): mempool (spec-correct) returns 404 for that route on regtest — it exposes fees via `/api/v1/fees/recommended` — and every caller already falls back to `MIN_FEE_RATE` on undefined, so the prior throw broke the unroll / unilateral vHTLC claim / boarding-sweep paths against a mempool-spec backend; other (5xx) failures still surface
 │   ├── electrum.ts          # ElectrumOnchainProvider (WebSocket Electrum) + ELECTRUM_WS_URL / ELECTRUM_TCP_HOST defaults
 │   ├── delegate.ts          # RestDelegateProvider + DelegateProvider interface (delegate REST; renamed from delegator.ts in 0.4.29 / #519 — `RestDelegatorProvider` / `DelegatorProvider` kept as `@deprecated` aliases). `DelegateInfo.delegatorAddress` now optional alongside the canonical `delegateAddress`; `isDelegateInfo` accepts either non-empty string; `getDelegateInfo` normalizes `delegateAddress` by explicit string type check (not truthiness)
 │   ├── expoArk.ts           # ExpoArkProvider (React Native SSE); since 0.4.28 `serverUrl` parameter defaults to `DEFAULT_ARKADE_SERVER_URL`
@@ -158,7 +158,8 @@ packages/ts-sdk/src/
     ├── unknownFields.ts     # PSBT custom fields (VtxoTaprootTree, CosignerPublicKey, etc.)
     ├── anchor.ts            # P2A (Pay-to-Anchor) and AnchorBumper
     ├── timelock.ts          # Centralized BIP68 helpers — `timelockToSequence` / `sequenceToTimelock` (RelativeTimelock ↔ sequence number); single `bip68` import site, consumed by `script/base.ts`, `script/tapscript.ts`, `utils/unknownFields.ts`, `wallet/wallet.ts`, `wallet/unroll.ts`, and re-exported from the package root since 0.4.23
-    └── txSizeEstimator.ts   # TxWeightEstimator + VSize type (fee estimation, re-exported from package root since 0.4.23)
+    ├── txSizeEstimator.ts   # TxWeightEstimator + VSize type (fee estimation, re-exported from package root since 0.4.23)
+    └── bip21.ts             # `BIP21.create()` / `BIP21.parse()` for BIP21 URIs. Post-0.4.33: amount validation aligned between create + parse. `create()` rejects non-finite amounts and amounts that fail `Number.isSafeInteger(Math.trunc(value))` (returns the URI without the `amount` param — silently omits an unsafe amount rather than emitting an out-of-range integer), and keeps the explicit negative check (callers can still pass a negative `number`). `parse()` validates the raw query-string value against the BIP21 ABNF (`*digit [ "." *digit ]`) via `/^(?:\d+\.?\d*|\.\d+)$/` — so `".5"` decodes to `0.5` and `"5."` decodes to `5` (matches `NArk`'s parser); the dropped unreachable negative check was redundant after the regex (the sign is not in the character class). Tests live in `test/bip21.test.ts` (4 new cases: digits omitted on either side of decimal, malformed values ignored, unsafe values ignored on parse, unsafe values omitted on create)
 ```
 
 ## Design Patterns

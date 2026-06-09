@@ -1,5 +1,56 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-09 - Operational Memory Sync (no doc changes)
+**Commit Range**: `a0ff37ad..40e8a87e` (19 commits, all `memory(*)` agent activity)
+**Previous Sync**: `a0ff37add2df0a8a266a4f3eea61943568cb05f1` (2026-06-08T04:00:00Z)
+**Caller-Asserted From**: `a0ff37add2df0a8a266a4f3eea61943568cb05f1` (matches previous sync — fast-forward only)
+**Current Sync**: `40e8a87e6b8bcf2cbbfec8eb686120ef43399b29` (committed 2026-06-09T04:34:12Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (19, all internal agent state)**:
+- `40e8a87` memory(issue-triage): triage run 2026-06-09T04:00:00Z — quiet window
+- `ec410f6` memory(release-coordinator): release check 2026-06-09T00:00:00Z — quiet window
+- `b1fae2f` memory(repo-detector): scan 2026-06-07/08 — stable, zero changes
+- `a4c1726` memory(issue-triage): triage run 2026-06-09T00:00:00Z — quiet window
+- `a2c88ae` memory(release-coordinator): release check 2026-06-08T20:00:00Z — rust-sdk#238 APPROVED/open with critical bug
+- `35df660` memory(sdk-parity): parity check 2026-06-08 — dotnet-sdk EARS coin selection subsystem (8 commits); no new formal gaps
+- `77a087c` memory(slack-monitor): daily scan 2026-06-08 — nigiri removed from regtest; EIF vendor support MERGED; arkd 0.9.7 release PR opened (release build failing 2x)
+- `a0107cf` memory(daily-briefing): morning briefing 2026-06-08
+- `a939858` memory(research-monitor): research update 2026-06-08 — P2MR/BIP-360 pubkey recovery; PQ proposals consolidating around EC+PQ hybrid; CTV still 0% at 16+ weeks
+- `e46be26` memory(linear-sync): state snapshot 2026-06-08 — 54th consecutive day of zero Linear activity
+- `53db71c` memory(executive-digest): critical bugs + governance violation 2026-06-08 — 7 items flushed (go-sdk ZERO releases 6+ weeks; dotnet-sdk#124 EARS 2 blocking bugs; rust-sdk#238 CRITICAL funds misdirection; enclave#132 CRITICAL attestation gaps; arkd v0.9.7 released with gov violation #933)
+- `8012481` memory(issue-triage): triage run 2026-06-08T20:00:00Z — quiet window
+- `87b8ca3` memory(release-coordinator): release check 2026-06-08T16:00:00Z — arkd v0.9.7 released; gov violation (#933 CHANGES_REQUESTED in prod)
+- `e55f1f2` memory(issue-triage): triage run 2026-06-08T16:00:00Z — quiet window
+- `d6d9ad9` memory(release-coordinator): release check 2026-06-08T12:00:00Z — rust-sdk#238 APPROVED with critical funds misdirection bug
+- `d8601da` memory(issue-triage): triage run 2026-06-08T12:00:00Z — quiet window
+- `948d93b` memory(release-coordinator): release check 2026-06-08T08:00:00Z — quiet window
+- `b7ea774` memory(issue-triage): triage run 2026-06-08T08:00:00Z — quiet window
+- `a4a4786` memory(release-coordinator): release check 2026-06-08T04:00:00Z — quiet window
+
+**Files Changed (all under `memory/`)**: 12 files, +319/-26 lines
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, repo-detector, research-monitor, sdk-parity, slack-monitor
+- executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. Notable ecosystem events (arkd v0.9.7 release with governance violation, rust-sdk#238 funds misdirection, enclave#132 attestation gaps, dotnet-sdk EARS coin selection subsystem) are tracked in agent memory only and do not alter arkana-knowledge's own structure, 17-agent roster, or capabilities documented in INDEX.md.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `40e8a87e`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; the 17-agent roster, MCP server, Slack bot, webhook relay, and dependency surface are all unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-08 - Operational Memory Sync (no doc changes)
 **Commit Range**: `b896f252..a0ff37ad` (17 commits, all `memory(*)` agent activity)
 **Previous Sync**: `b896f252e5ebafddd988e8e27f42eefdb5944ee7` (2026-06-07T04:21:55Z)

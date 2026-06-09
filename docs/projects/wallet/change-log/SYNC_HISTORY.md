@@ -1,5 +1,39 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-09 - Documentation Sync
+**Commit**: `6073145afa5b0c9d80185183608036ca0a4c886e`
+**Previous Sync**: `3d2c95d34f52c133a7c2b5e7c2065828d2f0f7fc`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `6073145a` update regtest link (#654)
+
+**Infrastructure / Test-Env Only** (PR #654, commit `6073145a`): updates the `regtest` git submodule pointer used by the wallet's local E2E stack.
+- `.gitmodules`: the `regtest` submodule's tracked `branch` switched from `bordalix` to `master`, so future `git submodule update --remote` calls follow the canonical upstream branch of `https://github.com/ArkLabsHQ/arkade-regtest.git` rather than a contributor branch.
+- `regtest` (submodule pointer): bumped `dc23da2c` → `cd473132` (advances to the matching tip on `master`).
+
+**Features Added / Modified / Removed**: None — purely a submodule pointer + tracking-branch update for the dev/regtest infrastructure.
+**Configuration Changes**: None — no new env vars, no new build/test commands, no `.env.regtest` change.
+**Dependencies**: No `package.json` or `pnpm-lock.yaml` changes.
+**Breaking Changes**: None for application code; developers who had a local checkout of the `bordalix` regtest branch should `git submodule update --init --recursive` to pick up the new pointer.
+
+**Files Touched in Repo** (2 files):
+- `.gitmodules`
+- `regtest` (submodule pointer)
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.18 → 1.2.19 + `last_sync_commit`.
+- `docs/projects/wallet/change-log/last-sync.txt` → `6073145afa5b0c9d80185183608036ca0a4c886e`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/INDEX.md` — no tracked field affected. The wallet entry's E2E capability bullet ("E2E testing with Playwright using shared `arkade-regtest` submodule + `nak` Nostr relay") does not pin a branch and remains accurate.
+- `system/project_overview.md`, `system/architecture.md`, `system/tech-stack.md` — no code, API, env-var, or build-script change.
+- `sop/development-workflow.md`, `testing/how_to_run.md` — the `git submodule update --init --recursive` instruction is unchanged; users on a fresh clone get the new `master`-tracked submodule automatically.
+
+---
+
 ## 2026-06-06 - Documentation Sync
 **Commit**: `3d2c95d34f52c133a7c2b5e7c2065828d2f0f7fc`
 **Previous Sync**: `917404814b786154b8a5d42d44ac6462cbf6aca2`

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.18
-last_sync_commit: 3d2c95d34f52c133a7c2b5e7c2065828d2f0f7fc
+version: 1.2.19
+last_sync_commit: 6073145afa5b0c9d80185183608036ca0a4c886e
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]

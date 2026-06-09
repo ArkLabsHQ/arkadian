@@ -124,6 +124,7 @@ Supported databases:
 - **WalletManager**: HD wallet management
 - **KeyRepository**: Key derivation and storage
 - **CoinSelector**: UTXO selection algorithms
+- **EthereumManager.getReceivedAmount** (renamed from `getClaimedAmount`): inspects a posted EVM transaction and returns `{ token?, amount }` for both claim *and* refund flows. `lib/wallet/ethereum/contracts/Contracts.ts` gained `decodeRefundData` alongside the existing `decodeClaimData`, with per-shape decoders for `refund`, `refundForAddress`, and the two `refundCooperative` overloads on both `EtherSwap` and `ERC20Swap`. The aggregate result is what `GrpcService` now uses to populate `amountReceived` on the `boltzrpc` transaction event, so pending EVM **refunds** also show their amount (previously only claims did).
 
 Key management:
 - BIP39 seed phrases
@@ -138,6 +139,7 @@ High-performance Lightning sidecar written in Rust. Provides:
 - gRPC server for CLN integration
 - Swap coordination with Core Lightning
 - Performance-critical swap operations
+- Lightning-gossip aggregation via `GraphLightningInfo` — `update_cache` now returns `Result<bool>` and emits the "Updated <symbol> lightning gossip" log only when at least one source actually fired; currencies with no Lightning clients configured return `Ok(false)` silently, eliminating the previous per-tick noise (fix `e1e6c445`).
 
 **Why Rust?**
 - CLN plugins require native code

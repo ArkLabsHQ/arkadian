@@ -4,8 +4,8 @@
 
 - **Node.js** 24 LTS (`.nvmrc` → `24.15.0`; root `engines.node` `>=24.15.0 <25`; published `@arkade-os/sdk` `engines.node` `>=22.12.0 <25` for downstream consumers)
 - **pnpm** `>=10.25.0 <11` (`packageManager: pnpm@10.25.0`)
-- **Docker** (for integration tests)
-- **nigiri** (local Bitcoin regtest) — `curl https://getnigiri.vulpem.com | bash`
+- **Docker** + Docker Compose v2 (for integration tests)
+- **Git submodules** — clone with `--recurse-submodules` (the `regtest/` submodule is the in-house arkade-regtest stack; since `7e34960a` on 2026-06-01 the SDK is fully off `nigiri`, so no separate install is required)
 
 ## Install Dependencies
 
@@ -37,52 +37,53 @@ Output (flat `packages/ts-sdk/dist/` since #496 — was `dist/{esm,cjs,types}/` 
 
 ## Run Regtest Environment
 
-The regtest stack is driven from the repo root by `scripts/regtest.sh <pkg> <action>`. Each package supplies its own `.env.regtest`.
+The regtest stack is the in-house **arkade-regtest** Docker Compose stack driven by a zero-dependency Node CLI (`regtest/regtest.mjs`), wired in by `7e34960a` on 2026-06-01 to replace the prior `nigiri`/`chopsticks`/`esplora` setup. `scripts/regtest.sh <pkg> <action>` is a thin wrapper around `node regtest/regtest.mjs` from the repo root; each package supplies its own `.env.regtest` (functional overrides like ports, but `BITCOIN_LOW_FEE` and the `ARKD_IMAGE` override have been dropped since they're now baked into the compose base / inherited from the submodule's blessed default — `v0.9.6`).
 
-### Option 1: Nigiri with Ark (Recommended for quick dev cycles)
-
-```bash
-# Start nigiri with built-in Ark support
-nigiri start --ark
-
-# Run setup script (scoped to ts-sdk)
-pnpm -C packages/ts-sdk test:setup
-
-# When done:
-nigiri stop --delete
-```
-
-### Option 2: Root-level monorepo regtest (Docker Compose)
+### Root-level monorepo regtest (recommended)
 
 ```bash
 # Full cycle (reset + up + setup + test for the ts-sdk package only)
 pnpm test:integration:ts-sdk           # = bash scripts/regtest.sh ts-sdk cycle
 
 # Or step-by-step
-pnpm regtest:up:ts-sdk                 # bring stack up
+pnpm regtest:up:ts-sdk                 # bring stack up   = node regtest/regtest.mjs start
 pnpm regtest:setup:ts-sdk              # fund wallets + initial state
 pnpm regtest:test:ts-sdk               # run e2e suite against the stack
-pnpm regtest:down:ts-sdk               # tear down
-pnpm regtest:reset:ts-sdk              # nuke state without down
+pnpm regtest:down:ts-sdk               # tear down        = node regtest/regtest.mjs stop
+pnpm regtest:reset:ts-sdk              # nuke state       = node regtest/regtest.mjs clean
 ```
 
-### Option 3: Per-package Docker Compose (in-package scripts)
+CI symlinks the repo-root `regtest/` submodule into each package directory on each run (since `da0698fc`) so per-package e2e suites that invoke `node regtest/regtest.mjs ...` relative to their package cwd resolve the CLI; the symlink is git-ignored.
+
+### Per-package Docker Compose (in-package scripts)
 
 ```bash
-# From inside packages/ts-sdk
-pnpm -C packages/ts-sdk regtest:start       # ./regtest/start-env.sh
+# From inside packages/ts-sdk — these now invoke the Node CLI under the hood
+pnpm -C packages/ts-sdk regtest:start       # node regtest/regtest.mjs start
 pnpm -C packages/ts-sdk test:setup-docker
 pnpm -C packages/ts-sdk test:integration-docker
-pnpm -C packages/ts-sdk regtest:stop        # ./regtest/stop-env.sh
-pnpm -C packages/ts-sdk regtest:clean       # ./regtest/clean-env.sh
+pnpm -C packages/ts-sdk regtest:stop        # node regtest/regtest.mjs stop
+pnpm -C packages/ts-sdk regtest:clean       # node regtest/regtest.mjs clean
 ```
 
-The docker-compose stack includes:
-- **arkd** on port 7070 — Ark server (regtest, block scheduler, 10s rounds)
-- **arkd-wallet** on port 6060 — Wallet service
-- **nbxplorer** on port 32838 — Bitcoin block indexer
-- **pgnbxplorer** on port 5432 — PostgreSQL for NBXplorer
-- **fulmine** on ports 7000-7002 — Swap + delegator service
+The docker-compose stack includes (default ports as exposed by the arkade-regtest base):
+- **arkd** on port 7070 — Ark server (regtest, block scheduler, 10s rounds, `round.min-participants=1`)
+- **arkd-wallet** on port 6060 — wallet service (started after nbxplorer healthcheck)
+- **nbxplorer** on port 32838 — Bitcoin block indexer (2.6.7)
+- **bitcoind** — Bitcoin Core (btcpay image; authenticates via `rpcuser=admin1` / `rpcpassword=123` rather than cookie, so any `docker exec bitcoin bitcoin-cli ...` invocation must pass those flags)
+- **mempool_web** — mempool-spec Esplora API, exposed in-network as `http://mempool_web/api` and from the host as `http://localhost:3000/api`
+- **fulmine** on ports 7000-7002 — swap + delegate service
+
+### Faucet, mining, and ad-hoc ops
+
+The Node CLI also exposes the operations the e2e suites use directly:
+
+```bash
+node regtest/regtest.mjs faucet <btc-or-ark-address> [amount-sat] --confirm
+node regtest/regtest.mjs mine <n-blocks>
+```
+
+These replace the prior `nigiri faucet ...` / `nigiri rpc --generate N` invocations.
 
 ## Run Examples
 
@@ -109,8 +110,8 @@ pnpm -C packages/ts-sdk docs:open
 
 The SDK connects to these services:
 - **arkd**: `http://localhost:7070` (regtest)
-- **Esplora/Chopsticks**: `http://localhost:3000` (via nigiri)
-- **Fulmine**: `http://localhost:7000` (delegator)
+- **Esplora (mempool)**: `http://localhost:3000/api` — note the `/api` suffix; the regtest backend is the mempool-spec Esplora API exposed by the arkade-regtest stack (was `http://localhost:3000` against nigiri/chopsticks)
+- **Fulmine**: `http://localhost:7000` (delegate)
 
 Public mutinynet endpoints:
 - **arkd**: `https://mutinynet.arkade.sh`

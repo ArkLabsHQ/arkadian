@@ -4,8 +4,8 @@
 
 1. **Node.js** 24 LTS (pinned via `.nvmrc` → `24.15.0`; root `engines.node` = `>=24.15.0 <25` for contributors; published `@arkade-os/sdk` `engines.node` widened to `>=22.12.0 <25` so downstream consumers on Node 22.x are not broken)
 2. **pnpm** `>=10.25.0 <11` — `npm install -g pnpm@10.25.0`; root `packageManager` pins `pnpm@10.25.0`
-3. **Docker** (for integration tests)
-4. **nigiri** — `curl https://getnigiri.vulpem.com | bash`
+3. **Docker** + Docker Compose v2 (for integration tests)
+4. **Git submodules** — clone with `--recurse-submodules`; the `regtest/` submodule is the in-house arkade-regtest stack driven by `node regtest/regtest.mjs ...` (replaced the prior `nigiri`/`chopsticks`/`esplora` setup on 2026-06-01, commit `7e34960a`). CI runs `actions/checkout` with `submodules: recursive` and no longer installs Go / nigiri
 
 ## Setup
 

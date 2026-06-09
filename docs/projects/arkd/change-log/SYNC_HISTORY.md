@@ -1,5 +1,32 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-09 - Documentation Update
+**Commit**: `75066cc2` (arkd repository)
+**Previous Sync**: `6db7a6b7`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `75066cc2` Bump golangk@v1.26.4 (#1091)
+- `afd23262` ark-lib: add unit tests to script
+
+**Changes**:
+- **ark-lib safety hardening (`pkg/ark-lib/script/closure.go`)**: `DecodeClosure` now calls `txscript.ScriptHasOpSuccess(script)` immediately after the empty-script guard and returns `"script contains forbidden OP_SUCCESS opcode"` if any BIP-342 OP_SUCCESS opcode is present, before attempting closure-type matching. Without this check, a tapscript leaf containing an OP_SUCCESS opcode (e.g., `OP_CAT` = `0x7e`) would succeed unconditionally under BIP-342, letting anyone spend a VTXO without satisfying the intended closure — so the constructor of `ConditionMultisigClosure` (whose `Condition` is operator-supplied script bytes) was the realistic attack surface. The fix is minimal (4 lines) and additive: only the public `DecodeClosure` entrypoint is affected; the `Script()` builders are unchanged.
+- **ark-lib test coverage (`pkg/ark-lib/script/script_test.go`, +75 lines)**: Two new entries in `invalidDecodeClosureVectors()` (`"condition multisig closure with OP_SUCCESS opcode"` and `"condition csv multisig closure with OP_SUCCESS opcode"`) wire the existing `TestDecodeClosure` table into the new check. A new helper `opSuccessOpcodes()` returns every BIP-342 OP_SUCCESS byte (`80`, `98`, `126–134`, `137–138`, `141–142`, `149–153`, and `187–254`), and `TestDecodeClosureRejectsOpSuccess` iterates that list, constructs a `ConditionMultisigClosure` with each opcode in the `Condition` field, calls `closure.Script()` then `script.DecodeClosure(...)`, and asserts both that `DecodeClosure` errors and that the returned closure is `nil`. `executeBoolScriptFixtures` gains an `"invalid OP_SUCCESS"` row (`script: []byte{txscript.OP_CAT}`, empty witness, `expectErr: true`) to cover the standalone-script execution path.
+- **Go toolchain bump 1.26.3 → 1.26.4 (PR #1091)**: bumps all 9 module `go` directives (`go.mod`, `api-spec/go.mod`, `pkg/ark-cli/go.mod`, `pkg/ark-lib/go.mod`, `pkg/arkd-wallet/go.mod`, `pkg/client-lib/go.mod`, `pkg/errors/go.mod`, `pkg/kvdb/go.mod`, `pkg/macaroons/go.mod`), the four CI workflows (`.github/workflows/unit.yaml` — both `unit-tests` and `lint` jobs, plus `integration.yaml`, `artifacts.yaml`, `release.yaml`), and all three production Dockerfiles (`Dockerfile`, `arkdwallet.Dockerfile`, `arkdwallet.btcwallet.Dockerfile`). Pure version-string change with no code, no dependency, and no build-flag changes; nothing on the runtime side breaks because Go's 1.x compatibility promise covers patch releases.
+
+**Files Updated**:
+- docs/INDEX.md (new "ark-lib closure decoding rejects BIP-342 OP_SUCCESS opcodes" capability bullet on the arkd entry; new "Go toolchain pinned to **1.26.4**" capability bullet; `op-success-rejection` and `go-1.26.4` tags added)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.6 → 1.3.7)
+- docs/projects/arkd/system/ark_lib.md (new "OP_SUCCESS Rejection (Safety Property)" subsection under Script Package documenting the DecodeClosure guard, the BIP-342 byte set, and the standalone-script ExecuteBoolScript behavior)
+- docs/projects/arkd/system/tech_stack.md (Go 1.26.3+ → 1.26.4+ in overview and Programming Language section; added per-file inventory of where the version is pinned)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Both commits are non-breaking and additive at the API surface. The OP_SUCCESS check tightens a previously implicit assumption (that closure scripts contain only standard opcodes) and is most relevant to callers that construct `ConditionMultisigClosure` with operator-supplied conditions — any existing closure script produced by the in-tree `Script()` builders is unaffected, since none of them emit OP_SUCCESS opcodes. The Go bump is a patch-level toolchain refresh with no source-level impact; downstream consumers using `go 1.26.3` toolchains will still build the modules because `go 1.26.4` in `go.mod` is a minimum, not a pin.
+
+---
+
 ## 2026-06-05 - Documentation Update
 **Commit**: `6db7a6b7` (arkd repository)
 **Previous Sync**: `ab8e64ef`

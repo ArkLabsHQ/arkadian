@@ -104,29 +104,46 @@ const wallet = await Wallet.create({
 
 ## Integration Test Issues
 
-### Nigiri Not Starting
+### Regtest Stack Not Starting
 
-**Problem**: `nigiri start --ark` fails
+**Problem**: `pnpm regtest:up:ts-sdk` (or `node regtest/regtest.mjs start`) fails
 
 **Fix**:
 ```bash
 # Ensure Docker is running
 docker info
 
-# Clean previous state
-nigiri stop --delete
-nigiri start --ark
+# Make sure the submodule is checked out — the SDK switched off nigiri to an
+# in-house Node CLI on 2026-06-01 (commit 7e34960a), so the regtest/ submodule
+# must be present for `regtest.mjs` to resolve.
+git submodule update --init --recursive
+
+# Reset all state and bring it up cleanly
+pnpm regtest:reset:ts-sdk     # = node regtest/regtest.mjs clean
+pnpm regtest:up:ts-sdk        # = node regtest/regtest.mjs start
 ```
 
-### Docker Compose Network Error
+### "Cannot find module" Resolving `regtest/regtest.mjs`
 
-**Problem**: `docker-compose up` fails with network error
+**Problem**: A per-package e2e (e.g. `pnpm -C packages/ts-sdk regtest:start`) errors with `Cannot find module .../regtest/regtest.mjs`.
 
-**Fix**: The SDK's docker-compose expects the `nigiri` Docker network:
+**Fix**: The submodule lives at the **repo root**, but per-package scripts invoke `node regtest/regtest.mjs ...` from the package cwd. CI handles this automatically (the controller symlinks `regtest/` into each package directory on each run; the symlink is git-ignored — `da0698fc`). For local runs, either drive the stack from the repo root (`pnpm regtest:up:ts-sdk`) or create the same symlink yourself:
+
 ```bash
-nigiri start          # Creates the nigiri network
-pnpm test:up-docker   # Joins the nigiri network
+ln -s ../../regtest packages/ts-sdk/regtest
 ```
+
+### `bitcoin-cli` "Could not locate RPC credentials"
+
+**Problem**: An ad-hoc `docker exec bitcoin bitcoin-cli -regtest ...` invocation against the new stack fails with `Could not locate RPC credentials`.
+
+**Fix**: The arkade-regtest stack's Bitcoin Core (btcpay image) authenticates via `rpcuser`/`rpcpassword` rather than the cookie file the nigiri-based stack used. Pass the credentials explicitly (since `1e355445`):
+
+```bash
+docker exec bitcoin bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 getblockcount
+```
+
+The values mirror the compose config; suite helpers already do this.
 
 ### Tests Timeout
 
@@ -135,7 +152,20 @@ pnpm test:up-docker   # Joins the nigiri network
 **Fix**:
 1. Check arkd is running: `curl http://localhost:7070/v1/info`
 2. Check round interval (default 10s in regtest)
-3. Mine blocks if using block scheduler: `nigiri faucet --liquid false <address>`
+3. Mine blocks via the Node CLI: `node regtest/regtest.mjs mine 1`
+4. Fund an address: `node regtest/regtest.mjs faucet <address> [amount-sat] --confirm`
+
+### `EsploraProvider.getFeeRate` Throws on Regtest
+
+**Problem**: `getFeeRate()` throws (or unroll / unilateral vHTLC claim / boarding sweep paths fail) with a non-200 response from `/fee-estimates` after migrating off nigiri.
+
+**Fix**: `5f9a6845` already handles this — the mempool-spec backend doesn't serve `/fee-estimates` on regtest and returns 404 (it exposes fees via `/api/v1/fees/recommended` instead). `EsploraProvider.getFeeRate` now returns `undefined` on 404 so the callers' `MIN_FEE_RATE` fallback engages; only 5xx failures still throw. If you see this with a known-good SDK build, confirm the backing service is reachable: `curl http://localhost:3000/api/blocks` — note the `/api` suffix that became part of the regtest Esplora URL in `7e34960a`.
+
+### `EsploraProvider.getChainTip` Returns "No chain tip found"
+
+**Problem**: Settle / sweep / delegate / vhtlc e2e suites fail with `No chain tip found` after migrating off nigiri.
+
+**Fix**: `abd86ec3` already handles this — `getChainTip()` switched from the non-standard `/blocks/tip` (which electrs aliased to `/blocks`, but mempool returns `[]` for) to the standard `/blocks` route, which returns the newest-first array of recent blocks across every Esplora backend. If you still see the error, you're either on a pre-`abd86ec3` build or pointing at a backend whose `/blocks` is empty (no blocks mined yet — run `node regtest/regtest.mjs mine 101` after a clean start).
 
 ## Wallet Issues
 
