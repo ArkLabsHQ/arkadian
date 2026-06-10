@@ -1,5 +1,75 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-09 - Documentation Update
+**Commit**: `80a49fa7301451aa526c65e09f8711226943947d`
+**Previous Sync**: `fbcda79126342c37df6c7f50346ad54bf40595fd`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits (PRs #87, #83, #81, #88)
+
+**Highlights**:
+- 📦 **arkd release bump to v0.9.7** (#87, `2965061`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arkade-os/arkd:v0.9.7` and `ghcr.io/arkade-os/arkd-wallet:v0.9.7` (previously
+  `v0.9.6`). Production-only change; regtest compose unchanged.
+- 🧰 **Telemetry resource profiles** (#88, `80a49fa`): new validated
+  `telemetry_resource_profile` variable in `modules/ark/variables_telemetry.tf` (`small` |
+  `large`, default `large`). The `ark-telemetry.service` systemd unit in
+  `modules/ark/ansible/telemetry-playbook.yml` now layers
+  `docker-compose.resources.{{ resource_profile }}.yaml` on top of `docker-compose.otel.yaml`
+  for both `ExecStart` and `ExecStop`, so per-container memory/CPU limits track instance size.
+  `user-data-telemetry.sh` propagates `resource_profile` as an extra Ansible var; the launch
+  template templates it from `var.telemetry_resource_profile`. Wired in apps:
+  `apps/ark/staging/ark.tf` → `"small"`, `apps/ark/prod/ark.tf` → `"large"`.
+- 📊 **Telemetry CloudWatch Agent** (#88, `80a49fa`): the telemetry instance now installs the
+  Amazon CloudWatch Agent (latest .deb from `https://s3.amazonaws.com/amazoncloudwatch-agent/
+  ubuntu/amd64/latest/amazon-cloudwatch-agent.deb` — AWS does not publish versioned URLs,
+  hence `/latest/`). Config publishes `cpu` (idle/system/user, `totalcpu = true`), `mem`
+  (`mem_used_percent`), and `disk` (`disk_used_percent` scoped to `/` and `/mnt/data`,
+  ignoring `tmpfs/devtmpfs/overlay/squashfs`) with `InstanceId` appended as a dimension.
+  Agent is enabled via systemd and `fetch-config` is `changed_when: false` so the reconcile
+  is idempotent. IAM gains
+  `aws_iam_role_policy_attachment "telemetry_cloudwatch_agent"` →
+  `arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy` on `ec2_telemetry_role`.
+- 🔐 **Grafana brute-force login protection** (#88): explicitly set
+  `GF_AUTH_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=false` and
+  `GF_AUTH_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION_BY_IP=false` in the Grafana container env
+  (overrides defaults to be explicit, since Google SSO is on and the host is public-internet
+  via the shared ALB).
+- 📈 **App-side CloudWatch disk alarms split** (#83, `30b7beb`):
+  `docker-compose/opentofu/cloudwatch.tf` replaces the single `HighDisk-${env}` alarm with
+  two: `HighDisk-Root-${env}` (dimensions `path = "/"`, `device = "nvme0n1p1"`,
+  `fstype = "ext4"`) and `HighDisk-Data-${env}` (`path = "/mnt/data"`, `device = "nvme1n1"`,
+  `fstype = "ext4"`). Both alarm at 80% over 2×120s, `actions_enabled = false` (still
+  observe-only). Required because the previous unscoped alarm fired on `*` resources
+  (including ephemeral tmpfs), producing noise.
+- 🛠️ **CloudWatch Agent config aligned** (#83): both `docker-compose/scripts/user-data-ec2-prod.sh`
+  and `…-regtest.sh` now append `InstanceId` to dimensions, scope `disk` collection to
+  `["/", "/mnt/data"]` (was `["*"]`), and ignore
+  `tmpfs/devtmpfs/overlay/squashfs`. Regtest also gains CPU metrics
+  (`cpu_usage_idle/system/user`, `totalcpu = true`) bringing it in line with prod.
+- 🔌 **otel-agent OTLP keepalive** (#81, `7986e07`): `modules/ark/agent/otel-agent-config.yaml`
+  adds a `keepalive` stanza to the OTLP exporter (`time: 30s`, `timeout: 5s`,
+  `permit_without_stream: true`) so the app-side agent → central collector gRPC channel
+  survives idle periods without being torn down by intermediate NAT/keepalive timers.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: arkd/arkd-wallet `v0.9.6` → `v0.9.7`; new
+  bullets for telemetry resource profiles + CloudWatch Agent, app-side CloudWatch alarm
+  split, and otel-agent OTLP keepalive; tags appended: `cloudwatch-agent`,
+  `cloudwatch-alarms`, `grafana-brute-force`, `otlp-keepalive`, `telemetry-resource-profile`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.0, `last_sync_commit`,
+  `last_sync_date`; Telemetry Stack architecture note gains a Resource profiles + CloudWatch
+  Agent paragraph; arkd / arkd-wallet bullets pinned to `v0.9.7`; otel-agent bullet notes
+  gRPC keepalive)
+- docs/projects/ark-infra/system/project_overview.md (Telemetry Stack section: new
+  Resource profiles + CloudWatch Agent paragraph, app-side CloudWatch alarms paragraph,
+  otel-agent OTLP keepalive paragraph; ECR/GHCR note bumped to `v0.9.7`)
+- docs/projects/ark-infra/change-log/last-sync.txt (commit hash updated)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
+---
+
 ## 2026-06-06 - Documentation Update
 **Commit**: `fbcda79126342c37df6c7f50346ad54bf40595fd`
 **Previous Sync**: `2f2b2e1655a3855b71012ffb4d8f5f7e91bb9efd`

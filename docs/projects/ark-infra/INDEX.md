@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.6.0
-last_sync_commit: fbcda79126342c37df6c7f50346ad54bf40595fd
-last_sync_date: 2026-06-06T00:00:00Z
+version: 1.7.0
+last_sync_commit: 80a49fa7301451aa526c65e09f8711226943947d
+last_sync_date: 2026-06-09T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -220,8 +220,8 @@ make clean-local-state ENV=prod
 ## Deployed Services
 
 ### Core Services
-- **arkd** (7070) — Main Ark daemon (REST + gRPC API)
-- **arkd-wallet** (6060) — Wallet sidecar (auto-unlocked)
+- **arkd** (7070, `v0.9.7` since #87) — Main Ark daemon (REST + gRPC API)
+- **arkd-wallet** (6060, `v0.9.7`) — Wallet sidecar (auto-unlocked)
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
 - **nbxplorer** (`2.6.7`) — Bitcoin blockchain indexer (automatic); built from local `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`), tagged `ark-infra/nbxplorer:2.6.7-curl`, JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
@@ -250,6 +250,8 @@ make clean-local-state ENV=prod
 > **Architecture note (2026-05):** the telemetry stack now runs on a **separate EC2 instance** (Auto Scaling Group, default `t3.medium`) provisioned by `modules/ark/`. Grafana is exposed publicly via a **shared ALB** (HTTPS, ACM cert) using Google SSO. App instances run only `otel-agent` + `cadvisor` (bundled in the Ark Compose stack) and forward OTLP to the telemetry instance via AWS Cloud Map service discovery. New required env var on app hosts: `ARK_TELEMETRY_COLLECTOR_ENDPOINT` (e.g. `telemetry.ark-staging.internal:4317`).
 >
 > **Persistent state update (2026-06, #80):** the telemetry ASG is now **pinned to a single subnet/AZ** (new required `telemetry_subnet_id`) and mounts a **re-attachable encrypted EBS data volume** (`aws_ebs_volume.telemetry_data`, `gp3`, tag `ark-telemetry-data-${env}`) at `/dev/xvdb` → `/mnt/data`, with Docker's `data-root` relocated to `/mnt/data/docker`. Prometheus / Loki / Grafana state therefore survives instance recycles, trading multi-AZ HA for stateful telemetry. Staging: t3.small + 20 GB data, `subnet-0929002f609855e83` (eu-central-1b). Prod: t3.large + 30 GB data, `subnet-0aa4bfb28c983f5be` (eu-central-1b). Bootstrap scripts renamed: `scripts/user-data.sh` → `scripts/user-data-telemetry.sh`, `ansible/playbook.yml` → `ansible/telemetry-playbook.yml`; Ansible requirements bumped to `amazon.aws >= 10.3.1` plus `community.general`, `ansible.posix`. New vars: `telemetry_data_volume_size` (default 20), `telemetry_root_volume_size` (default 20), `telemetry_subnet_id` (required).
+>
+> **Resource profiles + CloudWatch Agent (2026-06, #88):** new required-but-defaulted `telemetry_resource_profile` variable (`small` | `large`, default `large`, validated) layers a `docker-compose.resources.{profile}.yaml` override on top of `docker-compose.otel.yaml` in the `ark-telemetry.service` systemd unit (both `ExecStart` and `ExecStop`), so per-container memory/CPU limits track instance size. Staging set to `small` (`apps/ark/staging/ark.tf`), prod set to `large` (`apps/ark/prod/ark.tf`). The telemetry instance now also installs the **Amazon CloudWatch Agent** (latest .deb from the AWS bucket — only `/latest/` is published) and ships `cpu` (idle/system/user, `totalcpu = true`), `mem` (used %), and `disk` (used %, scoped to `/` and `/mnt/data`, ignoring `tmpfs/devtmpfs/overlay/squashfs`) to CloudWatch, dimensioned by `InstanceId`. IAM gains `arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy` attached to `ec2_telemetry_role`. The Grafana container now explicitly enables brute-force login protection (`GF_AUTH_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=false`, `…_BY_IP=false`).
 
 **Telemetry instance (separate EC2 + ALB):**
 - **otel-collector** (4317/4318) — OTLP ingress from app instances
@@ -261,7 +263,7 @@ make clean-local-state ENV=prod
 - **pyroscope** (4040) — Continuous profiling
 
 **App instance (bundled with Ark Compose):**
-- **otel-agent** (`otel/opentelemetry-collector-contrib:0.151.0`) — Local OTLP receiver + host metrics; exports to central collector
+- **otel-agent** (`otel/opentelemetry-collector-contrib:0.151.0`) — Local OTLP receiver + host metrics; exports to central collector (gRPC keepalive `time=30s`, `timeout=5s`, `permit_without_stream=true` since #81 to avoid idle-NAT drops)
 - **cadvisor** (`v0.56.2`) — Container metrics (scraped by local otel-agent)
 
 ---

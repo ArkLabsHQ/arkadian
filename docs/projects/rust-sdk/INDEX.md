@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
 version: 1.3.0
-last_sync_commit: 8c0e8e3d91ab80e8107415072cf6351573eac19f
+last_sync_commit: 6d33b088ead85f75e12bf069d4596b2f8add2fa2
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -81,7 +81,8 @@ All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords 
 - Round participation with MuSig2 signing — asset-preserving settlement
 - Ark notes (transferable payment proofs)
 - DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
-- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 invoice `description` (max 639 bytes) — `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a `description: Option<String>` parameter (**breaking**)
+- Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors) plus an optional `claim_address: Option<ArkAddress>` so a reverse-swap invoice can credit another Arkade user's address (new `Client::get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)`; recipient is validated to share the same arkd signer via new `ArkAddress::server()` accessor; existing flows still claim into a fresh local address when no recipient is set); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 invoice `description` (max 639 bytes) — `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a `description: Option<String>` parameter (**breaking**)
+- Granular offchain-tx control: `Client::submit_offchain_tx` is now always exposed (previously behind a feature flag), `finalize_offchain_tx` is `pub`, and `finalize_pending_offchain_tx(ark_txid)` lets callers finalize one specific pending tx by `Txid` (useful when an external database tracks individual pending funding attempts)
 - **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
 - **Arkade Asset V1**: issue, transfer, burn, reissue (rejects empty asset packets)
 - **Arkade Script** (introspector flow): extension opcodes, key-tweaked introspector pubkeys, `ArkadeVtxoScript` taproot encoding, PSBT-driven introspector packet insertion

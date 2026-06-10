@@ -384,8 +384,8 @@ The base `docker-compose.otel.yaml` leaves resources unconstrained. Two host-cla
 
 | Override file                          | Target host | otel-collector | cadvisor | prometheus | grafana | alertmanager | loki   | jaeger | pyroscope |
 |----------------------------------------|-------------|----------------|----------|------------|---------|--------------|--------|--------|-----------|
-| `docker-compose.resources.small.yaml`  | t3.small (2GB RAM)  | 256m | 128m | 400m | 350m | 64m  | 400m  | 256m | 256m |
-| `docker-compose.resources.medium.yaml` | t3.medium (8GB RAM) | 512m | 256m | 2g   | 512m | 256m | 1536m | 1g   | 1g   |
+| `docker-compose.resources.small.yaml`  | t3.small (2GB RAM, ~1.5GB available after OS overhead) | 192m | 96m  | 300m | 256m | 48m  | 300m  | 192m | 128m |
+| `docker-compose.resources.large.yaml`  | t3.large (8GB RAM)  | 512m | 256m | 2g   | 512m | 256m | 1536m | 1g   | 1g   |
 
 Only `deploy.resources.limits.memory` is set; no CPU limits or reservations. Add custom constraints inline if needed:
 

@@ -158,3 +158,24 @@
 
 **No doc-file updates needed**: pure Grafana display-unit fix; no new capability, query, panel, alert, or behavior. `system/dashboards.md` describes the Ark Go dashboard in terms of Go-runtime panels (goroutines, heap, GC) and does not document panel units; master `docs/INDEX.md` `ark-telemetry` capabilities bullet ("Grafana dashboards …") is unaffected. Only sync tracking is updated.
 
+---
+
+## 2026-06-09 - Tighten small resource profile; rename medium → large
+**From**: `6f3164755e7a5ed23037f98db688a860b90c3e5c`
+**To**: `3b6d6864f82cf4ab858a730b94132a36de09f6d8`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `3b6d686` Tighten small resource profile and rename medium -> large (#16)
+
+**Compose changes**:
+- Renamed `docker-compose.resources.medium.yaml` → `docker-compose.resources.large.yaml`; in-file comment updated from "Resource limits for t3.medium (8GB RAM)" → "Resource limits for t3.large (8GB RAM)". Memory values inside the file unchanged (otel 512m, cadvisor 256m, prometheus 2g, grafana 512m, alertmanager 256m, loki 1536m, jaeger 1g, pyroscope 1g). Rationale: the previous `medium` filename was a misnomer — the values were sized for a t3.large (2 vCPU / 8GB), not a t3.medium (2 vCPU / 4GB).
+- `docker-compose.resources.small.yaml`: file-header comment tightened to "t3.small (2GB RAM, ~1.5GB available after OS overhead)". Per-service memory limits reduced across the board to fit the ~1.5GB available envelope: otel-collector 256m→**192m**, cadvisor 128m→**96m**, prometheus 400m→**300m**, grafana 350m→**256m**, alertmanager 64m→**48m**, loki 400m→**300m**, jaeger 256m→**192m**, pyroscope 256m→**128m**. New total: ~1552m (was ~2080m).
+
+**Doc-file updates**:
+- `system/configuration.md` — "Resource Limits" table: renamed the `medium` row to `large` (t3.medium → t3.large) and updated the `small` row to the new tightened memory limits and the "~1.5GB available after OS overhead" host note.
+- master `docs/INDEX.md` — `ark-telemetry` capabilities bullet: renamed `docker-compose.resources.medium.yaml` (t3.medium/8GB) → `docker-compose.resources.large.yaml` (t3.large/8GB).
+- Project `INDEX.md` unaffected — does not reference the per-class override filenames.
+
+**Breaking change for operators**: anyone composing with `-f docker-compose.resources.medium.yaml` must switch to `-f docker-compose.resources.large.yaml`; the old filename no longer exists.
+

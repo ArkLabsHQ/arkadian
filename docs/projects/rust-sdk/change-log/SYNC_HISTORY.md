@@ -1,5 +1,29 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-06-10 - Reverse-swap to another Arkade user + restored finalize-pending-offchain-tx API
+**From**: `8c0e8e3d91ab80e8107415072cf6351573eac19f`
+**To**: `6d33b088ead85f75e12bf069d4596b2f8add2fa2`
+**Synced By**: update-project skill
+**Commits analyzed**: 4 (no merges)
+
+**Summary**: Two SDK-consumer-facing additions on top of `0.9.2`. (1) `ark-client`'s reverse-swap flow can now invoice into another Arkade user's address: `ReverseSwapData` gains an optional `claim_address: Option<ArkAddress>` (persisted by the SQLite row), `ArkAddress` gets a `server() -> XOnlyPublicKey` accessor, and a new public `Client::get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)` creates the swap — the recipient address is validated to share the same arkd signer before persisting; existing `get_ln_invoice*` paths continue to claim into a fresh local address. (2) The submit-then-finalize offchain-tx API is opened up: `submit_offchain_tx` is no longer gated behind a feature flag (it's useful for consumers controlling work between submit and finalize), `finalize_offchain_tx` is now `pub`, and a new `finalize_pending_offchain_tx(ark_txid: Txid)` finalizes a single pending tx by `Txid` (re-fetches the pending list, finds the match, signs+finalizes; ad-hoc error if no match).
+
+**Changes**:
+- `Receive Lightning for another Arkade user` (`55d6ef0`) — `ark-client/src/boltz.rs` is restructured around a shared `create_reverse_swap_invoice` helper that takes an optional `recipient_address: Option<ArkAddress>`. New public API: `Client::get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)`. New private helpers `validate_reverse_recipient_address` (checks `recipient_address.server() == self.server_info.signer_pk`, otherwise returns `Error::consumer("recipient Arkade address belongs to a different server: …")`) and `reverse_claim_address` (returns the stored `claim_address` if set, else falls back to `get_offchain_address()`). `ReverseSwapData` gains `claim_address: Option<ArkAddress>` (persisted in the SQLite swap row — test fixture in `swap_storage/sqlite.rs` updated to default to `None`). `ark-core::ArkAddress` gains `pub fn server(&self) -> XOnlyPublicKey` to expose the encoded server signer key for the cross-server check. `ark-client-sample/src/main.rs` reverse-swap command is wired through the new path. **Behaviour-preserving** for callers who still use `get_ln_invoice*` without a recipient.
+- `chore(ark-client): Do not put submit_offchain_tx behind feature flag` (`7292c42`) — drops the `#[cfg(...)]` gating on `Client::submit_offchain_tx`. Motivation in the commit body: *"It can actually be useful for consumers to control what happens between submit and finalize."*
+- `chore(ark-client): Make finalize_offchain_tx public` (`d3adc0b`) — changes `finalize_offchain_tx` from crate-private to `pub`.
+- `fix(client): restore finalize pending offchain tx API` (`af1490a`) — re-adds `pub async fn finalize_pending_offchain_tx(&self, ark_txid: Txid) -> Result<(), Error>` on `Client`. Implementation: `fetch_pending_offchain_txs().await?`, `find` the entry with matching `ark_txid` (else `Error::ad_hoc("no pending transaction found for ark txid {ark_txid}")`), then `sign_and_finalize_pending_tx(pending_tx).await`. Companion `e2e-tests/tests/e2e_finalize_pending_tx.rs` (120 lines) covers the new API end-to-end.
+
+**Breaking changes**: None for indirect SDK consumers. Direct constructors of `ReverseSwapData` need to populate the new `claim_address: Option<ArkAddress>` field (mirrors the earlier `bolt11` / `invoice_expiry` additions); fixture-style callers can pass `None` to keep prior behaviour.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit`; Protocol Features Boltz bullet expanded with `get_ln_invoice_for_address` + `claim_address`; new Protocol Features bullet on granular offchain-tx control)
+- `docs/projects/rust-sdk/system/project_overview.md` (new top entry under Recent Additions; `ark-client` API list extended with the submit/finalize/finalize-pending trio and `get_ln_invoice_for_address`; swap-storage line annotated)
+- `docs/INDEX.md` (rust-sdk Key Capabilities — Boltz bullet expanded with the recipient-address flow + new offchain-tx control bullet)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-05-31 - 0.9.2 release + ark-grpc TLS fix + crates release CI
 **From**: `70eaa75ad5a910e4b35a7002137cc769e9973268`
 **To**: `8c0e8e3d91ab80e8107415072cf6351573eac19f`
