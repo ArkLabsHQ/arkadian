@@ -167,7 +167,9 @@ Provides administrative operations for ASP operators.
 - `GetRoundDetails()` - Comprehensive round information; `FeesAmount` is now populated from the persisted `round.CollectedFees` (previously hard-coded `0`)
 - `GetRounds()` - List of round IDs within time range
 - `GetScheduledSweeps()` - All scheduled sweep tasks
+- `GetExpiredRounds(ctx) ([]domain.ExpiredRound, error)` - Returns sweepable rounds (`swept=false`, `ended=true`, `failed=false`, with a vtxo tree) whose batch outputs have already expired (`ending_timestamp + vtxo_tree_expiration < time.Now().Unix()` at call time). Each `ExpiredRound` carries `{RoundId, CommitmentTxid, ExpiredAt}` (Unix-seconds expiry). Delegates to `repoManager.Rounds().GetExpiredRounds(ctx, time.Now().Unix())`. Meant to surface rounds for which a sweep should have run but likely failed (e.g., uneconomical fee conditions). REST: `GET /v1/admin/rounds/expired`. Macaroon: `manager:read`. CLI: `arkd expired-rounds`. (PR #1095)
 - `GetWalletAddress/Status()` - Wallet operations
+- `GetMainAccountUtxos(ctx) ([]ports.WalletUtxo, error)` - Lists the **whole** UTXO set of the wallet's main account, including unconfirmed and locked UTXOs each flagged via `Confirmations` / `Locked`. Pure delegation to `walletSvc.GetMainAccountUtxos`. Each `WalletUtxo` is `{Txid, Vout, Value, Script (hex), Address, Confirmations, Locked}`. REST: `GET /v1/admin/wallet/utxos`. Macaroon: `manager:read`. CLI: `arkd wallet-utxos`. (PR #1094)
 - `CreateNotes()` - Creates note VTXOs for onboarding
 - `GetMarketHourConfig/UpdateMarketHourConfig()` - Market hours management
 - `ListIntents/DeleteIntents()` - Intent queue management

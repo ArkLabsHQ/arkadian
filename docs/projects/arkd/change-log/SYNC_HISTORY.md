@@ -1,5 +1,50 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-11 - Documentation Update
+**Commit**: `d5a32a25` (arkd repository)
+**Previous Sync**: `75066cc2`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `d5a32a25` Admin api to list expired batches (#1095)
+- `9d1c7ce5` arkd-wallet: Improve Withdraw RPC + add GetMainAccountUtxos (#1094)
+
+**Features Added (PR #1095 — `AdminService.GetExpiredRounds`)**:
+- New domain type `domain.ExpiredRound { RoundId string; CommitmentTxid string; ExpiredAt int64 }` and a new method on the domain interface (`internal/core/domain/round_repo.go`): `RoundRepository.GetExpiredRounds(ctx, expiredBefore int64) ([]ExpiredRound, error)`. Returns the sweepable rounds (those with a vtxo tree, `swept = false`, `ended = true`, `failed = false`) whose `ending_timestamp + vtxo_tree_expiration < expiredBefore`. `ExpiredAt` is `ending_timestamp + vtxo_tree_expiration` (Unix seconds).
+- SQL implementations use a new sqlc query `SelectExpiredRounds` (`internal/infrastructure/db/{postgres,sqlite}/sqlc/query.sql`): `SELECT r.id, r.txid, CAST(r.ending_timestamp + r.vtxo_tree_expiration AS BIGINT) AS expired_at FROM round_with_commitment_tx_vw r WHERE r.swept = false AND r.ended = true AND r.failed = false AND (r.ending_timestamp + r.vtxo_tree_expiration) < @now AND EXISTS (SELECT 1 FROM tx tree_tx WHERE tree_tx.round_id = r.id AND tree_tx.type = 'tree')` — the same predicate as `SelectSweepableRounds` plus the expiry-before-now clause. Badger iterates rounds in-memory and applies the same filter (`internal/infrastructure/db/badger/ark_repo.go`).
+- New `AdminService.GetExpiredRounds(ctx) ([]domain.ExpiredRound, error)` (`internal/core/application/admin.go`) that calls `repoManager.Rounds().GetExpiredRounds(ctx, time.Now().Unix())`.
+- New gRPC handler `adminHandler.GetExpiredRounds` (`internal/interface/grpc/handlers/adminservice.go`) that maps repo failures to `codes.Internal`. Macaroon permission `manager:read` added to `AllPermissionsByMethod` for the new method (`internal/interface/grpc/permissions/permissions.go`).
+- New proto messages `GetExpiredRoundsRequest`, `GetExpiredRoundsResponse { repeated ExpiredRound rounds = 1 }`, and `ExpiredRound { string round_id = 1; string commitment_txid = 2; int64 expired_at = 3 }` plus the `AdminService.GetExpiredRounds` RPC bound to `GET /v1/admin/rounds/expired` (`api-spec/protobuf/ark/v1/admin.proto` + regenerated `gen/...` + `api-spec/openapi/swagger/ark/v1/admin.openapi.json`).
+- New CLI subcommand `arkd expired-rounds` (`cmd/arkd/commands.go`, `cmd/arkd/main.go`) that GETs `/v1/admin/rounds/expired` and pretty-prints the `rounds` array.
+
+**Features Added (PR #1094 — `AdminService.GetMainAccountUtxos` + Withdraw selector rewrite)**:
+- New `ports.WalletService.GetMainAccountUtxos(ctx) ([]WalletUtxo, error)` on the wallet port (`internal/core/ports/wallet.go`) and new type `ports.WalletUtxo { Txid string; Vout uint32; Value uint64; Script string (hex); Address string; Confirmations uint32; Locked bool }`. Returns the whole UTXO set of the main account, including unconfirmed and locked UTXOs, each flagged accordingly.
+- New `AdminService.GetMainAccountUtxos(ctx) ([]ports.WalletUtxo, error)` (`internal/core/application/admin.go`) — pure delegation to `walletSvc.GetMainAccountUtxos`. New gRPC handler `adminHandler.GetMainAccountUtxos` mapping the slice to `arkv1.WalletUtxo`. Macaroon permission `manager:read` added for the new method.
+- arkd-side proto: new messages `GetMainAccountUtxosRequest`, `GetMainAccountUtxosResponse { repeated WalletUtxo utxos = 1 }`, and `WalletUtxo { string txid = 1; uint32 vout = 2; uint64 value = 3; string script = 4; string address = 5; uint32 confirmations = 6; bool locked = 7 }` plus the `AdminService.GetMainAccountUtxos` RPC bound to `GET /v1/admin/wallet/utxos`.
+- arkd-wallet-side proto: matching `GetMainAccountUtxosRequest`/`GetMainAccountUtxosResponse`/`WalletUtxo` messages and a new `WalletService.GetMainAccountUtxos` RPC bound to `GET /v1/wallet/main-account-utxos` (`api-spec/protobuf/arkwallet/v1/bitcoin_wallet.proto`). Implementation in `pkg/arkd-wallet/core/application/wallet/service.go` and the gRPC handler in `pkg/arkd-wallet/interface/grpc/handlers/wallet_handler.go`. Locked status comes from a `locker.get(ctx)` snapshot.
+- New CLI subcommand `arkd wallet-utxos` (`cmd/arkd/commands.go`, `cmd/arkd/main.go`) that GETs `/v1/admin/wallet/utxos` and pretty-prints the `utxos` array.
+- Withdraw RPC coin-selection rewrite (`pkg/arkd-wallet/core/application/wallet/{coinselect,service}.go`):
+  - Replaces the package-level `var coinSelector = MinNumberCoinSelector{50, 800}` with a `newCoinSelector(minChangeAmount btcutil.Amount)` constructor and two named constants: `maxSelectionInputs = 50`, `defaultMinChangeAmount = 330` (down from 800; aligned with the P2TR/P2WSH dust limit).
+  - New `effectiveValueCoin` wraps a `coin` and overrides `Value()` to return `realValue − perInputFee`, so the selector ranks and accumulates by effective value while transaction building still uses the real outpoint/script/value.
+  - New `selectCoinsForWithdraw(amount, feeRate, destPkScript)` builds `perInputFee = fee(2 inputs) − fee(1 input)` and `baseFee = fee(1 input) − perInputFee` from the weight estimator, filters out UTXOs with `value <= perInputFee` (uneconomical to spend), wraps the rest as `effectiveValueCoin`, and runs `newCoinSelector(0).CoinSelect(amount + baseFee, ...)`. The chosen UTXOs always cover `amount` plus the fee for their **actual** input count — eliminating the prior re-selection loop that pre-estimated for a "typical 2-input" withdraw and could under-/over-fund.
+  - `SelectUtxos` is refactored onto a shared `selectCoins(amount, confirmedOnly, minChangeAmount)` helper and now uses `defaultMinChangeAmount`. Locking is split out into a new `lockUtxos(ctx, utxos)` (and lockless `selectCoins` no longer locks).
+  - New `unlockUtxos(ctx, utxos)` plus a new `outpointLocker.unlock(ctx, outpoints...)` method (`pkg/arkd-wallet/core/application/wallet/outpoint_locker.go`) that deletes outpoints from the in-memory `lockedOutpoints` map.
+  - `Withdraw` (`pkg/arkd-wallet/core/application/wallet/service.go`) installs a `defer` that, if `broadcasted` is still `false`, unlocks every `ptx.UnsignedTx.TxIn.PreviousOutPoint`. So a signing or broadcasting failure releases the per-withdraw locks immediately instead of waiting for the lock expiry. (withdrawAll inputs aren't locked, so this is a no-op for that path.)
+- New `pkg/arkd-wallet/core/application/types.go::MainAccountUtxo` type carrying the same shape as `ports.WalletUtxo` to keep the cross-process boundary clean.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: three new capability bullets — `GetExpiredRounds` admin endpoint, `GetMainAccountUtxos` admin endpoint, Withdraw effective-value coin selection; new tags `expired-rounds`, `wallet-utxos`, `effective-value-selection`; new `ask_question` triggers `expired rounds`/`wallet utxos`; new `develop` triggers `expired rounds endpoint`/`wallet utxos endpoint`/`withdraw coin selection`)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.7 → 1.3.8)
+- docs/projects/arkd/system/application_core.md (Admin Service method list expanded with `GetExpiredRounds` and `GetMainAccountUtxos`)
+- docs/projects/arkd/system/repo_manager.md (RoundRepository: added `GetExpiredRounds` with the SQL/badger predicate and `ExpiredRound` shape)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+**Note**: Both PRs are **additive and non-breaking** at every API surface: new RPCs, new proto messages, new macaroon entries, new CLI subcommands, new domain types, and a new port method. The only behavior change to an existing flow is `Withdraw`'s coin selection — it now selects by **effective value** against `amount + baseFee` (so the input count and fee are jointly consistent) rather than pre-estimating fees for "typical 2 inputs" and re-selecting on shortfall. The dust threshold for the general-purpose `SelectUtxos` path is also lowered from 800 sats to 330 sats, which means some previously-rejected selections (those that would leave 330–799 sats of change) are now accepted; the Withdraw path passes `MinChangeAmount: 0` so sub-dust change there is folded into the fee instead of becoming a change output. The `outpointLocker.unlock` method is a pure addition. The new admin endpoints require `manager:read` macaroons, matching the rest of the read-only admin surface.
+
+---
+
 ## 2026-06-09 - Documentation Update
 **Commit**: `75066cc2` (arkd repository)
 **Previous Sync**: `6db7a6b7`

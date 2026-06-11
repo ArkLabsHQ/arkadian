@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.20
-last_sync_commit: 77b81f7f4ff021f0eeb012192236b40032775f6d
+version: 1.2.21
+last_sync_commit: 1637f4d02f3887b7605bc47c9df5a485c26be9c7
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -194,8 +194,8 @@ pnpm run format:check
 - **shadcn migration of core components (PR #593)**: `Modal`, `Checkbox`, `Select`, and `Toggle` now sit on shadcn primitives. `Modal` uses Framer Motion `AnimatePresence` with new `open`/`onOpenChange`/`onExitComplete` controlled-modal props (Burn/Reissue use `onExitComplete` for async coordination; Backup/Announcement use controlled props). `Checkbox` wraps shadcn `Checkbox` with label-bound control path and same-state event guard. `Select` migrates to shadcn `RadioGroup` (preserves arrow-key navigation). `Toggle` uses shadcn `Switch` with a new `lg` size variant (iOS-like three-layer shadow, 44 px minimum tap target). `MAX_DECIMALS` raised to 8. New `vitest.config.ts` split out from `vite.config.ts`. Uses `cmdk-base` / `vaul-base` and `@base-ui/react`. `bun.lock` restored at repo root for Cloudflare Pages deploys.
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.33): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.32 in PR #650
-- **@arkade-os/boltz-swap** (0.3.38): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.37 in PR #650. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
+- **@arkade-os/sdk** (0.4.34): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.33 in PR #655
+- **@arkade-os/boltz-swap** (0.3.39): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.38 in PR #655. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`)
 
 ### Bitcoin/Cryptography

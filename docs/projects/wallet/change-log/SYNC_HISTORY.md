@@ -1,5 +1,39 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-11 - Documentation Sync
+**Commit**: `1637f4d02f3887b7605bc47c9df5a485c26be9c7`
+**Previous Sync**: `77b81f7f4ff021f0eeb012192236b40032775f6d`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `1637f4d0` Upgrade ts-sdk 0.4.34 - boltz-swap 0.3.39 (#655)
+
+**Dependency Bump** (PR #655, commit `1637f4d0`): bumps the two Arkade JS libraries in `package.json` and refreshes `pnpm-lock.yaml`. Pure version bump — no code changes anywhere else in the wallet tree.
+- `@arkade-os/sdk`: 0.4.33 → 0.4.34
+- `@arkade-os/boltz-swap`: 0.3.38 → 0.3.39
+
+**Features Added / Modified / Removed**: None — pure dependency bump.
+**Configuration Changes**: None — no new env vars, no new build/test commands, no `pnpm-workspace.yaml` changes.
+**Breaking Changes**: None expected for the wallet (patch-level bump of both packages).
+
+**Files Touched in Repo** (2 files):
+- `package.json`
+- `pnpm-lock.yaml`
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.20 → 1.2.21 + `last_sync_commit`; `@arkade-os/sdk` 0.4.33 → 0.4.34 and `@arkade-os/boltz-swap` 0.3.38 → 0.3.39 in the Arkade Integration section (PR ref updated to #655, prior-PR pnpm-workspace context retained).
+- `docs/projects/wallet/system/tech-stack.md` — `@arkade-os/sdk` heading 0.4.33 → 0.4.34 and `@arkade-os/boltz-swap` heading 0.3.38 → 0.3.39.
+- `docs/projects/wallet/change-log/last-sync.txt` → `1637f4d02f3887b7605bc47c9df5a485c26be9c7`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+- `docs/INDEX.md` — wallet **Key Capabilities** SDK-versions bullet bumped to 0.4.34 / 0.3.39 (PR #655, with PR #637 pnpm-workspace baseline retained); **Dependencies** line bumped to `@arkade-os/sdk` 0.4.34 + `@arkade-os/boltz-swap` 0.3.39.
+
+**Files Not Updated** (intentional):
+- `system/project_overview.md` — its `@arkade-os/sdk` / `@arkade-os/boltz-swap` version mentions had already drifted across multiple syncs without being touched; kept stable here to avoid scope creep, consistent with prior sync conventions.
+- `system/architecture.md`, `system/ark-sdk-integration.md`, `sop/development-workflow.md`, `testing/how_to_run.md`, `testing/how_to_test.md` — no API surface, build script, or env var changed; nothing to resync.
+
+---
+
 ## 2026-06-10 - Documentation Sync
 **Commit**: `77b81f7f4ff021f0eeb012192236b40032775f6d`
 **Previous Sync**: `6073145afa5b0c9d80185183608036ca0a4c886e`

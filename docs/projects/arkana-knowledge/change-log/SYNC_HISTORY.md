@@ -1,5 +1,50 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-11 - Operational Memory Sync (no doc changes)
+**Commit Range**: `90d79f69..bd987037` (12 commits, all `memory(*)` agent activity)
+**Previous Sync**: `90d79f6961e608b1be03a07928735625fe14728a` (2026-06-10T04:11:09Z)
+**Caller-Asserted From**: `90d79f6961e608b1be03a07928735625fe14728a` (matches previous sync — fast-forward only)
+**Current Sync**: `bd9870378a9970f3afd435c7c6d12ca2b2eaf481` (committed 2026-06-11T04:21:45Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (12, all internal agent state)**:
+- `bd98703` memory(release-coordinator): release check 2026-06-11T00:00:00Z — quiet window
+- `017e016` memory(repo-detector): scan 2026-06-10 — internal rebalancing, +price-chart-proxy -banco
+- `dcdaac7` memory(release-coordinator): release check 2026-06-10T20:00:00Z — CRITICAL rust-sdk#238 merged (missed); funds misdirection bug on master
+- `7b205d3` memory(slack-monitor): daily scan 2026-06-10 — arkd-wallet security migration PR, arkd signer-rotation + Boltz VHTLC recovery PR, TX_TOO_LARGE fix propagated to fulmine, 3 prod UX bugs, ci_integration 4 failures, EE2E-KV Verify Enclave day 28+
+- `8a87562` memory(daily-briefing): morning briefing 2026-06-10
+- `b250560` memory(research-monitor): research update 2026-06-10 — Isogeny PQC (<300 byte key+sig); P2MR/BIP-360 now has 5 senior devs (sipa, ajtowns, RubenSomsen, AntoineP, Conduition); PQ landscape converging on hybrid EC+PQ; CTV still 0% at 16+ weeks
+- `da381ee` memory(linear-sync): state snapshot 2026-06-10 — 56th consecutive day of zero Linear activity; escalation 29 days unacknowledged; DES-7 crosses 100-day stale milestone
+- `5b581ac` memory(executive-digest): major release + API expansion + violations 2026-06-10
+- `1c4d085` memory(release-coordinator): release check 2026-06-10T16:00:00Z
+- `94b4bdc` memory(release-coordinator): release check 2026-06-10T12:00:00Z — quiet window
+- `7fba0c7` memory(release-coordinator): release check 2026-06-10T08:00:00Z — quiet window
+- `08fba52` memory(release-coordinator): release check 2026-06-10T04:00:00Z — quiet window
+
+**Files Changed (all under `memory/`)**: 12 files, +382/-60 lines
+- agent-logs: daily-briefing, executive-digest, linear-sync, release-coordinator, repo-detector, research-monitor, sdk-parity, slack-monitor
+- executive-digest-queue.json, project-context/{research-updates,sdk-parity}.md, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. Notable ecosystem events (rust-sdk#238 funds misdirection on master, arkd-wallet security migration PR, signer-rotation + Boltz VHTLC recovery PR, Isogeny PQC research, repo set rebalancing +price-chart-proxy/-banco) are tracked in agent memory only and do not alter arkana-knowledge's own structure, 17-agent roster, or capabilities documented in INDEX.md.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `bd9870378`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; the 17-agent roster, MCP server, Slack bot, webhook relay, and dependency surface are all unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- `repo-detector` rebalancing (+price-chart-proxy/-banco) is a change in *observed* repos, not in arkana-knowledge's own structure — no doc impact
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-09 - Operational Memory Sync (no doc changes)
 **Commit Range**: `a0ff37ad..40e8a87e` (19 commits, all `memory(*)` agent activity)
 **Previous Sync**: `a0ff37add2df0a8a266a4f3eea61943568cb05f1` (2026-06-08T04:00:00Z)
