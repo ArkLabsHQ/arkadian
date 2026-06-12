@@ -8,7 +8,7 @@ The application layer orchestrates Ark protocol use cases by coordinating domain
 
 The core `service` struct orchestrates all Ark operations with injected dependencies:
 - **Services:** Wallet, Signer, RepoManager, TxBuilder, Scanner, LiveStore, Scheduler
-- **Configuration:** Network parameters, timelock settings, round limits, amount limits
+- **Configuration:** Network parameters from env; timelock settings, round limits, and amount limits now read from the DB-persisted Settings row via the live-store settings cache (PR #939)
 - **Runtime State:** Event channels, transaction events, forfeit signature channels
 
 ## Service Lifecycle Methods
@@ -172,6 +172,8 @@ Provides administrative operations for ASP operators.
 - `GetMainAccountUtxos(ctx) ([]ports.WalletUtxo, error)` - Lists the **whole** UTXO set of the wallet's main account, including unconfirmed and locked UTXOs each flagged via `Confirmations` / `Locked`. Pure delegation to `walletSvc.GetMainAccountUtxos`. Each `WalletUtxo` is `{Txid, Vout, Value, Script (hex), Address, Confirmations, Locked}`. REST: `GET /v1/admin/wallet/utxos`. Macaroon: `manager:read`. CLI: `arkd wallet-utxos`. (PR #1094)
 - `CreateNotes()` - Creates note VTXOs for onboarding
 - `GetMarketHourConfig/UpdateMarketHourConfig()` - Market hours management
+- `GetSettings(ctx) (*ports.Settings, error)` - Returns the DB-persisted operational settings (PR #939). REST: `GET /v1/admin/settings`. Macaroon: `manager:read`.
+- `UpdateSettings(ctx, settings)` - Partial update of the unified settings row (PR #939): only the fields present in the request are changed, the rest are left untouched. Validates locktime rules (>= 512 = seconds, < 512 = blocks; block-based only on regtest), amount min/max consistency (vtxo/utxo max >= min), uint32 overflow guards, `MaxTxWeight`, `BanThreshold`, `CheckpointExitDelay`, and `max_op_return_outputs > 0`. The read-modify-write flow (and the scheduled-session/batch-fee mutators) is serialized under a mutex with a synchronous live-store cache refresh, so concurrent admin updates can't lose each other or leave the cache behind the DB. Returns a `change_log` (list of human-readable change descriptions); changes are also warn-logged. REST: `POST /v1/admin/settings`. Macaroon: `manager:write`.
 - `ListIntents/DeleteIntents()` - Intent queue management
 - `GetExpiringLiquidity()` / `GetRecoverableLiquidity()` - Liquidity analysis
 - `GetCollectedFees(ctx, after, before) (uint64, error)` - Aggregate sats collected by the operator across **completed (non-failed)** rounds in the `(after, before]` window (Unix-seconds, exclusive bounds; `0` means unbounded; range validated server-side: `after < 0` / `before < 0` / `after >= before` → `InvalidArgument`). Sums `round.CollectedFees` directly. For rounds finalized before fee persistence existed (`CollectedFees == 0` on disk) the value is recomputed on the fly: boarding input amounts are recovered by deserializing the finalized commitment tx, classifying each input as boarding via `isBoardingWitness` (taproot script-path control block: last witness element of length `33 + 32m` with leaf-version byte `0xc0`), and looking each prevout amount up via `walletSvc.GetTransaction`. The recompute is wrapped by `recomputeCollectedFees`, which returns a `complete` flag — only complete recomputations are persisted via `RoundRepository.PatchCollectedFees` in a background goroutine bounded by a `30s` `context.WithoutCancel` timeout (so the request's own context cancellation cannot abort the patch). Incomplete recomputations (boarding lookup failed) are still summed into the response but **never written**, so the on-disk value can be retried later. REST: `GET /v1/admin/fees/collected`. Macaroon: `manager:read`.
@@ -186,7 +188,7 @@ Provides administrative operations for ASP operators.
 
 **SignerService** - ASP's signing public key provider
 
-**RepoManager** - Access to all repository interfaces (Events, Rounds, Vtxos, OffchainTxs, MarketHourRepo)
+**RepoManager** - Access to all repository interfaces (Events, Rounds, Vtxos, OffchainTxs, Convictions, Assets, Settings)
 
 **TxBuilder** - Complex Bitcoin transaction construction (commitment, forfeit, sweep)
 
@@ -194,7 +196,7 @@ Provides administrative operations for ASP operators.
 
 **SchedulerService** - Schedules tasks at specific times or block heights
 
-**LiveStore** - In-memory cache for current round state (Intents, ForfeitTxs, OffchainTxs, CurrentRound, ConfirmationSessions, TreeSigningSessions, BoardingInputs)
+**LiveStore** - In-memory cache for current round state (Intents, ForfeitTxs, OffchainTxs, CurrentRound, ConfirmationSessions, TreeSigningSessions, BoardingInputs, Settings). The `SettingsStore` (PR #939, inmemory + redis implementations) caches `ports.Settings` — the persisted `domain.Settings` enriched with runtime values (network, dust amount, signer/forfeit pubkeys, forfeit address, checkpoint tapscript) — and exposes a `Digest()` used for the GetInfo response. The cache is refreshed synchronously whenever the settings row is updated via the admin API. The effective vtxo/utxo min amounts (dust-resolved when configured as `-1`) live only in this cache, never written back to the DB.
 
 ## Event-Driven Architecture
 

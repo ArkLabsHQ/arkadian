@@ -35,10 +35,10 @@ Batch settlement cycles that process multiple transactions together. Rounds aggr
 3. **Finalization** - Server builds and signs transaction tree
 4. **Broadcasting** - Commitment transaction published on-chain
 
-**Configuration:**
-- `ARKD_ROUND_INTERVAL`: Time between rounds (default: 30s)
-- `ARKD_ROUND_MIN_PARTICIPANTS_COUNT`: Minimum participants (default: 1)
-- `ARKD_ROUND_MAX_PARTICIPANTS_COUNT`: Maximum participants (default: 128)
+**Configuration (DB-persisted settings, seeded from env on first boot only):**
+- `session_duration`: Session duration (default: 30s)
+- `round_min_participants_count`: Minimum participants (default: 1)
+- `round_max_participants_count`: Maximum participants (default: 128)
 
 ### Covenantless Architecture
 Transaction builder implementation that doesn't require Bitcoin covenants, making it compatible with current Bitcoin consensus rules.
@@ -147,6 +147,9 @@ Client SDK for building wallets and applications in Go.
 - Unilateral redemptions
 
 ## Major Features (Recent)
+
+### DB-Persisted Settings with Admin CRUD API (PR #939)
+Operational settings (exit delays, amount limits, round participants, ban config, tx weight limits, fees, scheduled session) now live in a single database row (`domain.Settings`) — the source of truth at runtime. `ARKD_*` settings env vars are used **only on the first boot** to seed the row; afterwards they are ignored and settings are managed via `GET`/`POST /v1/admin/settings` (partial updates with server-side validation and a returned change log). Legacy `intent_fees`/`scheduled_session` table contents are migrated into the settings row on first boot. `ARKD_SCHEDULER_TYPE` and `ARKD_ALLOW_CSV_BLOCK_TYPE` were removed; the scheduler is derived from the `vtxo_tree_expiry` locktime type.
 
 ### Fee System (CEL-Based)
 Programmable fee management using CEL (Common Expression Language) formulas. Supports per-intent-type fees (onchain input, offchain input, onchain output, offchain output) with admin APIs for managing fee programs and a client-facing fee estimation RPC.

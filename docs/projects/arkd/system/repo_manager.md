@@ -8,14 +8,21 @@ The RepoManager provides a unified interface for accessing all data repositories
 
 ```go
 type RepoManager interface {
-    Events() EventRepository
-    Rounds() RoundRepository
-    Vtxos() VtxoRepository
-    MarketHourRepo() MarketHourRepo
-    OffchainTxs() OffchainTxRepository
+    Events() domain.EventRepository
+    Rounds() domain.RoundRepository
+    Vtxos() domain.VtxoRepository
+    OffchainTxs() domain.OffchainTxRepository
+    Convictions() domain.ConvictionRepository
+    Assets() domain.AssetRepository
+    Settings() domain.SettingsRepository
+    RegisterBatchUpdateHandler(handler func(data domain.Round))
+    RegisterOffchainTxUpdateHandler(handler func(data domain.OffchainTx))
+    RegisterSettingsUpdateHandler(handler func(data domain.Settings, changelog []string))
     Close()
 }
 ```
+
+> **PR #939:** `ScheduledSession() domain.ScheduledSessionRepo` and `Fees() domain.FeeRepository` were **removed** — both are absorbed into the unified `Settings()` repository. The legacy `intent_fees` and `scheduled_session` tables are migrated into the settings row on first boot, then emptied (to be dropped in a future release).
 
 ## Repository Interfaces
 
@@ -69,14 +76,16 @@ Manages offchain (collaborative) transactions and checkpoint transactions.
 
 **Schema:** Stores offchain transactions with stage progression and checkpoint transaction tree.
 
-### MarketHourRepo
-Manages market operating hours configuration.
+### SettingsRepository (PR #939)
+Manages the unified operational settings row — single source of truth for exit delays, amount limits, round participants, ban config, tx weight limits, batch fees (`BatchFees`), and the scheduled session.
 
 **Key Methods:**
-- `Get(ctx)` - Retrieves current configuration
-- `Upsert(ctx, marketHour)` - Creates or updates configuration
+- `Get(ctx) (*domain.Settings, error)` - Retrieves the settings row
+- `Upsert(ctx, settings, changelog []string)` - Creates or updates the row; the changelog describes what changed
+- `RegisterUpdatesHandler(handler func(Settings, []string))` - Subscribes to settings changes (used to refresh the live-store settings cache)
+- `Close()` - Cleanup
 
-**Schema:** Stores start time, end time, period, and round interval for market hours.
+**Schema:** A single row holding all `domain.Settings` fields plus `updated_at`. Migrations: `20260609120123_add_settings` (sqlite), `20260609120126_add_settings` (postgres); badger has a dedicated `settings_repo.go` (with ctx-cancellation-aware retry in `Upsert`). First-boot seeding (`settings_seed.go` per backend) populates the row from `ARKD_*` env vars / defaults, validating before persisting, and carries over the latest legacy `intent_fees` / `scheduled_session` rows.
 
 ## Event Sourcing + CQRS
 
@@ -156,7 +165,7 @@ Distinguish between "not found" and actual errors - not found should return nil,
 - Uses sqlc for type-safe query generation
 - Complex views with string_agg for aggregations
 - JSONB for tree structures
-- golang-migrate for schema migrations (latest: `20260527150000_vtxo_commitment_txid_index` adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk-pubkey join used by sweeper restore stays fast as the sweepable-round set grows)
+- golang-migrate for schema migrations (latest: `20260609120126_add_settings` creates the unified settings table; before that `20260527150000_vtxo_commitment_txid_index` adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk-pubkey join used by sweeper restore stays fast as the sweepable-round set grows)
 - Watermill for event streaming
 
 ### SQLite

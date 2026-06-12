@@ -1,5 +1,36 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-12 - Documentation Sync
+**Commit**: `13f2652270ad89e054f85d2d47dc8fbd8c7655ab`
+**Previous Sync**: `1637f4d02f3887b7605bc47c9df5a485c26be9c7`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `13f26522` fix(assets): handle scientific notation in prettyAssetNumber (#665)
+
+**Bug Fix** (PR #665, commit `13f26522`): `prettyAssetNumber` in `src/lib/assets.ts` now converts scientific-notation inputs to fixed-point via `new Decimal(num).toFixed()` before splitting on `.`. Previously, `Number()`-coerced tiny fractions like `-8e-8` had the `e` stripped by the digit-filtering regex, producing `-8-8`, which `BigInt` rejects. New unit tests cover `prettyAssetNumber('-8e-8')` and tiny negative fractional amounts via `prettyAssetAmount(BigInt(-8), 8, true)`.
+
+**Features Added / Modified / Removed**: None — display-formatting bug fix only.
+**Configuration Changes**: None — no new env vars, dependencies, or build/test commands.
+**Breaking Changes**: None.
+
+**Files Touched in Repo** (2 files):
+- `src/lib/assets.ts`
+- `src/test/lib/asset.test.ts`
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.21 → 1.2.22 + `last_sync_commit`.
+- `docs/projects/wallet/system/project_overview.md` — Asset Amount Precision section: noted the PR #665 scientific-notation fix on the `prettyAssetNumber` companion-helpers bullet.
+- `docs/INDEX.md` — wallet Key Capabilities: extended the `prettyAssetNumber` hardening bullet with the PR #665 scientific-notation fix.
+- `docs/projects/wallet/change-log/last-sync.txt` → `13f2652270ad89e054f85d2d47dc8fbd8c7655ab`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `system/architecture.md`, `system/tech-stack.md`, `system/ark-sdk-integration.md`, `sop/`, `testing/` — no API surface, dependency, env var, or build/test change; nothing to resync.
+
+---
+
 ## 2026-06-11 - Documentation Sync
 **Commit**: `1637f4d02f3887b7605bc47c9df5a485c26be9c7`
 **Previous Sync**: `77b81f7f4ff021f0eeb012192236b40032775f6d`

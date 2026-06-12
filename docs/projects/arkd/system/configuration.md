@@ -4,6 +4,13 @@
 
 arkd uses environment variables with the `ARKD_` prefix for configuration. The system provides sensible defaults, validates at startup, and supports multiple deployment scenarios (development, testing, production).
 
+**Two-tier model (PR #939):** configuration is now split into two categories:
+
+1. **Infrastructure variables** (database, wallet/signer addresses, ports, TLS, unlocker, observability, …) — read from the environment on **every** boot, as before.
+2. **Operational settings** (exit delays, amount limits, round participants, ban config, tx weight, fees, scheduled session, …) — persisted as a **single row in the database** (`domain.Settings`). The corresponding `ARKD_*` env vars are used **only on first boot** to seed that row (defaults apply if unset). On every later boot the env vars are **ignored** — the stored row wins — and settings are managed exclusively via the admin API (`GET`/`POST /v1/admin/settings`, partial updates). The seed runs once, gated on the settings table being empty, and never overwrites admin changes. Legacy `intent_fees` / `scheduled_session` rows are carried over into the settings row during the first-boot seed.
+
+See `docs/settings.md` in the arkd repo for the full seed-variable table and lifecycle diagram.
+
 ## Key Environment Variables
 
 ### Server Configuration
@@ -30,30 +37,59 @@ arkd uses environment variables with the `ARKD_` prefix for configuration. The s
 - `ARKD_SIGNER_ADDR` (default: WALLET_ADDR) - Signer service address
 - `ARKD_ESPLORA_URL` (default: https://blockstream.info/api) - Esplora API URL
 
-### Round Configuration
-- `ARKD_ROUND_INTERVAL` (default: 30) - Interval between rounds in seconds
+### Operational Settings (First-Boot Seed Only)
+
+> **These variables only matter on the first boot against an empty settings table.** After that they are ignored; change values via `POST /v1/admin/settings` instead. Setting names in the DB/API are the snake_case form without the `ARKD_` prefix (e.g. `vtxo_min_amount`).
+
+**Round / session:**
 - `ARKD_SESSION_DURATION` (default: 30) - Session duration in seconds; must be >=2 and <= `ARKD_UNROLLED_VTXO_MIN_EXPIRY_MARGIN`
-- `ARKD_SCHEDULER_TYPE` (default: gocron) - Scheduler type: gocron, block
+- `ARKD_UNROLLED_VTXO_MIN_EXPIRY_MARGIN` (default: 300) - Minimum expiry margin for unrolled VTXOs, in seconds
 - `ARKD_ROUND_MIN_PARTICIPANTS_COUNT` (default: 1) - Minimum participants
 - `ARKD_ROUND_MAX_PARTICIPANTS_COUNT` (default: 128) - Maximum participants
 
-### Security Settings
+**Timelocks (relative locktimes: >= 512 = seconds, < 512 = blocks; block-based only on regtest):**
 - `ARKD_VTXO_TREE_EXPIRY` (default: 604672) - VTXO tree expiration (7 days in seconds)
 - `ARKD_UNILATERAL_EXIT_DELAY` (default: 86400) - Exit delay (24 hours in seconds)
-- `ARKD_PUBLIC_UNILATERAL_EXIT_DELAY` (default: same as UNILATERAL_EXIT_DELAY) - Public unilateral exit delay
+- `ARKD_PUBLIC_UNILATERAL_EXIT_DELAY` (default: 86400) - Public unilateral exit delay
+- `ARKD_CHECKPOINT_EXIT_DELAY` (default: 86400) - Checkpoint exit delay
 - `ARKD_BOARDING_EXIT_DELAY` (default: 7776000) - Boarding delay (3 months in seconds)
-- `ARKD_ALLOW_CSV_BLOCK_TYPE` (default: false) - Allow block-height timelocks
+
+**Validation / limits:**
 - `ARKD_VTXO_NO_CSV_VALIDATION_CUTOFF_DATE` (default: 0) - Skip CSV validation for VTXOs created before this Unix timestamp (disabled by default)
 - `ARKD_SETTLEMENT_MIN_EXPIRY_GAP` (default: 0) - Minimum expiry gap for settlement (disabled by default)
-
-### Amount Limits
-- `ARKD_UTXO_MAX_AMOUNT` (default: -1) - Maximum UTXO amount (-1 = no limit)
+- `ARKD_UTXO_MAX_AMOUNT` (default: -1) - Maximum UTXO amount (-1 = no limit, 0 = boarding disabled)
 - `ARKD_UTXO_MIN_AMOUNT` (default: -1) - Minimum UTXO amount (-1 = dust limit)
 - `ARKD_VTXO_MAX_AMOUNT` (default: -1) - Maximum VTXO amount (-1 = no limit)
 - `ARKD_VTXO_MIN_AMOUNT` (default: -1) - Minimum VTXO amount (-1 = dust limit)
+- `ARKD_MAX_TX_WEIGHT` (default: 40000) - Maximum transaction weight in weight units
+- `ARKD_MAX_OP_RETURN_OUTS` (default: 3) - Maximum OP_RETURN outputs (floored to a minimum of 1)
+- `ARKD_ASSET_TX_MAX_WEIGHT_RATIO` (default: 0.5) - Asset tx max weight ratio, open interval (0, 1)
+
+**Anti-abuse:**
+- `ARKD_BAN_THRESHOLD` (default: 3) - Number of crimes to trigger a ban (0 disables banning)
+- `ARKD_BAN_DURATION` (default: 300) - Ban duration in seconds
+
+**Other:**
+- `ARKD_NOTE_URI_PREFIX` (default: "") - Note URI prefix
+
+**Removed variables:**
+- `ARKD_SCHEDULER_TYPE` **[REMOVED]** - The scheduler is now derived from the `vtxo_tree_expiry` locktime type (seconds → gocron, blocks → block scheduler)
+- `ARKD_ALLOW_CSV_BLOCK_TYPE` **[REMOVED]** - Block-based locktimes are simply allowed on regtest only
+- `ARKD_ROUND_INTERVAL` **[REMOVED]** - Superseded by `ARKD_SESSION_DURATION`
+
+### Admin Settings API
+
+Once seeded, settings are managed exclusively through the admin API (macaroon: `manager:read` / `manager:write`):
+
+| Endpoint                | Method | Description                                            |
+|-------------------------|--------|--------------------------------------------------------|
+| `/v1/admin/settings`    | GET    | Retrieve current settings (`AdminService.GetSettings`) |
+| `/v1/admin/settings`    | POST   | Update settings (`AdminService.UpdateSettings`; partial — only provided fields change; response returns a `change_log`) |
+
+Updates are validated server-side (locktime rules, amount min/max consistency, uint32 overflow guards, `MaxTxWeight`, `BanThreshold`, etc.), serialized under a mutex, and applied to the live-store settings cache synchronously, so concurrent updates can't lose each other. The scheduled-session (`/v1/admin/scheduledSession`) and batch-fee (`/v1/admin/intentFees`) endpoints now mutate the same unified settings row.
 
 ### Transaction Fees
-Fees are now managed via a programmable CEL formula engine (see Admin Fee APIs). The static `ARKD_ONCHAIN_OUTPUT_FEE` has been **[DEPRECATED]** and replaced by the dynamic fee system.
+Fees are managed via a programmable CEL formula engine (see Admin Fee APIs) and are persisted as `BatchFees` inside the unified settings row. The static `ARKD_ONCHAIN_OUTPUT_FEE` has been **[DEPRECATED]** and replaced by the dynamic fee system.
 
 ### Database Auto-Creation
 - `ARKD_PG_DB_AUTOCREATE` (default: false) - Automatically create PostgreSQL databases if they don't exist
@@ -76,6 +112,8 @@ Fees are now managed via a programmable CEL formula engine (see Admin Fee APIs).
 
 ## Configuration Examples
 
+> Timelock/round settings in these examples only take effect on the **first** start against a fresh database; afterwards use the admin settings API.
+
 ### Development (Light Mode)
 Minimal dependencies with embedded databases:
 
@@ -90,8 +128,7 @@ ARKD_WALLET_ADDR=localhost:6060
 ARKD_LIVE_STORE_TYPE=inmemory
 ARKD_DB_TYPE=sqlite
 ARKD_EVENT_DB_TYPE=badger
-ARKD_ALLOW_CSV_BLOCK_TYPE=true
-ARKD_ROUND_INTERVAL=10
+ARKD_SESSION_DURATION=10
 ```
 
 ### Development (Full Mode)
@@ -108,7 +145,6 @@ ARKD_WALLET_ADDR=localhost:6060
 ARKD_PG_DB_URL=postgresql://root:secret@127.0.0.1:5432/projection?sslmode=disable
 ARKD_PG_EVENT_DB_URL=postgresql://root:secret@127.0.0.1:5432/event?sslmode=disable
 ARKD_REDIS_URL=redis://localhost:6379/0
-ARKD_ALLOW_CSV_BLOCK_TYPE=true
 ```
 
 ### Production
@@ -128,12 +164,10 @@ ARKD_LIVE_STORE_TYPE=redis
 ARKD_REDIS_URL=rediss://redis.example.com:6379/0
 ARKD_ESPLORA_URL=https://blockstream.info/api
 ARKD_WALLET_ADDR=wallet:6060
-ARKD_SCHEDULER_TYPE=block
-ARKD_VTXO_TREE_EXPIRY=1008
-ARKD_UNILATERAL_EXIT_DELAY=144
-ARKD_BOARDING_EXIT_DELAY=43200
-ARKD_ROUND_INTERVAL=600
-ARKD_ALLOW_CSV_BLOCK_TYPE=true
+# Settings below are first-boot seeds; manage at runtime via POST /v1/admin/settings
+ARKD_VTXO_TREE_EXPIRY=604672
+ARKD_UNILATERAL_EXIT_DELAY=86400
+ARKD_BOARDING_EXIT_DELAY=7776000
 ```
 
 ## Data Directories
@@ -148,14 +182,13 @@ Override with `ARKD_DATADIR` environment variable.
 ## Validation Rules
 
 ### Locktime Validation
-- Values >= 512 are interpreted as seconds
-- Values < 512 are interpreted as blocks
+- Values >= 512 (`arklib.MinAllowedSequence`) are interpreted as seconds, values < 512 as blocks (`arklib.ParseRelativeLocktime`)
 - Second-based values must be multiples of 512 (auto-rounded)
 - Unilateral and Boarding delays must be different
-- Block-based delays only allowed for VtxoTreeExpiry with block scheduler
+- Block-based locktimes are only allowed on regtest
 
 ### Round Validation
-- Round interval must be at least 2 seconds
+- Session duration must be at least 2 seconds and <= unrolled VTXO min expiry margin
 - Min participants must be at least 1
 - Max participants should be reasonable (default 128)
 
@@ -164,10 +197,9 @@ Override with `ARKD_DATADIR` environment variable.
 - Event PostgreSQL URL required if EVENT_DB_TYPE=postgres
 - Redis URL required if LIVE_STORE_TYPE=redis
 
-### Scheduler Validation
-- If VtxoTreeExpiry is in blocks, SchedulerType must be "block"
-- If VtxoTreeExpiry is in seconds, SchedulerType must be "gocron"
-- AllowCSVBlockType automatically set to true if SchedulerType=block
+### Scheduler Selection
+- The scheduler service is derived from the `vtxo_tree_expiry` locktime type: seconds → gocron time scheduler, blocks → block scheduler (Esplora-backed)
+- `ARKD_SCHEDULER_TYPE` and `ARKD_ALLOW_CSV_BLOCK_TYPE` no longer exist
 
 ## Best Practices
 

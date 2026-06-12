@@ -1,5 +1,43 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-12 - Documentation Update
+**Commit**: `33342793` (arkd repository)
+**Previous Sync**: `d5a32a25`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `33342793` add Settings domain with DB persistence and admin CRUD API (#939)
+
+**Features Added (PR #939 — DB-persisted Settings domain + admin CRUD API)**:
+- New `domain.Settings` aggregate (`internal/core/domain/settings.go`) holding all operational settings in a single DB row: `SessionDuration`, `UnrolledVtxoMinExpiryMargin`, `BanThreshold`, `BanDuration`, `UnilateralExitDelay`, `PublicUnilateralExitDelay`, `CheckpointExitDelay`, `BoardingExitDelay`, `VtxoTreeExpiry` (all locktimes as `arklib.RelativeLocktime`), `RoundMin/MaxParticipantsCount`, `Vtxo/UtxoMin/MaxAmount`, `SettlementMinExpiryGap`, `VtxoNoCsvValidationCutoffDate`, `MaxTxWeight`, `MaxOpReturnOutputs`, `AssetTxMaxWeightRatio`, `NoteUriPrefix`, `ScheduledSession *ScheduledSession`, `BatchFees`, `UpdatedAt`. Extensive validation in the domain constructor/update paths.
+- New `domain.SettingsRepository` interface (`Get`, `Upsert(ctx, settings, changelog)`, `RegisterUpdatesHandler(func(Settings, []string))`, `Close`) with sqlite, postgres, and badger implementations. Migrations: `20260609120123_add_settings` (sqlite), `20260609120126_add_settings` (postgres). Badger `Upsert` honors ctx cancellation in its retry loop.
+- **First-boot seeding** (`settings_seed.go` per backend, with tests): when the settings table is empty, the row is seeded from `ARKD_*` env vars (or defaults), validated before persisting, and the latest legacy `intent_fees` / `scheduled_session` rows are carried over; the legacy tables are then emptied (to be dropped later). On every later boot the seed is skipped and the settings env vars are **ignored** — the stored row wins.
+- `ports.RepoManager` **breaking change**: `ScheduledSession() domain.ScheduledSessionRepo` and `Fees() domain.FeeRepository` removed; `Settings() domain.SettingsRepository` and `RegisterSettingsUpdateHandler(...)` added. Legacy `intent_fees_repo.go` / `scheduled_session_repo.go` deleted across badger/sqlite/postgres. `domain/fee.go` replaced by `domain/fees.go` (`BatchFees`).
+- New live-store `SettingsStore` cache (`ports.LiveStore.Settings()`; inmemory + redis impls): caches `ports.Settings` = `domain.Settings` + runtime enrichment (`Network`, `DustAmount`, `SignerPubkey`, `ForfeitPubkey`, `ForfeitAddress`, `CheckpointTapscript`) with a `Digest()` for GetInfo. Effective dust-resolved min amounts live only in this cache, never written back to the DB.
+- New admin RPCs (`api-spec/protobuf/ark/v1/admin.proto` + regenerated gen/openapi): `AdminService.GetSettings` (`GET /v1/admin/settings`, macaroon `manager:read`) and `AdminService.UpdateSettings` (`POST /v1/admin/settings`, macaroon `manager:write`). `UpdateSettings` performs **partial updates** (only provided fields change) and returns `repeated string change_log`. New `Settings` proto message with all-optional fields.
+- Admin write flows (`UpdateSettings` + scheduled-session/batch-fee mutators) are serialized under a mutex with synchronous cache refresh, so concurrent updates can't lose each other or leave the cache stale. Validation tightened: uint32 overflow guards, vtxo/utxo max >= min, satoshi upper bound on amounts, `BanThreshold`, `MaxTxWeight`, `CheckpointExitDelay`, `max_op_return_outputs > 0`; all setting changes warn-logged.
+- Config refactor (`internal/config/config.go`, ~420 lines net removed): settings env vars are now seed-only; **removed** `ARKD_SCHEDULER_TYPE` (scheduler derived from `vtxo_tree_expiry` locktime type: seconds → gocron, blocks → block scheduler), `ARKD_ALLOW_CSV_BLOCK_TYPE`, `ARKD_ROUND_INTERVAL`.
+- ark-lib: new `MinAllowedSequence = 512` constant and `ParseRelativeLocktime(value uint32) (RelativeLocktime, bool)` helper (`pkg/ark-lib/locktime.go`) deduplicating the seconds-vs-blocks discrimination logic; new `locktime_test.go`.
+- New repo doc `docs/settings.md` (lifecycle diagram, full seed-variable table with units/defaults, runtime-management endpoints); README config section split into Environment Variables vs Admin Settings.
+
+**Breaking Changes**:
+- ⚠️ After the first boot, changing `ARKD_*` settings env vars has **no effect** — operators must use `POST /v1/admin/settings`. To re-seed from env, start against an empty settings table.
+- ⚠️ `RepoManager.Fees()` / `RepoManager.ScheduledSession()` removed (absorbed into `Settings()`); external domain consumers must update.
+- ⚠️ `ARKD_SCHEDULER_TYPE`, `ARKD_ALLOW_CSV_BLOCK_TYPE`, `ARKD_ROUND_INTERVAL` env vars removed.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: new Settings-domain capability bullet; new tags `settings`, `first-boot-seed`; new ask_question/develop triggers)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.8 → 1.3.9)
+- docs/projects/arkd/system/configuration.md (two-tier config model; settings vars marked first-boot-seed-only; removed vars marked; admin settings API section; examples and validation rules updated)
+- docs/projects/arkd/system/application_core.md (Admin Service: GetSettings/UpdateSettings; LiveStore SettingsStore cache; RepoManager port list)
+- docs/projects/arkd/system/repo_manager.md (RepoManager interface updated; SettingsRepository section replacing stale MarketHourRepo; migration notes)
+- docs/projects/arkd/system/project_overview.md (DB-Persisted Settings major feature; round configuration bullets)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-11 - Documentation Update
 **Commit**: `d5a32a25` (arkd repository)
 **Previous Sync**: `75066cc2`

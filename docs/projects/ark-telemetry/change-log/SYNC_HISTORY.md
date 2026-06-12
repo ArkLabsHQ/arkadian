@@ -179,3 +179,22 @@
 
 **Breaking change for operators**: anyone composing with `-f docker-compose.resources.medium.yaml` must switch to `-f docker-compose.resources.large.yaml`; the old filename no longer exists.
 
+---
+
+## 2026-06-12 - cAdvisor restart policy; small-profile memory rebalance toward Grafana
+**From**: `3b6d6864f82cf4ab858a730b94132a36de09f6d8`
+**To**: `af3fbb2762e527a265648cd9d036e73a86f01e8c`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 2
+- `879f813` grafana: More memory for small resource profile
+- `af3fbb2` cadvisor: Restart service
+
+**Compose changes**:
+- `docker-compose.otel.yaml`: cadvisor gains `restart: unless-stopped` — it was the only service in the base compose file without a restart policy, so a crash (e.g. OOM-kill under the new tighter 64m limit) left it down until manual intervention. All 8 services now restart automatically.
+- `docker-compose.resources.small.yaml` (t3.small profile): memory rebalanced toward Grafana, total unchanged at ~1552m — grafana 256m→**384m** (+128m), funded by cadvisor 96m→**64m**, prometheus 300m→**256m**, loki 300m→**256m**. Unchanged: otel-collector 192m, alertmanager 48m, jaeger 192m, pyroscope 128m. The large profile is untouched.
+
+**Doc-file updates**:
+- `system/configuration.md` — "Resource Limits" table: small-profile row updated to the new per-service values (cadvisor 64m, prometheus 256m, grafana 384m, loki 256m).
+- Master `docs/INDEX.md` unaffected — the `ark-telemetry` capabilities bullet names the override files but not per-service values, and restart policies are not indexed. Project `INDEX.md` also does not reference these values. Only the configuration table and sync tracking are updated.
+

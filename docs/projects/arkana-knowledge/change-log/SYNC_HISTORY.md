@@ -1,5 +1,51 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-12 - Operational Memory Sync (no doc changes)
+**Commit Range**: `bd987037..370c997d` (13 commits, all `memory(*)` agent activity)
+**Previous Sync**: `bd9870378a9970f3afd435c7c6d12ca2b2eaf481` (2026-06-11T04:21:45Z)
+**Caller-Asserted From**: `d62320eea3a53e637565e049927549f837df931a` (one commit ahead of previous sync — gap commit `d62320e` included in this analysis, also memory-only)
+**Current Sync**: `370c997d408abf6708b441176e51c0379b8a5f4b` (committed 2026-06-12T04:28:58Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (13, all internal agent state)**:
+- `370c997` memory(release-coordinator): release check 2026-06-12T00:00:00Z — quiet window
+- `6be97e0` memory(issue-triage): triage run 2026-06-11T08:00:00Z — 2 new issues triaged (ts-sdk#555 optimisticResolveAt option, wallet#667 optimistic 'sent' state)
+- `848d10f` memory(release-coordinator): release check 2026-06-11T20:00:00Z — queue flushed by executive-digest, 4 standing entries re-filed
+- `85d76ec` memory(slack-monitor): daily scan 2026-06-11 — #dev RFDs on key-rotation fees/sub-dust preservation, deprecated signer keys PR, arkd-wallet out-of-band init PR, optimistic LN sends ready_for_review
+- `3de3bdd` memory(daily-briefing): morning briefing 2026-06-11 — 6 PRs merged in 24h, Linear escalation hits 30-day unacknowledged milestone
+- `93a6a4d` memory(linear-sync): state snapshot 2026-06-11 — 57th consecutive day of zero Linear activity
+- `f4e2ab0` memory(executive-digest): unprecedented critical batch 2026-06-11 — 11 items posted to #arkana-executive (arkd-wallet security migration, signer rotation, rust-sdk#238 on master, enclave#134 nil AAD, wallet#669 button bypass, etc.)
+- `ba1d279` memory(release-coordinator): release check 2026-06-11T16:00:00Z — quiet window
+- `8161ecd` memory(release-coordinator): release check 2026-06-11T12:00:00Z — quiet window
+- `524bc72` memory(release-coordinator): release check 2026-06-11T08:00:00Z — quiet window
+- `fa13d19` memory(issue-triage): triage run 2026-06-11T04:00:00Z — quiet window, all 22 repos quiet
+- `a077172` memory(release-coordinator): release check 2026-06-11T04:00:00Z — quiet window
+- `d62320e` memory(issue-triage): triage run 2026-06-11T00:00:00Z (gap commit — between recorded last sync and caller-asserted from)
+
+**Files Changed (all under `memory/`)**: 8 files (across full range), +162/-52 lines in `d62320e..370c997` plus +23/-3 in gap commit
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, slack-monitor
+- executive-digest-queue.json, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. Notable ecosystem events (11-item critical digest batch, key-rotation fee/sub-dust RFDs in #dev, enclave#134 nil-AAD release block, rust-sdk#238 funds-misdirection bug still unfixed on master, Linear dormancy 30-day escalation milestone) are tracked in agent memory only and do not alter arkana-knowledge's own structure, 17-agent roster, or capabilities documented in INDEX.md.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `370c997d`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capabilities/tags/dependencies changes; the 17-agent roster, MCP server, Slack bot, webhook relay, and dependency surface are all unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- The previous recorded sync (`bd98703`) was one commit behind the caller-asserted from-commit (`d62320e`); the gap commit was analyzed here and is also memory-only, so no coverage was lost
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-11 - Operational Memory Sync (no doc changes)
 **Commit Range**: `90d79f69..bd987037` (12 commits, all `memory(*)` agent activity)
 **Previous Sync**: `90d79f6961e608b1be03a07928735625fe14728a` (2026-06-10T04:11:09Z)
