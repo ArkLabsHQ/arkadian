@@ -1,5 +1,28 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-16 - X-SDK-VERSION transport header (PR #139) — SDK sends its own version as `dotnet-sdk/{version}` alongside the existing `X-Build-Version`
+**From**: `29d92af02a38ef52908f4ae1674143c44eea5ac8`
+**To**: `0b8d2991cbe3a7761b762fbb970e1fb27f5fd792`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge PR (#139 — `feat(transport): send X-SDK-VERSION header (dotnet-sdk/{version})`). 3 files changed, +78 / -3 (`NArk.Core/Transport/ArkdVersion.cs`, `NArk.Tests/BuildVersionHeaderTests.cs`, `docs/articles/signer-rotation.md`).
+
+> Note: the prior `last-sync.txt` recorded `edfdfb98…` (PR #116), but the repo's actual previous HEAD was `29d92af…`; the intervening PRs (#118, #123, #125, #127, #129, #130, #132, #135, #136, #137) were already reflected in the docs. This entry covers only the new `29d92af..0b8d299` fast-forward.
+
+**Highlights**:
+- **`X-SDK-VERSION` header** — `ArkdVersion` now injects a second version header on every gRPC and REST request, sent alongside the existing `X-Build-Version`. The value is a `name/version` product token, e.g. `dotnet-sdk/1.0.327-beta`. The name (`SdkName = "dotnet-sdk"`) lets arkd distinguish the .NET SDK from sibling SDKs (e.g. the TypeScript SDK) on the same wire.
+- **Version source** — `SdkVersion = StripBuildMetadata(ThisAssembly.AssemblyInformationalVersion)`: the SDK's own package version (computed by Nerdbank.GitVersioning from git history) with the SemVer build-metadata suffix (the `+commit` part) stripped. `SdkVersionHeaderValue = $"{SdkName}/{SdkVersion}"`.
+- **Distinction from `X-Build-Version`** — `X-Build-Version` reports `TargetBuild` (the Arkade *server* build this SDK was written against, `0.9.9`), while `X-SDK-VERSION` reports the version of the NArk SDK itself. The `BUILD_VERSION_TOO_OLD` → `IncompatibleSdkVersionException` rejection path is unchanged.
+- **Injection points** — `InjectHeader(this HttpClient)` adds both headers idempotently to `DefaultRequestHeaders` (REST); `InjectHeader(this Metadata)` adds both to gRPC call metadata. New `internal const string SdkVersionHeaderName = "X-SDK-VERSION"` and private `StripBuildMetadata` helper.
+- **`BuildVersionHeaderTests`** — New `NArk.Tests/BuildVersionHeaderTests.cs` pins the header name, the `dotnet-sdk/` prefix, and the build-metadata stripping.
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk: new Key Capability bullet on the transport version headers (`X-Build-Version` + `X-SDK-VERSION`). Tags appended: `x-sdk-version-header`, `x-build-version-header`, `sdk-version-token`. `ask_question` triggers appended: `x-sdk-version header`, `x-build-version header`, `arkdversion injectheader`, `sdk version header dotnet`.
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — new "Version Headers" section documenting both headers, the version source, and the build-vs-SDK distinction.
+- `docs/projects/dotnet-sdk/INDEX.md` — new `ArkdVersion` Key Concept entry.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `0b8d2991cbe3a7761b762fbb970e1fb27f5fd792`.
+
 ## 2026-06-10 - Deterministic Boltz preimages via BIP-340 sign-and-hash (PR #116) — recovery scheme that lets a restored wallet re-derive + claim outstanding reverse/chain-swap VHTLCs
 **From**: `4d985df512b9b2afabc141843218c73d919ea58a`
 **To**: `edfdfb986e67156bb219230b80024494b5ee13b3`

@@ -1,5 +1,52 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-16 - Operational Memory Sync (no doc changes)
+**Commit Range**: `b8033abc..a7569bcf` (15 commits, all `memory(*)` agent activity)
+**Previous Recorded Sync**: `370c997d408abf6708b441176e51c0379b8a5f4b` (2026-06-12T04:28:58Z)
+**Caller-Asserted From**: `b8033abc0e0a601ea91294e873f0d62d12bea2a1` (2026-06-15T05:39:05Z) — 52 commits ahead of the previous recorded sync; that intervening gap (`370c997d..b8033abc`) is also entirely memory-only (11 files, all under `memory/`), so no documentation coverage was lost by syncing forward from the caller-asserted from-commit.
+**Current Sync**: `a7569bcf50805c47ac46c7671f290507c4e096f0` (committed 2026-06-16T05:02:07Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (15, all internal agent state)**:
+- `a7569bc` memory(release-coordinator): release check 2026-06-16T04:00:00Z — quiet window
+- `2c632c8` memory(issue-triage): triage run 2026-06-16T00:00:00Z — quiet window
+- `02e1aa2` memory(release-coordinator): release check 2026-06-16T00:00:00Z — correction: fulmine v0.3.25 false positive; 5 standing entries re-filed after flush
+- `146e9e2` memory(slack-monitor): daily scan 2026-06-15
+- `6f431b1` memory(daily-briefing): morning briefing 2026-06-15
+- `2077d6b` memory(linear-sync): state snapshot 2026-06-15
+- `05e8dd1` memory(executive-digest): Monday deadline + release ordering violations 2026-06-15
+- `b60c3a3` memory(issue-triage): triage run 2026-06-15T20:00:00Z — arkd#1115 GetVirtualTxs SQLite batching bug
+- `921bc53` memory(release-coordinator): release check 2026-06-15T20:00:00Z — quiet window post arkd v0.9.9 GA
+- `99d1159` memory(issue-triage): triage run 2026-06-15T16:00:00Z — quiet window post arkd v0.9.9 GA
+- `73d1d54` memory(release-coordinator): release check 2026-06-15T16:00:00Z — arkd v0.9.9 GA + fulmine v0.3.25, ordering violation vs ts-sdk 0.4.35
+- `d757d6d` memory(issue-triage): triage run 2026-06-15T12:00:00Z — quiet window
+- `de52f87` memory(release-coordinator): release check 2026-06-15T12:00:00Z — ts-sdk 0.4.35 released, ordering concern vs arkd GA v0.9.9
+- `578d3d6` memory(issue-triage): triage run 2026-06-15T08:00:00Z — quiet window
+- `45e19db` memory(release-coordinator): release check 2026-06-15T08:00:00Z — quiet window
+
+**Files Changed (all under `memory/`)**: 11 files, +366/-229 lines
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, repo-detector, sdk-parity, slack-monitor
+- project-context/sdk-parity.md (new 2026-06-14 parity delta), executive-digest-queue.json, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. Notable ecosystem events tracked in agent memory only (arkd v0.9.9 GA, ts-sdk v0.4.35 release-ordering concern, signer-rotation parity shipping in go-sdk/dotnet-sdk while rust-sdk PR #243 CI-failing, Boltz millisat-precision gap from ts-sdk #559, arkd#1115 GetVirtualTxs SQLite batching bug, a transient repo-detector "massive repo loss" detection event) do not alter arkana-knowledge's own structure, 17-agent roster, or documented capabilities.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `a7569bcf`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+- `docs/INDEX.md` (master) — corrected stale agent count 16 → 17 and added `issue-staleness` to the Key Capabilities list, aligning the arkana-knowledge entry header/capabilities with the already-current project docs and the Project Status table (line referencing the 17-agent roster). No capability/tag/dependency change is attributable to this commit range; this was a pre-existing internal inconsistency fixed opportunistically.
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-12 - Operational Memory Sync (no doc changes)
 **Commit Range**: `bd987037..370c997d` (13 commits, all `memory(*)` agent activity)
 **Previous Sync**: `bd9870378a9970f3afd435c7c6d12ca2b2eaf481` (2026-06-11T04:21:45Z)

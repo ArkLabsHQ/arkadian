@@ -114,10 +114,12 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **BIP21 asset amount validation** (PR #611): `src/lib/bip21.ts` now validates asset amounts against their declared decimals; `encodeBip21Asset` is passed asset decimals so the URI uses the right precision. `unitsToCents` is hardened against empty strings, `parseInt` calls always pass an explicit radix, fractional millisatoshis are guarded against, and `prettyAssetNumber` no longer renders `-0`. New `src/test/e2e/bip21.test.ts` exercises the round-trip.
 - **Mainnet explorer**: `explorers.bitcoin.api` removed — `getRestApiExplorerURL` now returns `string | undefined` and callers fall back to SDK defaults.
 
-### Developer / Diagnostics (PR #618, PR #617)
+### Developer / Diagnostics (PR #618, PR #617, PR #670, PR #674)
 - **Dev mode**: Triple-tapping the loading logo toggles a global dev mode persisted in `localStorage`. The tap logic was lifted out of `LoadingLogo` into a new `DevModeProvider` (`src/providers/devMode.tsx`), so every loading logo in the app shares the same state.
-- **Contracts screen** (`src/screens/Settings/Contracts.tsx`): A "Contracts" entry appears in **Settings → Advanced** only when dev mode is active. It renders all contracts from `ContractManager` sorted active-first; each card shows type, state, shortened/copyable address, and shortened/copyable script. Pull-to-refresh is disabled (static view on `ContractManager` data).
-- **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI immediately (no submenu).
+- **Dev auto-init** (PR #674): In DEV builds the wallet auto-initialises (bypassing onboarding/unlock) from `VITE_DEV_NSEC` or, preferred when both are set, a 12-word `VITE_DEV_MNEMONIC` — `WalletProvider` builds a `MnemonicIdentity` from the mnemonic or a `SingleKey` from the nsec; `App` holds the loading screen and skips the boot animation while either var initialises. Declared in `ImportMetaEnv`.
+- **Contracts screen** (PR #670, `src/screens/Settings/Contracts.tsx`): A "Contracts" entry appears in **Settings → Advanced** only when dev mode is active. Rebuilt for scale into compact collapsible rows (type · address · deprecated-signer badge · state · age) with an Active/Inactive tab, type-filter chips, a search box, and a virtualized list (`@tanstack/react-virtual`). Each contract is classified against the operator's advertised signer set (`signerSetFromInfo` + `classifyAgainstSignerSet`); contracts under a deprecated signer show a **deprecated signer** badge (→ **deprecated signer / past cutoff** after the migration cutoff). Boarding contracts show their derived on-chain Bitcoin Taproot address (`bc1p/tb1p/bcrt1p`) and each address links out to a block explorer (Arkade for ark, mempool for boarding). Pull-to-refresh is disabled. Background auto-migration (`SettlementConfig.deprecatedSignerMigration`, default on) is unchanged.
+- **Outdated-client prompt** (PR #670): when the server rejects the client with `BUILD_VERSION_TOO_OLD`, the wallet shows "Your wallet is outdated…" (via `aspErrorText`) instead of a generic "Arkade server unreachable" across all screens. See `aspInfo.outdated` / `minBuildVersion` in `src/lib/asp.ts`.
+- **BIP21 unified copy** (PR #617): The Receive QR copy button copies the unified BIP21 URI immediately (no submenu). PR #672 keeps an explicit copy-sheet selection across async QR rebuilds (`resolveQrValue`), drops LNURL once an amount is set, and encodes amounts with `useGrouping=false`; `decodeBip21` parses mixed-case query keys case-insensitively.
 
 ## Technology Stack
 
@@ -128,9 +130,10 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
-- **@arkade-os/sdk** (0.4.28) for Ark protocol operations
-- **@arkade-os/boltz-swap** (0.3.33) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
-- **@tanstack/react-virtual** for virtualized swap list rendering
+- **@arkade-os/sdk** (0.4.35) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`)
+- **@arkade-os/boltz-swap** (0.3.40) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
+- **@branta-ops/branta** (3.1.3) for Send-form payment-destination verification (debounced typed-input lookups via `getPayments`)
+- **@tanstack/react-virtual** for virtualized swap list and dev-mode contracts list rendering
 - **Dexie** for IndexedDB storage with React hooks
 - **@noble/secp256k1**, **@scure/bip32**, **@scure/bip39** for Bitcoin cryptography
 - **nostr-tools** for Nostr relay backup integration
@@ -224,7 +227,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.28, @arkade-os/boltz-swap 0.3.33
+**Dependencies**: @arkade-os/sdk 0.4.35, @arkade-os/boltz-swap 0.3.40, @branta-ops/branta 3.1.3
 
 ## Getting Started
 

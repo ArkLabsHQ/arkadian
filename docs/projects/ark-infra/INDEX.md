@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.0
-last_sync_commit: 80a49fa7301451aa526c65e09f8711226943947d
-last_sync_date: 2026-06-09T00:00:00Z
+version: 1.7.1
+last_sync_commit: 6727e465463d6128f407a9fb4b4fa621ba22f01a
+last_sync_date: 2026-06-16T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -234,7 +234,7 @@ make clean-local-state ENV=prod
 - **traefik** (443, 8080*) — Reverse proxy + SSL termination
 - **Shared ALB → arkd** (staging + prod, since 2026-05) — `modules/ark/arkd.tf` adds three target groups on port 7070 fronted by the same ALB that hosts Grafana:
   - **arkdg-*** (`HTTP/GRPC`, health `/grpc.health.v1.Health/Check` matcher `0`) — listener rule priority 10, host header in `arkd_hosts`, `content-type: application/grpc*`
-  - **arkds-*** (`HTTP1` if `arkd_http1_support=true` else `HTTP2`, health `/v1/info`) — listener rule priority 15, host header + path in `arkd_sse_streaming_endpoint_paths` (`/v1/batch/events`, `/v1/txs`, `/v1/indexer/script/subscription/*`)
+  - **arkds-*** (`HTTP1` if `arkd_http1_support=true` else `HTTP2`, health `/healthz`) — listener rule priority 15, host header + path in `arkd_sse_streaming_endpoint_paths` (`/v1/batch/events`, `/v1/txs`, `/v1/indexer/script/subscription/*`)
   - **arkdr-*** — REST catch-all on the same host
   - ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge)
   - Access + connection logs to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30 days, staging 7)

@@ -1,5 +1,40 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-16 - Documentation Update
+**Commit**: `11cf2ba8` (arkd repository)
+**Previous Sync**: `7591e53f`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits
+- `11cf2ba8` Minor fixes on interceptors and client headers (#1114)
+- `2bd1202d` Fix sweep connectors admin endpoint (#1105)
+- `76ebb425` client-lib: Add optional x-sdk-version header to arkade grpc client (#1113)
+- `505c6018` Fix: discard interrupted SQLite connections and make asset reads stable under churn (#1043)
+- `57c72343` Support for signer keys deprecation (#1097)
+
+**Features Added**:
+- **Signer-key deprecation / rotation (PR #1097)**: `arkd-wallet` accepts a new comma-separated `DEPRECATED_SIGNER_KEYS` env var (`<hexkey>[:<unix-cutoff>]` entries; cutoff = time after which the key is no longer accepted, `0`/unset = never). `parseDeprecatedSignerKeys` validates 32-byte hex keys, and startup fails if a deprecated key matches the current `SIGNER_KEY`. New `wallet.DeprecatedSignerKey{Key, CutoffDate}` plumbed into `WalletOptions`. The signer proto gains `repeated DeprecatedSigner deprecated_signers` (`{pubkey, cutoff_date}`) on `GetPubkeyResponse`, exposed via `signer.GetDeprecatedPubkeys` and `ports.DeprecatedSignerPubkey`. `NewIndexerService` now takes `deprecatedSignerPubkeys`; indexer/application verify intents and strip signer signatures against `allSignerPubkeys()` (current + deprecated).
+- **Optional `x-sdk-version` client header (PR #1113)**: `pkg/client-lib` stamps each unary/stream RPC with an `x-sdk-version` gRPC metadata header via the new `WithClientVersion(version)` ServiceOption (threaded `service.clientVersion` → `grpcclient.NewClient`); only attached when non-empty. New `client_version_header.go` interceptors.
+- **Interceptor / version-guard tightening (PR #1114)**: the server `x-build-version` `VersionGuard` now always compares a present, parseable client version to the server minimum even when the header is not required; only missing/empty/unparseable headers pass through in non-required mode. Logger/digest interceptor cleanups.
+
+**Fixes**:
+- **Sweep connectors admin endpoint (PR #1105)**: corrected the sweep-connectors flow and truncates sweep inputs when necessary (`internal/core/application/admin.go`, `bitcoin_wallet` proto/openapi, `ports/wallet.go`).
+- **SQLite stability under churn (PR #1043)**: discard interrupted SQLite connections and make asset reads stable under concurrent churn (`db/sqlite/*` repos, `utils.go`, query.sql regeneration).
+
+**Breaking Changes**:
+- ⚠️ `grpcclient.NewClient` signature changed to `(serverUrl, clientVersion string)`.
+- ⚠️ `NewIndexerService` now requires a `deprecatedSignerPubkeys []ports.DeprecatedSignerPubkey` argument.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: signer-key-deprecation + x-sdk-version capability bullets; new tags; new triggers)
+- docs/projects/arkd/system/project_overview.md (two new Major Features: signer-key deprecation, x-sdk-version header)
+- docs/projects/arkd/system/configuration.md (new arkd-wallet signer keys section with `DEPRECATED_SIGNER_KEYS`)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-12 - Documentation Update
 **Commit**: `33342793` (arkd repository)
 **Previous Sync**: `d5a32a25`

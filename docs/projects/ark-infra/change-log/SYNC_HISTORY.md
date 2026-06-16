@@ -1,5 +1,27 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-16 - Documentation Update
+**Commit**: `6727e465463d6128f407a9fb4b4fa621ba22f01a`
+**Previous Sync**: `80a49fa7301451aa526c65e09f8711226943947d`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (PR #93)
+
+**Highlights**:
+- 🩺 **ALB health check path → `/healthz`** (#93, `6727e46`): `modules/ark/arkd.tf` switches the
+  HTTP health check `path` from `/v1/info` to `/healthz` on both arkd target groups —
+  `aws_lb_target_group.arkd_streaming` (SSE) and `aws_lb_target_group.arkd_rest` (REST). Port
+  (`7070`), matcher (`200`), and thresholds are unchanged. The gRPC target group
+  (`/grpc.health.v1.Health/Check`, matcher `0`) is unaffected. `/v1/info` remains a valid arkd
+  endpoint and is still exercised by `scripts/alb-spot-check.sh`; only the ALB liveness probe moved.
+
+**Files Updated**:
+- docs/projects/ark-infra/INDEX.md (frontmatter: `last_sync_commit`, `last_sync_date`, version 1.7.1; arkds-* target group health path `/v1/info` → `/healthz`)
+- docs/projects/ark-infra/system/aws-infrastructure.md (ALB health checks: REST/SSE path `/v1/info` → `/healthz`)
+
+**Note**: Config-only change; master `docs/INDEX.md` does not track ALB health-check paths, so no master-registry edit was required.
+
 ## 2026-06-09 - Documentation Update
 **Commit**: `80a49fa7301451aa526c65e09f8711226943947d`
 **Previous Sync**: `fbcda79126342c37df6c7f50346ad54bf40595fd`

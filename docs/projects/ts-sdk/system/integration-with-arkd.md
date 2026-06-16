@@ -4,6 +4,21 @@
 
 The TypeScript SDK communicates with arkd via REST API and Server-Sent Events (SSE). Unlike the Go SDK which uses gRPC, the TS SDK uses HTTP-based transport exclusively.
 
+### Request Headers (arkd-only)
+
+Since 0.4.35, every **arkd** request carries two custom headers (set by the `fetch` wrapper in `src/utils/fetch.ts`; the `RestArkProvider` and the Expo `getExpoFetch` streaming path use it):
+
+- `X-Build-Version` — the arkd/Arkana server build the SDK targets (`buildVersion`, currently `"0.9.9"`). arkd's compatibility guard reads it; a mismatch surfaces a server-signer/build change (see below).
+- `X-SDK-VERSION` — this package's own version, formatted `ts-sdk/<version>` (`sdkVersion`, sourced from `package.json`), so the operator can distinguish client builds.
+
+These headers are **deliberately NOT sent** to the Indexer, Delegate, or Esplora origins — those CORS preflights reject unknown custom headers, so `RestIndexerProvider` / `RestDelegateProvider` / `EsploraProvider` use the header-free `baseFetch` wrapper instead.
+
+### Server-Signer Rotation (0.4.35, #554)
+
+The SDK supports *planned* arkd server-signer rotation. arkd advertises its active signer plus any `deprecatedSigners` (each `{ pubkey, cutoffDate }`; `cutoffDate === 0n` means "due now") and a `digest` on `ArkInfo`. When arkd's `X-Build-Version`/digest guard reports a change, `RestArkProvider` refreshes `ArkInfo`, fires its `onServerInfoChanged(cb)` event stream, and then throws `DigestMismatchError` — the SDK never silently retries. A wallet subscribed to `onServerInfoChanged` (auto-wired at boot) responds by calling `Wallet.rotateServerSigner(newServerPubKey, checkpointTapscript)`, which re-derives its offchain + boarding + checkpoint tapscripts mid-session.
+
+A wallet holding VTXOs minted under a now-deprecated signer migrates them with `VtxoManager.migrateDeprecatedSignerVtxos()` (a **fee-exempt, two-leg** operation — the VTXO leg uses the Ark send path, the boarding leg a separate settle) and inspects state with `getDeprecatedSignerStatus()`. Contracts whose signer cutoff has already passed are `EXPIRED` and **recover-on-sweep**: they keep their batch expiry, the server sweeps them, and the normal recovery settle re-mints them under the active signer — unilateral exit is not required. Classification is never persisted; it is always derived at read time from each contract's `params.serverPubKey` plus a fresh `ArkInfo` snapshot via `src/wallet/signerRotation.ts`.
+
 ## Provider Layer
 
 ### RestArkProvider

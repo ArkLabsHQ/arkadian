@@ -1,5 +1,41 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-06-16 — Binding-Hygiene Validation (Immutable Params, Shadowing, Namespace Collisions)
+**Commit Range**: `d021899c` → `509a6975`
+**Synced By**: /update-project compiler
+**Status**: New `validate_ast` semantic checks + new test file
+
+**Commits Analyzed** (4):
+- `76ad064` reject assignment to immutable ctor params
+- `6599b43` reject ABI namespace collisions after param expansion
+- `af25e18` regression sweep + namespace-check fixups
+- `c9a02d6` cache compile
+
+**Changes**:
+
+All four commits extend `src/validator/mod.rs`'s `validate_ast()` with three new pre-compilation binding-hygiene checks. No grammar, parser, AST-type, or codegen changes; the only `src/compiler/mod.rs` edit promotes two helpers (`collect_lookup_asset_ids`, `decompose_constructor_params`) from private to `pub(crate)` so the validator can reuse the emitter's exact param-expansion logic.
+
+- **Immutable constructor parameters** (`76ad064`, `check_ctor_assignment`). Rejects any `name = expr;` reassignment where `name` is a constructor parameter — constructor parameters are read-only. Recurses into `if/else` and `for` bodies. (`VarAssign` only; `let`/`require` introduce no rebinding of ctor names here.)
+- **Scope shadowing** (`af25e18`, `check_shadowing` + `walk_scope`). A lexical-scope stack flags: a function parameter shadowing a constructor parameter; a `let` binding or loop variable shadowing any name still live in an enclosing scope; and a `for (x, x)` loop whose index and value variables share a name. Each `if`/`else`/`for` block pushes its own frame, so sibling blocks don't falsely collide. Function params are compared against constructor params *before* seeding the frame (a pre-collapsed set would silently swallow the duplicate).
+- **Emitted-namespace collisions** (`6599b43`, `check_expanded_namespace` + `record_name`). For each non-internal function, the names parameters contribute to the *emitted* placeholder namespace must be unique — computed after array flattening (`name_0`, `name_1`, … via `DEFAULT_ARRAY_LENGTH`), asset-ID decomposition (`_txid` + `_gidx`), and the unconditionally-appended cooperative `serverSig`. This catches collisions distinct source names can hide, e.g. `int[] xs` flattening onto an explicit `int xs_0`, or a parameter literally named `serverSig` when a server key is set. The N-of-N exit `{pubkey}Sig` names are deliberately *not* reserved, because the emitter deduplicates them by name against existing signature parameters (so `senderSig` for a `sender` pubkey is reused, not duplicated). Reuses the now-`pub(crate)` `collect_lookup_asset_ids` / `decompose_constructor_params`.
+
+**Tests**:
+- **New `tests/no_shadowing_test.rs`** (file count 27 → 28) exercising all three checks: immutable-ctor-param assignment rejection, shadowing and `for (x, x)` detection, and emitted-namespace collisions.
+- `tests/bare_vtxo_test.rs` updated: the `cooperative` fixture stops declaring `serverSig` as an explicit parameter (the compiler injects it; with the new namespace check an explicit `serverSig` would now collide), and the `function_inputs` assertion drops from 2 → 1.
+- `c9a02d6` ("cache compile") trims redundant recompilation in `no_shadowing_test.rs` (a test-speed cleanup, −9 net lines), no behaviour change.
+
+**Documentation Updates**:
+- `system/project_overview.md` — Semantic Validation: AST-validation pass extended with the three new binding-hygiene checks (immutable ctor params, scope shadowing, emitted-namespace collisions); project-structure test count 27 → 28.
+- `system/architecture.md` — Stage 2.5 (`validate_ast`) gains three bullets for the new checks; validator source-structure comment notes the binding-hygiene checks; Testing Architecture count 27 → 28 with a `no_shadowing_test` entry under Validation & structure.
+- `testing/how_to_test.md` — count 27 → 28; new `no_shadowing_test.rs` row in Validation & Structural Tests (incl. the `bare_vtxo_test.rs` `serverSig` fixup note).
+- Master `docs/INDEX.md` — compiler entry: new Key Capabilities bullet for the binding-hygiene checks; tags add `shadowing`, `immutable-params`, `namespace-collision`, `binding-hygiene`; ask_question triggers add `variable shadowing`, `immutable parameter`, `constructor parameter`, `namespace collision`; develop triggers add `shadowing check`, `namespace collision`, `immutable param`.
+
+**Notes**:
+- Pure compiler-frontend hardening — no ABI/output shape change for contracts that already followed the rules. Contracts that reassigned a constructor parameter, shadowed an in-scope name, or declared a parameter that collided in the emitted namespace (notably an explicit `serverSig`) now fail compilation with an `Error`-severity `ValidationIssue`. The `bare_vtxo` fixture change is the canonical example of the last case.
+- These are `validate_ast` *errors* (halt compilation), not warnings.
+
+---
+
 ## 2026-06-02 — Fixed-Maturity Bond Market (RepaymentPool + BondMint)
 **Commit Range**: `4dcfdc3f` → `d021899c`
 **Synced By**: /update-project compiler

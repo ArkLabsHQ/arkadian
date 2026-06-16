@@ -84,7 +84,7 @@ Every account exposes the same three receive surfaces from its underlying wallet
 | `packages/wdk-react-native-provider` | React Native provider (WDK service, contexts, UI wiring) |
 | `examples/wdk-starter-react-native` | Expo example app exercising the full stack |
 
-Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/setup-dev.js`. The `pear-wrk-wdk` fork allows direct submodule-pointer bumps without a patch overlay (the corresponding `patches/pear-wrk-wdk.patch` was already removed in `7eb1607`).
+Each submodule is an independent git repository. Local modifications are kept as patches under `./patches/` and applied via `scripts/setup-dev.js`. The `pear-wrk-wdk` fork allows direct submodule-pointer bumps without a patch overlay (the corresponding `patches/pear-wrk-wdk.patch` was already removed in `7eb1607`). As of `b71316d` (#25), the `packages/pear-wrk-wdk` pointer is bumped directly on the fork to a "shim commit" (`ef7a951` → `b3a8f55`) — the first such direct pointer bump, baking the pure-JS `bare-*` worklet shims (`bare-abort`, `bare-stdio`, `bare-performance`, `bare-type`) into the submodule rather than relying solely on the patch overlay.
 
 ## Use Cases
 

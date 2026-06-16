@@ -265,7 +265,7 @@ A single internet-facing ALB (`ark-{env}`) hosts both the telemetry Grafana UI a
 | 100 | `host_header = telemetry_grafana_host` | grafana TG (port 3000) | Grafana UI |
 
 Target groups all attach the single `app_instance_id`, port 7070. Health checks: gRPC uses
-`/grpc.health.v1.Health/Check` (matcher `0`); REST/SSE use `/v1/info` (matcher `200`).
+`/grpc.health.v1.Health/Check` (matcher `0`); REST/SSE use `/healthz` (matcher `200`).
 
 **Behavior**:
 - `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeats and Cloudflare 120s edge timeout)

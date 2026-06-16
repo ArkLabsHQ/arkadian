@@ -1,5 +1,41 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-16 - Documentation Sync
+**Commit**: `a4dede1289cb91f54ab51d245de30e267d5e4601`
+**Previous Sync**: `13f2652270ad89e054f85d2d47dc8fbd8c7655ab`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 non-merge commits
+- `a4dede12` feat(dev): support VITE_DEV_MNEMONIC for dev auto-init (#674)
+- `995f7620` fix(receive/send): correct clipboard, amountless LNURL, and BIP21 case handling (#672)
+- `036bfc11` feat: consume ts-sdk PR #554 (arkd signer rotation) + flag deprecated-signer contracts (#670)
+- `89e75ac7` Upgrade branta sdk to v3.1.3 (#673)
+
+**Features Added / Modified**:
+- **Signer rotation & deprecated-signer contracts** (PR #670): consumes ts-sdk PR #554 by bumping `@arkade-os/sdk` 0.4.34 → 0.4.35 and `@arkade-os/boltz-swap` 0.3.39 → 0.3.40. The dev-only Contracts screen (`src/screens/Settings/Contracts.tsx`) was rebuilt: compact collapsible rows, Active/Inactive tab, type-filter chips, search box, and a virtualized list (`@tanstack/react-virtual`). Contracts are classified against the operator's advertised signer set (`signerSetFromInfo` + `classifyAgainstSignerSet`), showing a **deprecated signer** / **deprecated signer / past cutoff** badge. Boarding contracts show their on-chain Bitcoin Taproot address (`bech32m` re-encode of the P2TR scriptPubKey) and link out to a block explorer (Arkade for ark, mempool for boarding).
+- **Outdated-client detection** (PR #670): `getAspInfo` (`src/lib/asp.ts`) maps the SDK's typed `ArkError` named `BUILD_VERSION_TOO_OLD` to `{ unreachable: true, outdated: true, minBuildVersion }`; `AspInfo` gains `outdated?`/`minBuildVersion?`; new `aspErrorText(info, fallback)` shows "Your wallet is outdated…" across About/Server/Vtxos/Init/Wallet Index/Notes/Send/Unavailable screens, which now react to `aspInfo.outdated`. Copy reworded to "Arkade server"; `Chip` keyboard a11y added.
+- **VITE_DEV_MNEMONIC dev auto-init** (PR #674): dev auto-init also accepts a 12-word mnemonic (preferred over `VITE_DEV_NSEC`); `WalletProvider` builds `MnemonicIdentity`/`SingleKey`; declared in `ImportMetaEnv` (`src/vite-env.d.ts`).
+- **Receive/Send copy & BIP21 fixes** (PR #672): `resolveQrValue()` keeps an explicit copy-sheet selection across async QR rebuilds; tapping a copy row switches the QR; LNURL gated on the amountless condition; `encodeBip21` uses `useGrouping=false`; `decodeBip21` matches query keys case-insensitively via a `getParam()` helper.
+- **Branta SDK v3.1.3** (PR #673): `@branta-ops/branta` upgraded; Send form uses `getPayments` for pasted-address/invoice verification, debounces typed-recipient lookups 400 ms, and only wraps the Branta badge in `<a>` when a verify URL exists.
+
+**Configuration Changes**: New dev-only env var `VITE_DEV_MNEMONIC` (PR #674). Dependency bumps: `@arkade-os/sdk` 0.4.35, `@arkade-os/boltz-swap` 0.3.40, `@branta-ops/branta` 3.1.3.
+**Breaking Changes**: None (dev/UX/dependency changes only).
+
+**Files Touched in Repo** (23 files): `package.json`, `pnpm-lock.yaml`, `src/App.tsx`, `src/lib/asp.ts`, `src/lib/bip21.ts`, `src/providers/asp.tsx`, `src/providers/wallet.tsx`, `src/screens/Init/Init.tsx`, `src/screens/Settings/{About,Contracts,Server,Vtxos}.tsx`, `src/screens/Wallet/Index.tsx`, `src/screens/Wallet/Notes/{Form,Redeem}.tsx`, `src/screens/Wallet/Receive/QrCode.tsx`, `src/screens/Wallet/Send/Form.tsx`, `src/screens/Wallet/Unavailable.tsx`, `src/vite-env.d.ts`, plus tests.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.22 → 1.2.23 + `last_sync_commit`; SDK/boltz-swap versions, added `@branta-ops/branta`; added `VITE_DEV_NSEC`/`VITE_DEV_MNEMONIC` env vars; rebuilt Contracts screen description; added outdated-client and Receive/BIP21 diagnostics bullets.
+- `docs/projects/wallet/system/project_overview.md` — tech-stack + Project Status dependency versions; Developer/Diagnostics section (dev auto-init, Contracts rebuild, outdated-client prompt, BIP21 copy).
+- `docs/INDEX.md` — wallet Key Capabilities (Contracts rebuild, SDK bump, outdated-client, VITE_DEV_MNEMONIC, Receive/BIP21, Branta), Tags, Dependencies.
+- `docs/projects/wallet/change-log/last-sync.txt` → `a4dede1289cb91f54ab51d245de30e267d5e4601`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `system/architecture.md`, `system/tech-stack.md`, `system/components.md`, `system/ark-sdk-integration.md`, `system/lightning-payment-flow.md`, `system/pwa-features.md`, `sop/`, `testing/` — no change to architecture, component inventory, build/test commands, or user-facing usage beyond what's captured above.
+
+---
+
 ## 2026-06-12 - Documentation Sync
 **Commit**: `13f2652270ad89e054f85d2d47dc8fbd8c7655ab`
 **Previous Sync**: `1637f4d02f3887b7605bc47c9df5a485c26be9c7`

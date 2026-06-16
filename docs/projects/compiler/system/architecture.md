@@ -44,6 +44,9 @@ Before compilation, `validate_ast()` runs over the parsed `Contract`:
 - `options.exit` is required whenever `options.server` is set.
 - Literal timelock values must be positive (warning for `renew`, error for `exit`); identifier-valued timelocks are deferred to deploy-time resolution.
 - **Require-guard warning** (CashScript-style): a non-internal function with no `require()` statements (directly or inside `if/else`/`for` branches) would trivially succeed for any spend — emits a warning.
+- **Immutable constructor params** (`check_ctor_assignment`): a `name = expr;` reassignment of a constructor parameter is rejected (constructor parameters are read-only); recurses into `if/else` and `for` bodies.
+- **Scope shadowing** (`check_shadowing` + `walk_scope`): a lexical-scope stack rejects function parameters shadowing constructor parameters, `let`/loop bindings shadowing any name live in an enclosing scope, and `for (x, x)` loops with identical index/value variable names. Each `if`/`else`/`for` block pushes its own frame so sibling blocks don't collide.
+- **Emitted-namespace collisions** (`check_expanded_namespace`): per non-internal function, the names parameters contribute to the emitted placeholder namespace — after array flattening, asset-ID decomposition, and the appended `serverSig` — must be unique, catching collisions distinct source names can't reveal (e.g. `int[] xs` vs `int xs_0`). Reuses the compiler's `collect_lookup_asset_ids` / `decompose_constructor_params` (now `pub(crate)`) so the simulated namespace matches the emitter; `{pubkey}Sig` exit names are deliberately not reserved.
 
 Issues are collected as `Vec<ValidationIssue>`; `has_errors()` decides whether compilation halts.
 
@@ -110,7 +113,9 @@ src/
 │   └── mod.rs           # compile(), generate_function(), generate_asm_from_statements(),
 │                        # emit_*_asm() functions, loop unrolling, introspection detection
 ├── validator/
-│   └── mod.rs           # validate_ast() + validate_output(); BSST-style ASM analysis;
+│   └── mod.rs           # validate_ast() + validate_output(); binding-hygiene checks
+│                        # (immutable ctor params, scope shadowing, emitted-namespace
+│                        # collisions); BSST-style ASM analysis;
 │                        # CashScript-style placeholder consistency check
 ├── typechecker/
 │   └── mod.rs           # ArkType-based expression typing
@@ -120,11 +125,11 @@ src/
 
 ## Testing Architecture
 
-27 dedicated integration test files cover individual contract types, language features, and compiler self-checks. Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
+28 dedicated integration test files cover individual contract types, language features, and compiler self-checks. Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
 
 - **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard, exit-leaf pubkey filtering), `repayment_pool_test` / `bond_mint_test` (fixed-maturity bond market: phased-lifecycle time gates, strict-burn equality, deployment-invariant assertions including `auctionWindow > 0` / `auctionDiscountBps ∈ [0, 10000)`, ceiling-division origination floor, force-liquidation co-spend regression guards)
 - **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
 - **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
 - **Asset groups**: `group_properties_test`
 - **Complex contracts**: `arkade_kitties_test`, `token_vault_test`, `threshold_oracle_test`, `threshold_multisig_test`, `epoch_limiter_test`
-- **Validation & structure**: `asm_structural_test` (BSST-style ASM checks), `validation_error_test` (AST/output validator errors), `type_system_test` (typechecker behaviour), `compilation_roundtrip_test` (compile-then-re-parse round-trip), `contract_import_instantiation_test` (cross-contract imports)
+- **Validation & structure**: `asm_structural_test` (BSST-style ASM checks), `validation_error_test` (AST/output validator errors), `no_shadowing_test` (immutable-ctor-param assignment rejection, scope-shadowing and `for (x, x)` detection, emitted-namespace collisions), `type_system_test` (typechecker behaviour), `compilation_roundtrip_test` (compile-then-re-parse round-trip), `contract_import_instantiation_test` (cross-contract imports)

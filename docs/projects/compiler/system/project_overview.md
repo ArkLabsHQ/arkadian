@@ -48,7 +48,10 @@ The N-of-N exit list is built by walking each function's AST and classifying eve
 ### Semantic Validation
 A dedicated `validator` module runs two passes around compilation, producing `ValidationIssue` entries with `Error` / `Warning` severity:
 
-1. **AST validation** (`validate_ast`, pre-compilation): catches semantic errors the PEG grammar cannot express — duplicate function/parameter names, empty contract name, missing `options.exit` when `options.server` is set, non-positive literal timelocks, and a CashScript-style **require-guard warning** when a non-internal function contains no `require()` statements.
+1. **AST validation** (`validate_ast`, pre-compilation): catches semantic errors the PEG grammar cannot express — duplicate function/parameter names, empty contract name, missing `options.exit` when `options.server` is set, non-positive literal timelocks, and a CashScript-style **require-guard warning** when a non-internal function contains no `require()` statements. Three further binding-hygiene checks run here:
+   - **Immutable constructor parameters** (`check_ctor_assignment`): rejects any `name = expr;` reassignment where `name` is a constructor parameter (recurses into `if/else` and `for` bodies). Constructor parameters are read-only.
+   - **Scope shadowing** (`check_shadowing` / `walk_scope`): rejects a function parameter that shadows a constructor parameter, a `let` binding or loop variable that shadows any name still live in an enclosing lexical scope, and a `for (x, x)` loop whose index and value variables are identical. Sibling `if`/`else`/`for` blocks each push their own frame, so they don't conflict with one another.
+   - **Emitted-namespace collisions** (`check_expanded_namespace`): for every non-internal function, the names that constructor and function parameters contribute to the *emitted* placeholder namespace — after array flattening (`name_0`, `name_1`, …), asset-ID decomposition (`_txid` + `_gidx`), and the unconditionally-appended `serverSig` — must be unique. Distinct source names can still collide here (e.g. `int[] xs` vs `int xs_0`, or a parameter literally named `serverSig` when a server key is set). The N-of-N exit `{pubkey}Sig` names are intentionally *not* reserved, since the emitter deduplicates them by name against existing signature parameters. Reuses `collect_lookup_asset_ids` / `decompose_constructor_params` from the compiler (now `pub(crate)`) so the check mirrors the emitter exactly.
 2. **Output validation** (`validate_output`, post-compilation): asserts compiler-output invariants — non-empty `contractName`, every function variant has non-empty `asm` and `witnessSchema`, both `serverVariant=true` and `serverVariant=false` exist per function, BSST-style ASM structure analysis (balanced `OP_IF`/`OP_ELSE`/`OP_ENDIF`, well-formed `<placeholder>` tokens, no empty instructions), and CashScript-style placeholder consistency (every `<name>` resolves against `witnessSchema` or `constructorInputs`).
 
 Timelocks (`exit`, `renew`) accept both integer literals (`exit = 144`) and constructor parameter identifiers (`exit = exit`); the latter emits a `<exit>` placeholder resolved at deploy time.
@@ -103,7 +106,7 @@ compiler/
 │   └── bonds/              # Fixed-maturity bond market with margin call + phased lifecycle
 │       ├── repayment_pool.ark
 │       └── bond_mint.ark
-├── tests/                  # 27 integration test files (shared helpers in tests/common/mod.rs)
+├── tests/                  # 28 integration test files (shared helpers in tests/common/mod.rs)
 └── docs/                   # Internal documentation (specs, opcodes, stability.md, options.md, bonds.md design docs)
 ```
 

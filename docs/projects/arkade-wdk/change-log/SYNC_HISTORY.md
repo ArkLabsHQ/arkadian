@@ -1,5 +1,27 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-06-16 — Pin `pear-wrk-wdk` submodule to shim commit + regenerate lockfile
+**Previous Commit**: `af4d6b3f1d3fff150192123b6b3fa69ef7a9dae1`
+**Current Commit**: `b71316d412574c52e2fcbb6564fccf2786794637`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated (minor)
+
+**Commits Analyzed** (1):
+- `b71316d` Update submodule to shim commit (#25) — two chore commits squashed: (a) *chore: regenerate lockfile* bumps `package-lock.json#version` `0.1.2` → `0.1.3` to catch up with `package.json` (which was already at `0.1.3` since `f24a173`); (b) *chore: pin pear-wrk-wdk submodule to shim commit* bumps the `packages/pear-wrk-wdk` submodule pointer `ef7a951` → `b3a8f55` on the `ArkLabsHQ/pear-wrk-wdk` fork.
+
+**Changes**:
+- `system/project_overview.md` — Submodules paragraph notes the first direct `pear-wrk-wdk` pointer bump (`ef7a951` → `b3a8f55`, the "shim commit") on the fork, baking the pure-JS `bare-*` worklet shims into the submodule rather than relying solely on the patch overlay.
+- `change-log/last-sync.txt` — Advanced to `b71316d`.
+- Master `docs/INDEX.md` — Not modified. No version-pin, capability, or dependency change is surfaced there (the entry already documents version `0.1.3` and does not pin submodule SHAs).
+
+**Notes**:
+- No source or public API changes. `WalletManagerArkade` / `WalletAccountArkade` / `WalletAccountReadOnlyArkade` are byte-identical with `af4d6b3`.
+- Dependency pins unchanged: `@arkade-os/sdk@0.4.25`, `@arkade-os/boltz-swap@0.3.29`, `@tetherto/wdk-wallet ^1.0.0-beta.5`.
+- `package.json#version` was already `0.1.3` before this sync; only the lockfile lagged, so no documented version bump was needed.
+- The `bare-*` worklet shims (`bare-abort`, `bare-stdio`, `bare-performance`, `bare-type`) were already described in `testing/troubleshooting.md` and `system/integration-with-arkd.md`; this sync only records that they are now pinned via the fork submodule pointer.
+
+---
+
 ## 2026-05-29 — Self-host `pear-wrk-wdk` submodule + force submodule reset in `setup-dev`
 **Previous Commit**: `f24a17340cdcbfd88c147494c7a6d746e63e8b2a`
 **Current Commit**: `af4d6b3f1d3fff150192123b6b3fa69ef7a9dae1`

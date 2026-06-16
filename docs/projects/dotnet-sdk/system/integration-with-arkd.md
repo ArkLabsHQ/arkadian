@@ -51,6 +51,15 @@ services.AddArkNetwork(new ArkNetworkConfig("https://my-ark-server.com"));
 | `GetVirtualTxsAsync` | Indexer endpoint — returns raw tx hex (as PSBT) for off-chain virtual txs by txid. `Commitment` txs are not included (they're on-chain — fetch from the explorer if needed) |
 | `GetVtxoTreeAsync` | Indexer endpoint — returns the full VTXO tree for a batch; consumed by `ExitWatchtowerService` for partial-tree-broadcast detection |
 
+## Version Headers
+
+`ArkdVersion` (`NArk.Core/Transport/ArkdVersion.cs`) injects two version headers on **every** outgoing gRPC and REST request — via `InjectHeader` on the `HttpClient` default headers (REST) and on the gRPC `Metadata`:
+
+- **`X-Build-Version`** — the Arkade server (arkd) build this SDK targets (`ArkdVersion.TargetBuild`, currently `0.9.9`). When arkd rejects a request with a `BUILD_VERSION_TOO_OLD` error detail, `ThrowIfVersionRejected` raises `IncompatibleSdkVersionException` (it propagates to the caller; the SDK does not catch it).
+- **`X-SDK-VERSION`** — the NArk SDK's own version, sent as a `name/version` product token, e.g. `dotnet-sdk/1.0.327-beta` (PR #139). The name (`dotnet-sdk`) lets arkd distinguish the .NET SDK from other SDKs (e.g. the TypeScript SDK) on the same wire. The value is `ArkdVersion.SdkVersion` — derived from `Nerdbank.GitVersioning` (`ThisAssembly.AssemblyInformationalVersion`) with the SemVer build-metadata suffix (the `+commit` part) stripped via `StripBuildMetadata`. Pinned by `NArk.Tests/BuildVersionHeaderTests.cs`.
+
+Both headers are added idempotently (REST checks `Contains` before adding). Note the distinction: `X-Build-Version` reports the *server build the SDK was written against*, while `X-SDK-VERSION` reports the *version of the SDK itself*.
+
 ## Batch Round Participation
 
 The `BatchSession` class manages participation in arkd batch rounds:

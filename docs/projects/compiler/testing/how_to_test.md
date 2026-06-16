@@ -26,7 +26,7 @@ cargo test htlc_claim
 cargo test asset_introspection
 ```
 
-## Test Files (27 total)
+## Test Files (28 total)
 
 Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
 
@@ -66,6 +66,7 @@ Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_
 |-----------|--------|
 | `asm_structural_test.rs` | BSST-style structural checks: balanced `OP_IF`/`OP_ELSE`/`OP_ENDIF`, well-formed `<placeholder>` tokens, no empty instructions |
 | `validation_error_test.rs` | AST validator errors and warnings (duplicate names, missing `options.exit`, require-guard warning) |
+| `no_shadowing_test.rs` | Binding-hygiene `validate_ast` checks: rejects assignment to immutable constructor parameters, function params / `let` bindings / loop variables that shadow an in-scope name, and `for (x, x)` identical loop variables; asserts emitted-namespace collisions after array flattening / asset decomposition / appended `serverSig` (e.g. an explicit `serverSig` parameter, or `int[] xs` vs `int xs_0`). The `bare_vtxo_test.rs` `cooperative` fixture was updated to stop declaring `serverSig` explicitly, since the compiler injects it |
 | `type_system_test.rs` | Typechecker behaviour and `ArkType` resolution |
 | `compilation_roundtrip_test.rs` | Compile-then-re-parse round-trip parity across example contracts (refreshed to include the `bonds/` examples) |
 

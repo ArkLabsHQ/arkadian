@@ -151,6 +151,12 @@ Client SDK for building wallets and applications in Go.
 ### DB-Persisted Settings with Admin CRUD API (PR #939)
 Operational settings (exit delays, amount limits, round participants, ban config, tx weight limits, fees, scheduled session) now live in a single database row (`domain.Settings`) — the source of truth at runtime. `ARKD_*` settings env vars are used **only on the first boot** to seed the row; afterwards they are ignored and settings are managed via `GET`/`POST /v1/admin/settings` (partial updates with server-side validation and a returned change log). Legacy `intent_fees`/`scheduled_session` table contents are migrated into the settings row on first boot. `ARKD_SCHEDULER_TYPE` and `ARKD_ALLOW_CSV_BLOCK_TYPE` were removed; the scheduler is derived from the `vtxo_tree_expiry` locktime type.
 
+### Signer-Key Deprecation / Rotation (PR #1097)
+The operator can rotate the server signing key without invalidating VTXOs that were signed by an older key. `arkd-wallet` accepts a comma-separated `DEPRECATED_SIGNER_KEYS` env var (each entry `<hexkey>[:<unix-cutoff>]`, the cutoff being the time after which the key is no longer accepted, `0`/unset = never); startup rejects a deprecated key that matches the current `SIGNER_KEY`. The signer gRPC `GetPubkeyResponse` now returns the deprecated keys (`DeprecatedSigner{pubkey, cutoff_date}`), and the indexer/application layers verify intents and strip signer signatures against the union of the current and all deprecated signer pubkeys.
+
+### Optional `x-sdk-version` Client Header (PR #1113)
+`pkg/client-lib` can attach its build version to every gRPC call via the new `WithClientVersion(version)` ServiceOption, sent as the `x-sdk-version` metadata header (only when set). The server's existing `x-build-version` `VersionGuard` interceptor was tightened so a present, parseable client version is always compared to the server minimum, regardless of whether the header is required. **Breaking:** `grpcclient.NewClient` now takes `(serverUrl, clientVersion)`.
+
 ### Fee System (CEL-Based)
 Programmable fee management using CEL (Common Expression Language) formulas. Supports per-intent-type fees (onchain input, offchain input, onchain output, offchain output) with admin APIs for managing fee programs and a client-facing fee estimation RPC.
 

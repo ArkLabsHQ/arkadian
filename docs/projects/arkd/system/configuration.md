@@ -99,6 +99,13 @@ Fees are managed via a programmable CEL formula engine (see Admin Fee APIs) and 
 - `ARKD_UNLOCKER_FILE_PATH` - File path for file-based unlocker
 - `ARKD_UNLOCKER_PASSWORD` - Password for env-based unlocker
 
+### arkd-wallet Signer Keys (PR #1097)
+
+These variables are read by the **arkd-wallet** service (env prefix `ARKD_WALLET_`), not arkd itself:
+
+- `ARKD_WALLET_SIGNER_KEY` - Hex-encoded 32-byte private key used as the current server signing key
+- `ARKD_WALLET_DEPRECATED_SIGNER_KEYS` (default: "") - Comma-separated list of previously-used signing keys still accepted for VTXOs signed before rotation. Each entry is `<hexkey>[:<unix-cutoff>]`: a 32-byte hex private key, optionally followed by a Unix timestamp after which the key is no longer accepted (`0` or omitted = no cutoff). Startup fails if any deprecated key equals `ARKD_WALLET_SIGNER_KEY`. The wallet exposes these via the signer `GetPubkey` RPC (`deprecated_signers`), and arkd verifies intents / strips signer signatures against current + deprecated keys.
+
 ### gRPC Gateway / Streaming
 - `ARKD_MAX_CONCURRENT_STREAMS` (default: 1000) - HTTP/2 `MAX_CONCURRENT_STREAMS` budget advertised per gateway connection
 - `ARKD_STREAM_CONN_POOL_SIZE` (default: 4, max: 64) - Number of pooled `grpc.ClientConn`s the gateway uses for streaming RPCs. Each connection carries an independent stream budget, so the effective concurrent-stream capacity is `MAX_CONCURRENT_STREAMS * STREAM_CONN_POOL_SIZE`. `splitConn` round-robins `NewStream` calls across the pool; values are clamped to `[1, 64]`. Set to `1` to restore the previous single-connection behavior.
