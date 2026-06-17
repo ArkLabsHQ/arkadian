@@ -118,7 +118,7 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.7`, `ghcr.io/arkade-os/arkd-wallet:v0.9.7` since #87). ECR
+     (`ghcr.io/arkade-os/arkd:v0.9.9`, `ghcr.io/arkade-os/arkd-wallet:v0.9.9` since #94). ECR
      remains used for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -194,6 +194,8 @@ App ↔ telemetry resolution uses **AWS Cloud Map** private DNS; the telemetry i
 **Persistent state (2026-06, #80):** the telemetry ASG is pinned to a single subnet/AZ (`telemetry_subnet_id`) and mounts a **re-attachable `gp3` EBS data volume** (`aws_ebs_volume.telemetry_data`) at `/dev/xvdb` → `/mnt/data`, with Docker's `data-root` relocated to `/mnt/data/docker`. Prometheus / Loki / Grafana state survives instance recycles; cost is loss of multi-AZ HA. Volume is encrypted, tagged `ark-telemetry-data-${env}`, sized via `telemetry_data_volume_size` (default 20 GB; prod 30 GB). On boot the Ansible playbook cleans stale `/mnt/data/docker/containers` metadata from the previous instance before starting Docker. IAM additions: `ec2:Describe{Volumes,VolumeStatus,VolumeAttribute,Instances,Tags}` plus `ec2:AttachVolume`/`DetachVolume` scoped by `ec2:ResourceTag/Environment`. Ansible requirements bumped to `amazon.aws >= 10.3.1` and `community.general`, `ansible.posix` added.
 
 **Resource profiles + CloudWatch Agent (2026-06, #88):** new `telemetry_resource_profile` variable (`small` | `large`, default `large`, validated) layers a `docker-compose.resources.{profile}.yaml` override on the `ark-telemetry.service` systemd unit (both `ExecStart` and `ExecStop`) so per-container memory/CPU limits track instance size; staging → `small`, prod → `large`. The telemetry instance also installs the Amazon CloudWatch Agent (latest .deb — AWS publishes only `/latest/`) and ships `cpu` / `mem` / `disk` (scoped to `/` and `/mnt/data`, ignoring `tmpfs/devtmpfs/overlay/squashfs`) to CloudWatch with `InstanceId` appended as a dimension; IAM gains `CloudWatchAgentServerPolicy` attached to `ec2_telemetry_role`. Grafana now explicitly opts into brute-force login protection (`GF_AUTH_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=false`, `…_BY_IP=false`).
+
+**Telemetry image pre-pull hotfix (2026-06):** the playbook now runs `docker compose -f docker-compose.otel.yaml -f docker-compose.resources.{{ resource_profile }}.yaml pull` immediately before installing/starting the `ark-telemetry` systemd unit, so images are fetched ahead of service start (avoids slow/failed first-boot starts).
 
 **App-side CloudWatch alarms (2026-06, #83):** the single `HighDisk-${env}` alarm split into `HighDisk-Root-${env}` (path `/`, `nvme0n1p1`/ext4) and `HighDisk-Data-${env}` (path `/mnt/data`, `nvme1n1`/ext4); the CloudWatch Agent config on both prod and regtest user-data appends `InstanceId`, scopes disk metrics to `/` + `/mnt/data` (drops noisy tmpfs/overlay), and regtest now also collects CPU metrics matching prod.
 

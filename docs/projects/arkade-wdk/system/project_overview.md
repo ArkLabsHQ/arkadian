@@ -35,6 +35,7 @@ Optional Lightning support is wired through `@arkade-os/boltz-swap`: when a Bolt
 | Read-Only Account | `toReadOnlyAccount()` returns a `WalletAccountReadOnlyArkade` backed by `ReadonlySingleKey` |
 | Secure Key Erasure | `sodium_memzero` wipes private key material on `dispose()` |
 | In-Memory Storage Fallback | Manager defaults to in-memory wallet/contract repos when the consumer doesn't supply storage (RN/Bare have no IndexedDB) |
+| Build-Version Guard | Manager detects arkd's structured `BUILD_VERSION_TOO_OLD` ArkError on `getInfo()` and surfaces an actionable "update `@arkade-os/sdk`" error (with the operator's `min_version` when provided) instead of retrying into an opaque network failure |
 
 ## Account Model
 
@@ -68,8 +69,8 @@ Every account exposes the same three receive surfaces from its underlying wallet
 
 | Dependency | Pinned | Role |
 |------------|--------|------|
-| `@arkade-os/sdk` | `0.4.25` | Underlying Ark protocol wallet |
-| `@arkade-os/boltz-swap` | `0.3.29` | Optional Lightning swap integration |
+| `@arkade-os/sdk` | `0.4.35` | Underlying Ark protocol wallet |
+| `@arkade-os/boltz-swap` | `0.3.40` | Optional Lightning swap integration |
 | `@tetherto/wdk-wallet` | `^1.0.0-beta.5` | WDK base `WalletManager` / `WalletAccountReadOnly` classes |
 | `@scure/bip32` | `^2.0.1` | BIP32 HD key derivation |
 | `@scure/base` | `^2.0.0` | Bech32 / base encoding |
@@ -109,3 +110,4 @@ Each submodule is an independent git repository. Local modifications are kept as
 - The package public surface is intentionally narrow: `index.js` only exports the manager (default) plus `WalletAccountArkade` and `WalletAccountReadOnlyArkade`. The `lib/*` helpers are internal.
 - Lightning-only methods on `WalletAccountArkade` throw `Lightning support not configured` when `swapProviderUrl` was not supplied — the `arkadeSwaps` field (renamed from `arkadeLightning`) is `null` in that case.
 - The underlying SDK wallet is **not** publicly exposed on `WalletAccountArkade` (the previous `account.wallet` field is now private). Use `account.getBalance()`, `account.getTransactionHistory()`, and `account.subscribeToIncomingFunds(cb)` instead.
+- As of the `@arkade-os/sdk` `0.4.35` / `@arkade-os/boltz-swap` `0.3.40` upgrade (consuming ts-sdk signer-rotation support), the manager intercepts arkd's structured `BUILD_VERSION_TOO_OLD` ArkError (raised even on `getInfo()` when the client's `X-Build-Version` is below the operator's minimum) and rethrows a clear "update the SDK" message rather than retrying. Fee quoting (`quoteSend` / `lib/send.js`) now accepts a read-only wallet (`QuoteOptions`), since quoting never signs.

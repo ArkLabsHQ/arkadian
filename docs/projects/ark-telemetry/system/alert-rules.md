@@ -606,6 +606,66 @@ Loki alert rules use LogQL (Loki Query Language) to detect patterns in applicati
 - Evaluate liquidity management policies
 - Consider operational adjustments
 
+## Client Compatibility Alerts (PR #17, June 2026)
+
+> Defined in `${ARK_TELEMETRY_REPO}/loki.alert.rules.yml`. These are **observational** alerts that track client integrity and SDK adoption rather than service health. They carry an `alert_type` of `client_integrity` or `client_compatibility`, which Alertmanager routes to the `slack-notifications-info` receiver as hourly, info-style notifications (see configuration.md).
+
+### ArkdDigestMismatch
+
+**Purpose**: Detect clients sending requests with invalid or missing digest headers (`DIGEST_MISMATCH` errors in arkd gRPC logs).
+
+**Configuration:**
+```yaml
+- alert: ArkdDigestMismatch
+  expr: |
+    sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [1h])) > 0
+  for: 0s
+  labels:
+    severity: warning
+    component: arkd
+    alert_type: client_integrity
+  annotations:
+    firing_title: "⚠️ Digest Mismatch"
+    summary: "Client digest mismatch errors detected"
+    description: "{{ $value }} DIGEST_MISMATCH error(s) in the last hour. Clients are sending requests with invalid or missing digest headers."
+    logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH"'
+```
+
+**When It Fires:**
+- A client sends a request whose digest header does not match the payload, or is missing
+
+**Response Actions:**
+- Identify the offending client/SDK version (correlate with the SDK Version dashboard panel)
+- Confirm whether a client is running outdated or tampered request-signing logic
+
+### ArkdMissingClientVersion
+
+**Purpose**: Track requests that arrive without an `x-build-version` header, indicating clients that have not updated to v0.9.9+.
+
+**Configuration:**
+```yaml
+- alert: ArkdMissingClientVersion
+  expr: |
+    sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"` [1h])) > 0
+  for: 0s
+  labels:
+    severity: info
+    component: arkd
+    alert_type: client_compatibility
+  annotations:
+    firing_title: "ℹ️ Clients Missing Version Header"
+    summary: "Requests without x-build-version detected"
+    description: "{{ $value }} request(s) with missing or empty x-build-version in the last hour. These clients have not updated to v0.9.9+."
+    logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"`'
+```
+
+**When It Fires:**
+- One or more requests in the last hour lacked a populated `x-build-version` header
+
+**Response Actions:**
+- Treat as adoption telemetry, not an incident — track the volume trend over time
+- Encourage outstanding clients to upgrade to v0.9.9+
+
 ## LogQL Alert Best Practices
 
 ### Pattern Matching

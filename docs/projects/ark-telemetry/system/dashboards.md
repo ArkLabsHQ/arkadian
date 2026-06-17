@@ -97,11 +97,20 @@ go_memstats_heap_alloc_bytes
 rate(go_gc_duration_seconds_sum[5m])
 ```
 
+**Client Compatibility Panels (PR #17, June 2026)** — three Loki-backed panels (datasource uid `loki`) track client integrity and SDK adoption:
+- **Digest Mismatch Errors**: count of `DIGEST_MISMATCH` errors over time
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [5m]))`
+- **Requests Missing Client Version**: requests without an `x-build-version` header (clients not yet on v0.9.9+)
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version.[0-9]" [5m]))`
+- **Requests by SDK Version**: request volume grouped by the `x-sdk-version` header value
+  - `sum by (sdk_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-sdk-version" | regexp "x-sdk-version.{3}(?P<sdk_version>[^\"]+)" [5m]))`
+
 **Use Cases:**
 - Detect memory leaks (increasing heap usage)
 - Identify goroutine leaks (unbounded goroutine growth)
 - Monitor GC pressure and performance impact
 - Validate Go runtime health
+- Track client SDK adoption and integrity (digest mismatches, version headers)
 
 ### 3. Cadvisor Exporter (Cadvisor_exporter.json)
 

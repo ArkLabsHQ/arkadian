@@ -130,8 +130,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
-- **@arkade-os/sdk** (0.4.35) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`)
-- **@arkade-os/boltz-swap** (0.3.40) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps)
+- **@arkade-os/sdk** (0.4.36) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`)
+- **@arkade-os/boltz-swap** (0.3.41) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps; optimistic `waitFor: 'funded'` Lightning resolution + `waitForSwapFunded` + preimage backfill in 0.3.41)
 - **@branta-ops/branta** (3.1.3) for Send-form payment-destination verification (debounced typed-input lookups via `getPayments`)
 - **@tanstack/react-virtual** for virtualized swap list and dev-mode contracts list rendering
 - **Dexie** for IndexedDB storage with React hooks
@@ -227,7 +227,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.35, @arkade-os/boltz-swap 0.3.40, @branta-ops/branta 3.1.3
+**Dependencies**: @arkade-os/sdk 0.4.36, @arkade-os/boltz-swap 0.3.41, @branta-ops/branta 3.1.3
 
 ## Getting Started
 

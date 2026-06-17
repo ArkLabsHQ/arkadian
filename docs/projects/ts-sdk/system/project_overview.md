@@ -12,8 +12,8 @@ Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorep
 
 | Workspace path | Published as | Version (at HEAD) | Role |
 |----------------|--------------|-------------------|------|
-| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.35` | This SDK — what the rest of this doc describes |
-| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.40` | Sibling Boltz Lightning/chain-swap library; depends on `@arkade-os/sdk` via `workspace:*` (see `docs/projects/boltz-swap/`) |
+| `packages/ts-sdk/` | `@arkade-os/sdk` | `0.4.36` | This SDK — what the rest of this doc describes |
+| `packages/boltz-swap/` | `@arkade-os/boltz-swap` | `0.3.41` | Sibling Boltz Lightning/chain-swap library; depends on `@arkade-os/sdk` via `workspace:*` (see `docs/projects/boltz-swap/`) |
 
 - **devDeps hoisted to root**: `tsup`, `vitest`, `typescript`, `prettier`, `husky`, `@types/node`, `fake-indexeddb`, `eventsource`. Per-package `package.json` keeps only package-unique deps.
 - **Shared base configs**: root `tsconfig.base.json`, root prettier config, root `tsup` base extended per-package.
@@ -26,7 +26,7 @@ Since 2026-05-22 the `arkade-os/ts-sdk` repository is a **pnpm workspace monorep
 
 - **npm**: `@arkade-os/sdk`
 - **Workspace path**: `packages/ts-sdk/`
-- **Version**: 0.4.35
+- **Version**: 0.4.36
 - **License**: MIT
 
 ## Core Features

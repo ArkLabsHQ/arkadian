@@ -198,3 +198,33 @@
 - `system/configuration.md` — "Resource Limits" table: small-profile row updated to the new per-service values (cadvisor 64m, prometheus 256m, grafana 384m, loki 256m).
 - Master `docs/INDEX.md` unaffected — the `ark-telemetry` capabilities bullet names the override files but not per-service values, and restart policies are not indexed. Project `INDEX.md` also does not reference these values. Only the configuration table and sync tracking are updated.
 
+
+## 2026-06-17 - PR #17: Build version / client compatibility alerts
+**From**: `531b46e36b922dca8bb6bfa1ff92f0b315baf965`
+**To**: `646d4e9bd38b15e6b10ed796f41313c5114dfc53`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1 (squash-merged PR #17 — `646d4e9` "Build version alerts")
+
+**Alerting changes** (`loki.alert.rules.yml`):
+- New Loki log-based alert **`ArkdDigestMismatch`** (severity `warning`, `alert_type: client_integrity`): fires when `DIGEST_MISMATCH` errors appear in arkd `ark.v1.ArkService` logs over the last hour — clients sending invalid/missing digest headers.
+- New Loki log-based alert **`ArkdMissingClientVersion`** (severity `info`, `alert_type: client_compatibility`): fires when requests arrive without a populated `x-build-version` header in the last hour — clients not yet on v0.9.9+.
+
+**Routing changes** (`alertmanager.yml.tmpl`):
+- New route matching `alert_type =~ "client_integrity|client_compatibility"` → receiver `slack-notifications-info`, observational hourly cadence (`group_wait: 0s`, `group_interval: 30s`, `repeat_interval: 1h`).
+
+**Dashboard changes** (`dashboards/Ark_Go_metrics.json`):
+- Three new Loki-backed panels (datasource uid `loki`): **Digest Mismatch Errors**, **Requests Missing Client Version**, and **Requests by SDK Version** (grouped by the `x-sdk-version` header).
+
+**Datasource changes** (`provisioning/datasources/loki.yaml`):
+- Loki datasource pinned to a stable `uid: loki` (so dashboard panels can reference it), with a `deleteDatasources` cleanup block removing any pre-existing `Loki` datasource first.
+
+**Doc-file updates**:
+- `system/alert-rules.md` — added "Client Compatibility Alerts" section documenting `ArkdDigestMismatch` and `ArkdMissingClientVersion`.
+- `system/dashboards.md` — documented the three new client-compatibility panels under Ark Go Metrics.
+- `system/configuration.md` — documented the new Alertmanager client-compatibility route and the pinned Loki datasource UID.
+- `system/project_overview.md` — added client compatibility alerts to the Proactive Alerting feature list.
+- Project `INDEX.md` — added the two client compatibility alerts to the Alert Rules quick reference.
+- Master `docs/INDEX.md` — added a client compatibility/integrity capability bullet to `ark-telemetry`.
+
+---

@@ -48,6 +48,7 @@ The alerting system detects and notifies operators of issues before they become 
 
 - Service availability monitoring (`ServiceMissing` alert)
 - Resource threshold alerts split by `host_role`: `HighCPUUsage_App` / `HighCPUUsage_Telemetry`, `HighMemoryUsage_App` / `HighMemoryUsage_Telemetry`, `RootDiskHighUsage_App` / `RootDiskHighUsage_Telemetry`, `DataDiskHighUsage` (app)
+- Client compatibility alerts (PR #17): `ArkdDigestMismatch` and `ArkdMissingClientVersion` track client integrity and SDK version adoption, routed as hourly observational notifications
 - Slack integration for immediate notification
 - Alert resolution notifications when issues are fixed
 

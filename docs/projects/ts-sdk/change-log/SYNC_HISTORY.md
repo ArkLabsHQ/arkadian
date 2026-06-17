@@ -1,5 +1,30 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-17 - Release-only bump (0.4.36 / 0.3.41) — substantive work in sibling boltz-swap
+**From**: `28d003afaa41b0637c3bfc7f090d4c8ea4201aa6`
+**To**: `89de6561460faecef58a3048ed9e12fdf2078d4d`
+**Synced By**: update-project skill
+**Status**: Release cut — `@arkade-os/sdk` `0.4.35 → 0.4.36`, `@arkade-os/boltz-swap` `0.3.40 → 0.3.41` (commit `89de6561`). **No `packages/ts-sdk/src/` changes** in this range — the only `packages/ts-sdk/` diff is the `package.json` version bump. Every substantive change lands in the sibling `packages/boltz-swap/` package (optimistic `waitFor: 'funded'` Lightning resolution and supporting fixes); those are documented under `docs/projects/boltz-swap/`, not here. This entry exists to keep the SDK's version fields and sync pointer current.
+
+**Commits analyzed** (7 non-merge commits — only the release commit touches `packages/ts-sdk/`):
+- `89de6561` chore: release @arkade-os/sdk@0.4.36, @arkade-os/boltz-swap@0.3.41 — the only commit touching `packages/ts-sdk/` (version bump in `packages/ts-sdk/package.json`)
+- `d9c7775b` fix(boltz-swap): never leave the settlement wait pending on terminal errors *(boltz-swap)*
+- `90d56e35` fix(boltz-swap): warn when funded sends lack the SwapManager safety net *(boltz-swap)*
+- `10c3898f` feat(boltz-swap): backfill the preimage in refreshSwapsStatus *(boltz-swap)*
+- `4d49a3af` refactor(boltz-swap): replace optimisticResolveAt with waitForSwapFunded *(boltz-swap)*
+- `ae26c1b7` fix(boltz-swap): keep persisting swap status after optimistic resolution *(boltz-swap)*
+- `827426d6` feat(boltz-swap): add optimisticResolveAt option to waitForSwapSettlement *(boltz-swap)*
+
+**Documentation changes**:
+- `system/project_overview.md`: bumped `@arkade-os/sdk` `0.4.35 → 0.4.36` (Monorepo Layout table + Package block) and `@arkade-os/boltz-swap` `0.3.40 → 0.3.41` (Monorepo Layout table)
+- `INDEX.md`: bumped the same SDK/boltz-swap versions in the workspace table and the Quick Reference Version row
+- Master `docs/INDEX.md`: refreshed the stale ts-sdk **X-Build-Version** capability bullet to the current **X-Build-Version / X-SDK-VERSION** state (`buildVersion "0.9.9"`, `sdkVersion`, arkd-only header scope since 0.4.35); added a **server-signer rotation / deprecated-signer migration** capability bullet (0.4.35, #554) that the master entry was missing; added a **0.4.36 release** bullet recording this release-only bump and pointing to `docs/projects/boltz-swap/` for the substantive boltz-swap work
+- `change-log/last-sync.txt`: `28d003af → 89de6561`
+
+**Tests added**: none in `packages/ts-sdk/` (no SDK source changes; boltz-swap test changes are in `packages/boltz-swap/test/arkade-swaps.test.ts`)
+
+---
+
 ## 2026-06-16 - arkd signer-rotation support + X-SDK-VERSION header + ghost zero-amount sent fix (0.4.35 / 0.3.40)
 **From**: `219ff3249950944f1811322c53b0442ba36df2d8`
 **To**: `28d003afaa41b0637c3bfc7f090d4c8ea4201aa6`

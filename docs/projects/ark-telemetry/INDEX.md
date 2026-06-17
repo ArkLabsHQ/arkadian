@@ -155,6 +155,10 @@ Alerts are split by `host_role` (`app` vs `telemetry`):
 - **DataDiskHighUsage_App** / **DataDiskHighUsage_Telemetry** — `/mnt/data` >70% for 5 min (PR #12 added telemetry variant; alert was previously `DataDiskHighUsage`, app-only)
 - **ServiceMissing** — Ark service stopped exporting metrics
 
+Client compatibility alerts (PR #17, Loki log-based, routed to `slack-notifications-info` hourly):
+- **ArkdDigestMismatch** — clients sending requests with invalid/missing digest headers (`DIGEST_MISMATCH`)
+- **ArkdMissingClientVersion** — requests without `x-build-version` header (clients not on v0.9.9+)
+
 ---
 
 ## Integration with Ark

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.1
-last_sync_commit: 6727e465463d6128f407a9fb4b4fa621ba22f01a
-last_sync_date: 2026-06-16T00:00:00Z
+version: 1.7.2
+last_sync_commit: 52a431a13d9cbd776319c9068c40210738be4329
+last_sync_date: 2026-06-17T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -220,8 +220,8 @@ make clean-local-state ENV=prod
 ## Deployed Services
 
 ### Core Services
-- **arkd** (7070, `v0.9.7` since #87) — Main Ark daemon (REST + gRPC API)
-- **arkd-wallet** (6060, `v0.9.7`) — Wallet sidecar (auto-unlocked)
+- **arkd** (7070, `v0.9.9` since #94) — Main Ark daemon (REST + gRPC API)
+- **arkd-wallet** (6060, `v0.9.9`) — Wallet sidecar (auto-unlocked)
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
 - **nbxplorer** (`2.6.7`) — Bitcoin blockchain indexer (automatic); built from local `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`), tagged `ark-infra/nbxplorer:2.6.7-curl`, JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]

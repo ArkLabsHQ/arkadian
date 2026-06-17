@@ -1,5 +1,29 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-17 - Documentation Update
+**Commit**: `52a431a13d9cbd776319c9068c40210738be4329`
+**Previous Sync**: `6727e465463d6128f407a9fb4b4fa621ba22f01a`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (PR #94 + hotfix)
+
+**Highlights**:
+- 📦 **arkd release bump to v0.9.9** (#94, `87ada42`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arkade-os/arkd:v0.9.9` and `ghcr.io/arkade-os/arkd-wallet:v0.9.9` (previously
+  `v0.9.7`). Production-only change; regtest compose unchanged.
+- 🩹 **Telemetry image pre-pull hotfix** (`52a431a`): `modules/ark/ansible/telemetry-playbook.yml`
+  adds a `docker compose -f docker-compose.otel.yaml -f docker-compose.resources.{{ resource_profile }}.yaml pull`
+  step (chdir `/opt/ark-telemetry`) immediately before installing the `ark-telemetry` systemd
+  unit, so the telemetry stack images are fetched ahead of service start.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: arkd/arkd-wallet `v0.9.7` → `v0.9.9`, bumped in #94; new telemetry image pre-pull hotfix bullet)
+- docs/projects/ark-infra/INDEX.md (Deployed Services: arkd/arkd-wallet `v0.9.7` → `v0.9.9` since #94)
+- docs/projects/ark-infra/system/project_overview.md (GHCR images `v0.9.7` → `v0.9.9` since #94; new telemetry image pre-pull hotfix paragraph)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `52a431a13d9cbd776319c9068c40210738be4329`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-06-16 - Documentation Update
 **Commit**: `6727e465463d6128f407a9fb4b4fa621ba22f01a`
 **Previous Sync**: `80a49fa7301451aa526c65e09f8711226943947d`

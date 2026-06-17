@@ -114,8 +114,8 @@ Analysis and summaries of pull requests.
 │  └── examples/wdk-starter-react-native  (Expo demo app)       │
 ├──────────────────────────────────────────────────────────────┤
 │  Underlying Dependencies                                     │
-│  ├── @arkade-os/sdk          0.4.25  (Ark protocol wallet)    │
-│  ├── @arkade-os/boltz-swap   0.3.29  (optional Lightning)     │
+│  ├── @arkade-os/sdk          0.4.35  (Ark protocol wallet)    │
+│  ├── @arkade-os/boltz-swap   0.3.40  (optional Lightning)     │
 │  ├── @tetherto/wdk-wallet    1.0.0-beta.5 (WDK base classes)  │
 │  ├── sodium-universal        ^5.0.1  (sodium_memzero)         │
 │  └── @scure/bip32, @scure/base, light-bolt11-decoder          │

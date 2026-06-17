@@ -269,6 +269,17 @@ route:
     - receiver: 'default'
 ```
 
+**Client compatibility route (PR #17, June 2026):** alerts labelled `alert_type =~ "client_integrity|client_compatibility"` (i.e. `ArkdDigestMismatch`, `ArkdMissingClientVersion`) are routed to a dedicated `slack-notifications-info` receiver as hourly observational notifications:
+
+```yaml
+    - matchers:
+        - alert_type =~ "client_integrity|client_compatibility"
+      receiver: 'slack-notifications-info'
+      group_wait: 0s
+      group_interval: 30s
+      repeat_interval: 1h
+```
+
 Advanced routing:
 ```yaml
 route:
@@ -464,6 +475,21 @@ datasources:
     url: http://influxdb:8086
     access: proxy
     database: metrics
+```
+
+**Loki datasource pinned UID (PR #17, June 2026):** the Loki datasource is now provisioned with a fixed `uid: loki` so dashboard panels can reference it by stable UID. A `deleteDatasources` cleanup block first removes any pre-existing `Loki` datasource so the UID is applied cleanly:
+
+```yaml
+apiVersion: 1
+deleteDatasources:
+  - name: Loki
+    orgId: 1
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
 ```
 
 ## Configuration Validation

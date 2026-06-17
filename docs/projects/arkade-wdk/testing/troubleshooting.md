@@ -67,6 +67,16 @@ new WalletManagerArkade(seed, {
 
 ---
 
+## `requires a newer client build` / `BUILD_VERSION_TOO_OLD`
+
+**Symptom:** `getAccount` / `getFeeRates` reject with `Arkade operator at <url> requires a newer client build (minimum <version>). Update @arkade-os/sdk to a version compatible with this operator.`
+
+**Cause:** The new ts-sdk (signer-rotation support) sends an `X-Build-Version` header, and the operator's version guard rejects clients below its configured minimum — it fails even `getInfo()` with a structured `BUILD_VERSION_TOO_OLD` ArkError. The manager (since the `@arkade-os/sdk` `0.4.35` upgrade) detects this deterministic error and skips the transient-error retry, surfacing the actionable message instead of an opaque network failure.
+
+**Resolution:** Upgrade `@arkade-os/sdk` (and matching `@arkade-os/boltz-swap`) to a version compatible with the operator — at least the `min_version` reported in the error. Retrying without upgrading will not help; the rejection is deterministic.
+
+---
+
 ## `WalletManagerArkade has been disposed`
 
 **Symptom:** Any call after `dispose()` throws this.

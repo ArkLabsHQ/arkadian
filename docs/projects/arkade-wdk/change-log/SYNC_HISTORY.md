@@ -1,5 +1,29 @@
 # Documentation Sync History — Arkade WDK (@arkade-os/wdk)
 
+## 2026-06-17 — Upgrade ts-sdk 0.4.35 / boltz-swap 0.3.40 + `BUILD_VERSION_TOO_OLD` handling
+**Previous Commit**: `b71316d412574c52e2fcbb6564fccf2786794637`
+**Current Commit**: `102967daf634759f1602f06dd27f3b21a0a88d9a`
+**Synced By**: /update-project arkade-wdk
+**Status**: Updated (minor)
+
+**Commits Analyzed** (3):
+- `52a2ecd` Upgrade ts-sdk 0.4.35 - boltz-swap 0.3.40 — bumps `@arkade-os/sdk` `0.4.25` → `0.4.35` and `@arkade-os/boltz-swap` `0.3.29` → `0.3.40` (consuming ts-sdk arkd signer-rotation support) in `package.json` / `package-lock.json`.
+- `4967481` Support BUILD_VERSION_TOO_OLD error — `WalletManagerArkade` now detects arkd's structured `BUILD_VERSION_TOO_OLD` ArkError on `getInfo()` (raised when the client's `X-Build-Version` is below the operator's minimum), skips the transient-error retry, and rethrows an actionable "update `@arkade-os/sdk`" error including the operator's `min_version`.
+- `0d10474` Fix typecheck errors from ts-sdk 0.4.35 type changes — internal JSDoc-type adjustments: new `_signingWallet` getter on `WalletAccountArkade` casting the base `_wallet` to the concrete `Wallet`, `transfer()` asset amount now `BigInt`, `quoteSend` typed against a new read-only `QuoteOptions` (`lib/send.js`), and a `swapRepository` field added to `ArkadeWalletConfig` (`types.js`).
+
+**Changes**:
+- `system/project_overview.md` — Dependency table bumped to `@arkade-os/sdk@0.4.35` / `@arkade-os/boltz-swap@0.3.40`; added a "Build-Version Guard" feature row; added an implementation note on the `BUILD_VERSION_TOO_OLD` interception and read-only `quoteSend`.
+- `system/INDEX.md` (project index) — Architecture-diagram dependency versions bumped to `0.4.35` / `0.3.40`.
+- `testing/troubleshooting.md` — New entry "`requires a newer client build` / `BUILD_VERSION_TOO_OLD`".
+- `change-log/last-sync.txt` — Advanced to `102967d`.
+- Master `docs/INDEX.md` — Dependency line bumped to `@arkade-os/sdk 0.4.35` / `@arkade-os/boltz-swap 0.3.40`; added build-version-guard Key Capability and `build version too old` / `update sdk error` / `getinfo rejected` debug triggers.
+
+**Notes**:
+- No change to the public adapter API surface; `_signingWallet` is private and the rest are type-only fixes.
+- `system/architecture.md` already documented the consumer-supplied `swapRepository` forwarding, so it was not modified.
+
+---
+
 ## 2026-06-16 — Pin `pear-wrk-wdk` submodule to shim commit + regenerate lockfile
 **Previous Commit**: `af4d6b3f1d3fff150192123b6b3fa69ef7a9dae1`
 **Current Commit**: `b71316d412574c52e2fcbb6564fccf2786794637`

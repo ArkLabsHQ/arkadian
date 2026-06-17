@@ -1,5 +1,27 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-17 - Documentation Sync
+**Commit**: `8da7062179a4ba29211db20d7b6b9463ab9e1247`
+**Previous Sync**: `a4dede1289cb91f54ab51d245de30e267d5e4601`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `8da70621` Upgrade ts-sdk 0.4.36 - boltz-swap 0.3.41 (#676)
+
+**Features Added / Modified**:
+- **Dependency bump** (PR #676): `@arkade-os/sdk` 0.4.35 → 0.4.36 and `@arkade-os/boltz-swap` 0.3.40 → 0.3.41. The 0.4.36 ts-sdk release is a release-only patch (no `packages/ts-sdk/src/` changes); the substantive work is in boltz-swap 0.3.41 — optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, and preimage backfill in `refreshSwapsStatus`. No application source changed in the wallet.
+
+**Configuration Changes**: Dependency bumps only: `@arkade-os/sdk` 0.4.36, `@arkade-os/boltz-swap` 0.3.41.
+**Breaking Changes**: None (dependency-only change).
+
+**Files Touched in Repo** (2 files): `package.json`, `pnpm-lock.yaml`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.23 → 1.2.24 + `last_sync_commit`; SDK/boltz-swap versions in Arkade Integration with PR #676 note.
+- `docs/projects/wallet/system/project_overview.md` — tech-stack + Project Status dependency versions (SDK 0.4.36 / boltz-swap 0.3.41).
+- `docs/INDEX.md` — wallet Key Capabilities SDK/boltz-swap bump line + Dependencies versions.
+
 ## 2026-06-16 - Documentation Sync
 **Commit**: `a4dede1289cb91f54ab51d245de30e267d5e4601`
 **Previous Sync**: `13f2652270ad89e054f85d2d47dc8fbd8c7655ab`

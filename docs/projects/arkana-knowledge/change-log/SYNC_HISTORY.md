@@ -1,5 +1,54 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-17 - Operational Memory Sync (no doc changes)
+**Commit Range**: `0b5a23fd..58699e50` (17 commits, all `memory(*)` agent activity)
+**Previous Recorded Sync**: `a7569bcf50805c47ac46c7671f290507c4e096f0` (2026-06-16T05:02:07Z)
+**Caller-Asserted From**: `0b5a23fd0e02576d246f1cf7521418881feef32f` (2026-06-16T05:48:12Z) — 1 commit ahead of the previous recorded sync; that intervening gap (`a7569bcf..0b5a23fd`) is a single memory-only commit (`0b5a23f memory(issue-triage): triage run 2026-06-16T04:00:00Z — quiet window`, +10/-1 in `memory/agent-logs/issue-triage.md`), so no documentation coverage was lost by syncing forward from the caller-asserted from-commit.
+**Current Sync**: `58699e50e67cf7ed6b029d93a30c76400e41afee` (committed 2026-06-17T01:57:17Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (17, all internal agent state)**:
+- `58699e5` memory(issue-triage): triage run 2026-06-17T04:00:00Z — quiet window
+- `ca72ee4` memory(issue-triage): triage run 2026-06-17T00:00:00Z — quiet window
+- `e726e9b` memory(release-coordinator): release check 2026-06-17T00:00:00Z — re-filed 4 standing entries after flush
+- `8de0aa7` memory(slack-monitor): daily scan 2026-06-16
+- `43fc0d4` memory(daily-briefing): morning briefing 2026-06-16
+- `35d9185` memory(research-monitor): research update 2026-06-16 — Botanix Labs Spiderchain shutdown (Bitcoin L2 distribution-failure case study), historic 10% mining-difficulty drop, CTV still 0% at 17+ weeks, Chimera Card still no launch date
+- `cd7685b` memory(linear-sync): state snapshot 2026-06-16
+- `6da43ea` memory(executive-digest): post-rotation infrastructure batch 2026-06-16
+- `ea52ef1` memory(issue-triage): triage run 2026-06-16T20:00:00Z — quiet window
+- `74a32c4` memory(release-coordinator): release check 2026-06-16T20:00:00Z — quiet window
+- `030a422` memory(self-improver): weekly audit 2026-06-16 — Week 9; signer-rotation sprint delivered (arkd v0.9.9 GA, ts-sdk v0.4.35, dotnet-sdk, go-sdk); 3 agents with stale logs (security-triage/repo-sync/release-coordinator); rust-sdk#238 funds-misdirection merged; enclave incident day 25 no owner; arkd presign-forfeit-txs flagged for mandatory human review
+- `68a736d` memory(issue-triage): triage run 2026-06-16T16:00:00Z — quiet window
+- `4dd713b` memory(release-coordinator): release check 2026-06-16T16:00:00Z — quiet window
+- `1decafd` memory(issue-triage): triage run 2026-06-16T12:00:00Z — arkd#1116 indexer attestation feature
+- `e5a5c85` memory(release-coordinator): release check 2026-06-16T12:00:00Z — ts-sdk 0.4.36 released (ordering correct)
+- `5a578a6` memory(issue-triage): triage run 2026-06-16T08:00:00Z — quiet window
+- `65607e1` memory(release-coordinator): release check 2026-06-16T08:00:00Z — fulmine v0.3.25 confirmed released (ordering correct)
+
+**Files Changed (all under `memory/`)**: 11 files, +426/-44 lines
+- agent-logs: daily-briefing, executive-digest, issue-triage, linear-sync, release-coordinator, research-monitor, self-improver, slack-monitor
+- executive-digest-queue.json, project-context/research-updates.md, slack-log.md
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. All commits are routine agent operational memory — no architecture, no new agents/services, no new endpoints, no dependency or interface changes to arkana-knowledge itself. Notable ecosystem events tracked in agent memory only (Week 9 self-improver audit, Botanix Spiderchain shutdown research, ts-sdk v0.4.36 release with correct ordering, fulmine v0.3.25 confirmed, arkd#1116 indexer attestation feature triage, arkd presign-forfeit-txs flagged for human review) do not alter arkana-knowledge's own structure, 17-agent roster, or documented capabilities.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `58699e50e67cf7ed6b029d93a30c76400e41afee`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — no capability/tag/dependency change attributable to this commit range; the arkana-knowledge entry (17-agent roster including `issue-staleness`, MCP server, Slack bot, webhook relay, dependency surface) is already current and unchanged
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Per caller directive: no commit, no branch created
+
+---
+
 ## 2026-06-16 - Operational Memory Sync (no doc changes)
 **Commit Range**: `b8033abc..a7569bcf` (15 commits, all `memory(*)` agent activity)
 **Previous Recorded Sync**: `370c997d408abf6708b441176e51c0379b8a5f4b` (2026-06-12T04:28:58Z)
