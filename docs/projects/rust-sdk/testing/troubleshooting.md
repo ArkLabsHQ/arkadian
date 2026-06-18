@@ -28,45 +28,32 @@ Install: `cargo install dprint` or see https://dprint.dev/install/
 
 ## E2E Test Issues
 
-### arkd Not Running
+### Regtest Stack / arkd Not Running
 ```
 connection refused (os error 61)
 ```
-Start the full environment: `just arkd-setup` (requires Nigiri running first)
+Bring up the arkade-regtest stack: `just regtest-start` (init the submodule first with `just regtest-init` if you haven't).
 
-### Nigiri Not Running
+### Submodule Not Initialized
 ```
-Error: bitcoind is not reachable
+node: cannot find module '.../regtest/regtest.mjs'
 ```
-Start Nigiri: `nigiri start`
+The `regtest/` submodule is missing. Run: `just regtest-init` (`git submodule update --init --recursive regtest`).
 
-### arkd Wallet Not Initialized
-```
-Error: wallet not initialized
-```
-Run: `just arkd-init` to create and unlock the wallet
-
-### Port Already In Use
-```
-error: address already in use (port 7070)
-```
-Kill existing processes:
+### Stale State / Tests Failing After a Prior Run
+Tear down and recreate the stack:
 ```bash
-just arkd-kill
-just arkd-wallet-kill
+just regtest-clean    # removes containers + volumes
+just regtest-start
 ```
+Or run the full clean cycle: `just e2e-full`.
 
-### E2E Tests Timeout
-Round interval may be too fast. Patch it:
-```bash
-just arkd-patch-makefile    # Sets round interval to 30s
-just arkd-kill && just arkd-run
-```
+### On-Chain State Out of Sync
+The e2e helper reads on-chain state from Bitcoin Core (`gettxout` / `getrawtransaction`), not the esplora indexer, because mempool's esplora API can lag the chain on regtest. If you see spent boarding outputs read as unspent or freshly-mined commitment TXs not found, ensure you are on the current e2e helper (post arkade-regtest migration) and that Bitcoin Core is reachable.
 
-### Docker Container Issues
+### Docker Issues
 ```bash
-just docker-wipe                    # Stop arkd Docker containers
-docker compose -f $ARKD_DIR/docker-compose.regtest.yml down -v
+just regtest-clean    # remove the stack's containers and volumes, then re-start
 ```
 
 ## WASM Issues

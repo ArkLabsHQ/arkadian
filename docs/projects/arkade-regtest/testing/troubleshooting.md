@@ -1,15 +1,18 @@
 # Troubleshooting
 
-Common issues encountered when running arkade-regtest, with remediation steps.
+Common issues encountered when running arkade-regtest, with remediation steps. The CLI is `regtest.mjs`; the compose project name is `arkade-regtest`.
 
 ## Startup Issues
 
-### "$.env.defaults not found"
+### `node: command not found` / wrong Node version
+**Cause**: Node.js < 18 or not installed.
+**Fix**: Install Node ≥ 18 (`node --version`). No `npm install` is needed — `regtest.mjs` uses only the standard library.
+
+### Empty submodule directory
 ```
-ERROR: <path>/.env.defaults not found.
-If this is a git submodule, run: git submodule update --init
+ENOENT ... regtest.mjs
 ```
-**Cause**: Empty submodule directory.
+**Cause**: Submodule not checked out.
 **Fix**:
 ```bash
 git submodule update --init --recursive
@@ -19,155 +22,112 @@ git submodule update --init --recursive
 ```
 Bind for 0.0.0.0:9001 failed: port is already allocated
 ```
-**Cause**: Another stack (or another local service) is using the same port.
+**Cause**: Another stack (or a local service) is using the same host port.
 **Fixes**:
-- Bring down the other stack: `docker compose -p nigiri down`
-- Or override the port in `.env`:
+- Tear down the other stack: `docker compose -p arkade-regtest down`
+- Or override the host port in `.env` (only the host side is remapped):
   ```bash
   BOLTZ_API_PORT=9101
   ```
 
-### Nigiri build fails
-```
-go: errors running command ... (exit status 1)
-```
+### NBXplorer crash-loops against Bitcoin Core 31
+**Cause**: An nbxplorer older than `2.6.1` can't parse Core 31's `getpeerinfo`.
+**Fix**: Keep the pinned default `NBXPLORER_IMAGE=nicolasdorier/nbxplorer:2.6.7`; don't downgrade it.
+
+## arkd Issues
+
+### arkd container exits immediately
 **Causes**:
-- Go version too old (< 1.23)
-- Network issue cloning `NIGIRI_REPO_URL`
-- Stale state in `_build/nigiri/`
-
-**Fixes**:
-- Verify Go version: `go version`
-- Force clean rebuild: `./start-env.sh --clean`
-- Or fall back to system nigiri: `NIGIRI_BRANCH="" ./start-env.sh` (requires `nigiri` on `$PATH`)
-
-## arkd Override Issues
-
-### Override image not used
-After setting `ARKD_IMAGE`, nigiri's bundled arkd is still running.
-
-**Verify the override file was loaded**: the first log line of `start-env.sh` shows the override path it sourced. If you set `ARKD_IMAGE` in `.env` but the launcher loaded `../.env.regtest`, the value is shadowed.
-
-**Fix**: Use `--env <path>` to be explicit, or ensure `.env.regtest` actually contains the override.
-
-### arkd container exits immediately in override mode
-**Causes**:
-- Image tag doesn't exist (typo or unreleased version)
-- `ARKD_*` config variable mismatch with the override image
+- `ARKD_IMAGE` tag doesn't exist (typo or unreleased version)
+- Block/seconds **type mismatch** across `ARKD_VTXO_TREE_EXPIRY` / exit delays (arkd refuses a mismatch)
+- Block-denominated locktimes (`< 512`) used on a non-regtest network
 
 **Fix**:
 ```bash
-docker logs "$ARK_CONTAINER" 2>&1 | tail -50    # $ARK_CONTAINER = "arkd" in override mode, "ark" otherwise
-docker pull "$ARKD_IMAGE"                       # verify the image is reachable
+docker logs arkd 2>&1 | tail -50
+docker pull "$ARKD_IMAGE"          # verify the image is reachable
 ```
+Ensure all five tree-expiry / exit-delay values share the same type (all blocks OR all seconds).
+
+### Signer rotation fails / wrong signer set
+**Cause**: Using an arkd image without deprecated-signer support (pre-`v0.9.6`), or a stale `.signer-state.json`.
+**Fix**: Use the rc images (`ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.9-rc.1` and the matching wallet image). `node regtest.mjs clean` resets the signer set; inspect with `node regtest.mjs signer-info`.
 
 ## Service Connectivity Issues
 
 ### Boltz LND `synced_to_chain: false`
-**Cause**: nbxplorer cannot reach Bitcoin Core (often correlated with `BITCOIN_LOW_FEE=true`).
-
-**Fix**: Set `BITCOIN_LOW_FEE=false` in your override:
-```bash
-BITCOIN_LOW_FEE=false
-```
-Then `./clean-env.sh && ./start-env.sh`.
+**Cause**: nbxplorer cannot reach Bitcoin Core, or the chain hasn't advanced.
+**Fix**: Mine a few blocks (`node regtest.mjs mine 6`) and check `docker compose -p arkade-regtest logs nbxplorer`. A `clean` + `start` usually resolves a stuck indexer.
 
 ### Fulmine cannot reach arkd
-Symptoms: Fulmine logs show repeated connection refused to `http://ark:7070` (or `http://arkd:7070` in override mode).
-
-**Cause**: arkd container failed to start (see arkd override section above) or the compose network isn't healthy.
-
+Symptoms: Fulmine logs show repeated connection refused to `http://arkd:7070`.
+**Cause**: arkd failed to start (see arkd section above) or the compose network isn't healthy.
 **Fix**:
 ```bash
-docker compose -p nigiri ps                       # confirm all services are running
-docker compose -p nigiri logs "$ARK_CONTAINER"    # inspect arkd logs (container name varies by mode)
+docker compose -p arkade-regtest ps          # confirm services are running
+docker compose -p arkade-regtest logs arkd
 ```
 
-### Boltz REST returns 502 / connection refused via Nginx (port 9069)
+### Fulmine delegation never enables
+**Cause**: Older bundles passed `FULMINE_DELEGATOR_*` env, which Fulmine ignores — it reads `FULMINE_DELEGATE_ENABLED` / `FULMINE_DELEGATE_FEE`. Fixed upstream (PR #32); ensure you're on the current arkade-regtest base.
+**Fix**: Pull the latest submodule. The `boltz-fulmine` and `fulmine-delegator` services now set the `FULMINE_DELEGATE_*` names.
+
+### Boltz REST returns 502 via Nginx (port 9069)
 **Cause**: Nginx started before Boltz was ready, or Boltz crashed.
-
 **Fix**:
 ```bash
-docker compose -p nigiri restart boltz-nginx
-docker compose -p nigiri logs boltz | tail -50
+docker compose -p arkade-regtest restart nginx-boltz
+docker compose -p arkade-regtest logs boltz | tail -50
 ```
 
-## Faucet Issues
+## Faucet & Chain Issues
 
-### "no funded channels" / wallet has zero balance after startup
-**Cause**: The faucet flow inside `start-env.sh` failed (commonly because Bitcoin Core wasn't ready, or arkd hadn't unlocked yet). Both modes now wait up to 60 attempts for the Ark wallet to sync before funding, so a recurring zero-balance result usually means the wallet never finished syncing in time.
+### Wallet has zero balance after startup
+**Cause**: The faucet flow inside `start` failed (commonly Bitcoin Core not ready, or arkd not unlocked yet).
+**Fix**: `node regtest.mjs clean && node regtest.mjs start` — the faucet logic is idempotent. If it persists, inspect `docker logs arkd 2>&1 | tail -50`.
 
-**Fix**:
-```bash
-./clean-env.sh
-./start-env.sh
-```
-A clean restart almost always resolves this since the faucet logic is idempotent. If the issue persists, inspect the wallet sync output: `docker logs "$ARK_CONTAINER" 2>&1 | tail -50`.
+### Sweeps / VTXO expiry fire mid-test
+**Cause**: The auto-miner is advancing the tip while you're using block-denominated locktimes.
+**Fix**: Set `AUTOMINE_INTERVAL=0` and mine explicitly with `node regtest.mjs mine <n>`.
 
 ### LND channel never opens / `num_active_channels: 0`
-Even after faucet flow, the channel may not be confirmed yet.
 ```bash
 docker exec boltz-lnd lncli --network=regtest pendingchannels
-docker exec bitcoin bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 generate 6
+node regtest.mjs mine 6
 docker exec boltz-lnd lncli --network=regtest listchannels
 ```
 
 ## Helper Script Issues
 
-### `pay-invoice.sh`: "Cannot find route"
-**Cause**: No path between the two LND nodes (channel not opened or not active).
-
+### `pay-invoice`: "Cannot find route"
+**Cause**: No path between the two LND nodes (channel not opened/active).
 **Fix**:
 ```bash
 docker exec boltz-lnd lncli --network=regtest listchannels
 # if empty: faucet flow didn't complete — clean & restart
 ```
 
-### `create-invoice.sh --secondary`: "Error: container lnd is not running"
-**Cause**: Secondary LND node is part of nigiri but not started in this stack configuration.
-
-**Fix**: Verify nigiri started LND:
-```bash
-docker ps --filter name=lnd
-```
-If absent, this scenario isn't supported by your nigiri build — use the primary boltz-lnd only.
-
 ## Cleanup Issues
 
-### `clean-env.sh` leaves leftover containers
+### Leftover containers / volumes after `clean`
 ```bash
-docker ps -a --filter label=com.docker.compose.project=nigiri
+docker ps -a --filter label=com.docker.compose.project=arkade-regtest
 docker rm -f <leftover-ids>
 docker network prune -f
 docker volume prune -f
 ```
 
 ### Disk space exhaustion
-Typical culprits: `_build/nigiri/`, Docker volumes, image cache.
 ```bash
-rm -rf _build/
 docker system prune -a --volumes
-```
-
-For routine cleanup of leftover Docker state after `clean-env.sh`, pass `--prune` to also `docker image prune -f` **and** `docker volume prune -f` in one shot:
-```bash
-./clean-env.sh --prune
 ```
 
 ## Getting More Information
 
 ```bash
-# All compose services for the nigiri project
-docker compose -p nigiri ps
-
-# Tail logs from a specific service
-docker compose -p nigiri logs -f <service>
-
-# Inspect environment a container actually got
-docker exec <container> env | sort
-
-# Check the resolved env that start-env.sh used
-# (the launcher prints the override path it loaded as the first log line)
+docker compose -p arkade-regtest ps                  # all services
+docker compose -p arkade-regtest logs -f <service>   # tail a service
+docker exec <container> env | sort                   # env a container actually got
 ```
 
-If a problem persists after these steps, re-run with `--clean` and capture the full launcher output for upstream reporting.
+If a problem persists, capture full `start` output and the relevant service logs for upstream reporting.

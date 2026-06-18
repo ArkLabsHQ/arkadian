@@ -1,5 +1,22 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-18 - Export buildVersion and sdkVersion from the package root (#569)
+**From**: `89de6561460faecef58a3048ed9e12fdf2078d4d`
+**To**: `29635dd0489e165636d7ff5024ac608812a1927a`
+**Synced By**: update-project skill
+**Status**: Single-commit sync. `#569` (`29635dd0`) adds `buildVersion` and `sdkVersion` to the package-root export list in `packages/ts-sdk/src/index.ts` (imported from `./utils/fetch`). The two version constants — `buildVersion = "0.9.9"` (the arkd/Arkana server build the SDK targets, sent as `X-Build-Version`) and `sdkVersion = \`ts-sdk/${version}\`` (this package's own version, sent as `X-SDK-VERSION`) — were previously module-level exports only; they are now part of the public `@arkade-os/sdk` API so consumers can read them programmatically rather than only sending them as request headers. No version bump (stays `0.4.36`); no behaviour change.
+
+**Commits analyzed** (1 non-merge commit):
+- `29635dd0` export buildVersion and sdkVersion (#569) — 3-line diff in `packages/ts-sdk/src/index.ts` (one import + two names added to the `export { ... }` block)
+
+**Documentation changes**:
+- `INDEX.md`: appended a package-root-export note to the **X-Build-Version** and **X-SDK-VERSION** capability bullets and extended the X-Build-Version lineage chain with `→ package-root export (29635dd0)`
+- `system/project_overview.md`: appended a "Since #569" note to the **X-Build-Version / X-SDK-VERSION HTTP Headers** core feature row
+- Master `docs/INDEX.md`: appended the package-root-export note to the ts-sdk **X-Build-Version / X-SDK-VERSION HTTP headers** capability bullet
+- `change-log/last-sync.txt`: `89de6561 → 29635dd0`
+
+**Tests added**: none (export-only change; no test diff in this commit)
+
 ## 2026-06-17 - Release-only bump (0.4.36 / 0.3.41) — substantive work in sibling boltz-swap
 **From**: `28d003afaa41b0637c3bfc7f090d4c8ea4201aa6`
 **To**: `89de6561460faecef58a3048ed9e12fdf2078d4d`

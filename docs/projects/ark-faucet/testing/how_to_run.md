@@ -4,8 +4,8 @@
 
 ### Local Development
 - Go 1.21 or later
-- Running arkd instance (accessible via HTTP/HTTPS)
-- Git (for cloning the repository)
+- A local Ark backend — either a running arkd instance, or the vendored [arkade-regtest](https://github.com/ArkLabsHQ/arkade-regtest) stack (git submodule at `regtest/`, requires Docker + Node)
+- Git (for cloning the repository, with submodules)
 
 ### Docker Deployment
 - Docker installed and running
@@ -16,8 +16,10 @@
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/ark-network/ark-faucet.git
+git clone --recurse-submodules https://github.com/ArkLabsHQ/ark-faucet.git
 cd ark-faucet
+# if you forgot --recurse-submodules:
+git submodule update --init
 ```
 
 ### 2. Configure Environment Variables
@@ -31,6 +33,7 @@ export ARK_FAUCET_PASSWORD=your-secure-password
 export ARK_FAUCET_DATADIR=~/.arkfaucet
 export ARK_FAUCET_PORT=9999
 export ARK_FAUCET_SERVER_URL=http://localhost:7070
+export ARK_FAUCET_SERVER_ADMIN_URL=http://localhost:7071  # arkd admin API (for /refill)
 export ARK_FAUCET_AUTH_USER=admin
 export ARK_FAUCET_AUTH_PASS=admin
 
@@ -43,14 +46,20 @@ export ARK_FAUCET_NOTES="note1,note2,note3"
 
 ### 3. Build and Run
 ```bash
+# Boot the local arkade-regtest stack first (Docker required)
+make regtest-up
+
 # Build binary
 make build
 
-# Or run directly
+# Or run directly against the regtest stack
 make run
+
+# When done, tear the stack down
+make regtest-down
 ```
 
-The service will start on `http://localhost:9999`.
+The service will start on `http://localhost:9999`. Use `make e2e` to boot the stack, run the e2e suite (`e2e/faucet_e2e_test.go`), and clean up automatically.
 
 ### 4. Test Endpoints
 ```bash
@@ -68,21 +77,9 @@ curl -u admin:admin http://localhost:9999/balance
 
 ## Docker Deployment
 
-### Option 1: Using Make
-Quick start with default configuration:
+> **Note:** The Makefile no longer provides `make docker-build` / `make docker-run` targets. CI (`.github/workflows/docker.yml`) builds and pushes a multi-arch image to `ghcr.io/arklabshq/ark-faucet`. Build locally with `docker build` or pull the published image.
 
-```bash
-# Build and run
-make docker-run
-```
-
-This runs the container with:
-- Port 9999 exposed
-- Connected to `nigiri` network
-- Data persisted in `./data` directory
-- Default password: `admin`
-
-### Option 2: Manual Docker Build and Run
+### Option 1: Manual Docker Build and Run
 
 #### Build Image
 ```bash
@@ -288,7 +285,7 @@ curl -u admin:admin -X POST "http://localhost:9999/refill?amount=1000"
 Expected output:
 ```json
 {
-  "message": "Successfully refilled with 1000 sats"
+  "txid": "transaction-hash"
 }
 ```
 
@@ -319,7 +316,7 @@ tar czf faucet-backup-$(date +%Y%m%d).tar.gz ~/.arkfaucet/
 git pull origin main
 
 # Rebuild and restart
-make docker-build
+docker build -t arkfaucet .
 docker-compose down
 docker-compose up -d
 ```

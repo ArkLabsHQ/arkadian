@@ -1,7 +1,7 @@
 ---
 project_id: wallet
 version: 1.2.24
-last_sync_commit: 8da7062179a4ba29211db20d7b6b9463ab9e1247
+last_sync_commit: 331f6fc91ba063b21ccf04cd7563d64160c51403
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -74,7 +74,7 @@ Analysis and summaries of pull requests.
 ### Self-Custodial Wallet
 - **User controls keys**: Private keys never leave the device
 - **No intermediaries**: Direct connection to arkd server
-- **Encrypted storage**: Mnemonic / private key encrypted in `localStorage` via PBKDF2 (100k iters, SHA-256) + AES-GCM; transaction/VTXO state in IndexedDB via Dexie
+- **Encrypted storage**: Mnemonic / private key encrypted in `localStorage` via PBKDF2 (100k iters, SHA-256) + AES-GCM; transaction/VTXO state in IndexedDB via Dexie. The two storage keys (`encrypted_mnemonic` / `encrypted_private_key`) are centralized in `src/lib/storageKeys.ts` (`MNEMONIC_STORAGE_KEY` / `NSEC_STORAGE_KEY`); since PR #677 the two are mutually exclusive — `setMnemonic` removes any stored private key and `setPrivateKey` removes any stored mnemonic, so a wallet can never persist both at once
 - **Recovery via seed**: New wallets use a 12-word BIP39 mnemonic with `MnemonicIdentity` (BIP86 Taproot derivation); legacy wallets continue to use `SingleKey` from a raw private key (PR #624)
 
 ### ARK Protocol Integration

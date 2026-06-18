@@ -22,6 +22,18 @@
 - **Example**: `https://ark.example.com:443`, `http://192.168.1.100:7070`
 - **Notes**: Must match the protocol (http/https) and port of running arkd instance.
 
+**ARK_FAUCET_SERVER_ADMIN_URL**
+- **Purpose**: URL of the arkd admin API, used by `/refill` to mint notes
+- **Default**: None (falls back to `ARK_FAUCET_SERVER_URL`)
+- **Example**: `http://localhost:7071` (arkd admin port under arkade-regtest)
+- **Notes**: arkd may expose its admin API on a separate port/scheme from the public server. TLS is decided by this URL's scheme, not `ARK_FAUCET_SERVER_URL`.
+
+**ARK_FAUCET_LOG_LEVEL**
+- **Purpose**: logrus log level (numeric)
+- **Default**: `4` (info)
+- **Example**: `5` (debug)
+- **Notes**: Higher values are more verbose. `make run` sets this to `5` for development.
+
 **ARK_FAUCET_PASSWORD**
 - **Purpose**: Wallet encryption password
 - **Default**: None (required)
@@ -60,9 +72,9 @@
 
 **ARK_FAUCET_SERVER_DATADIR**
 - **Purpose**: Path to arkd data directory for macaroons and TLS certificates
-- **Default**: `~/.arkd` (user home directory)
+- **Default**: None (optional)
 - **Example**: `/var/lib/arkd`, `/home/user/.arkd`
-- **Notes**: Required for `/refill` endpoint. Must contain `macaroons/admin.macaroon`.
+- **Notes**: Only needed when arkd is configured with macaroons/TLS. The `/refill` endpoint mints notes against the admin URL even without it; if `macaroons/admin.macaroon` is absent the macaroon header is simply skipped (e.g. a NO_MACAROONS arkd such as arkade-regtest). When set, also reads `tls/cert.pem` for HTTPS admin URLs.
 
 **ARK_FAUCET_EXPLORER_URL**
 - **Purpose**: Bitcoin/Liquid explorer URL for onchain operations
@@ -146,13 +158,15 @@ export ARK_FAUCET_NOTES=${INITIAL_NOTES}
 | ARK_FAUCET_DATADIR | `~/.arkfaucet` | No |
 | ARK_FAUCET_PORT | `9999` | No |
 | ARK_FAUCET_SERVER_URL | `http://localhost:7070` | No |
+| ARK_FAUCET_SERVER_ADMIN_URL | None (falls back to SERVER_URL) | No |
 | ARK_FAUCET_PASSWORD | None | **Yes** |
 | ARK_FAUCET_IS_COVENANT | `false` | No |
 | ARK_FAUCET_AUTH_USER | `admin` | No |
 | ARK_FAUCET_AUTH_PASS | `admin` | No |
 | ARK_FAUCET_NOTES | None | No |
-| ARK_FAUCET_SERVER_DATADIR | `~/.arkd` | No |
+| ARK_FAUCET_SERVER_DATADIR | None | No |
 | ARK_FAUCET_EXPLORER_URL | None | No |
+| ARK_FAUCET_LOG_LEVEL | `4` (info) | No |
 
 ## Security Considerations
 

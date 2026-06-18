@@ -24,20 +24,21 @@ cargo test -p ark-grpc -- --nocapture
 
 ## Running E2E Tests
 
-E2E tests require a running arkd instance with Nigiri (Bitcoin regtest).
+E2E tests run against the **arkade-regtest** Docker Compose stack (Bitcoin Core + Fulcrum + mempool/esplora + arkd + emulator), vendored as a git submodule at `regtest/`.
 
 ### Quick Start
 
 ```bash
-just e2e-full    # Wipes, starts everything, runs all E2E tests
+just e2e-full    # regtest-clean + regtest-start + run all E2E tests
 ```
 
 ### Manual Setup
 
 ```bash
-nigiri start
-just arkd-setup
+just regtest-init     # once: init the submodule
+just regtest-start    # bring up the stack (emulator profile)
 just e2e-tests
+just regtest-clean    # tear down when done
 ```
 
 ### Run Specific E2E Test

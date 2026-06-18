@@ -10,11 +10,23 @@ The ARK Faucet provides a simple HTTP API for distributing offchain coins. The s
 
 ## Public Endpoints
 
+### GET /healthcheck
+
+Liveness probe.
+
+**Authentication:** None required
+
+**Response (200 OK):** empty JSON string (`""`)
+
+---
+
 ### POST /faucet
 
 Sends coins to a specified address (onchain or offchain).
 
 **Authentication:** None required
+
+**Validation:** `address` must be non-empty and `amount` must be greater than zero, otherwise `400 Bad Request`.
 
 **Request Body:**
 ```json
@@ -135,17 +147,17 @@ Automatically mints and redeems new notes to refill the faucet balance.
 **Authentication:** Required (Basic Auth)
 
 **Requirements:**
-- `ARK_FAUCET_SERVER_DATADIR` must be set and point to arkd data directory
-- Admin macaroon must be accessible at `<datadir>/macaroons/admin.macaroon`
-- For HTTPS connections, TLS certificate at `<datadir>/tls/cert.pem`
+- Notes are minted against the arkd admin API at `ARK_FAUCET_SERVER_ADMIN_URL` (falls back to `ARK_FAUCET_SERVER_URL`)
+- `ARK_FAUCET_SERVER_DATADIR` is optional — only needed when arkd enforces macaroons/TLS. When set, the admin macaroon is read from `<datadir>/macaroons/admin.macaroon` and (for HTTPS admin URLs) the TLS cert from `<datadir>/tls/cert.pem`
+- Works without a datadir against a NO_MACAROONS/no-TLS arkd (e.g. arkade-regtest)
 
 **Query Parameters:**
-- `amount` (required): Amount in satoshis to refill
+- `amount` (required): Amount in satoshis to refill. Amounts above `uint32` max are rejected with `400`.
 
 **Response (200 OK):**
 ```json
 {
-  "message": "Successfully refilled with {amount} sats"
+  "txid": "string"
 }
 ```
 
@@ -157,7 +169,7 @@ curl -u admin:admin -X POST "http://localhost:9999/refill?amount=5000"
 **Response:**
 ```json
 {
-  "message": "Successfully refilled with 5000 sats"
+  "txid": "abc123def456..."
 }
 ```
 
@@ -168,10 +180,8 @@ curl -u admin:admin -X POST "http://localhost:9999/refill?amount=5000"
 - Scheduled maintenance tasks
 
 **Notes:**
-- This endpoint mints new notes using arkd admin credentials
-- Automatically redeems the minted notes to the faucet wallet
-- Requires filesystem access to arkd data directory
-- If `ARK_FAUCET_SERVER_DATADIR` is not configured, this endpoint returns 404
+- This endpoint mints new notes via the arkd admin API and redeems them into the faucet wallet
+- Minted note values are not logged
 
 ---
 
@@ -191,7 +201,7 @@ Redeems existing notes to add balance to the faucet.
 **Response (200 OK):**
 ```json
 {
-  "message": "Successfully redeemed {count} notes"
+  "txid": "string"
 }
 ```
 
@@ -210,7 +220,7 @@ curl -u admin:admin -X POST http://localhost:9999/refill-with-notes \
 **Response:**
 ```json
 {
-  "message": "Successfully redeemed 2 notes"
+  "txid": "abc123def456..."
 }
 ```
 
@@ -273,7 +283,6 @@ Endpoint not available or not found.
 
 **Common Causes:**
 - Incorrect URL path
-- Refill endpoint not available (missing `ARK_FAUCET_SERVER_DATADIR`)
 
 ---
 
@@ -325,7 +334,7 @@ location /faucet {
 
 ## CORS
 
-CORS is not enabled by default. For browser-based applications, configure CORS at the reverse proxy level or modify the service to include CORS headers.
+CORS is enabled for all endpoints. The service sends `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, POST, OPTIONS`, and `Access-Control-Allow-Headers: Content-Type, Authorization`, and answers `OPTIONS` preflight requests with `200 OK`.
 
 ---
 

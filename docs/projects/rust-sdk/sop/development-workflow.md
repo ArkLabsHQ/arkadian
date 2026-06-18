@@ -6,6 +6,7 @@
 2. **just** task runner: `cargo install just`
 3. **dprint** formatter: `cargo install dprint`
 4. **protoc** (for gRPC code gen): `brew install protobuf` / `apt install protobuf-compiler`
+5. **Docker** + **Node** (for the `arkade-regtest` e2e stack; init the submodule with `just regtest-init`)
 
 ## Building
 
@@ -22,10 +23,10 @@ just build-wasm                # WASM targets
 # Unit tests
 just test
 
-# E2E tests (requires arkd + Nigiri)
+# E2E tests (requires the arkade-regtest stack running — `just regtest-start`)
 just e2e-tests
 
-# Full cycle (clean + setup + test)
+# Full cycle (regtest-clean + regtest-start + test)
 just e2e-full
 
 # Specific E2E test

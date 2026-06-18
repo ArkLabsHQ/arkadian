@@ -97,13 +97,14 @@ go_memstats_heap_alloc_bytes
 rate(go_gc_duration_seconds_sum[5m])
 ```
 
-**Client Compatibility Panels (PR #17, June 2026)** — three Loki-backed panels (datasource uid `loki`) track client integrity and SDK adoption:
+**Client Compatibility Panels (PR #17, June 2026)** — Loki-backed panels (datasource uid `loki`) track client integrity and SDK adoption. The aggregation window is driven by the dashboard's `$window` template variable (PR #20; selectable 1m / 5m / 15m / 1h, default 5m):
 - **Digest Mismatch Errors**: count of `DIGEST_MISMATCH` errors over time
-  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [5m]))`
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [$window]))`
 - **Requests Missing Client Version**: requests without an `x-build-version` header (clients not yet on v0.9.9+)
-  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version.[0-9]" [5m]))`
-- **Requests by SDK Version**: request volume grouped by the `x-sdk-version` header value
-  - `sum by (sdk_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-sdk-version" | regexp "x-sdk-version.{3}(?P<sdk_version>[^\"]+)" [5m]))`
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version.[0-9]" [$window]))`
+- **Requests by SDK Version**: request volume grouped by the `x-sdk-version` header value, plus a `missing` series for requests with no `x-sdk-version` header (PR #19)
+  - `sum by (sdk_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-sdk-version" | regexp "x-sdk-version.{3}(?P<sdk_version>[^\"]+)" [$window]))`
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-sdk-version" [$window]))` → `missing`
 
 **Use Cases:**
 - Detect memory leaks (increasing heap usage)
@@ -208,6 +209,7 @@ Some dashboards support variables for filtering:
 - **Instance**: Filter by specific host or container
 - **Job**: Filter by Prometheus job name
 - **Namespace**: Filter by Kubernetes namespace (if applicable)
+- **Window** (Ark Go Metrics, PR #20): custom variable (`name: window`) controlling the `count_over_time` aggregation window on the Loki client-compatibility panels — options `1m`, `5m` (default), `15m`, `1h`, referenced in queries as `[$window]`
 
 ### Panel Interactions
 

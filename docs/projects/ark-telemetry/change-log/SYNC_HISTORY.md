@@ -228,3 +228,24 @@
 - Master `docs/INDEX.md` — added a client compatibility/integrity capability bullet to `ark-telemetry`.
 
 ---
+
+## 2026-06-18 - Ark Go dashboard: missing-SDK series + configurable aggregation window
+**From**: `646d4e9bd38b15e6b10ed796f41313c5114dfc53`
+**To**: `cd92c3bcc2126d34a5e874f4f32f510fe68c9c6f`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 2 (dashboard-only; both touch `dashboards/Ark_Go_metrics.json`)
+- `f2e66f7` Graph missing `x-sdk-version` requests alongside SDK versions (#19)
+- `cd92c3b` loki: Add configurable window to metric panels (#20)
+
+**Dashboard changes** (`dashboards/Ark_Go_metrics.json`):
+- **PR #19**: the **Requests by SDK Version** panel gains a second target (refId `B`, legend `missing`) — `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-sdk-version" [5m]))` — so requests arriving with no `x-sdk-version` header are graphed alongside the per-version breakdown rather than being invisible.
+- **PR #20**: added a custom dashboard template variable `window` (`templating.list`; label "Window", default `5m`, options `1m,5m,15m,1h`) and replaced the hardcoded `[5m]` aggregation window with `[$window]` in all four Loki client-compatibility queries (Digest Mismatches, Missing Version, Requests by SDK Version + its new `missing` series). Lets operators rescale the count window without editing the dashboard.
+
+**Doc-file updates**:
+- `system/dashboards.md` — Client Compatibility Panels section: queries updated to `[$window]`, added the new `missing` SDK series, and noted the `$window` variable; "Variables and Templates" section: documented the new **Window** variable on the Ark Go Metrics dashboard.
+- Master `docs/INDEX.md` — `ark-telemetry` client-compatibility capability bullet: noted the `missing` SDK-header series (PR #19) and the selectable `$window` aggregation window (PR #20).
+
+**Not updated**: Project `INDEX.md` "Available Dashboards" lists dashboards by name only (no per-panel detail), so no change needed. These are dashboard-display refinements — no new stack capability, alert, route, or config — so `components.md`, `configuration.md`, `alert-rules.md`, and `project_overview.md` are unaffected.
+
+---

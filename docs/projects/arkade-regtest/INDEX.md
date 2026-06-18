@@ -12,18 +12,21 @@ aliases:
   config: ["system/configuration.md"]
   submodule: ["sop/development-workflow.md", "system/project_overview.md"]
 scripts:
-  start_env: "./start-env.sh"
-  start_clean: "./start-env.sh --clean"
-  start_with_env: "./start-env.sh --env <path>"
-  stop_env: "./stop-env.sh"
-  clean_env: "./clean-env.sh"
-  create_invoice: "./helpers/create-invoice.sh"
-  pay_invoice: "./helpers/pay-invoice.sh <invoice>"
+  start_env: "node regtest.mjs start"
+  start_profile: "node regtest.mjs start --profile <name>"
+  start_with_env: "node regtest.mjs start --env <path>"
+  stop_env: "node regtest.mjs stop"
+  clean_env: "node regtest.mjs clean"
+  faucet: "node regtest.mjs faucet <address> <amountBtc> [--confirm]"
+  mine: "node regtest.mjs mine [n]"
+  create_invoice: "node regtest.mjs create-invoice [--secondary]"
+  pay_invoice: "node regtest.mjs pay-invoice <invoice>"
+  rotate_signer: "node regtest.mjs rotate-signer [--cutoff <secs>]"
 ---
 
 # Arkade Regtest — Project Index
 
-**arkade-regtest** is a self-contained regtest environment for Ark protocol development. It orchestrates Nigiri (Bitcoin + Liquid regtest), arkd, Fulmine, Boltz, an LND node, and the arkade-script emulator into a single reproducible Docker Compose stack. Designed to be embedded as a git submodule in projects that need a local Ark test network.
+**arkade-regtest** is a self-contained, **cross-platform** regtest environment for Ark protocol development. It orchestrates Bitcoin Core, Fulcrum, mempool, NBXplorer, arkd + arkd-wallet, Fulmine, Boltz, an LND node, the arkade-script Emulator, and the arkade Solver into a single reproducible Docker Compose stack — driven by a small **zero-dependency Node CLI** (`regtest.mjs`). There is **no dependency on nigiri** and **no compiled binary** to maintain; it runs the same on Linux, macOS, and Windows (no WSL required). Designed to be embedded as a git submodule in projects that need a local Ark test network.
 
 ## Directory Structure
 
@@ -31,16 +34,16 @@ scripts:
 Core technical documentation about the regtest environment:
 
 - **${ARKADIAN_DIR}/docs/projects/arkade-regtest/system/project_overview.md** — What arkade-regtest is, services it bundles, use cases
-- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/system/architecture.md** — Service composition, networking, env-loading strategy
-- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/system/configuration.md** — `.env.defaults`, override layering, image/version pinning
+- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/system/architecture.md** — Node CLI orchestration, compose profiles, networking, env-loading strategy
+- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/system/configuration.md** — `.env.defaults`, override layering, image/version pinning, signer rotation, fast-expiry locktimes
 
 ### `${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/` — Usage & Operations
 Practical guides for running the regtest stack:
 
-- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/usage.md** — Quick start, typical workflows, helper scripts
-- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/how_to_run.md** — Prerequisites, launch flags, CI integration
+- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/usage.md** — Quick start, CLI commands, profiles, helper invoices
+- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/how_to_run.md** — Prerequisites, profiles, CI integration
 - **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/how_to_test.md** — Smoke checks, port verification, integration patterns
-- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/troubleshooting.md** — Common issues, port conflicts, nigiri build failures
+- **${ARKADIAN_DIR}/docs/projects/arkade-regtest/testing/troubleshooting.md** — Common issues, port conflicts, profile/service failures
 
 ### `${ARKADIAN_DIR}/docs/projects/arkade-regtest/sop/` — Standard Operating Procedures
 Step-by-step guides:
@@ -60,79 +63,116 @@ Analysis and summaries of pull requests.
 
 ## Key Concepts
 
-### Self-Contained Stack
-arkade-regtest bundles every service needed for end-to-end Ark testing into one Docker Compose project (`name: nigiri`). Consumers get the same versions and configuration across machines and CI.
+### Self-Contained, Nigiri-Free Stack
+arkade-regtest bundles every service needed for end-to-end Ark testing into one Docker Compose project (`name: arkade-regtest`). Everything is standard Docker images plus a Node orchestrator — **no nigiri, no compiled helper binary, no `npm install`**. The chain/indexer/explorer tier (Bitcoin Core + Fulcrum + mempool + NBXplorer) replaces nigiri's electrs/esplora/chopsticks.
 
-### Submodule-First Design
-The repo is intended to live inside other projects as a git submodule (typically at `regtest/`). The `start-env.sh` script auto-discovers `../.env.regtest` from the parent repo so consumers can pin versions without editing arkade-regtest itself.
+### Zero-Dependency Node CLI
+`regtest.mjs` (Node ≥ 18, standard library only) is the single entry point for every lifecycle and helper command: `start`, `stop`, `clean`, `faucet`, `mine`, `reorg`, `rpc`, `create-invoice`, `pay-invoice`, `ark`, `arkd`, `rotate-signer`, `set-signers`, `signer-info`. `npm start` / `npm stop` / `npm run clean` are aliases for the three lifecycle commands.
+
+### Compose Profiles
+Services are grouped into profiles (`base`, `ark`, `delegate`, `boltz`, `emulator`, `solver`); the CLI resolves the dependency closure automatically. Select with `--profile <name>` (repeatable) or pin via the `REGTEST_PROFILES` env var. Precedence: `--profile` > `REGTEST_PROFILES` > full stack. `stop`/`clean` always act on the whole project.
 
 ### Layered Environment Loading
-Environment loading follows strict priority:
+`.env.defaults` is the always-on baseline. The first override found is layered on top, in priority order:
 1. `--env <path>` CLI flag (explicit, highest priority)
 2. `../.env.regtest` (parent repo override — typical submodule case)
 3. `.env` (local override inside arkade-regtest)
-4. `.env.defaults` (baseline, always loaded first)
 
-Override files only need to specify variables that differ from defaults; missing variables fall through to `.env.defaults`.
+Override files only specify what differs; a variable already set in the shell environment wins over the files.
 
-### Nigiri-Backed Bitcoin Regtest
-Bitcoin/Liquid regtest infrastructure is provided by [Nigiri](https://github.com/vulpemventures/nigiri). By default, Nigiri is built from source (branch `master` per `.env.defaults`) so all consumers run an identical version with Ark support. To use a system-installed nigiri instead, set `NIGIRI_BRANCH=""` in your override.
+### Esplora REST via mempool
+arkd and Fulmine consume the **Esplora-compatible REST API that mempool serves under `/api`** (`http://mempool_web/api` in-network; `http://localhost:3000/api` on the host) — an officially supported arkd explorer backend.
 
-### Custom arkd / Fulmine / Boltz Versions
-Default images run nigiri's bundled arkd plus pinned versions of Fulmine, Boltz, and Boltz LND. To exercise a specific arkd build:
+### Operator Signer Rotation
+`rotate-signer` / `set-signers` / `signer-info` simulate an arkd operator rotating its VTXO signer key and advertising the previous key as a *deprecated signer* with an optional cutoff (DUE_NOW / MIGRATABLE / EXPIRED), driving client-side migration/recovery flows. Requires the rc images (default `v0.9.9-rc.1`; deprecated-signer support landed after `v0.9.6`).
 
-```bash
-ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.0
-ARKD_WALLET_IMAGE=ghcr.io/arkade-os/arkd-wallet:v0.9.0
-```
+### Fast VTXO Expiry (block-denominated locktimes)
+arkd interprets `ARKD_VTXO_TREE_EXPIRY` and the exit delays **by magnitude** (BIP68 boundary = 512): values `≥ 512` are seconds (wall-clock scheduler), values `< 512` are **blocks** (regtest-only block scheduler). Setting small block values lets you fire VTXO-tree expiry / sweeps **instantly by mining** — set `AUTOMINE_INTERVAL=0` so the auto-miner can't advance the tip mid-test. All five values must share the same type.
 
-When `ARKD_IMAGE` is set, `start-env.sh` stops nigiri's arkd container and starts the override images — applying all `ARKD_*` configuration variables from `.env.defaults`.
+### Custom arkd / Image Versions
+arkd is always run from `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` (no built-in fallback). Every image and host port is an overridable `.env.defaults` variable; container-internal ports stay fixed so multiple stacks can run side by side.
 
 ---
 
 ## Bundled Services
 
-| Service          | Image (default)                                     | Default Port(s)        | Purpose                                          |
-| ---------------- | --------------------------------------------------- | ---------------------- | ------------------------------------------------ |
-| Bitcoin Core     | nigiri-bundled                                      | 18443/18444            | Bitcoin regtest node                             |
-| arkd             | nigiri-bundled (overridable)                        | 7070                   | Ark protocol server                              |
-| arkd-wallet      | nigiri-bundled (overridable)                        | —                      | Signer/wallet for arkd                           |
-| Fulmine          | `ghcr.io/arklabshq/fulmine:v0.3.23`                 | 7002 / 7003 / 7004     | Ark wallet + Boltz integration                   |
-| Boltz Backend    | `boltz/boltz:latest`                                | 9000 / 9001 / 9004     | Submarine / reverse swap orchestrator            |
-| Boltz LND        | `btcpayserver/lnd:v0.19.3-beta`                     | 9736 / 10010           | Lightning node used by Boltz                     |
-| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.1.0`              | 9090                   | LNURL endpoints for testing                      |
-| Wallet (PWA)     | `ghcr.io/arkade-os/wallet:latest`                   | 3003                   | Browser wallet                                   |
-| Nginx            | `nginx:alpine`                                      | 9069                   | CORS proxy / static fronting                     |
-| Delegator        | (configurable)                                      | 7010 / 7011 / 7012     | Optional delegated-signing service               |
-| Emulator         | `ghcr.io/arkade-os/emulator:v0.0.1`                 | 7073                   | arkade-script signing service (default-on; opt-out via `EMULATOR_IMAGE=`) |
+| Service          | Image (default)                                     | Default Port(s)        | Profile  | Purpose                                          |
+| ---------------- | --------------------------------------------------- | ---------------------- | -------- | ------------------------------------------------ |
+| Bitcoin Core     | `btcpayserver/bitcoin:31.0`                         | 18443 / 18444          | base     | Bitcoin regtest node (RPC `admin1`/`123`)        |
+| Postgres         | `postgres:16`                                       | 39372                  | base     | Backs arkd + nbxplorer (+ boltz)                 |
+| NBXplorer        | `nicolasdorier/nbxplorer:2.6.7`                     | 32838                  | base     | UTXO indexer (for LND / boltz)                   |
+| Fulcrum          | `cculianu/fulcrum:v2.1.1`                           | 50001 / 50003          | base     | Electrum server (TCP / WS)                       |
+| mempool          | `mempool/backend:v3.3.1` + `frontend:v3.3.1`        | 3000 (web + `/api`)    | base     | Block explorer + Esplora REST API                |
+| LND (counterparty)| `btcpayserver/lnd:v0.19.3-beta`                     | 9735 / 10009           | base     | Lightning node boltz-lnd channels to             |
+| arkd             | `ghcr.io/arkade-os/arkd:v0.9.9-rc.1`                | 7070 / 7071            | ark      | Ark protocol server (+ admin)                    |
+| arkd-wallet      | `ghcr.io/arkade-os/arkd-wallet:v0.9.9-rc.1`         | 6060                   | ark      | Signer/wallet for arkd                           |
+| Arkade Wallet    | `ghcr.io/arkade-os/wallet:latest`                   | 3003                   | ark      | Browser wallet (PWA)                             |
+| Arkade Explorer  | `ghcr.io/arklabshq/arkade-explorer:latest`          | 7080                   | ark      | Ark explorer UI                                  |
+| Fulmine Delegator| `ghcr.io/arklabshq/fulmine:v0.3.25`                 | 7010 / 7011 / 7012     | delegate | Delegated-signing Fulmine (`FULMINE_DELEGATE_*`) |
+| Boltz Backend    | `boltz/boltz:latest`                                | 9000 / 9001 / 9004     | boltz    | Submarine / reverse swap orchestrator            |
+| Boltz Fulmine    | `ghcr.io/arklabshq/fulmine:v0.3.25`                 | 7002 / 7003 / 7004     | boltz    | Ark wallet + Boltz integration                   |
+| Boltz LND        | `btcpayserver/lnd:v0.19.3-beta`                     | 9736 / 10010           | boltz    | Lightning node used by Boltz                     |
+| Nginx (Boltz)    | `nginx:alpine`                                      | 9069                   | boltz    | CORS proxy fronting Boltz                        |
+| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.1.0`              | 9090                   | boltz    | LNURL endpoints for testing                      |
+| Emulator         | `ghcr.io/arkade-os/emulator:v0.0.1`                 | 7073                   | emulator | arkade-script signing service (default-on)       |
+| Solver           | `ghcr.io/arkade-os/solver:v0.0.1-rc.2`              | 7090 / 7091            | solver   | Arkade virtual-mempool intent solver             |
 
-All ports are configurable via `.env.defaults` overrides.
+All images and host ports are configurable via `.env.defaults` overrides.
+
+### Profiles
+
+| Profile    | Services                                                          | Depends on        |
+| ---------- | ----------------------------------------------------------------- | ----------------- |
+| `base`     | bitcoin, postgres, nbxplorer, fulcrum, mempool (api/web/db), lnd  | —                 |
+| `ark`      | arkd, arkd-wallet, arkade-wallet, arkade-explorer                 | `base`            |
+| `delegate` | fulmine-delegator                                                 | `ark`             |
+| `boltz`    | boltz, boltz-fulmine, boltz-lnd, nginx-boltz, lnurl-server        | `ark`             |
+| `emulator` | emulator                                                          | `ark`             |
+| `solver`   | solver                                                            | `ark`, `emulator` |
 
 ---
 
 ## Quick Reference
 
-### Start / Stop / Clean
+### Lifecycle
 ```bash
-./start-env.sh                  # Start the full stack
-./start-env.sh --clean          # Force-rebuild nigiri from source
-./start-env.sh --env path/.env  # Use explicit override file
-./stop-env.sh                   # Stop services (preserves data volumes)
-./clean-env.sh                  # Stop + remove containers, volumes, _build/
+node regtest.mjs start                    # full stack (all profiles)
+node regtest.mjs start --profile base     # just chain + explorer/indexer
+node regtest.mjs start --profile boltz    # base + ark + boltz
+node regtest.mjs stop                     # stop services (preserve data)
+node regtest.mjs clean                    # stop + remove containers + volumes
+npm start / npm stop / npm run clean      # aliases for the three lifecycle commands
 ```
 
-### Lightning Helpers
+### Chain & wallet helpers
 ```bash
-./helpers/create-invoice.sh                # Create LN invoice on Boltz LND
-./helpers/create-invoice.sh --secondary    # Create on the secondary lnd node
-./helpers/pay-invoice.sh <bolt11>          # Pay an invoice from Boltz LND
+node regtest.mjs faucet <addr> <btc> [--confirm]   # send from node wallet; --confirm mines 1
+node regtest.mjs mine [n]                          # mine n blocks (default 1)
+node regtest.mjs reorg [depth]                     # simulate a reorg (default 1)
+node regtest.mjs rpc <args...>                     # bitcoin-cli passthrough
+node regtest.mjs ark <args...>                     # ark client CLI (inside arkd container)
+node regtest.mjs arkd <args...>                    # arkd server CLI (inside arkd container)
+```
+
+### Lightning helpers
+```bash
+node regtest.mjs create-invoice              # 100k-sat invoice on boltz-lnd
+node regtest.mjs create-invoice --secondary  # mint on the secondary (lnd) node
+node regtest.mjs pay-invoice <invoice>       # pay from the non-destination node
+```
+
+### Signer rotation
+```bash
+node regtest.mjs rotate-signer                 # new active key; deprecate current (DUE_NOW)
+node regtest.mjs rotate-signer --cutoff +86400 # deprecate with a future cutoff (MIGRATABLE)
+node regtest.mjs signer-info                   # print the active + deprecated signer set
 ```
 
 ### Submodule Usage (parent repo)
 ```bash
 git submodule add https://github.com/arkade-os/arkade-regtest.git regtest
-echo 'ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.0' >> .env.regtest
-./regtest/start-env.sh
+echo 'ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.9-rc.1' >> .env.regtest
+node regtest/regtest.mjs start
 ```
 
 ---

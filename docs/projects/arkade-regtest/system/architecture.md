@@ -1,126 +1,86 @@
 # Architecture
 
-arkade-regtest is a thin orchestration layer that composes upstream services into a single reproducible Ark regtest stack. There is no compiled code in the repo — the architecture is defined by Bash scripts and Docker Compose files.
+arkade-regtest is a thin orchestration layer that composes upstream Docker images into a single reproducible Ark regtest stack. There is no compiled code in the repo — the architecture is a **zero-dependency Node CLI** (`regtest.mjs` + `lib/*.mjs`, Node ≥ 18 standard library only) plus two Docker Compose files. It replaced the previous nigiri-based Bash launcher; there is no nigiri and no helper binary to build.
 
 ## High-Level Diagram
 
 ```
-                               ┌─────────────────────────────┐
-                               │         start-env.sh         │
-                               │  (launcher / orchestrator)   │
-                               └──────────────┬──────────────┘
-                                              │
-                  ┌───────────────────────────┼───────────────────────────┐
-                  ▼                           ▼                           ▼
-        ┌──────────────────┐      ┌────────────────────┐      ┌────────────────────┐
-        │  lib/env.sh      │      │  Nigiri resolver   │      │  docker compose up │
-        │  (env loader)    │      │  (build or system) │      │  (compose stack)   │
-        └──────────────────┘      └─────────┬──────────┘      └─────────┬──────────┘
-                                            │                           │
-                                            ▼                           ▼
-                                  ┌──────────────────────┐    ┌────────────────────┐
-                                  │  Bitcoin + arkd      │    │ Boltz + Fulmine +  │
-                                  │  + arkd-wallet       │    │ LND + Wallet +     │
-                                  │  (nigiri-managed)    │    │ Nginx + LNURL      │
-                                  └──────────────────────┘    └────────────────────┘
+                        ┌──────────────────────────────┐
+                        │         regtest.mjs          │
+                        │  (Node CLI / orchestrator)   │
+                        └───────────────┬──────────────┘
+                                        │
+        ┌───────────────────┬───────────┴───────────┬───────────────────┐
+        ▼                   ▼                       ▼                   ▼
+ ┌────────────┐   ┌──────────────────┐   ┌────────────────────┐  ┌──────────────┐
+ │  lib/env   │   │  lib/compose     │   │  lib/setup/*       │  │  lib/chain   │
+ │ (env load) │   │ (profile→up)     │   │ (arkd/boltz/...)   │  │ (mine/faucet)│
+ └────────────┘   └────────┬─────────┘   └──────────┬─────────┘  └──────────────┘
+                           │                        │
+                           ▼                        ▼
+        ┌──────────────────────────────┐  ┌────────────────────────────────┐
+        │  compose.base.yml            │  │  compose.ark.yml               │
+        │  bitcoin · postgres ·        │  │  arkd · arkd-wallet · boltz ·  │
+        │  nbxplorer · fulcrum ·       │  │  boltz-fulmine · fulmine-      │
+        │  mempool(api/web/db) · lnd   │  │  delegator · wallet · explorer │
+        └──────────────────────────────┘  │  · emulator · solver           │
+                                          └────────────────────────────────┘
 ```
 
 ## Component Layers
 
-### 1. Launcher Layer (`start-env.sh`)
-Entry point. Responsibilities, in order:
-1. Verify the script is run from a populated checkout (not an empty submodule).
-2. Parse `--clean` and `--env <path>` flags.
-3. Source `lib/env.sh` and call `load_env "$SCRIPT_DIR"`.
-4. Export environment variables for compose interpolation.
-5. Resolve `nigiri` (build from source or use system binary).
-6. Bring up nigiri (Bitcoin + arkd by default).
-7. Optionally swap nigiri's arkd for an override image (`ARKD_IMAGE`).
-8. Bring up the Ark compose stack (Boltz, Fulmine, LND, Wallet, Nginx, LNURL).
-9. Run faucet flows so wallets and LND start with usable balances. The CLI client wallet is always funded with 100M sats offchain via `arkd note` / `ark redeem-notes` on the happy path (falls back to a `WARNING:` log on older arkd versions that don't support redeem-notes).
-10. If `EMULATOR_IMAGE` is set (default), bring up the arkade-script Emulator overlay on the `nigiri` network and wait for `GET /v1/info` to respond before returning.
+### 1. CLI Layer (`regtest.mjs`)
+Single entry point. Subcommands: `start`, `stop`, `clean`, `faucet`, `mine`, `reorg`, `rpc`, `create-invoice`, `pay-invoice`, `ark`, `arkd`, `rotate-signer`, `set-signers`, `signer-info`. On `start` it: loads env, resolves the requested profiles to their dependency closure, brings up the merged compose project, runs per-service setup (arkd wallet seed/create/unlock, faucet flows, boltz/fulmine/solver wiring, emulator readiness), and starts the auto-miner. `npm start`/`stop`/`run clean` alias the lifecycle commands.
 
-### 2. Environment Layer (`lib/env.sh` + `.env.defaults`)
-Centralized environment loading shared by `start-env.sh` (via the script). Behavior:
-- `.env.defaults` is always sourced first (baseline).
-- The first matching override is sourced on top:
-  1. `--env <path>` flag value
-  2. `../.env.regtest` (parent repo, the typical submodule case)
-  3. `.env` (local override inside arkade-regtest)
-- Override files only need to specify variables that differ; missing variables keep their defaults.
-- After overrides are applied, `lib/env.sh` derives `ARK_CONTAINER` once (`arkd` when `ARKD_IMAGE` is set, `ark` for nigiri built-in) and exports it. All downstream scripts (`start-env.sh`, `stop-env.sh`, `clean-env.sh`, compose override) use `$ARK_CONTAINER` instead of branching on mode, and SDK tests can pin a specific container name by exporting `ARK_CONTAINER` themselves.
+### 2. Environment Layer (`lib/env.mjs` + `.env.defaults`)
+`.env.defaults` is always loaded first (baseline). The first matching override is layered on top, in priority order:
+1. `--env <path>` (explicit, highest priority)
+2. `../.env.regtest` (parent repo — typical submodule case)
+3. `.env` (local override inside arkade-regtest)
 
-This design lets parent repos (arkd, fulmine, etc.) pin versions and ports in `.env.regtest` without modifying arkade-regtest itself.
+Override files only specify what differs; a variable already set in the shell environment wins over the files. The CLI itself reads `ARKD_PORT` / `ARKD_ADMIN_PORT` to reach arkd on the host, and `REGTEST_PROFILES` to pin profiles.
 
-Wallet setup is also unified across modes: both the nigiri built-in arkd and the `ARKD_IMAGE` override path call the admin API directly (seed → create → unlock via `docker exec $ARK_CONTAINER`), then wait up to 60 attempts for the wallet to sync before running faucet flows.
+### 3. Compose Layer (`docker/compose.base.yml` + `compose.ark.yml`)
+Two files are merged into one project (`name: arkade-regtest`):
+- **`compose.base.yml`** — chain + indexers + explorer + counterparty LN: `bitcoin` (Bitcoin Core regtest), `postgres`, `nbxplorer`, `fulcrum` (Electrum), `mempool_api` + `mempool_web` + `mempool_mariadb`, and `lnd`.
+- **`compose.ark.yml`** — the Ark stack: `arkd` + `arkd-wallet`, `boltz`, `boltz-lnd`, `boltz-fulmine`, `fulmine-delegator`, `nginx-boltz`, `lnurl-server`, `arkade-wallet`, `arkade-explorer`, the profile-gated `emulator`, and `solver`.
 
-### 3. Nigiri Layer
-By default, Nigiri is built from source from `NIGIRI_REPO_URL` on branch `NIGIRI_BRANCH` (default `master`) into `_build/nigiri/`. The resulting binary is platform-specific (`nigiri-${os}-${arch}`).
+Bitcoin Core and the counterparty LND use the BTCPay images, so their configuration is embedded directly via `BITCOIN_EXTRA_ARGS` / `LND_EXTRA_ARGS` — there are no bind-mounted conf files. arkd and Fulmine point at the Esplora REST API mempool serves at `http://mempool_web/api` inside the network.
 
-The `--clean` flag forces a full rebuild. Setting `NIGIRI_BRANCH=""` opts out of the source build and uses whatever `nigiri` binary is on `$PATH`.
+### 4. Profiles
+Compose profiles group services so you can bring up just one tier; the CLI resolves the dependency closure automatically:
 
-Nigiri itself manages: Bitcoin Core, electrs, esplora, chopsticks, arkd (and optionally Liquid components).
+| Profile    | Services                                                          | Depends on        |
+| ---------- | ----------------------------------------------------------------- | ----------------- |
+| `base`     | bitcoin, postgres, nbxplorer, fulcrum, mempool (api/web/db), lnd  | —                 |
+| `ark`      | arkd, arkd-wallet, arkade-wallet, arkade-explorer                 | `base`            |
+| `delegate` | fulmine-delegator                                                 | `ark`             |
+| `boltz`    | boltz, boltz-fulmine, boltz-lnd, nginx-boltz, lnurl-server        | `ark`             |
+| `emulator` | emulator                                                          | `ark`             |
+| `solver`   | solver                                                            | `ark`, `emulator` |
 
-### 4. Compose Layer (`docker/docker-compose.ark.yml`)
-Compose project name is `nigiri` (intentional — services attach to the same network nigiri creates). Services defined here:
-- **boltz-lnd** — `btcpayserver/lnd` configured against `bitcoin` and `nbxplorer`
-- **boltz-fulmine** — `ghcr.io/arklabshq/fulmine` pointed at the in-stack arkd
-- **boltz** — `boltz/boltz` connecting to `bitcoin`, `boltz-lnd`, and arkd
-- **boltz-nginx** — CORS-enabled proxy fronting Boltz REST/gRPC/WS
-- **boltz-lnurl** — LNURL endpoint server
-- **wallet** — Ark Wallet PWA
+Select with `--profile <name>` (repeatable) or `REGTEST_PROFILES`. Precedence: `--profile` > `REGTEST_PROFILES` > full stack. `stop`/`clean` act on the whole project regardless of profiles.
 
-A second compose file (`docker-compose.arkd-override.yml`) is conditionally applied when `ARKD_IMAGE` is set, replacing nigiri's bundled arkd with an explicit image and propagating all `ARKD_*` configuration variables.
+### 5. Setup Layer (`lib/setup/*.mjs`)
+Per-service wiring run after compose-up: `arkd.mjs` (seed → create → unlock the wallet via the admin API, wait for sync, fund the CLI client wallet offchain via `arkd note` / `ark redeem-notes`), `boltz.mjs`, `fulmine.mjs`, `signer.mjs` (seeds `.signer-state.json` from the boot signer key for rotation), and `solver.mjs`.
 
-A third compose file (`docker-compose.emulator.yml`) brings up the arkade-script Emulator signing service on the same `nigiri` network. It is applied **by default** (the `EMULATOR_IMAGE` is pinned in `.env.defaults`) and skipped when an override clears the variable. The overlay starts after arkd is wallet-ready because `EMULATOR_ARKD_URL` must resolve to a live arkd that accepts `SubmitTx` — the emulator forwards finalized arkade transactions back to arkd. Data is held in a tmpfs (stateless across regtest sessions; the signing identity lives in `EMULATOR_SECRET_KEY`).
-
-### 5. Helper Layer (`helpers/`)
-Convenience scripts that wrap `lncli` calls inside the `boltz-lnd` (or `lnd`) container:
-- `create-invoice.sh [--secondary]` — generate a Lightning invoice
-- `pay-invoice.sh <bolt11>` — pay an invoice and print the result
-
-These are not part of the compose stack — they are operator tools used during interactive testing.
+### 6. Chain & Helper Layer (`lib/chain.mjs`, `lib/lnd.mjs`, `lib/invoice.mjs`, `helpers/`)
+Auto-miner (`AUTOMINE_INTERVAL`, default 600s), `mine` / `reorg` / `faucet` / `rpc` chain controls, and `create-invoice` / `pay-invoice` Lightning helpers (wrapping `lncli` in the boltz-lnd / lnd containers).
 
 ## Networking
 
-All services run on the Docker network created by the `nigiri` compose project. Container hostnames (`bitcoin`, `arkd`, `boltz-lnd`, `boltz-fulmine`, `boltz`, etc.) are used inside the network. The host exposes a fixed set of ports (configurable via `.env.defaults`):
-
-| Service            | Default Port |
-| ------------------ | ------------ |
-| Boltz LND P2P      | 9736         |
-| Boltz LND RPC      | 10010        |
-| Fulmine HTTP       | 7002         |
-| Fulmine API        | 7003         |
-| Fulmine gRPC       | 7004         |
-| Delegator gRPC/API/HTTP | 7010 / 7011 / 7012 |
-| Boltz gRPC         | 9000         |
-| Boltz REST API     | 9001         |
-| Boltz WebSocket    | 9004         |
-| Nginx (CORS proxy) | 9069         |
-| LNURL Server       | 9090         |
-| Wallet (PWA)       | 3003         |
-| Emulator           | 7073         |
-
-Nigiri-managed services (Bitcoin RPC, electrs, esplora, chopsticks, arkd) keep their standard nigiri ports.
+All services run on the Docker network of the `arkade-regtest` compose project; container hostnames (`bitcoin`, `arkd`, `mempool_web`, `boltz-lnd`, etc.) are used inside the network. Only the host side of each port mapping is configurable via `.env.defaults`; container-internal ports are fixed so multiple stacks can run side by side. Host ports include: bitcoin RPC `18443`, mempool web + Esplora `/api` `3000`, fulcrum `50001`/`50003`, nbxplorer `32838`, postgres `39372`, arkd `7070` (+ admin `7071`), arkd-wallet `6060`, fulmine `7002`/`7003`/`7004`, delegator `7010`/`7011`/`7012`, boltz `9000`/`9001`/`9004`, nginx `9069`, lnurl `9090`, wallet `3003`, explorer `7080`, emulator `7073`, solver `7090`/`7091`.
 
 ## Data Flow
 
-A typical Ark settlement test follows:
+A typical Ark settlement test: **funding** (`faucet` / mined blocks seed the wallets and LND) → **boarding** (wallet locks BTC on-chain via arkd) → **off-chain transfer** (wallet → wallet through arkd rounds) → **Boltz swap** (Lightning ↔ Ark via Boltz + Fulmine) → **settlement / exit** (round-settled or unilateral exit back to chain). Every leg runs against in-stack services with deterministic regtest behavior; mining (auto or explicit) drives confirmations and block-denominated expiry.
 
-1. **Funding** — `arkd` mines blocks via Bitcoin Core; faucet flow sends BTC to the Ark wallet, fulmine wallet, and Boltz LND.
-2. **Boarding** — wallet client locks BTC on-chain via arkd to receive VTXOs.
-3. **Off-chain transfer** — wallet → wallet payment processed through arkd rounds.
-4. **Boltz swap** — Lightning ↔ Ark via Boltz backend + Fulmine, settling against the on-chain state managed by Bitcoin Core / LND.
-5. **Settlement / exit** — VTXOs settled in a round or unilaterally exited back to the chain.
+## Lifecycle Commands
 
-Every leg of this flow runs against in-stack services with deterministic regtest behavior.
+| Command                   | Behavior                                                          |
+| ------------------------- | ----------------------------------------------------------------- |
+| `node regtest.mjs start`  | Bring up the requested profiles, run setup + faucet flows         |
+| `node regtest.mjs stop`   | Stop services, preserve volumes (fast restart)                    |
+| `node regtest.mjs clean`  | Full teardown: remove containers + volumes; reset the signer set  |
 
-## Lifecycle Scripts
-
-| Script           | Behavior                                                          |
-| ---------------- | ----------------------------------------------------------------- |
-| `start-env.sh`   | Build/start nigiri + compose stack, run faucet flows              |
-| `stop-env.sh`    | `docker compose stop` — preserves volumes for fast restart        |
-| `clean-env.sh`   | Full teardown: `down -v`, remove `_build/`, prune leftover state  |
-
-Use `stop` between iterations of the same test session; use `clean` when changing image versions or debugging stuck state.
+Use `stop` between iterations of the same test session; use `clean` when changing image versions or recovering from stuck state.

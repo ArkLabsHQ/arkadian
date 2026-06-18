@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.3.0
-last_sync_commit: 6d33b088ead85f75e12bf069d4596b2f8add2fa2
+version: 1.4.0
+last_sync_commit: de2f2cf32329ebb9dd9d4391d79cd3df53d2a243
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -16,6 +16,9 @@ scripts:
   build: "cargo build"
   test: "just test"
   e2e: "just e2e-tests"
+  e2e_full: "just e2e-full"
+  regtest_start: "just regtest-start"
+  regtest_clean: "just regtest-clean"
   fmt: "just fmt"
   clippy: "just clippy"
 ---
@@ -76,6 +79,7 @@ All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords 
 
 ### Protocol Features
 - Off-chain VTXO payments (send, receive, settle) — unified offchain-send builder for VTXO and asset sends
+- **Smart settlement**: `settle()` renews only expired/recoverable VTXOs plus confirmed boarding outputs (healthy VTXOs untouched, cheap periodic renewal); full-renewal path renamed to `settle_all()`. Isolated sub-dust recoverable VTXOs need `settle_all()` (carrier value) since the batch rejects sub-dust-only settlements below the server dust threshold
 - On-chain boarding and unilateral exit
 - VTXOs with **distinct forfeit and unilateral-exit keys** (split-key model)
 - Round participation with MuSig2 signing — asset-preserving settlement
@@ -95,6 +99,7 @@ All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords 
 - **gRPC** (default): Via `ark-grpc` with tonic, native TLS
 - **REST**: Via `ark-rest` with reqwest, WASM-compatible
 - WASM build support for `ark-core` and `ark-rest`
+- **Guarded RPC + digest-mismatch refresh**: both transports route every non-`GetInfo` RPC through a guard that, on a stale `/info` digest, refetches `/info`, runs a refresh hook, commits the new digest, and returns `Error::server_info_changed` (no auto-retry). `ark-grpc` uses private `guarded::Ark` / `guarded::Indexer` wrappers so new RPCs can't skip the guard (design: repo `docs/guarded-grpc-client-design.md`); `ark-rest` mirrors the behaviour. Requests carry `x-digest`, `x-sdk-version` (`rust-sdk/<version>`), and `x-build-version`; `ark-core::server` defines `TARGET_ARKD_VERSION = "0.9.9"` and `SDK_VERSION`. New public `Error::is_server_info_changed()` on both transport error types
 
 ---
 
@@ -104,6 +109,7 @@ All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords 
 - Rust 1.86+ (MSRV)
 - `just` command runner (`cargo install just`)
 - protoc (for gRPC code generation)
+- Docker + Node (for the `arkade-regtest` e2e stack; init with `just regtest-init`)
 
 ### Build
 ```bash
@@ -112,10 +118,13 @@ cargo build
 
 ### Test
 ```bash
-just test          # Unit tests
-just e2e-tests     # E2E tests (requires arkd running)
-just e2e-full      # Full E2E: start nigiri + arkd + run tests
-just wasm-test     # WASM tests (requires wasm-pack + arkd)
+just test            # Unit tests
+just regtest-init    # Init the arkade-regtest submodule (once)
+just regtest-start   # Bring up the arkade-regtest stack (emulator profile)
+just e2e-tests       # E2E tests (requires the regtest stack running)
+just e2e-full        # Full E2E: regtest-clean + regtest-start + run tests
+just regtest-clean   # Tear down the stack (containers + volumes)
+just wasm-test       # WASM tests (requires wasm-pack + running arkd)
 ```
 
 ### Code Quality
@@ -167,7 +176,7 @@ just clippy        # Lint with clippy
 - **just**: Task runner (justfile)
 - **dprint**: Code formatter
 - **clippy**: Rust linter
-- **Nigiri**: Local Bitcoin regtest environment
+- **arkade-regtest**: In-house Docker Compose regtest stack (Bitcoin Core + Fulcrum + mempool/esplora + arkd + emulator), git submodule at `regtest/`, driven by `regtest.mjs` (replaces Nigiri)
 - **wasm-pack**: WASM testing
 
 ---
@@ -243,7 +252,7 @@ ark-client (Client / OfflineClient)
 ### Bitcoin Network
 - **Esplora**: Block explorer backend for chain queries
 - **BDK**: On-chain wallet operations via `ark-bdk-wallet`
-- **Nigiri**: Local regtest environment for development
+- **arkade-regtest**: Local regtest stack for e2e (Bitcoin Core + Fulcrum + mempool/esplora + arkd + emulator); e2e helper resolves on-chain state via Bitcoin Core (`gettxout` / `getrawtransaction`), not the esplora indexer
 
 ---
 

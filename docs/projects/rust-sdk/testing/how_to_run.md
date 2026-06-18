@@ -5,8 +5,9 @@
 - **Rust**: 1.86+ (`rustup update stable`)
 - **just**: Task runner (`cargo install just`)
 - **protoc**: Protocol buffer compiler (for gRPC code generation)
-- **Nigiri**: Local Bitcoin regtest (`curl https://getnigiri.vulpem.com | bash`)
-- **Go**: Required for building arkd from source
+- **Docker** + **Node**: Required for the `arkade-regtest` e2e stack (`regtest.mjs` is a zero-dependency Node CLI)
+
+> The e2e suite no longer uses Nigiri or builds `arkd` from Go source. It uses the in-house **arkade-regtest** Docker Compose stack, vendored as a git submodule at `regtest/` and pinned via `ARKD_IMAGE` in `.env.regtest`.
 
 ## Clone and Build
 
@@ -24,40 +25,37 @@ just build-wasm    # Builds ark-core and ark-rest for wasm32-unknown-unknown
 
 ## Development Environment (E2E Tests)
 
-### 1. Start Nigiri (Bitcoin regtest)
+### 1. Initialize the arkade-regtest submodule (once)
 
 ```bash
-nigiri start
+just regtest-init    # git submodule update --init --recursive regtest
 ```
 
-### 2. Checkout and Build arkd
+### 2. Start the arkade-regtest stack
 
 ```bash
-# Checkout arkd source (requires Go installed)
-just arkd-checkout master
-
-# Optional: increase round interval to 30s for easier testing
-just arkd-patch-makefile
-
-# Build arkd
-just arkd-build
+just regtest-start   # regtest.mjs start --env .env.regtest --profile emulator
 ```
 
-### 3. Start arkd
+This brings up the Docker Compose stack defined by the submodule:
+- Bitcoin Core (regtest, `txindex=1`, mines a block every 2s)
+- Fulcrum + mempool/esplora (block explorer API at `:3000/api`)
+- arkd on port 7070 (gRPC) — image pinned via `ARKD_IMAGE`, self-funded by the stack
+- emulator profile provides the introspector on port 7073
+
+`.env.regtest` ports the exit-delay config the suite relies on and zeroes intent fees so exact-balance assertions hold.
+
+### 3. Run E2E Tests
 
 ```bash
-just arkd-setup    # Starts arkd-wallet, arkd, and funds wallet
+just e2e-tests     # Run all E2E tests (stack must be running)
 ```
 
-This runs:
-- Docker containers (pgnbxplorer, nbxplorer)
-- arkd-wallet on port 6060
-- arkd on port 7070 (gRPC) / 7071 (admin)
-
-### 4. Run E2E Tests
+Faucet / mine helpers (for manual flows):
 
 ```bash
-just e2e-tests     # Run all E2E tests
+just faucet <address> <amount>   # regtest.mjs faucet … --confirm
+just mine [n]                    # regtest.mjs mine n
 ```
 
 E2E suites of note:
@@ -66,20 +64,21 @@ E2E suites of note:
 - `e2e_arkade_script` — arkade-script flow against a dockerized introspector (image built from source by `justfile` / CI)
 - `fulmine_delegator_smoke` — full VtxoWatcher loop against a fulmine delegator (skipped in CI; runs locally with the fulmine stack on `http://localhost:7004`)
 
-> **arkd timelocks**: the local dev/CI setup now uses **seconds-based** delays (matching production Arkade); block-based delays are regtest-only and were dropped from the DLC e2e tests. Override values via env vars in `.env.sample` — `justfile` forwards them through `run-wallet` / `run-light`.
+> **arkd timelocks**: the local dev/CI setup uses **seconds-based** delays (matching production Arkade); block-based delays are regtest-only and were dropped from the DLC e2e tests. Exit-delay and related config are pinned in `.env.regtest`.
 
 ### Full E2E Cycle (Clean Start)
 
 ```bash
-just e2e-full      # Wipes everything, starts fresh, runs all E2E tests
+just e2e-full      # regtest-clean + regtest-start + run all E2E tests
 ```
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ARKD_DIR` | Path to local arkd source | (required for E2E) |
-| `ARK_GO_DIR` | Parent directory for arkd checkout | (required for checkout) |
+| `ARKD_IMAGE` | arkd container image used by the regtest stack | (set in `.env.regtest`) |
+
+The stack reads `.env.regtest`; see `.env.sample` for the documented set of overrides.
 
 ## Generate gRPC Code
 
@@ -108,8 +107,6 @@ just msrv-check                # Check minimum supported Rust version
 ## Stopping Services
 
 ```bash
-just arkd-kill                 # Stop arkd
-just arkd-wallet-kill          # Stop arkd-wallet
-just docker-wipe               # Stop Docker containers
-nigiri stop --delete           # Stop and wipe Nigiri
+just regtest-stop              # Stop the stack (preserves data/volumes)
+just regtest-clean             # Remove the stack's containers and volumes
 ```

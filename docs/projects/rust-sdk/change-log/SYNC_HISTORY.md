@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-06-18 - Guarded RPC clients + digest-mismatch refresh, smart settle(), and arkade-regtest e2e migration
+**From**: `6d33b088ead85f75e12bf069d4596b2f8add2fa2`
+**To**: `de2f2cf32329ebb9dd9d4391d79cd3df53d2a243`
+**Synced By**: update-project skill
+**Commits analyzed**: 8 (no merges)
+
+**Note**: The repo was reported fast-forwarded from `4f5c2590…` → `de2f2cf…`, but `last-sync.txt` was still at `6d33b088…`, leaving a 2-commit gap (`2fdcb1e`, `00f13d8`) undocumented. This sync covers the full `6d33b088..de2f2cf` range so nothing is silently skipped; the doc updates concentrate on the substantive changes below.
+
+**Summary**: Three SDK-consumer-facing themes. (1) Both transports now guard every non-`GetInfo` RPC against a stale `/info` digest: on a `DIGEST_MISMATCH`, fetch fresh `/info`, run a refresh hook to update higher-level client state, commit the new digest header, and return `Error::server_info_changed` without auto-retrying. `ark-grpc` enforces this with private `guarded::Ark` / `guarded::Indexer` wrapper newtypes (raw tonic clients are no longer reachable in normal method bodies), and `ark-rest` mirrors the behaviour for parity. Requests also gained `x-digest` and `x-sdk-version` headers (`SDK_VERSION = "rust-sdk/<version>"`), and `ark-core::server` added `TARGET_ARKD_VERSION = "0.9.9"`. (2) `Client::settle()` was narrowed to renew only expired/recoverable VTXOs plus confirmed boarding outputs (the prior full-renewal path is now `settle_all()`), with a documented sub-dust limitation. (3) The e2e suite was migrated off Nigiri (+ Go-source arkd build) to the in-house `arkade-regtest` Docker Compose stack, added as a `regtest/` git submodule and driven by `regtest.mjs`.
+
+**Changes**:
+- `feat(ark-client): narrow settle() to expired/recoverable VTXOs` (`c33a567`) — renames the full-renewal settle to `settle_all()` and introduces a new `settle()` that renews only the server's recoverable bucket plus client-observed expired confirmed/pre-confirmed VTXOs, leaving healthy VTXOs and boarding outputs untouched for cheap periodic renewals (`ark-client/src/batch.rs`).
+- `feat(ark-client): include boarding outputs in settle()` (`42fad99`) — `settle()` always pulls confirmed boarding outputs into the smart settle alongside expired/recoverable VTXOs, so freshly funded coins enter the Ark without falling back to `settle_all`.
+- `fix(ark-client): sub-dust limitation on settle()` (`a1b586a`) — documents that isolated sub-dust recoverable VTXOs can only be rescued when their combined value clears the server dust threshold; otherwise the batch rejects with `cannot settle into sub-dust VTXO` and callers must use `settle_all()` (a healthy VTXO acts as carrier value).
+- `fix(headers): send compatibility, digest, and SDK headers` (`5175a41`) — `ark-grpc`/`ark-rest` now send `x-digest` and `x-sdk-version` headers; `ark-core/src/server.rs` adds `TARGET_ARKD_VERSION = "0.9.9"` and `SDK_VERSION = concat!("rust-sdk/", env!("CARGO_PKG_VERSION"))`.
+- `feat(client,grpc): refresh server info through guarded RPC wrappers` (`8d8819d`) — introduces `guarded::Ark` / `guarded::Indexer` wrapper newtypes around the generated tonic clients with a single `request(...)` escape hatch; shared guard state handles digest-mismatch refresh via an info-refresh hook that updates the higher-level client state, committing the new digest header only after the hook succeeds. Adds `Error::server_info_changed` / public `is_server_info_changed()` / internal `is_digest_mismatch()` to `ark-grpc/src/error.rs`. Design captured in the repo's new `docs/guarded-grpc-client-design.md` (260 lines).
+- `fix(rest): add guarded digest-mismatch parity` (`97b371f`) — `ark-rest` mirrors the digest-mismatch behaviour (`source_contains_any(["DIGEST_MISMATCH", "invalid digest header"])`), with matching `server_info_changed` / `is_server_info_changed()` / `is_digest_mismatch()` in `ark-rest/src/error.rs`.
+- `Migrate regtest e2e off nigiri to the arkade-regtest stack` (`00f13d8`, gap commit) — replaces the Nigiri-based setup with the `arkade-regtest` Docker Compose stack (Bitcoin Core + Fulcrum + mempool/esplora + arkd + emulator), added as a submodule at `regtest/` and driven by `regtest.mjs`. New justfile recipes (`regtest-init`, `regtest-start`, `regtest-stop`, `regtest-clean`, `faucet`, `mine`); `e2e-full` now runs `regtest-clean` + `regtest-start` + tests. Drops the Go-source arkd build/fund machinery, the bespoke introspector recipes, and `setup_arkd.sh`; arkd runs from `ARKD_IMAGE` and the introspector is the emulator profile (port 7073). `.env.regtest` pins images, exit-delay config, 2s block mining, and zero intent fees.
+- `Address review on the Bitcoin Core lookups` (`2fdcb1e`, gap commit) — the e2e helper resolves on-chain state via Bitcoin Core (`gettxout` for spend detection, `getrawtransaction` with `txindex=1`) rather than the esplora indexer, which lagged the chain on regtest and broke multi-settlement flows (spent boarding outputs read as unspent; freshly-mined commitment TXs not found).
+
+**Breaking changes**: `Client::settle()` semantics changed — callers relying on it to renew _all_ VTXOs must switch to `Client::settle_all()`. Local e2e workflows must use the new `regtest-*` justfile recipes (Nigiri / `arkd-setup` / Go-source build recipes were removed). No change to indirect REST/gRPC API request signatures (`server_info_changed` is an additive error variant).
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` + `version`; scripts block; new Transport Options + Protocol Features bullets for guarded clients and smart settle; Prerequisites / Build / Test / Technology Stack / Integration Points updated for arkade-regtest)
+- `docs/projects/rust-sdk/system/project_overview.md` (three new Recent Additions entries; `ark-client` settle/settle_all; `ark-grpc` / `ark-rest` guarded-RPC notes)
+- `docs/projects/rust-sdk/system/architecture.md` (client-layer box; new "Guarded RPC Clients & Digest-Mismatch Refresh" and "settle vs settle_all" design sections; SDK Version Handshake header note; Testing Architecture rewritten for arkade-regtest)
+- `docs/projects/rust-sdk/testing/how_to_run.md`, `testing/how_to_test.md`, `testing/troubleshooting.md`, `sop/development-workflow.md` (Nigiri / arkd-setup workflow replaced with the arkade-regtest `regtest.mjs` flow)
+- `docs/projects/rust-sdk/testing/usage.md` (Settlement example shows `settle()` vs `settle_all()`)
+- `docs/INDEX.md` (rust-sdk Key Capabilities — guarded RPC + smart settle bullets; test_or_run / debug triggers; Dependencies updated to arkade-regtest)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-06-10 - Reverse-swap to another Arkade user + restored finalize-pending-offchain-tx API
 **From**: `8c0e8e3d91ab80e8107415072cf6351573eac19f`
 **To**: `6d33b088ead85f75e12bf069d4596b2f8add2fa2`

@@ -157,6 +157,9 @@ The operator can rotate the server signing key without invalidating VTXOs that w
 ### Optional `x-sdk-version` Client Header (PR #1113)
 `pkg/client-lib` can attach its build version to every gRPC call via the new `WithClientVersion(version)` ServiceOption, sent as the `x-sdk-version` metadata header (only when set). The server's existing `x-build-version` `VersionGuard` interceptor was tightened so a present, parseable client version is always compared to the server minimum, regardless of whether the header is required. **Breaking:** `grpcclient.NewClient` now takes `(serverUrl, clientVersion)`.
 
+### Client-Side Deprecated-Signer Verification (PR #1117)
+The embedded `pkg/client-lib` SDK now verifies the server's signatures on ark and checkpoint transactions against the **set** of valid signer keys (current + deprecated) — the client-side counterpart to the server-side signer-key rotation (PR #1097). `types.Config` gains a `DeprecatedSigners []DeprecatedSigner` field (each `{PubKey, CutoffDate}`) and a `Config.AllSigners()` helper returning a `map[string]*btcec.PublicKey` keyed by x-only hex pubkey. The verification helpers (`verifySignedArk` / `verifySignedCheckpoints` / `verifyOffchainPsbt`) now take that signer map instead of a single pubkey, match each signed input's `TaprootScriptSpendSig.XOnlyPubKey` against any key in the set, and verify with the matched key. `SendOffChain`, `IssueAsset`, `ReissueAsset`, and `BurnAsset` load the config via `GetConfigData` and pass `AllSigners()`. The file store persists deprecated signers as a `deprecated_signers` JSON array (`{pubkey, cutoff_date}`, compressed-hex pubkey + RFC3339 cutoff).
+
 ### Fee System (CEL-Based)
 Programmable fee management using CEL (Common Expression Language) formulas. Supports per-intent-type fees (onchain input, offchain input, onchain output, offchain output) with admin APIs for managing fee programs and a client-facing fee estimation RPC.
 

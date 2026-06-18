@@ -81,9 +81,14 @@ for tx in history {
 
 ### Settlement (Round Participation)
 ```rust
-let spendable = client.spendable_vtxos().await?;
-let boarding = client.get_boarding_outputs().await?;
-// Register inputs, participate in round, sign tree
+// Cheap periodic renewal: only expired/recoverable VTXOs + confirmed boarding
+// outputs are rolled into the next batch; healthy VTXOs are left untouched.
+let txid = client.settle(&mut rng).await?;
+
+// Full renewal: rolls ALL prior VTXOs and boarding outputs into the next batch.
+// Use when rescuing isolated sub-dust recoverable VTXOs (they need a healthy
+// VTXO as carrier value to clear the server dust threshold).
+let txid = client.settle_all(&mut rng).await?;
 ```
 
 ## Feature Flags

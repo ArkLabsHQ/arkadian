@@ -9,10 +9,12 @@
    go version  # Verify installation
    ```
 
-2. **Clone the repository**
+2. **Clone the repository (with submodules)**
    ```bash
-   git clone https://github.com/ArkLabsHQ/ark-faucet.git
+   git clone --recurse-submodules https://github.com/ArkLabsHQ/ark-faucet.git
    cd ark-faucet
+   # arkade-regtest is vendored at regtest/; if you skipped --recurse-submodules:
+   git submodule update --init
    ```
 
 3. **Install dependencies**
@@ -58,8 +60,12 @@ export ARK_FAUCET_AUTH_PASS=admin                   # Optional
 
 ### Code Structure
 
-- `cmd/main.go` - HTTP server, routing, handlers
-- `pkg/service.go` - Core service logic, ARK SDK integration
+- `cmd/main.go` - Entry point: config loading, wiring, server lifecycle
+- `pkg/handler.go` - HTTP router (`NewHandler`), middleware (CORS, basic auth, recovery), request handlers
+- `pkg/service.go` - Core service logic, ARK SDK integration, note minting/refill
+- `pkg/handler_test.go`, `pkg/service_test.go` - Unit tests
+- `e2e/faucet_e2e_test.go` - End-to-end tests (build tag `e2e`) against arkade-regtest
+- `regtest/` - arkade-regtest git submodule (local Ark backend)
 
 ### Development Workflow
 
@@ -68,8 +74,8 @@ export ARK_FAUCET_AUTH_PASS=admin                   # Optional
    # Edit service logic
    vim pkg/service.go
 
-   # Edit HTTP handlers
-   vim cmd/main.go
+   # Edit HTTP handlers / routing
+   vim pkg/handler.go
    ```
 
 2. **Run static analysis**
@@ -107,23 +113,13 @@ export ARK_FAUCET_PASSWORD=admin
 
 ## Docker Workflow
 
+> The Makefile no longer ships `make docker-build` / `make docker-run`. A multi-arch image is built and pushed to `ghcr.io/arklabshq/ark-faucet` by CI (`.github/workflows/docker.yml`).
+
 ### Build Docker Image
 
 ```bash
-make docker-build
+docker build -t arkfaucet .
 ```
-
-### Run in Docker
-
-```bash
-make docker-run
-```
-
-This starts the service:
-- Connected to Nigiri network
-- Port 9999 exposed
-- Volume-mounted data directory
-- Shares volumes with arkd container
 
 ### Manual Docker Run
 
@@ -149,26 +145,42 @@ curl http://localhost:9999/address
 
 ## Testing Changes
 
-### Setup Test Environment
+### Unit Tests
 
-1. **Start local arkd server**
+```bash
+go test ./pkg/...
+```
 
-   Option A: Using Nigiri (recommended)
+### End-to-End Tests (arkade-regtest)
+
+```bash
+# Boots the ark stack, runs the e2e suite, then always cleans up
+make e2e
+```
+
+`make e2e` brings up arkade-regtest (`make regtest-up`), runs `go test -tags e2e ./e2e/...`
+(exercising address/refill/faucet/balance), then runs `make regtest-down` while
+preserving the test exit code. This mirrors the PR CI job in `.github/workflows/ci.yml`.
+
+### Setup Test Environment (manual)
+
+1. **Start a local Ark backend**
+
+   Option A: arkade-regtest (recommended, vendored as a submodule)
    ```bash
-   nigiri start
-   cd /path/to/arkd
-   make run
+   make regtest-up   # arkd :7070, admin :7071
    ```
 
-   Option B: Standalone arkd
+   Option B: Your own standalone arkd
    ```bash
    cd /path/to/arkd
-   make run-light
+   make run
    ```
 
 2. **Configure faucet to connect**
    ```bash
    export ARK_FAUCET_SERVER_URL=http://localhost:7070
+   export ARK_FAUCET_SERVER_ADMIN_URL=http://localhost:7071
    export ARK_FAUCET_PASSWORD=admin
    ```
 

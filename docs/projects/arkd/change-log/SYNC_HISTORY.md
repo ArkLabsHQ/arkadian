@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-18 - Documentation Update
+**Commit**: `268d19d9` (arkd repository)
+**Previous Sync**: `11cf2ba8`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `268d19d9` client-lib: support deprecated signer verification (#1117)
+
+**Features Added**:
+- **Client-side deprecated-signer verification (PR #1117)**: the embedded `pkg/client-lib` SDK now verifies server signatures on ark/checkpoint txs against the set of valid signer keys (current + deprecated) — the client counterpart to server-side signer rotation (PR #1097). `types.Config` gains `DeprecatedSigners []DeprecatedSigner` (`{PubKey *btcec.PublicKey, CutoffDate time.Time}`) and `Config.AllSigners() map[string]*btcec.PublicKey` (keyed by x-only hex pubkey). `verifySignedArk`/`verifySignedCheckpoints`/`verifyOffchainPsbt` (`utils.go`) now take `signers map[string]*btcec.PublicKey` instead of a single pubkey, matching each signed input's `TaprootScriptSpendSig.XOnlyPubKey` against the set and verifying with the matched key. Callers `SendOffChain` (`send.go`) and `IssueAsset`/`ReissueAsset`/`BurnAsset` (`asset.go`) fetch `GetConfigData(ctx)` and pass `cfgData.AllSigners()`. The file store persists a `deprecated_signers` JSON array (`{pubkey, cutoff_date}`, compressed-hex pubkey + RFC3339 cutoff) in `storeData`, round-tripped in `config_store.go`/`store/file/types.go` and surfaced in `asMap()`. Covered by new `types_test.go` and `store/service_test.go` cases.
+
+**Breaking Changes**:
+- None (internal helper signatures only; public `types.Config` is additive).
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: client-side deprecated-signer-verification capability bullet; new tag + triggers)
+- docs/projects/arkd/system/project_overview.md (new Major Feature: client-side deprecated-signer verification)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-16 - Documentation Update
 **Commit**: `11cf2ba8` (arkd repository)
 **Previous Sync**: `7591e53f`

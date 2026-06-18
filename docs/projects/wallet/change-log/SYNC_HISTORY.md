@@ -1,5 +1,27 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-18 - Documentation Sync
+**Commit**: `331f6fc91ba063b21ccf04cd7563d64160c51403`
+**Previous Sync**: `8da7062179a4ba29211db20d7b6b9463ab9e1247`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `331f6fc9` prevent double keys in local storage (#677)
+
+**Features Added / Modified**:
+- **Prevent double keys in `localStorage`** (PR #677): A new module `src/lib/storageKeys.ts` centralizes the two credential storage keys (`MNEMONIC_STORAGE_KEY = 'encrypted_mnemonic'`, `NSEC_STORAGE_KEY = 'encrypted_private_key'`), which `mnemonic.ts` and `privateKey.ts` now import instead of holding their own local `STORAGE_KEY` constants — this also breaks a circular import between the two modules. The two keys are now mutually exclusive: `setMnemonic` calls `localStorage.removeItem(NSEC_STORAGE_KEY)` and `setPrivateKey` calls `localStorage.removeItem(MNEMONIC_STORAGE_KEY)`, so a wallet can never persist both an encrypted mnemonic and an encrypted private key at the same time (the prior double-key state could confuse the mnemonic-first unlock detection in `isValidPassword`). New/expanded tests in `src/test/lib/mnemonic.test.ts` and `src/test/lib/privatekey.test.ts`.
+
+**Configuration Changes**: None.
+**Breaking Changes**: None (internal refactor + bug fix; no external API or env-var changes).
+
+**Files Touched in Repo** (5 files): `src/lib/storageKeys.ts` (new), `src/lib/mnemonic.ts`, `src/lib/privateKey.ts`, `src/test/lib/mnemonic.test.ts`, `src/test/lib/privatekey.test.ts`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `last_sync_commit`; Self-Custodial Wallet "Encrypted storage" note on centralized + mutually-exclusive storage keys (PR #677).
+- `docs/projects/wallet/system/project_overview.md` — "Legacy identity (`SingleKey`)" bullet extended with the `storageKeys.ts` centralization and mutual-exclusivity behavior (PR #677).
+- `docs/INDEX.md` — wallet Key Capabilities bullet for PR #677.
+
 ## 2026-06-17 - Documentation Sync
 **Commit**: `8da7062179a4ba29211db20d7b6b9463ab9e1247`
 **Previous Sync**: `a4dede1289cb91f54ab51d245de30e267d5e4601`

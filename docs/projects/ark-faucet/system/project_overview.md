@@ -11,11 +11,12 @@ The service enables programmatic distribution of Ark coins to both onchain and o
 ## Key Features
 
 ### Core Functionality
-- **Coin Distribution**: Send coins to any valid address via HTTP POST request
+- **Coin Distribution**: Send coins to any valid address via HTTP POST request (rejects empty address / zero amount)
 - **Address Management**: Retrieve service addresses (both onchain and offchain)
 - **Balance Checking**: Query current service balance
-- **Automatic Refill**: Replenish service balance using admin macaroons
+- **Automatic Refill**: Mint and redeem notes via the arkd admin API (admin macaroon optional)
 - **Manual Refill**: Redeem notes directly to add funds
+- **Healthcheck & CORS**: Public liveness probe and permissive CORS for browser clients
 
 ### Network Support
 - **Dual Mode**: Supports both Bitcoin (covenantless) and Liquid (covenant) networks
@@ -56,10 +57,12 @@ Ark Server (arkd)
 ```
 
 ### Component Overview
-- **HTTP Server**: Handles incoming requests and authentication
-- **Service Layer**: Business logic for faucet operations
+- **HTTP Server**: `NewHandler` (`pkg/handler.go`) wires routes with CORS, basic-auth, and panic-recovery middleware; exposes a public `/healthcheck`
+- **Service Layer**: Business logic for faucet operations and note minting (`pkg/service.go`)
 - **Ark SDK Integration**: Wallet management and transaction creation
 - **Storage**: File-based wallet data persistence
+
+The HTTP API is decoupled from `main` so it can be imported and exercised by unit tests (`pkg/handler_test.go`) and an end-to-end suite (`e2e/`) that runs against the vendored arkade-regtest stack.
 
 ## Integration
 

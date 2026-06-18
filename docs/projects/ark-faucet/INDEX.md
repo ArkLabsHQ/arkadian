@@ -13,8 +13,9 @@ aliases:
 scripts:
   run: "make run"
   build: "make build"
-  docker_build: "make docker-build"
-  docker_run: "make docker-run"
+  regtest_up: "make regtest-up"
+  regtest_down: "make regtest-down"
+  e2e: "make e2e"
 ---
 
 # Ark Faucet — Project Index
@@ -79,8 +80,8 @@ Analysis and summaries of pull requests.
 ### Note System
 - Initialize wallet with Ark notes
 - Redeem notes for balance
-- Refill endpoint for automatic top-up
-- Requires admin macaroon access
+- Refill endpoint mints notes via the arkd admin API for automatic top-up
+- Admin macaroon optional (used only when arkd enforces it)
 
 ---
 
@@ -88,25 +89,28 @@ Analysis and summaries of pull requests.
 
 ### Local Development
 ```bash
-# Build and run
+# Boot the vendored arkade-regtest stack, then run the faucet against it
+make regtest-up
 make run
+make regtest-down   # when done
 
 # Access at http://localhost:9999
 ```
 
 ### Docker Deployment
 ```bash
-# Build and run with Docker
-make docker-run
+# No make docker-* targets; image published to ghcr.io/arklabshq/ark-faucet by CI.
+# Build locally if needed:
+docker build -t arkfaucet .
 
-# Manual Docker run
 docker run -d \
   --name arkfaucet \
   -p 9999:9999 \
   -e ARK_FAUCET_PASSWORD=admin \
   -e ARK_FAUCET_SERVER_URL=http://localhost:7070 \
+  -e ARK_FAUCET_SERVER_ADMIN_URL=http://localhost:7071 \
   -v arkfaucet-data:/app/faucetdata \
-  arkfaucet
+  ghcr.io/arklabshq/ark-faucet:latest
 ```
 
 ### Basic Usage
@@ -137,15 +141,17 @@ curl -u admin:admin -X POST "http://localhost:9999/refill?amount=5000"
 | `ARK_FAUCET_DATADIR` | Data directory for wallet | `~/.arkfaucet` | ❌ |
 | `ARK_FAUCET_PORT` | HTTP server port | `9999` | ❌ |
 | `ARK_FAUCET_SERVER_URL` | Ark server URL | `http://localhost:7070` | ❌ |
+| `ARK_FAUCET_SERVER_ADMIN_URL` | Arkd admin API URL (note minting for `/refill`) | falls back to `SERVER_URL` | ❌ |
 | `ARK_FAUCET_PASSWORD` | Wallet password | - | ✅ |
 | `ARK_FAUCET_IS_COVENANT` | Covenant mode (Liquid) | `false` | ❌ |
 | `ARK_FAUCET_AUTH_USER` | Admin username | `admin` | ❌ |
 | `ARK_FAUCET_AUTH_PASS` | Admin password | `admin` | ❌ |
 | `ARK_FAUCET_NOTES` | Initial notes (comma-separated) | - | ❌ |
-| `ARK_FAUCET_SERVER_DATADIR` | Arkd data directory | `~/.arkd` | ❌* |
+| `ARK_FAUCET_SERVER_DATADIR` | Arkd data directory (macaroons/TLS) | - | ❌* |
 | `ARK_FAUCET_EXPLORER_URL` | Esplora URL | - | ❌ |
+| `ARK_FAUCET_LOG_LEVEL` | logrus level (numeric) | `4` (info) | ❌ |
 
-*Required only for `/refill` endpoint functionality.
+*Only needed when arkd enforces macaroons/TLS; `/refill` works without it against a NO_MACAROONS arkd (e.g. arkade-regtest).
 
 ### Configuration Examples
 
@@ -201,14 +207,16 @@ export ARK_FAUCET_SERVER_URL=http://localhost:7070
 - Returns: `{"onchain": <sats>, "offchain": <sats>}`
 
 **POST /refill?amount=<sats>** - Refill faucet balance
-- Requires: Admin authentication + arkd data directory access
+- Requires: Admin authentication; mints against the arkd admin API (datadir optional)
 - Mints notes and redeems them automatically
-- Returns: Success message
+- Returns: `{"txid": "<id>"}`
 
 **POST /refill-with-notes** - Redeem notes manually
 - Requires: Admin authentication
 - Request: `{"notes": ["note1", "note2"]}`
-- Returns: Success message
+- Returns: `{"txid": "<id>"}`
+
+**GET /healthcheck** - Public liveness probe (returns `200 OK`)
 
 ---
 
@@ -249,10 +257,11 @@ export ARK_FAUCET_SERVER_URL=http://localhost:7070
 
 **Refill Flow:**
 1. Admin calls `/refill` with amount
-2. Service reads admin macaroon from arkd data directory
-3. Mints notes via arkd admin API
-4. Redeems notes to faucet wallet
-5. Balance increased
+2. Service resolves admin URL (`ARK_FAUCET_SERVER_ADMIN_URL`, falling back to `ARK_FAUCET_SERVER_URL`)
+3. Reads admin macaroon from arkd data directory if configured (skipped otherwise)
+4. Mints notes via the arkd admin API `/v1/admin/note`
+5. Redeems notes to faucet wallet
+6. Balance increased
 
 ---
 
@@ -397,17 +406,21 @@ docker logs arkfaucet 2>&1 | grep -i error
 # Build binary
 make build
 
-# Build Docker image
-make docker-build
+# Build Docker image (no make target; CI publishes to ghcr.io/arklabshq/ark-faucet)
+docker build -t arkfaucet .
 ```
 
-### Running
+### Running & Testing
 ```bash
-# Run locally
+# Boot/tear down the local arkade-regtest stack
+make regtest-up
+make regtest-down
+
+# Run locally against the stack
 make run
 
-# Run with Docker
-make docker-run
+# End-to-end suite (boots stack, runs e2e, cleans up)
+make e2e
 ```
 
 ### Code Quality

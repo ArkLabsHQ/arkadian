@@ -36,15 +36,23 @@ ARK Faucet provides a RESTful HTTP API with JSON request/response format. The AP
 ```
 
 **Behavior**:
-- Validates address format and amount
+- Rejects empty address or zero amount with 400
 - Automatically detects onchain vs offchain address
 - Routes to appropriate transaction type
 - Returns transaction ID immediately (async settlement)
 - No rate limiting (implement externally if needed)
 
 **Error Responses**:
-- 400 Bad Request: Invalid address or amount
+- 400 Bad Request: empty address, zero amount, or malformed JSON
 - 500 Internal Server Error: SDK or server communication failure
+
+### GET /healthcheck
+
+**Purpose**: Public liveness probe
+
+**Authentication**: None required
+
+**Response**: `200 OK` with an empty JSON string (`""`)
 
 ### GET /address
 
@@ -115,22 +123,21 @@ POST /refill?amount=5000
 ```
 
 **Behavior**:
-1. Reads admin.macaroon from arkd datadir
-2. Loads TLS certificate if HTTPS connection
-3. Calls arkd's `/v1/admin/note` endpoint to mint notes
-4. Automatically redeems received notes
-5. Returns redemption transaction ID
+1. Resolves the admin URL (`ARK_FAUCET_SERVER_ADMIN_URL`, falling back to `ARK_FAUCET_SERVER_URL`)
+2. Reads `admin.macaroon` from the arkd datadir if one is configured; otherwise skips the macaroon header
+3. Loads TLS certificate when the admin URL is HTTPS and a cert is present
+4. Calls the admin API's `/v1/admin/note` endpoint to mint notes
+5. Automatically redeems received notes
+6. Returns redemption transaction ID
 
 **Requirements**:
-- `ARK_FAUCET_SERVER_DATADIR` must be configured
-- Admin macaroon must exist at `<datadir>/macaroons/admin.macaroon`
-- Service must have filesystem access to arkd datadir
-- TLS cert required at `<datadir>/tls/cert.pem` for HTTPS
+- `ARK_FAUCET_SERVER_DATADIR` is optional — only needed when arkd enforces macaroons/TLS
+- Works against a NO_MACAROONS/no-TLS arkd (e.g. arkade-regtest) with no datadir
 
 **Error Responses**:
 - 401 Unauthorized: Missing or invalid credentials
-- 400 Bad Request: Missing amount parameter
-- 500 Internal Server Error: Macaroon not found, network error, redemption failure
+- 400 Bad Request: Missing/invalid amount, or amount above `uint32` max
+- 500 Internal Server Error: network error, mint or redemption failure
 
 ### POST /refill-with-notes
 
@@ -173,6 +180,9 @@ POST /refill?amount=5000
 ### Public Endpoints
 - `/faucet`: No authentication required
 - `/address`: No authentication required
+- `/healthcheck`: No authentication required
+
+All endpoints are served with permissive CORS headers (`Access-Control-Allow-Origin: *`) and handle `OPTIONS` preflight requests.
 
 Design rationale: These endpoints need to be publicly accessible for the faucet to be useful. The faucet endpoint should be the primary entry point for users.
 
@@ -240,7 +250,7 @@ The `/refill` endpoint implements a privileged operation flow:
 
 ### Note Minting Request
 
-**Endpoint**: `POST {ARK_FAUCET_SERVER_URL}/v1/admin/note`
+**Endpoint**: `POST {admin URL}/v1/admin/note` — where the admin URL is `ARK_FAUCET_SERVER_ADMIN_URL` (falling back to `ARK_FAUCET_SERVER_URL`)
 
 **Headers**:
 - `Content-Type: application/json`

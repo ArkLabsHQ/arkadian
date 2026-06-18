@@ -3,39 +3,32 @@
 ## Quick Start (Local)
 
 ### Prerequisites
-- Running arkd instance
 - Go 1.21 or later installed
+- A local Ark backend. This repo vendors [arkade-regtest](https://github.com/ArkLabsHQ/arkade-regtest) as a git submodule at `regtest/` (clone with `--recurse-submodules` or run `git submodule update --init`), or point at your own running arkd.
 
-### Setup
-1. Set the wallet password:
+### Setup (with arkade-regtest)
 ```bash
-export ARK_FAUCET_PASSWORD=admin
+make regtest-up   # boot the base+ark stack (Docker required)
+make run          # run the faucet against it (arkd :7070, admin :7071)
+make e2e          # boot the stack, run the e2e suite, tear it down
+make regtest-down # stop + clean the stack
 ```
 
-2. Run the service:
-```bash
-make run
-```
-
-3. Access the faucet at `http://localhost:9999`
+`make run` exports dev defaults (password `admin`, server `:7070`, admin `:7071`, explorer `:3000`). Access the faucet at `http://localhost:9999`.
 
 ## Quick Start (Docker)
 
-### Using Make
-```bash
-make docker-run
-```
+The Makefile no longer ships `make docker-*` targets. A multi-arch image is built and pushed to `ghcr.io/arklabshq/ark-faucet` by CI (`.github/workflows/docker.yml`). Build locally with `docker build -t arkfaucet .` if needed, then run:
 
-### Manual Docker Run
 ```bash
 docker run -d \
   --name arkfaucet \
-  --network nigiri \
   -p 9999:9999 \
   -e ARK_FAUCET_PASSWORD=admin \
   -e ARK_FAUCET_SERVER_URL=http://ark:7070 \
+  -e ARK_FAUCET_SERVER_ADMIN_URL=http://ark:7071 \
   -v ./data:/app/faucetdata \
-  arkfaucet
+  ghcr.io/arklabshq/ark-faucet:latest
 ```
 
 ## Basic Operations
@@ -91,7 +84,7 @@ curl -u admin:admin -X POST "http://localhost:9999/refill?amount=5000"
 Response:
 ```json
 {
-  "message": "Successfully refilled with 5000 sats"
+  "txid": "transaction-id"
 }
 ```
 

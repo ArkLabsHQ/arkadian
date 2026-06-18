@@ -42,15 +42,16 @@ Bitcoin Ark protocol server implementation that enables fast, low-cost off-chain
 - Withdraw RPC effective-value coin selection (PR #1094): `arkd-wallet`'s `Withdraw` now uses a new `selectCoinsForWithdraw(amount, feeRate, destPkScript)` that wraps each candidate UTXO as an `effectiveValueCoin` with `Value() = realValue − perInputFee` (where `perInputFee = fee(2 inputs) − fee(1 input)` from the weight estimator) and runs `MinNumberCoinSelector{MaxInputs: 50, MinChangeAmount: 0}` against a target of `amount + baseFee` (where `baseFee = fee(1 input) − perInputFee`). The chosen UTXOs are guaranteed to cover `amount` plus the fee for their **actual** input count, eliminating the prior re-selection loop that estimated for "typical 2-input" withdraws and could under-/over-fund. UTXOs whose value is `<= perInputFee` (cost more to spend than they're worth) are filtered out. A new `lockUtxos`/`unlockUtxos` pair plus a new `outpointLocker.unlock(ctx, outpoints...)` method releases per-withdraw locks via a `defer` if signing or broadcasting fails, instead of waiting for the lock expiry. The general-purpose `SelectUtxos` path is refactored onto a shared `selectCoins(amount, confirmedOnly, minChangeAmount)` helper; `defaultMinChangeAmount` is lowered from **800** to **330** (P2TR/P2WSH dust limit).
 - Signer-key deprecation / rotation (PR #1097): the operator can rotate the server signing key while keeping VTXOs signed by older keys spendable. `arkd-wallet` reads a new comma-separated `DEPRECATED_SIGNER_KEYS` env var of `<hexkey>[:<unix-cutoff>]` entries (32-byte hex priv key, optional cutoff timestamp after which the key is no longer accepted, `0`/unset = never); boot fails if a deprecated key equals the current `SIGNER_KEY`. The signer service exposes them via a new `repeated DeprecatedSigner deprecated_signers` field (`{pubkey, cutoff_date}`) on `GetPubkeyResponse`, surfaced through `signer.GetDeprecatedPubkeys` and `ports.DeprecatedSignerPubkey`. The indexer (`NewIndexerService` now takes `deprecatedSignerPubkeys`) and application service accept signatures from any of `allSignerPubkeys()` (current + deprecated) when verifying intents and stripping signer signatures from virtual txs.
 - Optional `x-sdk-version` client version header (PR #1113): `pkg/client-lib` can stamp every unary/stream RPC with an `x-sdk-version` gRPC metadata header via the new `WithClientVersion(version)` ServiceOption (threaded through `service.clientVersion` → `grpcclient.NewClient`). The header is only attached when a non-empty version is set. **Breaking:** `grpcclient.NewClient` now takes `(serverUrl, clientVersion string)`. The server-side `x-build-version` `VersionGuard` interceptor was also tightened — a present-and-parseable client version is now always held to the server's minimum even when the header is not required; only missing/empty/unparseable headers are let through in non-required mode (PR #1114).
+- Client-side deprecated-signer verification (PR #1117): the embedded `pkg/client-lib` SDK now verifies server signatures on ark/checkpoint txs against the **set** of valid signer keys (current + deprecated), the client-side counterpart to the server-side signer-key rotation (PR #1097). `types.Config` gains `DeprecatedSigners []DeprecatedSigner` (each `{PubKey *btcec.PublicKey, CutoffDate time.Time}`) plus a new `Config.AllSigners() map[string]*btcec.PublicKey` keyed by x-only hex pubkey (current signer + all deprecated). The verification helpers `verifySignedArk`/`verifySignedCheckpoints`/`verifyOffchainPsbt` (`utils.go`) now take `signers map[string]*btcec.PublicKey` instead of a single `*btcec.PublicKey`, matching each signed input's `TaprootScriptSpendSig.XOnlyPubKey` against any signer in the set and verifying with the matched key; callers `SendOffChain` (`send.go`) and `IssueAsset`/`ReissueAsset`/`BurnAsset` (`asset.go`) now fetch `GetConfigData(ctx)` and pass `cfgData.AllSigners()`. The file store persists deprecated signers as a `deprecated_signers` JSON array of `{pubkey, cutoff_date}` (compressed-hex pubkey, RFC3339 cutoff) in `storeData`, round-tripped in `config_store.go`/`store/file/types.go` and surfaced in `asMap()`.
 - DB-persisted Settings domain with admin CRUD API (PR #939): all operational settings (session duration, exit delays, vtxo tree expiry, round participants, vtxo/utxo amount limits, ban threshold/duration, settlement expiry gap, max tx weight, max OP_RETURN outputs, asset tx weight ratio, note URI prefix, batch fees, scheduled session) now live in a **single DB row** (`domain.Settings`, new `SettingsRepository` with sqlite/postgres/badger impls and `add_settings` migrations). The matching `ARKD_*` env vars are read **only on first boot** to seed the row (legacy `intent_fees`/`scheduled_session` rows are carried over); afterwards they are ignored and settings are managed via new `AdminService.GetSettings` (`GET /v1/admin/settings`, `manager:read`) and `AdminService.UpdateSettings` (`POST /v1/admin/settings`, `manager:write`) — partial updates with tightened server-side validation (locktime rules, amount min/max consistency, uint32 overflow guards) returning a `change_log`. Admin read-modify-write flows are mutex-serialized with synchronous refresh of the new live-store `SettingsStore` cache (inmemory + redis), which holds `ports.Settings` (domain settings + network/dust/pubkeys/forfeit address/checkpoint tapscript) and provides the GetInfo `Digest()`. `RepoManager` drops `Fees()`/`ScheduledSession()` in favor of `Settings()`. **Removed env vars:** `ARKD_SCHEDULER_TYPE` (scheduler now derived from `vtxo_tree_expiry` locktime type), `ARKD_ALLOW_CSV_BLOCK_TYPE`, `ARKD_ROUND_INTERVAL`. ark-lib gains `MinAllowedSequence = 512` and `ParseRelativeLocktime(value uint32)`. New repo doc: `docs/settings.md`.
 
-**Tags**: `ark`, `protocol`, `server`, `vtxo`, `rounds`, `bitcoin`, `layer2`, `grpc`, `rest-api`, `postgresql`, `sqlite`, `redis`, `assets`, `teleport`, `fees`, `cel`, `client-lib`, `sdk`, `indexer`, `subscription`, `sweeper`, `startup-performance`, `admin-api`, `op-success-rejection`, `go-1.26.4`, `expired-rounds`, `wallet-utxos`, `effective-value-selection`, `settings`, `first-boot-seed`, `signer-key-rotation`, `key-deprecation`, `sdk-version-header`
+**Tags**: `ark`, `protocol`, `server`, `vtxo`, `rounds`, `bitcoin`, `layer2`, `grpc`, `rest-api`, `postgresql`, `sqlite`, `redis`, `assets`, `teleport`, `fees`, `cel`, `client-lib`, `sdk`, `indexer`, `subscription`, `sweeper`, `startup-performance`, `admin-api`, `op-success-rejection`, `go-1.26.4`, `expired-rounds`, `wallet-utxos`, `effective-value-selection`, `settings`, `first-boot-seed`, `signer-key-rotation`, `key-deprecation`, `sdk-version-header`, `client-deprecated-signer-verification`
 
 **Synonyms**: `ark-server`, `arkd-server`, `ark-daemon`, `operator`
 
 **Triggers**:
 - **ask_question**: `vtxo`, `rounds`, `settlement`, `boarding`, `offchain`, `ark protocol`, `how does ark work`, `arkade assets`, `fees`, `teleport`, `expired rounds`, `wallet utxos`, `settings`, `env vars ignored`, `first boot seed`, `signer key rotation`, `deprecated signer keys`, `sdk version header`
-- **develop**: `add endpoint`, `new database`, `migration`, `grpc service`, `round logic`, `asset`, `fee program`, `collected fees`, `admin fee report`, `expired rounds endpoint`, `wallet utxos endpoint`, `withdraw coin selection`, `settings endpoint`, `update settings`, `signer key rotation`, `deprecated signer keys`, `client version header`
+- **develop**: `add endpoint`, `new database`, `migration`, `grpc service`, `round logic`, `asset`, `fee program`, `collected fees`, `admin fee report`, `expired rounds endpoint`, `wallet utxos endpoint`, `withdraw coin selection`, `settings endpoint`, `update settings`, `signer key rotation`, `deprecated signer keys`, `client version header`, `client signature verification`, `AllSigners`
 - **test_or_run**: `start arkd`, `run rounds`, `integration test`, `e2e test`, `simulation`
 - **debug**: `vtxo not found`, `round failed`, `settlement error`, `database issue`
 - **monitor_or_alert**: `arkd metrics`, `round latency`, `vtxo expiry`
@@ -155,6 +156,7 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 - BIP21 polish & Send-form bugfixes (PRs #639–#643): `Bip21Decoded` field renamed `lnurl` → `lnUrl`; `src/lib/lnurl.ts` exports `LnUrlResponse` and `checkResponse` rejects on `status === 'ERROR'`; `encodeBip21` builds the query progressively (no empty `ark=`, trims trailing `&`/`?`); Send "Max" in fiat mode now formats the balance to `fiatDecimalsFor(config.fiat)` decimals; sonner `<Toaster visibleToasts={1}>` deduplicates stacked toasts; `Refresher` doubles the pull-to-refresh threshold; LNURL-conditions `useEffect` skipped when `sendInfo.arkAddress` is set (and `arkAddress` added to its dep array); new E2E suite `src/test/e2e/form.test.ts`.
 - E2E scripts use `cross-env` so `VITE_NOSTR_RELAY_URL=...` works on Windows shells too (PR #624)
 - Transaction-detail TXID for offboarding batch settles (PR #648): `src/screens/Wallet/Transaction.tsx` adds `tx.roundTxid` as a third fallback after `boardingTxid`/`redeemTxid`, so offboarding transactions that settle in a batch now display a TXID instead of an empty string.
+- Prevent double keys in `localStorage` (PR #677): the two storage keys are centralized in new `src/lib/storageKeys.ts` (`MNEMONIC_STORAGE_KEY = 'encrypted_mnemonic'`, `NSEC_STORAGE_KEY = 'encrypted_private_key'`), which also breaks a circular import between `mnemonic.ts` and `privateKey.ts`. `setMnemonic` now `removeItem`s the nsec key and `setPrivateKey` `removeItem`s the mnemonic key, so a wallet can never persist both an encrypted mnemonic and an encrypted private key simultaneously (the prior double-key state that could confuse the mnemonic-first unlock detection in `isValidPassword`).
 
 **Tags**: `wallet`, `pwa`, `react`, `typescript`, `tailwindcss`, `design-tokens`, `sonner`, `shadcn`, `lucide`, `mobile`, `desktop`, `vtxo`, `lightning`, `boltz`, `lnurl`, `self-custodial`, `offline`, `indexeddb`, `nostr`, `playwright`, `chatwoot`, `announcements`, `arkade-regtest`, `service-worker`, `abortcontroller`, `bip39`, `bip86`, `mnemonic`, `taproot`, `pbkdf2`, `aes-gcm`, `signer-rotation`, `deprecated-signer`, `branta`, `build-version`
 
@@ -183,15 +185,16 @@ Self-custodial Bitcoin wallet delivered as a Progressive Web App (PWA). Built wi
 Offchain-only wallet service that provides HTTP APIs for distributing Ark coins to both onchain and offchain addresses. Supports covenant (Liquid) and covenantless (Bitcoin) modes. Used for testnet distributions, developer testing, and onboarding new users to the Ark ecosystem.
 
 **Key Capabilities**:
-- Public faucet endpoint (no auth required)
-- Protected admin endpoints (balance, refill)
+- Public faucet endpoint (no auth required), with `/healthcheck` and CORS support
+- Protected admin endpoints (balance, refill, refill-with-notes)
 - Basic authentication for admin operations
-- Note-based refill system (mints notes via arkd admin API)
+- Note-based refill: mints notes via the arkd admin API (`ARK_FAUCET_SERVER_ADMIN_URL`); admin macaroon optional (works against NO_MACAROONS arkd)
+- Importable HTTP API (`pkg/handler.go`) with unit + e2e tests
 - Offchain-only wallet (no direct blockchain interaction)
 - Dual network support (Bitcoin/Liquid)
-- Docker deployment ready
+- Local dev via vendored arkade-regtest submodule; multi-arch image published to ghcr.io/arklabshq/ark-faucet
 
-**Tags**: `faucet`, `testnet`, `distribution`, `http-api`, `offchain`, `wallet-service`, `notes`
+**Tags**: `faucet`, `testnet`, `distribution`, `http-api`, `offchain`, `wallet-service`, `notes`, `regtest`, `e2e`
 
 **Synonyms**: `testnet-faucet`, `coin-dispenser`
 
@@ -261,7 +264,7 @@ OpenTelemetry-based observability stack for Ark protocol monitoring. Provides me
 - Pyroscope continuous profiling (ingest port 4040)
 - Pre-built dashboards for common monitoring scenarios
 - Alert rules for critical conditions, routed by `host_role` label — includes per-host `DataDiskHighUsage_App` and `DataDiskHighUsage_Telemetry` (PR #12; the previous single `DataDiskHighUsage` was app-only)
-- Client compatibility/integrity alerts (PR #17): Loki log-based `ArkdDigestMismatch` (invalid/missing digest headers) and `ArkdMissingClientVersion` (requests without `x-build-version`, i.e. clients pre-v0.9.9), routed to a dedicated `slack-notifications-info` receiver hourly; paired with Grafana panels tracking digest mismatches, missing-version requests, and request volume by `x-sdk-version`
+- Client compatibility/integrity alerts (PR #17): Loki log-based `ArkdDigestMismatch` (invalid/missing digest headers) and `ArkdMissingClientVersion` (requests without `x-build-version`, i.e. clients pre-v0.9.9), routed to a dedicated `slack-notifications-info` receiver hourly; paired with Grafana panels tracking digest mismatches, missing-version requests, and request volume by `x-sdk-version` (including a `missing` series for requests with no SDK header, PR #19); panel aggregation window is selectable via a `$window` template variable (1m/5m/15m/1h, PR #20)
 - Docker Compose stack for easy deployment on a dedicated EC2 telemetry host
 - Per-host-class memory-limit overrides (`docker-compose.resources.small.yaml` for t3.small/2GB, `docker-compose.resources.large.yaml` for t3.large/8GB) layered on top of the base compose file
 - Grafana Google SSO/OAuth (`GF_AUTH_GOOGLE_*`); ALB-fronted on port 3000
@@ -327,42 +330,42 @@ Configuration, knowledge base, and audit trail for **Arkana**, Ark Labs' always-
 **ID**: `arkade-regtest`
 **Name**: Arkade Regtest
 **Type**: Testing Infrastructure / Local Stack Orchestration
-**Language**: Bash + Docker Compose
+**Language**: Node.js (zero-dependency CLI) + Docker Compose
 **Index**: `${ARKADIAN_DIR}/docs/projects/arkade-regtest/INDEX.md`
 **Repository**: `${ARKADE_REGTEST_REPO}`
 **GitHub**: `arkade-os/arkade-regtest`
 
 **Description**:
-Self-contained regtest environment for Ark protocol development. Orchestrates Nigiri (Bitcoin + Liquid regtest), arkd, arkd-wallet, Fulmine, Boltz Backend, an LND Lightning node, an LNURL server, an Nginx CORS proxy, the Ark Wallet PWA, and the arkade-script Emulator signing service into a single reproducible Docker Compose stack. Designed to be embedded as a git submodule in projects that need a local Ark test network. Ships shell scripts and Compose files only — no compiled code.
+Self-contained, **cross-platform** regtest environment for Ark protocol development. Orchestrates Bitcoin Core, Fulcrum, mempool (block explorer + Esplora REST `/api`), NBXplorer, arkd + arkd-wallet, Fulmine (+ delegated-signing Fulmine), Boltz Backend, two LND nodes, an LNURL server, an Nginx CORS proxy, the Arkade Wallet PWA, the Arkade Explorer, the arkade-script Emulator, and the arkade Solver into a single reproducible Docker Compose stack — driven by a **zero-dependency Node CLI** (`regtest.mjs`, Node ≥ 18). **No dependency on nigiri and no compiled binary**; runs the same on Linux, macOS, and Windows (no WSL). Designed to be embedded as a git submodule in projects that need a local Ark test network.
 
 **Key Capabilities**:
-- One-command bring-up of the full Ark stack (`./start-env.sh`)
-- Nigiri built from source on a pinned branch (deterministic Bitcoin regtest)
-- Pluggable arkd via `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` for testing release candidates
-- Layered environment loading (`--env <path>` → `../.env.regtest` → `.env` → `.env.defaults`)
-- Submodule-first design: auto-discovers parent-repo `.env.regtest`
-- Configurable image versions for Fulmine, Boltz, LND, LNURL, Wallet, Nginx
-- Fully configurable arkd parameters (round interval, session duration, exit delays, fees, etc.) when in override mode
-- Unified wallet setup across both built-in and `ARKD_IMAGE` paths (admin API: seed → create → unlock, with up to 60-attempt sync wait)
-- Centralized `ARK_CONTAINER` env (auto-derived: `arkd` in override mode, `ark` for built-in) — overridable for SDK tests that expect a specific container name
-- Default-on arkade-script Emulator overlay (`ghcr.io/arkade-os/emulator:v0.0.1` on port `7073`); opt out via `EMULATOR_IMAGE=` in an override. `start-env.sh` waits for `GET /v1/info` and prints the signer pubkey in the startup banner
-- CLI client wallet auto-funded with 100M sats offchain on the happy path (via `arkd note` / `ark redeem-notes`) so SDK E2E suites that drive `ark send` from the client wallet start with usable funds
-- Boltz `rescanInterval = 30` (down from default 300) for faster swap pickup in tests
-- Lightning helper scripts for invoice creation/payment via Boltz LND
-- Stop / clean lifecycle scripts (preserve volumes vs full teardown)
-- Ready-made GitHub Actions integration pattern with `_build/` cache
+- One-command bring-up of the full Ark stack (`node regtest.mjs start`); `npm start`/`stop`/`run clean` aliases
+- Zero-dependency Node CLI (`regtest.mjs`, stdlib only) — no nigiri, no helper binary, no `npm install`; cross-platform (Linux/macOS/Windows, no WSL)
+- In-house chain/indexer/explorer tier (Bitcoin Core 31 + Fulcrum + mempool + NBXplorer) replacing nigiri's electrs/esplora/chopsticks; Esplora REST API now served by mempool under `/api` (`http://localhost:3000/api`)
+- Compose profiles (`base`, `ark`, `delegate`, `boltz`, `emulator`, `solver`) with automatic dependency-closure resolution; select via `--profile` or `REGTEST_PROFILES`
+- Pluggable arkd via `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` (always used — no built-in fallback; default `v0.9.9-rc.1`)
+- Operator signer rotation (`rotate-signer` / `set-signers` / `signer-info`) — advertise deprecated signers (DUE_NOW / MIGRATABLE / EXPIRED) to drive client migration/recovery flows (needs rc images)
+- Fast VTXO expiry via block-denominated locktimes (`< 512` → regtest block scheduler; fire expiry/sweeps by mining, with `AUTOMINE_INTERVAL=0`)
+- Built-in auto-miner (`AUTOMINE_INTERVAL`, default 600s) + chain tools (`mine`, `reorg`, `faucet`, `rpc` bitcoin-cli passthrough)
+- `ark` / `arkd` CLI passthroughs (run inside the arkd container); CLI client wallet auto-funded 100M sats offchain on `start`
+- Layered environment loading (`--env <path>` > `../.env.regtest` > `.env` > `.env.defaults`; shell env wins over files)
+- Default-on arkade-script Emulator (port `7073`, opt out via `EMULATOR_IMAGE=`) and arkade Solver (`solver` profile)
+- Fulmine delegation wired via `FULMINE_DELEGATE_ENABLED` / `FULMINE_DELEGATE_FEE` (fixed in PR #32)
+- Lightning helpers (`create-invoice` / `pay-invoice`) via Boltz LND
+- Stop / clean lifecycle (preserve volumes vs full teardown + signer-set reset)
+- Ready-made GitHub Actions integration (Docker images only — no Go setup, no nigiri cache)
 
-**Tags**: `regtest`, `docker-compose`, `nigiri`, `bitcoin`, `ark`, `arkd`, `fulmine`, `boltz`, `lightning`, `lnd`, `submodule`, `e2e`, `integration-test`, `local-stack`, `ci`, `emulator`, `arkade-script`
+**Tags**: `regtest`, `docker-compose`, `node-cli`, `regtest.mjs`, `cross-platform`, `bitcoin`, `bitcoin-core-31`, `mempool`, `fulcrum`, `nbxplorer`, `esplora-api`, `ark`, `arkd`, `fulmine`, `boltz`, `lightning`, `lnd`, `submodule`, `e2e`, `integration-test`, `local-stack`, `ci`, `profiles`, `emulator`, `arkade-script`, `solver`, `signer-rotation`, `deprecated-signer`, `block-locktimes`, `fast-expiry`
 
-**Synonyms**: `regtest-stack`, `ark-regtest`, `regtest-env`, `local-stack`, `arkade-regtest-stack`
+**Synonyms**: `regtest-stack`, `ark-regtest`, `regtest-env`, `local-stack`, `arkade-regtest-stack`, `regtest-node-cli`
 
 **Triggers**:
-- **ask_question**: `regtest`, `local stack`, `nigiri`, `start ark locally`, `how to run ark stack`, `submodule regtest`, `ark dev environment`, `emulator`, `arkade-script signer`
-- **develop**: `bump regtest image`, `add service to regtest`, `modify .env.defaults`, `arkd override mode`, `compose stack`, `enable emulator`, `disable emulator`
-- **test_or_run**: `start regtest`, `start-env.sh`, `stop-env.sh`, `clean-env.sh`, `run e2e`, `bring up ark stack`, `local boltz`, `ci regtest`
-- **debug**: `regtest stuck`, `port in use`, `nigiri build fails`, `arkd override not working`, `boltz lnd not synced`, `clean regtest`, `emulator /v1/info timeout`
+- **ask_question**: `regtest`, `local stack`, `regtest.mjs`, `node regtest`, `start ark locally`, `how to run ark stack`, `submodule regtest`, `ark dev environment`, `compose profiles`, `emulator`, `arkade-script signer`, `solver`, `signer rotation`
+- **develop**: `bump regtest image`, `add service to regtest`, `modify .env.defaults`, `add compose profile`, `compose stack`, `enable emulator`, `disable emulator`, `enable solver`, `signer rotation`, `block locktimes`
+- **test_or_run**: `start regtest`, `node regtest.mjs start`, `regtest stop`, `regtest clean`, `regtest faucet`, `regtest mine`, `rotate-signer`, `run e2e`, `bring up ark stack`, `local boltz`, `ci regtest`
+- **debug**: `regtest stuck`, `port in use`, `arkd exits immediately`, `boltz lnd not synced`, `clean regtest`, `emulator /v1/info timeout`, `sweeps fire mid-test`, `fulmine delegation not enabled`, `nbxplorer crash loop`
 
-**Dependencies**: `arkd` (server image), `arkd-wallet` (signer image), `fulmine` (image), `boltz-backend` (image), `wallet` (PWA image), `arkade-os/emulator` (image, default-on), Nigiri (upstream)
+**Dependencies**: `arkd` (server image), `arkd-wallet` (signer image), `fulmine` (image, incl. delegator), `boltz-backend` (image), `wallet` (PWA image), `arkade-explorer` (image), `arkade-os/emulator` (image, default-on), `arkade-os/solver` (image, `solver` profile). Upstream Docker images: Bitcoin Core, Fulcrum, mempool, NBXplorer, LND (BTCPay builds)
 **Depended On By**: `arkd`, `fulmine`, `go-sdk`, `ts-sdk`, `rust-sdk`, `dotnet-sdk`, `wallet`, `boltz-swap`, `boltz-backend`, CI pipelines (consumed as a submodule)
 
 ---
@@ -1185,7 +1188,7 @@ Official TypeScript SDK (`@arkade-os/sdk`) for the Ark protocol. Provides a comp
 - **Capped settlement / renewal / recovery batches** *(0.4.34)*: `MAX_VTXOS_PER_SETTLEMENT = 50` (exported from `src/wallet/vtxo-manager.ts`) caps the VTXO-count payload of a single settlement to fit under arkd's intent tx-weight budget (`TX_TOO_LARGE`); boarding inputs are added uncapped. Sorting runs **before** the cap so the deferred overflow does not starve viable VTXOs: **recovery / manual settle** sorts by value descending (`byValueDescending`) — capped subset has the best chance of clearing dust; **renewal / periodic settle** sorts by expiry ascending (`byExpiryAscending`) — soonest-expiring VTXOs always make the cut so none miss their renewal window. Already-recoverable/expired VTXOs sort first under the expiry order; VTXOs with no batch expiry or a block-height-looking expiry value sort last. `runPeriodicSettle` short-circuits once the filtered set reaches the cap. **Differentiated recovery error**: `recoverVtxos` distinguishes a genuinely empty wallet from a funded wallet whose highest-value sub-cap batch can't clear dust — the latter reports the cap, the recoverable count, and the dust threshold so operators can tell stuck-but-funded from empty (PR #549 review). **Post-0.4.34**: batches are additionally capped by the server's per-output ceiling `ArkInfo.vtxoMaxAmount` (`-1` = no limit; server rejects over-limit outputs with `AMOUNT_TOO_HIGH`) — new exported `capSettlementBatch(sorted, maxAmount)` applies count + amount caps to a pre-sorted list (amount-breaching inputs are skipped, not stopping points; bounds gross value — conservative, fee-blind), the fee-aware periodic/manual settle paths cap on net contribution, `renewVtxos` warns on individually-oversized VTXOs (unrenewable — risk unilateral exit) and throws a distinct error when no batch fits, and `Wallet.settle` counts boarding inputs against the ceiling via the running total comparing the projected post-output-fee amount. New private `VtxoManager.getInfoProvider()` reads the optional `arkProvider` for the lookup without requiring sweep capability
 - **Restore: deprecated-signer scan + parallel/batched probes** *(0.4.34)*: gap-limit discovery is harder and faster. **Deprecated-signer scanning**: `DiscoveryDeps.deprecatedSignerPubKeys?: Uint8Array[]` carries the server's deprecated signer keys (from a fresh `getInfo` snapshot at restore time); `DefaultContractHandler.discoverAt` / `DelegateContractHandler.discoverAt` probe the current `serverPubKey` first then each deprecated signer, deduping candidates by script. The matched signer is threaded through the script, the persisted contract params, and the encoded address so signing/forfeit on a recovered VTXO resolves the right key. Boarding discovery stays current-key only. **Parallel per-index probes**: discoverable handlers run concurrently per index and persist hits in declared order to keep the first-wins boarding/default tie-break. **Batched candidate queries**: `default`/`delegate` collapsed their per-variant `getVtxos` loop into one batched `detectUsedScripts` probe in `src/contracts/handlers/helpers.ts` paging until every candidate is seen. **Gap-limit-capped batch windows**: `scanContracts({ ..., batchSize? })` accepts an outer-loop window (`DEFAULT_SCAN_BATCH = 10`), probing `batchSize` HD indices at a time on top of the per-index concurrency; each window is capped to `gapLimit - unused` so every probed index is one a serial scan would reach (discovered set byte-identical to the prior scan, only faster — an empty wallet closes its gap window in `ceil(gapLimit/batch)` rounds). New leaf module `src/contracts/constants.ts` hosts `DEFAULT_PAGE_SIZE = 500`, shared by `ContractManager`'s bulk history sync and the handler-layer `detectUsedScripts` so the two can't drift (its own no-import module to avoid a `handlers → contractManager` cycle)
 - **Settle rotation race fix** *(post-0.4.34)*: `Wallet.settle` resolves the receive address **once** (`offchainAddress` / `offchainPkScript` / `offchainOutputScript`) and reuses it for the no-params output, output-fee estimation, and the asset-routing destination matched by `findDestinationOutputIndex` — `WalletReceiveRotator.rotate` mutates `offchainTapscript` without acquiring `_txLock`, so re-calling `getAddress()` mid-settle could observe a rotated script and fail with a spurious "no output matches"
-- **X-Build-Version / X-SDK-VERSION HTTP headers** *(post-0.4.34; arkd-only scope since 0.4.35)*: `src/utils/fetch.ts` exports `buildVersion` (`"0.9.9"`) plus — since 0.4.35 — `sdkVersion` (`` `ts-sdk/${version}` ``, sourced from `package.json`). Two wrappers: `baseFetch` is a guarded passthrough with NO Arkade headers, and `fetch` is the **arkd-only** wrapper setting both `X-Build-Version` and `X-SDK-VERSION`. Only `RestArkProvider` + `getExpoFetch` use the header-setting `fetch`; `RestIndexerProvider` / `RestDelegateProvider` / `EsploraProvider` switched to `baseFetch` (Esplora/indexer/delegate origins reject unknown custom headers in CORS preflight). Lets the operator (Arkana) correlate requests with the client build and distinguish client versions
+- **X-Build-Version / X-SDK-VERSION HTTP headers** *(post-0.4.34; arkd-only scope since 0.4.35)*: `src/utils/fetch.ts` exports `buildVersion` (`"0.9.9"`) plus — since 0.4.35 — `sdkVersion` (`` `ts-sdk/${version}` ``, sourced from `package.json`). Two wrappers: `baseFetch` is a guarded passthrough with NO Arkade headers, and `fetch` is the **arkd-only** wrapper setting both `X-Build-Version` and `X-SDK-VERSION`. Only `RestArkProvider` + `getExpoFetch` use the header-setting `fetch`; `RestIndexerProvider` / `RestDelegateProvider` / `EsploraProvider` switched to `baseFetch` (Esplora/indexer/delegate origins reject unknown custom headers in CORS preflight). Lets the operator (Arkana) correlate requests with the client build and distinguish client versions. **Since #569 (`29635dd0`)** both `buildVersion` and `sdkVersion` are re-exported from the package root for programmatic access
 - **Server-signer rotation / deprecated-signer migration** *(0.4.35, #554)*: first-iteration client support for *planned* arkd server-signer rotation. New `src/wallet/signerRotation.ts` exports `SignerStatus` (`CURRENT | MIGRATABLE | DUE_NOW | EXPIRED | UNKNOWN_SIGNER`), `SignerClassification` / `SignerSet`, and pure helpers `classifyContractSigner` / `classifyAgainstSignerSet` / `signerSetFromInfo` / `isCooperativelyMigratable` / `toXOnlySignerHex` (all re-exported from the package root). `ArkInfo` gains `deprecatedSigners: DeprecatedSigner[]` + `digest`; `ArkProvider.onServerInfoChanged(cb)` event stream + new `DigestMismatchError` drive an event-driven rotation trigger. `Wallet.rotateServerSigner(newServerPubKey, checkpointTapscript)` swaps the active signer mid-session; `VtxoManager.migrateDeprecatedSignerVtxos(options?)` runs a fee-exempt two-leg migration; `getDeprecatedSignerStatus()` returns per-signer reports. `EXPIRED` is recover-on-sweep, not unilateral-exit-required. Service-worker parity + Boltz VHTLC reconstruction across deprecated signers; many report/option types exported from the package root
 - **0.4.36 release** *(`89de6561`)*: release-only patch bump (`@arkade-os/sdk` 0.4.35 → 0.4.36) cut alongside `@arkade-os/boltz-swap` 0.3.40 → 0.3.41 — **no `packages/ts-sdk/src/` changes**. The substantive work in this cut is in the sibling boltz-swap package (optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, preimage backfill in `refreshSwapsStatus`); see `docs/projects/boltz-swap/`
 
@@ -1221,6 +1224,8 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 - High-level client API (send VTXOs, settle rounds, check balances, transaction history)
 - Generic offchain transaction builder (shared by VTXO and asset sends)
 - gRPC transport (tonic) and REST transport (reqwest, WASM-compatible) — arkd 0.9.2; `ark-grpc::Client::connect` now attaches `ClientTlsConfig` (webpki / native roots, per feature) to the manually built `Endpoint`, so TLS-enabled `arkd` URLs connect cleanly under tonic 0.14 (no longer relying on URL-scheme TLS inference)
+- **Guarded RPC + digest-mismatch refresh** — both transports route every non-`GetInfo` RPC through a guard that, on a stale `/info` digest, refetches `/info`, runs a refresh hook to update higher-level client state, commits the new digest, and returns `Error::server_info_changed` (no auto-retry). `ark-grpc` uses private `guarded::Ark` / `guarded::Indexer` wrappers so new RPCs can't skip the guard (design doc in repo); `ark-rest` mirrors the parity. Requests carry `x-digest` + `x-sdk-version` (`rust-sdk/<version>`) + `x-build-version`; `ark-core::server` defines `TARGET_ARKD_VERSION = "0.9.9"` / `SDK_VERSION`; new public `Error::is_server_info_changed()` on both transport errors
+- **Smart settlement** — `Client::settle()` renews only expired/recoverable VTXOs plus confirmed boarding outputs (healthy VTXOs left untouched, cheap periodic renewal); full-renewal path renamed to `Client::settle_all()`. Isolated sub-dust recoverable VTXOs require `settle_all()` (need a healthy carrier VTXO to clear the server dust threshold)
 - MuSig2 cooperative signing for round participation — batch event waits in `ark-client` now honour the configured client timeout (no more indefinite hangs on stalled round streams)
 - BDK wallet integration for on-chain operations
 - Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap rows now persist BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors) plus an optional `claim_address` so a reverse swap can credit another Arkade user's address (new `Client::get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)`; recipient is validated to share the same arkd signer via new `ArkAddress::server()` accessor); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, configurable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 `description` (max 639 bytes) via a new trailing `description: Option<String>` arg on `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` (**breaking**)
@@ -1244,10 +1249,10 @@ Collection of Rust crates for building Bitcoin wallets with Ark protocol support
 **Triggers**:
 - **ask_question**: `rust sdk`, `ark-rs`, `ark-core`, `ark-client`, `ark-delegator`, `ark-script`, `ark-introspector-client`, `rust wallet`, `wasm ark`, `bdk integration`, `vtxo watcher`, `arkade asset rust`, `rust chain swap`, `arkade script rust`
 - **develop**: `add rust feature`, `new crate`, `ark-core type`, `musig2 signing`, `wasm support`, `e2e test`, `delegator client`, `asset issuance rust`, `chain swap rust`, `arkade tapscript`, `introspector packet`, `forfeit unilateral exit key`
-- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `nigiri`, `wasm-pack test`, `just e2e-full`, `e2e_assets`, `e2e_arkade_script`, `fulmine_delegator_smoke`, `dockerized introspector`
-- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`, `delegator error`, `vtxo watcher error`, `chain swap refund`, `introspector timeout`, `arkade opcode parse error`
+- **test_or_run**: `cargo test`, `just test`, `e2e-tests`, `arkade-regtest`, `regtest.mjs`, `just regtest-start`, `wasm-pack test`, `just e2e-full`, `e2e_assets`, `e2e_arkade_script`, `fulmine_delegator_smoke`, `emulator profile introspector`
+- **debug**: `tonic error`, `grpc connection`, `round signing failed`, `wasm build error`, `musig nonce`, `delegator error`, `vtxo watcher error`, `chain swap refund`, `introspector timeout`, `arkade opcode parse error`, `digest mismatch`, `server_info_changed`, `regtest submodule`, `settle sub-dust`
 
-**Dependencies**: `arkd` (gRPC/REST server, 0.9.2), `boltz-backend` (swap provider, optional — used for chain swaps), `fulmine` (delegator service, optional), `introspector` (Go co-signer service, dockerized for arkade-script e2e), `Nigiri` (testing)
+**Dependencies**: `arkd` (gRPC/REST server, 0.9.2), `boltz-backend` (swap provider, optional — used for chain swaps), `fulmine` (delegator service, optional), `introspector` (Go co-signer service, provided as the emulator profile of the regtest stack for arkade-script e2e), `arkade-regtest` (e2e Docker stack, git submodule at `regtest/`)
 **Depended On By**: None (library — consumed by external wallet applications)
 
 ---
@@ -1337,11 +1342,12 @@ enclave (AWS Nitro Enclave framework — confidential execution for any HTTP app
    potential deployment target for: introspector (co-signer), future signing services
    external deps: AWS KMS/SSM/S3/EC2/IAM, Nix, Docker, nitriding, gvproxy
 
-arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
+arkade-regtest (local Ark stack — zero-dependency Node CLI + Docker Compose; no nigiri)
    consumed as a git submodule by:
       arkd, fulmine, go-sdk, ts-sdk, rust-sdk, dotnet-sdk
       wallet, boltz-swap, boltz-backend (integration tests)
-   bundles upstream services: nigiri, arkd, arkd-wallet, fulmine, boltz, lnd, lnurl, wallet PWA, nginx
+   bundles upstream services: bitcoin-core, fulcrum, mempool, nbxplorer, arkd, arkd-wallet,
+      fulmine (+ delegator), boltz, lnd (x2), lnurl, wallet PWA, arkade-explorer, nginx, emulator, solver
 ```
 
 ### Correlation Matrix
@@ -1380,7 +1386,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 | dotnet-sdk | fulmine | E2E-Test-Dependency |
 | dotnet-sdk | boltz-backend | Swap-Integration (submarine, reverse, chain) |
 | dotnet-sdk | arkade-regtest | Shared E2E regtest environment (git submodule) |
-| arkade-regtest | arkd | Bundles arkd image (nigiri-built or override) |
+| arkade-regtest | arkd | Bundles arkd image (`ARKD_IMAGE`, default `v0.9.9-rc.1`) |
 | arkade-regtest | fulmine | Bundles fulmine image |
 | arkade-regtest | boltz-backend | Bundles Boltz backend image |
 | arkade-regtest | wallet | Bundles wallet PWA image |
@@ -1432,7 +1438,7 @@ arkade-regtest (local Ark stack — Bash + Docker Compose orchestration)
 **TypeScript/JavaScript Projects**: ts-sdk, wallet, arkade-assets, arkade-explorer, arkade-escrow, arkade-wdk, bluewallet (React Native), boltz-swap, banco, boltz-backend (TypeScript + Rust hybrid)
 **Mobile / React Native**: bluewallet (iOS, Android, macOS Catalyst), arkade-wdk (RN-compatible adapter)
 **Bitcoin Wallet Apps**: wallet (PWA), bluewallet (React Native mobile)
-**Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Bash + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
+**Infrastructure/Config**: ark-infra, ark-telemetry, arkade-regtest (Node CLI + Docker Compose orchestration), enclave (Nix + Docker + AWS CDK + OpenTofu)
 **Confidential Computing / Security**: enclave (AWS Nitro Enclaves), kms-unlocker (KMS + Secrets Manager)
 **Documentation**: ark-docs
 **External Services**: boltz-backend

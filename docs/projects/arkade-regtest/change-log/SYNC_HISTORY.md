@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-06-18 - Sync update (major rewrite)
+**From**: `8b72836e30607439d264cdf4dee8a92e5fb1ec43`
+**To**: `0ed365dce9fd86563eadcc2c6b92ff441dc1764f`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 2
+
+**Upstream commits**:
+- `47c398d` Replace nigiri with an in-house, cross-platform Node-orchestrated stack (#27)
+- `0ed365d` fix: use FULMINE_DELEGATE_* env vars so Fulmine delegation enables (#32)
+
+**Changes** (near-total rewrite — the stack moved off nigiri/Bash to a zero-dependency Node CLI):
+- `INDEX.md` (project) — New entry point (`node regtest.mjs <cmd>` + npm aliases) in frontmatter scripts; rewritten intro (cross-platform, nigiri-free, Node CLI); new Key Concepts (Node CLI, compose profiles, Esplora-via-mempool, signer rotation, fast block-locktimes); rewritten Bundled Services table (Bitcoin Core 31, Fulcrum, mempool, NBXplorer, two LNDs, delegator, explorer, solver, with per-service profiles); added Profiles table; rewritten Quick Reference for the CLI commands.
+- `system/project_overview.md` — Rewritten: zero-dependency Node CLI, profiles, auto-miner, signer rotation, fast expiry, default-on emulator + solver; updated tech stack and repository layout (regtest.mjs + lib/*.mjs + lib/setup/*); relationship list adds delegator, explorer, solver.
+- `system/architecture.md` — Rewritten around the Node CLI orchestrator: CLI / env / compose / profiles / setup / chain layers; two merged compose files (`compose.base.yml` + `compose.ark.yml`, project `arkade-regtest`); profiles table; networking/ports updated; data-flow + lifecycle commands updated.
+- `system/configuration.md` — Rewritten: `REGTEST_PROFILES`; full base + ark image tables (incl. Bitcoin Core 31 / nbxplorer 2.6.7 pin note); complete host-port table; `AUTOMINE_INTERVAL`; arkd magnitude rule for block-denominated locktimes; operator signer-rotation env (`ARKD_WALLET_SIGNER_KEY` / `ARKD_WALLET_DEPRECATED_SIGNER_KEYS`); faucet (`FULMINE_NOTE_AMOUNT`); emulator + solver sections; override patterns use `node regtest.mjs`.
+- `testing/usage.md` — Rewritten: Node ≥ 18 prereqs (no Go/nigiri); profile-scoped `start`; CLI chain/wallet/lightning commands; updated Service Endpoints table (mempool `/api`, fulcrum, nbxplorer, explorer, delegator, solver); compose project name `arkade-regtest`.
+- `testing/how_to_run.md` — Rewritten: Node prereqs, profiles table, submodule + CI (`actions/setup-node`, no Go/nigiri cache), CLI lifecycle, verification via `node regtest.mjs rpc` + mempool `/api`, version pinning (arkd always from `ARKD_IMAGE`).
+- `testing/how_to_test.md` — Rewritten smoke tests to use the CLI + new endpoints (mempool `/api`, emulator `/v1/info`, explorer); chain-control section; updated failure-signal table (type-mismatch, auto-miner mid-test).
+- `testing/troubleshooting.md` — Rewritten for the Node CLI / `arkade-regtest` project name: Node version, port overrides, nbxplorer-vs-Core-31 pin, arkd type-mismatch + signer rotation, Fulmine delegation (`FULMINE_DELEGATE_*`, PR #32), auto-miner mid-test sweeps, mempool indexer.
+- `sop/development-workflow.md` — Rewritten repository layout (regtest.mjs + lib/*.mjs + lib/setup/* + two compose files); change-type playbooks for compose profiles / CLI commands; submodule + CI guidance (Node, no Go/nigiri); verification via `signer-info`.
+- `docs/INDEX.md` (master) — Rewrote the arkade-regtest entry (Language → Node + Docker Compose; new description, ~20 key capabilities, expanded tags/synonyms/triggers, restructured dependencies); updated the dependency-graph block and correlation-matrix / project-type lines to drop nigiri/Bash and list the new bundled services.
+
+**Notes**:
+- **Breaking for consumers**: entry points changed from `./start-env.sh` / `./stop-env.sh` / `./clean-env.sh` to `node regtest.mjs start|stop|clean` (npm aliases exist). CI must drop Go setup + nigiri cache and add `actions/setup-node`. `NIGIRI_*` vars and the `_build/` cache are gone.
+- Explorer/indexer moved from electrs + chopsticks + esplora to **Fulcrum + mempool + NBXplorer**; the Esplora REST API moved from `http://localhost:3000` to `http://localhost:3000/api` (mempool), in-network `http://mempool_web/api`.
+- Compose project name changed from `nigiri` to `arkade-regtest`.
+- arkd is now **always** run from `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` (default `v0.9.9-rc.1`) — no built-in fallback. The rc images are required for the new operator signer-rotation feature.
+- New: compose **profiles** (`base`/`ark`/`delegate`/`boltz`/`emulator`/`solver`), built-in **auto-miner** (`AUTOMINE_INTERVAL`, default 600s), chain tools (`mine`/`reorg`/`faucet`/`rpc`), `ark`/`arkd` CLI passthroughs, **signer rotation** (`rotate-signer`/`set-signers`/`signer-info`), **block-denominated fast-expiry** locktimes, and the **arkade Solver** profile.
+- PR #32: Fulmine delegation now passed via `FULMINE_DELEGATE_ENABLED` / `FULMINE_DELEGATE_FEE` (Fulmine ignored the old `FULMINE_DELEGATOR_*` names, so delegation never enabled); bundled Fulmine bumped `v0.3.23` → `v0.3.25`.
+- The previous baseline (`cd473132…`) was reached via an intermediate "Delete docs directory" commit (`8b72836`); this sync analyzes the fast-forward range `8b72836..0ed365d` as provided.
+
+---
+
 ## 2026-05-30 - Sync update
 **From**: `dc23da2ce658ac3483fa191282f71982f2ffe239`
 **To**: `cd473132e0fcdf82bc709534784abc94d3002163`

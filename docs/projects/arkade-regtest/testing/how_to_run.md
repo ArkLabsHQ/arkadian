@@ -7,27 +7,47 @@ Detailed guide for launching the arkade-regtest stack across local and CI enviro
 | Requirement      | Why                                                                         |
 | ---------------- | --------------------------------------------------------------------------- |
 | Docker + Compose | All services run as containers via `docker compose`                         |
-| Go 1.23+         | Required to build Nigiri from source (default behavior)                     |
-| git              | Required for submodule usage and for cloning the nigiri repo into `_build/` |
-| Bash + jq        | `start-env.sh` and helpers use bash; helpers use `jq`                       |
-| Disk: ~2 GB      | Docker images + nigiri build cache (`_build/nigiri/`)                       |
-| Free ports       | See port table in [usage.md](./usage.md)                                    |
+| Node.js ≥ 18     | Runs `regtest.mjs` (standard library only — no `npm install`)              |
+| git              | Required for submodule usage                                                |
+| Disk: ~2 GB      | Docker images for the full stack                                            |
+| Free ports       | See the port table in [usage.md](./usage.md)                               |
 
-If `NIGIRI_BRANCH=""` is set in your override, you must have `nigiri` already installed and on `$PATH`; Go is no longer required.
+No Go toolchain and no nigiri build are required. The stack is cross-platform (Linux / macOS / Windows, no WSL).
 
 ## Standalone Run
 
 ```bash
 git clone https://github.com/arkade-os/arkade-regtest.git
 cd arkade-regtest
-./start-env.sh
+node regtest.mjs start
 ```
 
-First run builds nigiri from source. Expect 1-5 minutes depending on network/CPU. Subsequent runs reuse the cached binary in `_build/`.
+First run pulls the Docker images (slower); subsequent runs reuse the local image cache.
+
+## Profiles
+
+Bring up just the tier you need; the CLI resolves the dependency closure automatically.
+
+| Profile    | Services                                                          | Depends on        |
+| ---------- | ----------------------------------------------------------------- | ----------------- |
+| `base`     | bitcoin, postgres, nbxplorer, fulcrum, mempool (api/web/db), lnd  | —                 |
+| `ark`      | arkd, arkd-wallet, arkade-wallet, arkade-explorer                 | `base`            |
+| `delegate` | fulmine-delegator                                                 | `ark`             |
+| `boltz`    | boltz, boltz-fulmine, boltz-lnd, nginx-boltz, lnurl-server        | `ark`             |
+| `emulator` | emulator                                                          | `ark`             |
+| `solver`   | solver                                                            | `ark`, `emulator` |
+
+```bash
+node regtest.mjs start                      # full stack (all profiles)
+node regtest.mjs start --profile base       # chain + explorer/indexer
+node regtest.mjs start --profile boltz      # base + ark + boltz
+node regtest.mjs start --profile emulator --profile boltz   # combine
+```
+
+Pin profiles via `REGTEST_PROFILES` (comma-separated) instead of flags. Precedence: `--profile` > `REGTEST_PROFILES` > full stack. `stop`/`clean` always act on the whole project.
 
 ## Submodule Run
 
-Add to a parent repo:
 ```bash
 git submodule add https://github.com/arkade-os/arkade-regtest.git regtest
 git submodule update --init --recursive
@@ -36,17 +56,16 @@ git submodule update --init --recursive
 Configure overrides at the parent repo root:
 ```bash
 cat > .env.regtest <<'EOF'
-ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.0
-ARKD_WALLET_IMAGE=ghcr.io/arkade-os/arkd-wallet:v0.9.0
+ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.9-rc.1
+ARKD_WALLET_IMAGE=ghcr.io/arkade-os/arkd-wallet:v0.9.9-rc.1
+REGTEST_PROFILES=ark,boltz
 EOF
 ```
 
-Launch:
+Launch (the CLI auto-discovers `../.env.regtest` from inside `regtest/`):
 ```bash
-./regtest/start-env.sh
+node regtest/regtest.mjs start
 ```
-
-The launcher auto-discovers `../.env.regtest` from inside `regtest/`. No flag is needed.
 
 ## CI Integration (GitHub Actions)
 
@@ -55,78 +74,62 @@ The launcher auto-discovers `../.env.regtest` from inside `regtest/`. No flag is
   with:
     submodules: true
 
-- uses: actions/setup-go@v5
+- uses: actions/setup-node@v4
   with:
-    go-version: '1.23'
-
-- uses: actions/cache@v4
-  with:
-    path: regtest/_build
-    key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
+    node-version: '20'
 
 - name: Start regtest environment
-  run: ./regtest/start-env.sh
+  run: node regtest/regtest.mjs start
 
 - name: Run tests
   run: <your test command>
 
 - name: Cleanup
   if: always()
-  run: ./regtest/clean-env.sh
+  run: node regtest/regtest.mjs clean
 ```
 
-Caching `regtest/_build` significantly speeds up subsequent CI runs by avoiding the nigiri rebuild.
-
-## Launcher Flags
-
-| Flag             | Effect                                                                       |
-| ---------------- | ---------------------------------------------------------------------------- |
-| `--clean`        | Force rebuild of Nigiri from source (clones/pulls fresh and rebuilds)        |
-| `--env <path>`   | Use the given override file (highest priority of the three discovery paths) |
-
-All other configuration goes through the env file (see `system/configuration.md`).
+No build cache step is needed — the stack is pulled Docker images only. No Go setup, no nigiri PATH/cache.
 
 ## Lifecycle Commands
 
-| Command            | What it does                                                          |
-| ------------------ | --------------------------------------------------------------------- |
-| `./start-env.sh`   | Bring up the full stack, run faucet flows                             |
-| `./stop-env.sh`    | `docker compose stop` for both compose projects; preserves volumes    |
-| `./clean-env.sh`   | Full teardown: `down -v`, removes `_build/`, prunes leftover state    |
+| Command                   | What it does                                                          |
+| ------------------------- | --------------------------------------------------------------------- |
+| `node regtest.mjs start`  | Bring up the requested profiles, run setup + faucet flows             |
+| `node regtest.mjs stop`   | Stop services; preserves volumes (fast restart)                       |
+| `node regtest.mjs clean`  | Full teardown: remove containers + volumes; resets the signer set     |
 
-Use `stop` between test iterations to keep state. Use `clean` when changing image versions or recovering from corrupted state.
+`npm start` / `npm stop` / `npm run clean` alias the three lifecycle commands. Use `stop` between test iterations to keep state; use `clean` when changing image versions or recovering from corrupted state.
 
 ## Verifying Startup
 
-After `start-env.sh` returns, sanity-check:
+After `start` returns, sanity-check:
 
 ```bash
 # Bitcoin Core
-curl -s -u admin1:123 -H 'content-type: text/plain;' \
-  --data '{"jsonrpc":"1.0","id":"1","method":"getblockchaininfo","params":[]}' \
-  http://localhost:18443/ | jq '.result.chain'   # → "regtest"
+node regtest.mjs rpc getblockchaininfo | jq '.chain'   # → "regtest"
 
 # arkd
-grpcurl -plaintext localhost:7070 list  2>/dev/null | head     # gRPC service list
+grpcurl -plaintext localhost:7070 list 2>/dev/null | head     # gRPC service list
+
+# Esplora REST (via mempool)
+curl -s http://localhost:3000/api/blocks/tip/height
 
 # Boltz REST
 curl -s http://localhost:9001/version | jq
 
-# Fulmine HTTP
-curl -s http://localhost:7002/health  # or /api/v1/info
-
 # Boltz LND
-docker exec boltz-lnd lncli --network=regtest getinfo | jq '.alias'   # → "Ark Labs"
+docker exec boltz-lnd lncli --network=regtest getinfo | jq '.alias'
 ```
 
 ## Selecting Versions
 
-Two overlapping mechanisms control versions:
+Every service runs from an overridable `*_IMAGE` variable (see `system/configuration.md`). Pin any of them in your override file:
 
-**Image pin variables** (always honored):
-- `BOLTZ_LND_IMAGE`, `FULMINE_IMAGE`, `BOLTZ_IMAGE`, `NGINX_IMAGE`, `LNURL_IMAGE`, `WALLET_IMAGE`
+```bash
+ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.9-rc.1
+ARKD_WALLET_IMAGE=ghcr.io/arkade-os/arkd-wallet:v0.9.9-rc.1
+FULMINE_IMAGE=ghcr.io/arklabshq/fulmine:v0.3.25
+```
 
-**arkd override** (special-cased):
-- `ARKD_IMAGE` and `ARKD_WALLET_IMAGE` — when set, nigiri's bundled arkd is stopped and replaced via `docker-compose.arkd-override.yml`. All `ARKD_*` config variables apply only in this mode.
-
-For Nigiri-managed services (Bitcoin Core, electrs, esplora, chopsticks) you control versions by pinning `NIGIRI_BRANCH` to a specific commit/branch.
+arkd is always run from `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` — there is no built-in fallback. The default `v0.9.9-rc.1` is required for the signer-rotation feature.

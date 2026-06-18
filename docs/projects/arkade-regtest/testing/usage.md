@@ -4,78 +4,83 @@ Quick-start guide for running and using the arkade-regtest stack.
 
 ## Prerequisites
 
-- **Docker** + **Docker Compose** (v2 plugin form: `docker compose ...`)
+- **Docker** + the **`docker compose`** plugin
+- **Node.js ≥ 18** (standard library only — no `npm install` needed)
 - **git** with submodule support (when used as a submodule)
-- **Go 1.23+** — only required when building Nigiri from source (the default)
-- **bash** + standard POSIX tools
+
+No Go toolchain and no nigiri build are required — the stack is pulled Docker images plus the Node CLI. Runs the same on Linux, macOS, and Windows (no WSL).
 
 ## Start the Environment
 
 From the arkade-regtest checkout:
 ```bash
-./start-env.sh
+node regtest.mjs start                  # full stack (all profiles)
 ```
 
-This will:
-1. Load `.env.defaults` (and any override file).
-2. Build Nigiri from source (or use the system binary if `NIGIRI_BRANCH=""`).
-3. Start nigiri (Bitcoin + arkd + arkd-wallet + electrs/esplora/chopsticks).
-4. Optionally swap nigiri's arkd for `ARKD_IMAGE` if it's set.
-5. Bring up the Ark compose stack (Boltz, Fulmine, LND, Wallet, Nginx, LNURL).
-6. Run faucet flows (fund Ark server wallet, ark CLI client wallet via redeem-notes, fulmine, Boltz LND, open LN channel).
-7. Bring up the arkade-script Emulator overlay (unless `EMULATOR_IMAGE=` is set to disable it) and wait for `GET /v1/info`.
-
-First run takes longer (nigiri source build). Subsequent runs are fast — the binary is cached in `_build/`.
-
-### Useful Flags
-
+You can scope to a profile (the CLI resolves dependencies automatically):
 ```bash
-./start-env.sh --clean              # Force rebuild of nigiri
-./start-env.sh --env path/.env      # Use explicit override file
+node regtest.mjs start --profile base   # chain + explorer/indexer only
+node regtest.mjs start --profile ark    # base + ark (incl. wallet + explorer)
+node regtest.mjs start --profile boltz  # base + ark + boltz
+node regtest.mjs start --profile solver # base + ark + emulator + solver
+node regtest.mjs start --profile emulator --profile boltz   # combine targets
 ```
+
+`start` brings up the requested profiles, sets up the arkd wallet (seed → create → unlock), funds the wallets/LND, initializes the `ark` client, and starts the auto-miner. Profiles can also be pinned via `REGTEST_PROFILES` in an env file. npm aliases: `npm start`, `npm stop`, `npm run clean`.
 
 ## Stop the Environment
 
-Two lifecycle modes:
-
 ```bash
-./stop-env.sh   # Stop services, preserve volumes (fast restart)
-./clean-env.sh  # Full teardown: stop + remove containers, volumes, _build/
+node regtest.mjs stop    # stop services, preserve volumes (fast restart)
+node regtest.mjs clean   # full teardown: remove containers + volumes (resets signer set)
 ```
 
-Use `stop` between iterations of the same test session. Use `clean` when changing image versions or when state corruption is suspected.
+Use `stop` between iterations of the same test session. Use `clean` when changing image versions or when state corruption is suspected. Both always act on the whole project regardless of profiles.
+
+## Chain & Wallet Commands
+
+```bash
+node regtest.mjs faucet <addr> <btc> [--confirm]   # send from node wallet; --confirm mines 1
+node regtest.mjs mine [n]                           # mine n blocks (default 1)
+node regtest.mjs reorg [depth]                      # simulate a reorg (default 1)
+node regtest.mjs rpc <args...>                      # bitcoin-cli passthrough
+node regtest.mjs ark <args...>                      # ark client CLI (inside arkd container)
+node regtest.mjs arkd <args...>                     # arkd server CLI (e.g. arkd note --amount 100000000)
+```
+
+> **Auto-miner.** One block is mined every `AUTOMINE_INTERVAL` seconds (default **600**); set `AUTOMINE_INTERVAL=0` to mine only explicitly — required when using block-denominated locktimes for fast expiry/sweep tests.
 
 ## Service Endpoints
 
 After startup, services are reachable on `localhost`:
 
-| Service          | Endpoint               | Notes                                  |
-| ---------------- | ---------------------- | -------------------------------------- |
-| Bitcoin RPC      | `localhost:18443`      | nigiri default; user `admin1` / `123`  |
-| arkd gRPC        | `localhost:7070`       | nigiri-bundled or override image       |
-| Fulmine HTTP     | `localhost:7002`       | Web UI / health                        |
-| Fulmine API      | `localhost:7003`       | REST API                               |
-| Fulmine gRPC     | `localhost:7004`       | gRPC                                   |
-| Boltz gRPC       | `localhost:9000`       |                                        |
-| Boltz REST       | `localhost:9001`       |                                        |
-| Boltz WS         | `localhost:9004`       |                                        |
-| Nginx (CORS)     | `localhost:9069`       | CORS proxy fronting Boltz              |
-| LNURL Server     | `localhost:9090`       |                                        |
-| Boltz LND P2P    | `localhost:9736`       |                                        |
-| Boltz LND RPC    | `localhost:10010`      |                                        |
-| Wallet (PWA)     | `localhost:3003`       | Open in browser                        |
-| Emulator         | `localhost:7073`       | arkade-script signer (`GET /v1/info`); disable with `EMULATOR_IMAGE=` |
-
-Other nigiri services (electrs, esplora, chopsticks) keep their standard nigiri ports.
+| Service            | Endpoint                          | Notes                                  |
+| ------------------ | --------------------------------- | -------------------------------------- |
+| Bitcoin Core RPC   | `localhost:18443`                 | user `admin1` / `123`                  |
+| Mempool explorer   | `http://localhost:3000`           | block explorer                         |
+| Esplora REST API   | `http://localhost:3000/api`       | arkd/fulmine backend (mempool `/api`)  |
+| Fulcrum (Electrum) | `localhost:50001` / `:50003`      | TCP / WS                               |
+| NBXplorer          | `http://localhost:32838`          |                                        |
+| Postgres           | `localhost:39372`                 | DBs: arkd, nbxplorer                    |
+| arkd               | `http://localhost:7070`           | admin `7071`                           |
+| arkd-wallet        | `http://localhost:6060`           |                                        |
+| Fulmine API        | `http://localhost:7003`           | HTTP `7002`, gRPC `7004`               |
+| Delegator API      | `http://localhost:7011`           | gRPC `7010`, HTTP `7012`               |
+| Boltz gRPC / REST / WS | `localhost:9000` / `:9001` / `:9004` |                                 |
+| Nginx (CORS proxy) | `http://localhost:9069`           | fronts Boltz                           |
+| LNURL Server       | `http://localhost:9090`           |                                        |
+| Boltz LND RPC      | `localhost:10010`                 | P2P `9736`                             |
+| Web wallet         | `http://localhost:3003`           | open in browser                        |
+| Arkade explorer    | `http://localhost:7080`           |                                        |
+| Emulator           | `http://localhost:7073`           | arkade-script signer (`GET /v1/info`)  |
+| Solver HTTP / gRPC | `http://localhost:7091` / `localhost:7090` | `solver` profile             |
 
 ## Lightning Helpers
 
-Convenience scripts for testing payment flows through Boltz:
-
 ```bash
-./helpers/create-invoice.sh                   # Invoice on primary (boltz-lnd)
-./helpers/create-invoice.sh --secondary       # Invoice on secondary (lnd)
-./helpers/pay-invoice.sh <bolt11>             # Pay from boltz-lnd
+node regtest.mjs create-invoice               # 100k-sat invoice on boltz-lnd
+node regtest.mjs create-invoice --secondary   # mint on the secondary (lnd) node
+node regtest.mjs pay-invoice <invoice>        # pay from the non-destination node
 ```
 
 Useful when manually exercising Boltz reverse swaps (Lightning → Ark) or submarine swaps (Ark → Lightning).
@@ -84,34 +89,25 @@ Useful when manually exercising Boltz reverse swaps (Lightning → Ark) or subma
 
 ### Run integration tests against the stack
 ```bash
-./start-env.sh
-go test ./...               # or whatever your test command is
-./stop-env.sh
+node regtest.mjs start
+<your test command>          # e.g. go test ./... / vitest / dotnet test
+node regtest.mjs stop
 ```
 
-### Test a specific arkd build
-```bash
-echo 'ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.0'         > .env
-echo 'ARKD_WALLET_IMAGE=ghcr.io/arkade-os/arkd-wallet:v0.9.0' >> .env
-./start-env.sh
-```
-
-### Use as a submodule
-From the parent repo:
+### Use as a submodule (from the parent repo)
 ```bash
 git submodule add https://github.com/arkade-os/arkade-regtest.git regtest
-echo 'ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.0' >> .env.regtest
-./regtest/start-env.sh
+echo 'ARKD_IMAGE=ghcr.io/arkade-os/arkd:v0.9.9-rc.1' >> .env.regtest
+node regtest/regtest.mjs start
 ```
-The launcher auto-discovers `../.env.regtest` from inside `regtest/`.
+The CLI auto-discovers `../.env.regtest` from inside `regtest/`.
 
 ## Logs & Debugging
 
 ```bash
-docker compose -p nigiri logs -f boltz-fulmine
-docker compose -p nigiri logs -f boltz
-docker compose -p nigiri logs -f boltz-lnd
+docker compose -p arkade-regtest logs -f boltz-fulmine
+docker compose -p arkade-regtest logs -f arkd
 docker exec -it boltz-lnd lncli --network=regtest getinfo
 ```
 
-The compose project name is `nigiri` (intentional — services attach to the network nigiri creates).
+The compose project name is `arkade-regtest`.

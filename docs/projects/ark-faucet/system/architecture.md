@@ -7,7 +7,7 @@ ARK Faucet follows a simple three-layer architecture optimized for a single-purp
 ### Layer Breakdown
 
 **HTTP Server Layer**
-The service runs an HTTP server on a configurable port (default 9999) that exposes REST endpoints. It includes a basic authentication middleware that protects admin endpoints while keeping the faucet endpoint public.
+The service runs an HTTP server on a configurable port (default 9999) that exposes REST endpoints. The router is built by `NewHandler` in `pkg/handler.go` (extracted from `cmd/main.go` so the HTTP API is importable and unit-testable). All routes are wrapped with panic recovery and a CORS middleware (allows any origin, handles `OPTIONS` preflight); basic-auth middleware protects the admin endpoints while `/faucet`, `/address` and `/healthcheck` stay public.
 
 **Service Layer**
 The main service implementation in `pkg/service.go` provides the core business logic. It manages the Ark SDK client lifecycle, handles wallet operations, and implements the faucet distribution logic. This layer translates HTTP requests into SDK operations.
@@ -33,12 +33,15 @@ Key responsibilities:
 
 ### HTTP Handlers
 
-Five primary endpoints handle different operations:
-- Faucet handler: Validates requests and sends coins
+Endpoints handle different operations:
+- Healthcheck handler: Public liveness ping
+- Faucet handler: Validates requests (rejects empty address / zero amount with 400) and sends coins
 - Address handler: Returns service addresses
 - Balance handler: Queries current balance (requires auth)
-- Refill handler: Mints and redeems notes automatically (requires auth)
+- Refill handler: Mints and redeems notes automatically (requires auth); rejects amounts above `uint32` max with 400
 - Refill-with-notes handler: Redeems provided notes (requires auth)
+
+All success responses return `{"txid": "<id>"}`.
 
 ### Ark SDK Client
 
@@ -76,11 +79,11 @@ A background goroutine runs every 5 minutes to check for expiring VTXOs. If any 
 ### Automatic Refill Flow
 
 1. Admin sends POST to `/refill?amount=X` with basic auth
-2. Service reads admin.macaroon from arkd datadir
-3. Service loads TLS certificate if HTTPS is used
-4. Service sends POST to arkd's `/v1/admin/note` endpoint
-5. Arkd validates macaroon and mints notes
-6. Service receives notes in response
+2. Service resolves the admin URL (`ARK_FAUCET_SERVER_ADMIN_URL`, falling back to `ARK_FAUCET_SERVER_URL`)
+3. If an arkd datadir is set, the service reads `admin.macaroon`; otherwise the macaroon header is skipped (NO_MACAROONS arkd)
+4. TLS is configured only when the admin URL is `https://` and a cert is present
+5. Service sends POST to the admin API's `/v1/admin/note` endpoint to mint notes
+6. Service receives notes in response (note values are not logged)
 7. Service calls `RedeemNotes()` to convert notes to VTXOs
 8. SDK completes redemption round with server
 9. New VTXOs added to wallet balance
@@ -121,7 +124,7 @@ Balance, refill, and refill-with-notes endpoints require basic authentication. C
 The SDK wallet is encrypted with a password. The service must have the password to unlock the wallet on startup. The password is never exposed through the API.
 
 ### Macaroon-Based Admin Access
-The automatic refill feature requires access to arkd's admin macaroon. This provides cryptographic proof of authorization to mint notes. The macaroon must be available in the arkd datadir.
+When arkd is configured with macaroons, the automatic refill feature reads the admin macaroon from the arkd datadir to authorize note minting. The macaroon is optional: against a NO_MACAROONS arkd (e.g. arkade-regtest) the refill still works without it.
 
 ## Dual Mode Support
 
