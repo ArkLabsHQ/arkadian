@@ -1,5 +1,35 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-19 - Documentation Sync
+**Commit**: `7a028c2f570bbd69cad0c980a49677eeaf1e180a`
+**Previous Sync**: `331f6fc91ba063b21ccf04cd7563d64160c51403`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `7a028c2f` add build and sdk versions to chatwoot custom attributes (#686)
+- `248d3b51` Upgrade ts-sdk 0.4.37 - boltz-swap 0.3.42 (#684)
+
+**Features Added / Modified**:
+- **Chatwoot build/SDK version attributes** (PR #686): `src/screens/Settings/Support.tsx` now imports `buildVersion` and `sdkVersion` from `@arkade-os/sdk` and adds them as `build_version` / `sdk_version` Chatwoot custom attributes (alongside the existing `git_commit`), so support sessions surface the wallet's build and SDK versions.
+- **Dependency bump** (PR #684): `@arkade-os/sdk` 0.4.36 → 0.4.37 and `@arkade-os/boltz-swap` 0.3.41 → 0.3.42. The 0.4.37 ts-sdk release is a release-only patch carrying a `MissingSigningDescriptorError` message fix; no application source beyond the Support screen changed.
+
+**Configuration Changes**: Dependency bumps only: `@arkade-os/sdk` 0.4.37, `@arkade-os/boltz-swap` 0.3.42.
+**Breaking Changes**: None.
+
+**Files Touched in Repo** (3 files): `package.json`, `pnpm-lock.yaml`, `src/screens/Settings/Support.tsx`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.24 → 1.2.25 + `last_sync_commit`; SDK/boltz-swap versions in Arkade Integration with PR #684 note + `buildVersion`/`sdkVersion` export note; Chatwoot bullet extended with `build_version` / `sdk_version` attributes (PR #686).
+- `docs/projects/wallet/system/project_overview.md` — Technology Stack + Project Status dependency versions (SDK 0.4.37 / boltz-swap 0.3.42); Chatwoot integration bullet extended with `build_version` / `sdk_version` attributes.
+- `docs/INDEX.md` — wallet Key Capabilities: Chatwoot bullet extended, new PR #686 capability bullet, SDK/boltz-swap bump line; Dependencies line bumped to 0.4.37 / 0.3.42.
+- `docs/projects/wallet/change-log/last-sync.txt` → `7a028c2f570bbd69cad0c980a49677eeaf1e180a`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `system/tech-stack.md` — its `@arkade-os/sdk` / `@arkade-os/boltz-swap` headings had already drifted across multiple prior syncs (kept stable to avoid scope creep, consistent with recent convention); no new env var, build/test command, or architectural component.
+- `system/architecture.md`, `system/components.md`, `system/ark-sdk-integration.md`, `system/lightning-payment-flow.md`, `system/pwa-features.md`, `sop/`, `testing/` — no architecture, API, env-var, or build/test change.
+
 ## 2026-06-18 - Documentation Sync
 **Commit**: `331f6fc91ba063b21ccf04cd7563d64160c51403`
 **Previous Sync**: `8da7062179a4ba29211db20d7b6b9463ab9e1247`

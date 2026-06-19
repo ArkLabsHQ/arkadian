@@ -223,7 +223,7 @@ The provider has no read-side accessor for "current rotation state" — "what ad
 
 - Callers (`Wallet._sendImpl`, settlement paths, intent proof paths) hand the router explicit `InputSigningJob[]` with `lookupScript` derived from the source VTXO script (not the witnessUtxo — checkpoint scripts in arkTx don't match the source contract).
 - The router groups inputs by owning contract: rotated `default`/`delegate` contracts with a non-baseline owner route to `DescriptorProvider.signWithDescriptor` using `metadata.signingDescriptor` persisted at rotation time; baseline-owned contracts, other contract types, and the boarding script route to `Identity`.
-- Throws `DescriptorSigningProviderMissingError` (no provider wired) or `MissingSigningDescriptorError` (rotated contract on an older build without `metadata.signingDescriptor`). Both are exported from the package root.
+- Throws `DescriptorSigningProviderMissingError` (no provider wired) or `MissingSigningDescriptorError` (a descriptor-capable `default`/`delegate`/`boarding` contract that cannot be routed: its owner key is not the wallet baseline and it carries no `metadata.signingDescriptor`). Since 0.4.37 the error message enumerates both causes — wallet rotated on an earlier build without persisted descriptors, *or* the contract belongs to a different identity (storage reuse) — and suggests setting the descriptor, restoring a pre-rotation snapshot, or deleting the contract. Both are exported from the package root.
 
 ### Storage Adapter Pattern
 

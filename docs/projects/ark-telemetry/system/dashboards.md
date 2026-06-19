@@ -100,8 +100,9 @@ rate(go_gc_duration_seconds_sum[5m])
 **Client Compatibility Panels (PR #17, June 2026)** — Loki-backed panels (datasource uid `loki`) track client integrity and SDK adoption. The aggregation window is driven by the dashboard's `$window` template variable (PR #20; selectable 1m / 5m / 15m / 1h, default 5m):
 - **Digest Mismatch Errors**: count of `DIGEST_MISMATCH` errors over time
   - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [$window]))`
-- **Requests Missing Client Version**: requests without an `x-build-version` header (clients not yet on v0.9.9+)
-  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version.[0-9]" [$window]))`
+- **Requests by Build Version**: request volume grouped by the `x-build-version` header value, plus a `missing` series for requests with no `x-build-version` header — tracks client adoption of v0.9.9+ (renamed from "Requests Missing Client Version" and re-segmented in PR #21)
+  - `sum by (build_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-build-version" | regexp "x-build-version.{3}(?P<build_version>[^\"]+)" [$window]))`
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version" [$window]))` → `missing`
 - **Requests by SDK Version**: request volume grouped by the `x-sdk-version` header value, plus a `missing` series for requests with no `x-sdk-version` header (PR #19)
   - `sum by (sdk_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-sdk-version" | regexp "x-sdk-version.{3}(?P<sdk_version>[^\"]+)" [$window]))`
   - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-sdk-version" [$window]))` → `missing`

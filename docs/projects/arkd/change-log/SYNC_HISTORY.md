@@ -1,5 +1,31 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-19 - Documentation Update
+**Commit**: `ccda5c50` (arkd repository)
+**Previous Sync**: `268d19d9`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `ccda5c50` arkd-wallet: Retry connecting to `nbxplorer` at startup (#1083)
+- `0bae0249` fix: convert guard errors to gRPC status before they reach the client (#1108)
+
+**Fixes**:
+- **Guard-interceptor errors converted to gRPC status (PR #1108)**: the server's `errorConverter` interceptor was moved to the **front** of the unary chain, and a new `streamErrorConverter` was added to the stream chain (`internal/interface/grpc/interceptors/{interceptor,error_converter}.go`). Because chained interceptors execute outside-in, placing the converter first means structured `arkerrors.Error` values returned by the downstream version-guard, digest, macaroon-auth, and readiness interceptors are now wrapped as `gRPCError` (carrying `arkv1.ErrorDetails`) before reaching the client. Previously the converter sat **last** in the unary chain and there was no stream converter at all, so guard/auth/readiness errors leaked to clients as raw/unstructured errors. On the client side, `pkg/client-lib`'s `isDigestMismatch` (`pkg/client-lib/client/grpc/digest_header.go`) now decodes the structured `arkv1.ErrorDetails` from the gRPC status details (via `status.FromError` + `st.Details()`, matching `errors.DIGEST_MISMATCH.Name`) instead of `strings.Contains`-matching the error message — completing the end-to-end DIGEST_MISMATCH detect-and-refresh path the prior `TODO` had deferred. Covered by new `interceptor_test.go` and `digest_header_test.go`.
+- **arkd-wallet retries nbxplorer at startup (PR #1083)**: the nbxplorer adapter constructor (`pkg/arkd-wallet/core/infrastructure/nbxplorer/service.go`) now wraps its initial `GetBitcoinStatus` probe in a retry loop — `nbxplorerMaxRetries = 30` attempts at `nbxplorerRetryInterval = 5 * time.Second` (≈2.5 min total), warn-logging each failed attempt with `{attempt, error}` — and only returns `failed to connect to nbxplorer after 30 attempts` once the budget is exhausted. This avoids an `arkd-wallet` crash when nbxplorer is not yet ready to serve RPCs at boot, leaving the orchestrator to restart the container only after the retry window closes.
+
+**Breaking Changes**:
+- None. Both changes are internal: no proto / gRPC method / env var / config / migration surface changed. The error-conversion change only affects the *encoding* of errors clients already received (now structured gRPC status instead of raw error), and the nbxplorer retry uses hardcoded constants (no new env var).
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: two new capability bullets — guard-interceptor gRPC-status conversion, nbxplorer startup retry; new tags `error-converter`, `grpc-status`, `nbxplorer-retry`, `startup-resilience`; new ask_question/develop/debug triggers)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.9 → 1.3.10)
+- docs/projects/arkd/system/integration_points.md (Interface→Application error mapping now notes the front-of-chain `errorConverter`/`streamErrorConverter` and structured `arkv1.ErrorDetails`; arkd-wallet→NBXplorer section gains a startup-resilience note on the 30×/5s retry)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-18 - Documentation Update
 **Commit**: `268d19d9` (arkd repository)
 **Previous Sync**: `11cf2ba8`

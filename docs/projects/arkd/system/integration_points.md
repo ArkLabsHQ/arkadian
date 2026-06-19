@@ -8,45 +8,45 @@ This document describes how components communicate and integrate across the arkd
 
 ```
 External Clients (ark CLI, SDK, Web Wallets)
-           ì gRPC/REST
+           ÔøΩ gRPC/REST
 Interface Layer (gRPC handlers, interceptors, type conversions)
-           ì Application Service Interface
+           ÔøΩ Application Service Interface
 Application Layer (use case orchestration)
-           ì Domain Types & Port Interfaces
+           ÔøΩ Domain Types & Port Interfaces
 Domain Layer (entities, business logic, events)
-           ë implements
+           ÔøΩ implements
 Ports Layer (interface contracts)
-           ë implements
+           ÔøΩ implements
 Infrastructure Layer (databases, wallet, signer, cache, scheduler)
-           ì gRPC, HTTP, TCP
+           ÔøΩ gRPC, HTTP, TCP
 External Services (arkd-wallet, Bitcoin Network, Redis, PostgreSQL)
 ```
 
 ### Critical Dependency Rule
 Dependencies flow **inward only**. Core never imports infrastructure.
--  Interface í Application í Domain í Ports ê Infrastructure
+-  Interface ÔøΩ Application ÔøΩ Domain ÔøΩ Ports ÔøΩ Infrastructure
 - L Domain must NEVER import Infrastructure or Application
 - L Application must NEVER import Infrastructure directly
 
 ## Vertical Integration (Layer-to-Layer)
 
-### Interface í Application
+### Interface ÔøΩ Application
 **Integration Point:** gRPC handlers to application services via dependency injection.
 
 **Type Conversion:** Handlers convert proto types to domain types at the boundary:
-- `arkv1.Intent` í `domain.Intent`
-- `arkv1.Receiver` í `domain.Receiver`
-- `arkv1.Vtxo` í `domain.Vtxo`
-- `arkv1.Round` í `domain.Round`
+- `arkv1.Intent` ÔøΩ `domain.Intent`
+- `arkv1.Receiver` ÔøΩ `domain.Receiver`
+- `arkv1.Vtxo` ÔøΩ `domain.Vtxo`
+- `arkv1.Round` ÔøΩ `domain.Round`
 
-**Error Mapping:** Domain errors are converted to gRPC status codes at the handler level.
+**Error Mapping:** Domain errors are converted to gRPC status codes at the handler level. In addition, an `errorConverter` (unary) / `streamErrorConverter` (stream) interceptor sits at the **front** of the interceptor chain (`internal/interface/grpc/interceptors/interceptor.go`), so structured `arkerrors.Error` values returned by **any** downstream interceptor ‚Äî version guard, digest, macaroon auth, readiness ‚Äî are wrapped as `gRPCError` carrying `arkv1.ErrorDetails` before they reach the client (PR #1108). Clients (e.g. `pkg/client-lib`'s `isDigestMismatch`) read the structured `arkv1.ErrorDetails` name from the gRPC status details rather than string-matching the error message.
 
-### Application í Domain
+### Application ÔøΩ Domain
 **Integration Point:** Use case orchestration with domain logic through method calls and state machines.
 
 The application layer coordinates domain entities, validates business rules, and persists state changes via repository interfaces.
 
-### Application í Ports í Infrastructure
+### Application ÔøΩ Ports ÔøΩ Infrastructure
 **Integration Point:** Port interfaces implemented by infrastructure adapters.
 
 Services are injected at construction:
@@ -94,7 +94,7 @@ Services share dependencies but don't call each other directly:
 
 ## External Service Integration
 
-### arkd î arkd-wallet
+### arkd ÔøΩ arkd-wallet
 **Communication:** gRPC (port 6060 by default)
 
 **Services:**
@@ -103,7 +103,7 @@ Services share dependencies but don't call each other directly:
 - Queries (Balance, GetTransaction)
 - Signer (GetPubkey, SignTransaction, SignTransactionTapscript)
 
-### arkd-wallet î NBXplorer
+### arkd-wallet ÔøΩ NBXplorer
 **Communication:** HTTP REST + WebSocket (port 32838)
 
 **Usage:**
@@ -113,19 +113,21 @@ Services share dependencies but don't call each other directly:
 - Broadcast transactions
 - Real-time WebSocket notifications
 
-### arkd î Bitcoin Network
+**Startup resilience:** The nbxplorer adapter constructor retries its initial `GetBitcoinStatus` probe up to 30 times at 5s intervals (‚âà2.5 min) before failing, so `arkd-wallet` does not crash when nbxplorer isn't yet ready to serve RPCs at boot (PR #1083).
+
+### arkd ÔøΩ Bitcoin Network
 **Via Esplora API:**
 - Fee estimation
 - Broadcast transactions
 - Get block tip height
 - Get transaction details
 
-### arkd î Redis
+### arkd ÔøΩ Redis
 **Communication:** TCP (port 6379)
 
 **Pattern:** Optimistic locking with WATCH/MULTI for cache operations.
 
-### arkd î Nostr Relays
+### arkd ÔøΩ Nostr Relays
 **Communication:** WebSocket (wss://)
 
 **Usage:** Encrypted direct messages (NIP-04) for user notifications.
@@ -133,7 +135,7 @@ Services share dependencies but don't call each other directly:
 ## Event-Driven Integration
 
 ### Event Flow Architecture
-Domain entities raise events í Event Broker (in-memory) í Subscribers (Application Services)
+Domain entities raise events ÔøΩ Event Broker (in-memory) ÔøΩ Subscribers (Application Services)
 
 **Event Types:**
 - RoundStarted, RoundFinalized, RoundFailed
@@ -149,7 +151,7 @@ Domain entities raise events í Event Broker (in-memory) í Subscribers (Applicati
 
 ### Payment Registration Flow
 1. User sends RegisterIntent RPC
-2. gRPC Handler validates and converts proto í domain
+2. gRPC Handler validates and converts proto ÔøΩ domain
 3. Application Service orchestrates validation and persistence
 4. Domain Layer validates business rules
 5. Repository persists intent

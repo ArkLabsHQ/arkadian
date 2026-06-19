@@ -14,9 +14,10 @@ The service enables programmatic distribution of Ark coins to both onchain and o
 - **Coin Distribution**: Send coins to any valid address via HTTP POST request (rejects empty address / zero amount)
 - **Address Management**: Retrieve service addresses (both onchain and offchain)
 - **Balance Checking**: Query current service balance
-- **Automatic Refill**: Mint and redeem notes via the arkd admin API (admin macaroon optional)
+- **Automatic Refill**: Mint and redeem notes via the arkd admin API (admin macaroon optional); auto-manages arkd intent fees so refill works whether or not fees are enabled
 - **Manual Refill**: Redeem notes directly to add funds
 - **Healthcheck & CORS**: Public liveness probe and permissive CORS for browser clients
+- **Server-Side Logging**: One log line per request (method, path, status, latency) and every error logged server-side (5xx error, 4xx warn)
 
 ### Network Support
 - **Dual Mode**: Supports both Bitcoin (covenantless) and Liquid (covenant) networks

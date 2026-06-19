@@ -82,6 +82,7 @@ Analysis and summaries of pull requests.
 - Redeem notes for balance
 - Refill endpoint mints notes via the arkd admin API for automatic top-up
 - Admin macaroon optional (used only when arkd enforces it)
+- Refill auto-zeroes arkd's intent fees around the redeem (and restores them), so it funds the wallet whether or not intent fees are enabled
 
 ---
 
@@ -260,8 +261,9 @@ export ARK_FAUCET_SERVER_URL=http://localhost:7070
 2. Service resolves admin URL (`ARK_FAUCET_SERVER_ADMIN_URL`, falling back to `ARK_FAUCET_SERVER_URL`)
 3. Reads admin macaroon from arkd data directory if configured (skipped otherwise)
 4. Mints notes via the arkd admin API `/v1/admin/note`
-5. Redeems notes to faucet wallet
-6. Balance increased
+5. Zeroes arkd's intent fees (`/v1/admin/intentFees`) around the redeem, then restores them
+6. Redeems notes to faucet wallet
+7. Balance increased
 
 ---
 

@@ -1,5 +1,19 @@
 # Documentation Sync History - Ark Faucet
 
+## 2026-06-19 - intent-fee auto-management + server-side logging
+**Commit**: `b7494c2498c657c768ab2b118090cc1c95909106` (from `0b2382369b321b7a7e30a65ac609955928853b2d`)
+**Synced By**: update-project skill
+**Status**: Docs updated
+
+**Commits analyzed** (2):
+- `7770b93` fix: fund /refill against fee-charging arkd by auto-managing intent fees
+- `8a97be8` feat: log every request and error server-side
+
+**Changes made**:
+- Refill paths now auto-manage arkd intent fees: read (`GET /v1/admin/intentFees`), zero (`"0.0"` literals), redeem, then restore — serialized via a mutex so concurrent refills can't strand fees at zero. Avoids `INTENT_INSUFFICIENT_FEE` / later "missing vtxos". Falls back to an unguarded redeem when the endpoint is unavailable. Admin-API calls share a new `adminDo` helper.
+- Server-side logging added: a `loggingMiddleware` logs one line per request (method, path, status, latency); all error responses route through a `writeError` helper (5xx error level, 4xx warn).
+- Updated: system/{architecture,api-design,project_overview}.md, testing/troubleshooting.md, project INDEX.md, master docs/INDEX.md. (`ARK_FAUCET_LOG_LEVEL`-based debug instructions corrected in troubleshooting.md.)
+
 ## 2026-06-18 - arkade-regtest + admin-URL refill sync
 **Commit**: `0b2382369b321b7a7e30a65ac609955928853b2d` (from `634c403bc901b129b0de2bd34f22375f43cb7cca`)
 **Synced By**: update-project skill

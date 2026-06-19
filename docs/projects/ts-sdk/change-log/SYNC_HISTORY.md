@@ -1,5 +1,23 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-19 - Improve MissingSigningDescriptorError message + 0.4.37 release
+**From**: `29635dd0489e165636d7ff5024ac608812a1927a`
+**To**: `89c8d4119274ce18f25d1237b889779da6020618`
+**Synced By**: update-project skill
+**Status**: Two-commit sync. `69abdf56` improves the `MissingSigningDescriptorError` thrown message so it enumerates **both** ways a descriptor-capable contract can fail routing — (a) the wallet was rotated on an earlier build that did not persist signing descriptors, or (b) the contract belongs to a different identity (storage reuse) — instead of only the rotation case; remediation guidance broadened to include deleting the contract. The `signingErrors.ts` docstring is reframed around "descriptor-capable contract that cannot be routed to any signer," and `inputSignerRouter.ts` comments are tightened (the `default`/`delegate`/`boarding` scope and the `params.pubKey` lowercase canonicalization for persisted data). `89c8d411` is the release cut — `@arkade-os/sdk` `0.4.36 → 0.4.37`, `@arkade-os/boltz-swap` `0.3.41 → 0.3.42`. No public signatures changed (message + comments only).
+
+**Commits analyzed** (2 non-merge commits):
+- `89c8d411` chore: release @arkade-os/sdk@0.4.37, @arkade-os/boltz-swap@0.3.42 (version bumps in both `package.json` files)
+- `69abdf56` fix: Improve MissingSigningDescriptorError message to include other causes (`packages/ts-sdk/src/wallet/signingErrors.ts` + `inputSignerRouter.ts`)
+
+**Documentation changes**:
+- `INDEX.md`: bumped package versions `0.4.36 → 0.4.37` / `0.3.41 → 0.3.42` (workspace table + Quick Reference Version row); expanded the **Signing Router** entry's `MissingSigningDescriptorError` description to enumerate both causes and the broadened remediation
+- `system/architecture.md`: rewrote the `MissingSigningDescriptorError` throw note (descriptor-capable `default`/`delegate`/`boarding` scope, dual causes, deletion remediation)
+- Master `docs/INDEX.md`: added a `MissingSigningDescriptorError` message-improvement capability bullet + a `0.4.37 release` bullet to the ts-sdk section; added the `missing-signing-descriptor-error` tag
+- `change-log/last-sync.txt`: `29635dd0 → 89c8d411`
+
+**Tests added**: none (message/comment-only change; no test diff in this range)
+
 ## 2026-06-18 - Export buildVersion and sdkVersion from the package root (#569)
 **From**: `89de6561460faecef58a3048ed9e12fdf2078d4d`
 **To**: `29635dd0489e165636d7ff5024ac608812a1927a`

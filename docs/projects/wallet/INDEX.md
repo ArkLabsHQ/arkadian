@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.24
-last_sync_commit: 331f6fc91ba063b21ccf04cd7563d64160c51403
+version: 1.2.25
+last_sync_commit: 7a028c2f570bbd69cad0c980a49677eeaf1e180a
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -196,8 +196,8 @@ pnpm run format:check
 - **shadcn migration of core components (PR #593)**: `Modal`, `Checkbox`, `Select`, and `Toggle` now sit on shadcn primitives. `Modal` uses Framer Motion `AnimatePresence` with new `open`/`onOpenChange`/`onExitComplete` controlled-modal props (Burn/Reissue use `onExitComplete` for async coordination; Backup/Announcement use controlled props). `Checkbox` wraps shadcn `Checkbox` with label-bound control path and same-state event guard. `Select` migrates to shadcn `RadioGroup` (preserves arrow-key navigation). `Toggle` uses shadcn `Switch` with a new `lg` size variant (iOS-like three-layer shadow, 44 px minimum tap target). `MAX_DECIMALS` raised to 8. New `vitest.config.ts` split out from `vite.config.ts`. Uses `cmdk-base` / `vaul-base` and `@base-ui/react`. `bun.lock` restored at repo root for Cloudflare Pages deploys.
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.36): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.35 in PR #676 (0.4.36 is a release-only patch; no `packages/ts-sdk/src/` changes). Earlier bumped from 0.4.34 in PR #670 (consumes ts-sdk PR #554 arkd signer-rotation support: `signerSetFromInfo`, `classifyAgainstSignerSet`, `SignerSet`/`SignerStatus` types, typed `ArkError`/`BUILD_VERSION_TOO_OLD`)
-- **@arkade-os/boltz-swap** (0.3.41): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.40 in PR #676 (0.3.41 adds optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, and preimage backfill in `refreshSwapsStatus`). Earlier bumped from 0.3.39 in PR #670. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
+- **@arkade-os/sdk** (0.4.37): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.36 in PR #684 (0.4.37 is a release-only patch carrying a `MissingSigningDescriptorError` message fix; no other `packages/ts-sdk/src/` changes). Also exports `buildVersion` / `sdkVersion` constants now surfaced in the Support screen's Chatwoot attributes (PR #686). Earlier bumped from 0.4.35 in PR #676, and from 0.4.34 in PR #670 (consumes ts-sdk PR #554 arkd signer-rotation support: `signerSetFromInfo`, `classifyAgainstSignerSet`, `SignerSet`/`SignerStatus` types, typed `ArkError`/`BUILD_VERSION_TOO_OLD`)
+- **@arkade-os/boltz-swap** (0.3.42): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.41 in PR #684. Earlier bumped from 0.3.40 in PR #676 (0.3.41 adds optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, and preimage backfill in `refreshSwapsStatus`), and from 0.3.39 in PR #670. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
 - **@branta-ops/branta** (3.1.3): payment-destination verification for pasted addresses/invoices in the Send form (upgraded in PR #673; uses `getPayments`, debounced 400 ms for typed input)
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`, dev-mode Contracts list)
 
@@ -322,7 +322,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### Announcements & Support
 - **In-app announcements**: Server-pushed notification banners
-- **Chatwoot**: Live customer support chat widget
+- **Chatwoot**: Live customer support chat widget. The Support screen (`src/screens/Settings/Support.tsx`) attaches diagnostic Chatwoot custom attributes including `git_commit`, and (PR #686) the `@arkade-os/sdk` `buildVersion` and `sdkVersion` constants as `build_version` / `sdk_version`.
 - **Support page**: Dedicated help and support screen
 
 ### Nostr Backup

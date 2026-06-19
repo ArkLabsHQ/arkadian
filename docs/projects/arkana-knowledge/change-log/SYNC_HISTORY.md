@@ -1,5 +1,48 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-19 - Operational Memory Sync (no doc changes)
+**Commit Range**: `25014f8..57cd133` (15 commits, all `memory(*)` agent activity)
+**Previous Recorded Sync**: `1028154a99677bf818bbe5bcd96fb0c092b7c03f` (2026-06-18T02:10:31Z)
+**Caller-Asserted From**: `25014f8daa9f8086276d0c08a1793289007c8c24` (2026-06-18T08:00 issue-triage run) — 3 commits *ahead* of the previous recorded sync. The intervening gap (`1028154a..25014f8`) is 3 memory-only commits (`34c6b7d` repo-detector scan, `5fa1d58` release-coordinator CRITICAL rust-sdk#243 closed without merge, `25014f8` issue-triage quiet window), touching only `memory/agent-logs/`, `memory/executive-digest-queue.json`, and `memory/project-context/sdk-parity.md`, so no documentation coverage was lost by syncing forward from the caller-asserted from-commit.
+**Current Sync**: `57cd133633e94c3365c81fb7b5c395084caa5d02` (committed 2026-06-19T02:19:16Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (15, all internal agent state)**:
+- `57cd133` memory(issue-triage): triage run 2026-06-19T04:00:00Z — 0 new issues, both orgs quiet
+- `99fb485` memory(release-coordinator): release check 2026-06-19T00:00:00Z — re-filed 5 standing entries; rust-sdk#248 24h stall flagged, July 4 ~14 days
+- `67c5425` memory(slack-monitor): daily scan 2026-06-18
+- `a89e62c` memory(daily-briefing): morning briefing 2026-06-18
+- `b8552a2` memory(issue-triage): triage run 2026-06-19T00:00:00Z — wallet#688 iOS lockdown mode bug labeled
+- `4187d95` memory(research-monitor): research update 2026-06-18 — LND zero-timestamp gossip DoS (CVE, fixed v0.20.1-beta), P2MR/BIP-360 solidifying, Botanix shutdown withdrawal deadline July 9
+- `d20f59d` memory(linear-sync): state snapshot 2026-06-18
+- `8cb1992` memory(executive-digest): TIME-CRITICAL 16-day cutoff batch 2026-06-18
+- `33a2536` memory(release-coordinator): release check 2026-06-18T20:00:00Z — ts-sdk 0.4.37 released, rust-sdk#248 unchanged
+- `97d08f6` memory(issue-triage): triage run 2026-06-18T20:00:00Z — quiet window
+- `551fdc8` memory(release-coordinator): release check 2026-06-18T16:00:00Z — quiet window
+- `cdfa00e` memory(issue-triage): triage run 2026-06-18T16:00:00Z — quiet window
+- `90442cb` memory(release-coordinator): release check 2026-06-18T12:00:00Z — quiet window
+- `6a10719` memory(issue-triage): triage run 2026-06-18T12:00:00Z — quiet window
+- `f7cc0dd` memory(release-coordinator): release check 2026-06-18T08:00:00Z — rust-sdk#248 opened, July 4 path exists
+
+**Files Changed (all under `memory/`)**:
+- `memory/agent-logs/daily-briefing.md`, `executive-digest.md`, `issue-triage.md`, `linear-sync.md`, `release-coordinator.md`, `research-monitor.md`, `slack-monitor.md`
+- `memory/executive-digest-queue.json`
+- `memory/project-context/research-updates.md`
+- `memory/slack-log.md`
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. The full range from the previous recorded sync through HEAD touches only `memory/` — routine agent operational run-logs / audit trail appended directly to `main` (the agent-memory exception to the branch+PR rule). No changes to agent configs, the 17-agent roster, architecture, MCP server, Slack bot, webhook relay, dependencies, endpoints, or documented capabilities. Notable ecosystem events tracked in agent memory only (LND zero-timestamp gossip DoS disclosure, ts-sdk v0.4.37 release, rust-sdk#248 signer-rotation PR stalling ahead of the ~14-day July 4 cutoff, wallet#688 iOS lockdown-mode bug) do not alter arkana-knowledge's own structure or surface.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `57cd133633e94c3365c81fb7b5c395084caa5d02`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — arkana-knowledge entry (17 active agents, ✓ Production, `issue-staleness` sweep), capabilities, tags, and dependency relationships all unchanged
+
 ## 2026-06-18 - Operational Memory Sync (no doc changes)
 **Commit Range**: `56aba252..1028154a` (12 commits, all `memory(*)` agent activity)
 **Previous Recorded Sync**: `58699e50e67cf7ed6b029d93a30c76400e41afee` (2026-06-17T01:57:17Z)

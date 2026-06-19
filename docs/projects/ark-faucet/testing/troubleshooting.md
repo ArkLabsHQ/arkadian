@@ -143,6 +143,28 @@ make run
 
 ---
 
+### Refill Fails / "missing vtxos" on /faucet
+**Symptom:** `/refill` or `/refill-with-notes` fails, or a later `/faucet` request errors with `missing vtxos`. Logs may show `INTENT_INSUFFICIENT_FEE` from arkd.
+
+**Possible Causes:**
+1. arkd has intent fees enabled; a note redeem registers a fee-free intent that arkd rejects, so the wallet never gets funded
+2. The faucet can't read/set arkd's intent fees (older arkd without `/v1/admin/intentFees`, or no admin access), so it can't zero them around the redeem
+
+**Solutions:**
+```bash
+# The faucet auto-zeroes arkd's intent fees around the redeem and restores them
+# after. If it can't reach the endpoint it logs a warning and redeems unguarded.
+docker logs arkfaucet 2>&1 | grep -i "intent fees"
+
+# Confirm the admin URL points at an arkd that exposes /v1/admin/intentFees
+echo $ARK_FAUCET_SERVER_ADMIN_URL
+
+# Verify the admin macaroon is reachable when arkd enforces it (see below)
+ls -la $ARK_FAUCET_SERVER_DATADIR/macaroons/admin.macaroon
+```
+
+---
+
 ### Refill Endpoint Not Available
 **Symptom:** 404 error on `/refill` endpoint
 
@@ -208,14 +230,18 @@ export ARK_FAUCET_SERVER_DATADIR=/correct/path/to/arkd
 
 ### Enable Debug Logging
 ```bash
-# Add debug output (if supported)
-export LOG_LEVEL=debug
+# Set logrus level (numeric; 4=info default, 5=debug)
+export ARK_FAUCET_LOG_LEVEL=5
 make run
 
 # Docker logs
 docker logs -f arkfaucet
 docker logs --tail 100 arkfaucet
 ```
+
+The service logs one line per request (method, path, status, latency) and every
+error response server-side (5xx at error level, 4xx at warn), so failures are
+visible in the logs even at the default info level.
 
 ### Verify Environment Variables
 ```bash

@@ -7,7 +7,7 @@ ARK Faucet follows a simple three-layer architecture optimized for a single-purp
 ### Layer Breakdown
 
 **HTTP Server Layer**
-The service runs an HTTP server on a configurable port (default 9999) that exposes REST endpoints. The router is built by `NewHandler` in `pkg/handler.go` (extracted from `cmd/main.go` so the HTTP API is importable and unit-testable). All routes are wrapped with panic recovery and a CORS middleware (allows any origin, handles `OPTIONS` preflight); basic-auth middleware protects the admin endpoints while `/faucet`, `/address` and `/healthcheck` stay public.
+The service runs an HTTP server on a configurable port (default 9999) that exposes REST endpoints. The router is built by `NewHandler` in `pkg/handler.go` (extracted from `cmd/main.go` so the HTTP API is importable and unit-testable). All routes are wrapped with panic recovery and a CORS middleware (allows any origin, handles `OPTIONS` preflight); basic-auth middleware protects the admin endpoints while `/faucet`, `/address` and `/healthcheck` stay public. A `loggingMiddleware` wraps the whole mux and logs one line per request (method, path, status, latency), and every error response goes through a `writeError` helper that logs the reason server-side (5xx at error level, 4xx at warn) so failures are visible in the logs instead of only being returned to the caller.
 
 **Service Layer**
 The main service implementation in `pkg/service.go` provides the core business logic. It manages the Ark SDK client lifecycle, handles wallet operations, and implements the faucet distribution logic. This layer translates HTTP requests into SDK operations.
@@ -84,20 +84,34 @@ A background goroutine runs every 5 minutes to check for expiring VTXOs. If any 
 4. TLS is configured only when the admin URL is `https://` and a cert is present
 5. Service sends POST to the admin API's `/v1/admin/note` endpoint to mint notes
 6. Service receives notes in response (note values are not logged)
-7. Service calls `RedeemNotes()` to convert notes to VTXOs
+7. Service redeems the notes through the intent-fee-zeroing wrapper (see below)
 8. SDK completes redemption round with server
 9. New VTXOs added to wallet balance
 10. Transaction ID returned to admin
+
+All admin-API calls (note minting, intent-fee read/write) go through a shared `adminDo` helper in `pkg/service.go` that handles the macaroon header, TLS config, request build, and response read for any method/path against the admin URL.
 
 ### Manual Note Redemption Flow
 
 1. Admin sends POST to `/refill-with-notes` with notes array and basic auth
 2. Service validates notes array is not empty
-3. Service calls SDK's `RedeemNotes()` method
+3. Service redeems the notes through the intent-fee-zeroing wrapper (see below)
 4. SDK creates redemption transaction and submits to server
 5. Server includes redemption in next round
 6. VTXOs added to wallet after round confirmation
 7. Transaction ID returned to admin
+
+### Intent-Fee Management Around Redeems
+
+A note redeem registers an intent that pays no fee, which arkd rejects with `INTENT_INSUFFICIENT_FEE` when intent fees are enabled — leaving the wallet unfunded and `/faucet` failing with "missing vtxos". To fund the faucet regardless of fee config, both refill paths wrap the `RedeemNotes()` call in `withZeroIntentFees`:
+
+1. Acquire a process-wide mutex (`feeMu`) so concurrent refills can't restore each other's zeroed fees
+2. Read the current intent fees via `GET /v1/admin/intentFees`
+3. Set all fees to `"0.0"` (arkd evaluates fee fields as doubles, so the literal must be `"0.0"`, not `"0"`) via `POST /v1/admin/intentFees`
+4. Run the redeem
+5. Restore the saved fees afterward (even on failure)
+
+If the intent-fee endpoint can't be read or set (older arkd without it, or no admin access), the redeem runs unguarded so fee-free setups still work.
 
 ## Storage
 

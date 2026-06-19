@@ -127,7 +127,7 @@ POST /refill?amount=5000
 2. Reads `admin.macaroon` from the arkd datadir if one is configured; otherwise skips the macaroon header
 3. Loads TLS certificate when the admin URL is HTTPS and a cert is present
 4. Calls the admin API's `/v1/admin/note` endpoint to mint notes
-5. Automatically redeems received notes
+5. Temporarily zeroes arkd's intent fees around the redeem (see Refill Mechanism Details), then redeems received notes
 6. Returns redemption transaction ID
 
 **Requirements**:
@@ -164,6 +164,7 @@ POST /refill?amount=5000
 
 **Behavior**:
 - Validates notes array is not empty
+- Temporarily zeroes arkd's intent fees around the redeem (see Refill Mechanism Details)
 - Calls SDK's `RedeemNotes()` method
 - Waits for redemption round to complete
 - Returns transaction ID
@@ -237,16 +238,34 @@ Authorization: Basic YWRtaW46YWRtaW4=
 
 Errors include enough detail for debugging but avoid exposing sensitive information like file paths or internal state.
 
+### Server-Side Logging
+
+Every request is logged once (method, path, status, latency) by a logging middleware, and every error response is also logged server-side via a `writeError` helper — 5xx at error level, 4xx at warn. Previously, error bodies were only returned to the caller and failures (e.g. "missing vtxos") were invisible in the logs.
+
 ## Refill Mechanism Details
 
 ### Automatic Refill Architecture
 
 The `/refill` endpoint implements a privileged operation flow:
 
-1. **Macaroon Discovery**: Reads hex-encoded macaroon from filesystem
+1. **Macaroon Discovery**: Reads hex-encoded macaroon from filesystem (optional)
 2. **TLS Configuration**: Loads certificate for secure HTTPS connections
 3. **Note Minting**: Calls arkd's admin API to mint notes with specific amount
-4. **Automatic Redemption**: Immediately redeems received notes into VTXOs
+4. **Intent-Fee Zeroing**: Reads, zeroes, and later restores arkd's intent fees around the redeem
+5. **Automatic Redemption**: Immediately redeems received notes into VTXOs
+
+All admin-API requests share an `adminDo` helper that handles the macaroon header, TLS, and response read for any method/path.
+
+### Intent-Fee Management
+
+A note redeem registers a fee-free intent. When arkd has intent fees enabled it rejects this with `INTENT_INSUFFICIENT_FEE`, so the wallet can't be funded and `/faucet` later fails with "missing vtxos". Both refill paths therefore:
+
+1. Serialize via a mutex so concurrent refills can't strand fees at zero
+2. `GET /v1/admin/intentFees` to read current fees
+3. `POST /v1/admin/intentFees` with all fields set to `"0.0"` (arkd evaluates fees as doubles, so `"0"` is rejected)
+4. Run the redeem, then restore the saved fees (even on error)
+
+If the endpoint is unavailable (older arkd or no admin access), the redeem runs unguarded so fee-free setups still work.
 
 ### Note Minting Request
 

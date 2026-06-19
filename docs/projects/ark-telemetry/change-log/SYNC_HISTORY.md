@@ -249,3 +249,22 @@
 **Not updated**: Project `INDEX.md` "Available Dashboards" lists dashboards by name only (no per-panel detail), so no change needed. These are dashboard-display refinements — no new stack capability, alert, route, or config — so `components.md`, `configuration.md`, `alert-rules.md`, and `project_overview.md` are unaffected.
 
 ---
+
+## 2026-06-19 - Ark Go dashboard: segment client requests by `x-build-version`
+**From**: `cd92c3bcc2126d34a5e874f4f32f510fe68c9c6f`
+**To**: `42fccfdb567ead2e5eae7906add19f5f3c6f825e`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1 (dashboard-only; touches `dashboards/Ark_Go_metrics.json`)
+- `42fccfd` Segment client requests pane by `x-build-version` (#21)
+
+**Dashboard changes** (`dashboards/Ark_Go_metrics.json`):
+- **PR #21**: the former **Requests Missing Client Version** panel is renamed to **Requests by Build Version** and re-segmented. Its single "Missing Version" target is replaced by a per-version breakdown grouped by the `x-build-version` header (refId `A`, legend `{{build_version}}`) — `sum by (build_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-build-version" | regexp "x-build-version.{3}(?P<build_version>[^\"]+)" [$window]))` — plus a second target (refId `B`, legend `missing`) for requests with no `x-build-version` header — `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version" [$window]))`. Panel description updated to "Count of requests by x-build-version header." This mirrors the existing **Requests by SDK Version** panel structure (PR #19), turning a missing-only counter into a full adoption breakdown of v0.9.9+.
+
+**Doc-file updates**:
+- `system/dashboards.md` — Client Compatibility Panels section: replaced the "Requests Missing Client Version" bullet with the renamed **Requests by Build Version** panel, documenting both the per-`build_version` query and the `missing` series.
+- Master `docs/INDEX.md` — `ark-telemetry` client-compatibility capability bullet: panel re-described as request volume by `x-build-version` (re-segmented with a `missing` series in PR #21) rather than missing-version requests.
+
+**Not updated**: The `ArkdMissingClientVersion` alert rule (`alert-rules.md`, project `INDEX.md`) is untouched by this PR — it remains a separate Loki alert independent of the dashboard panel. Project `INDEX.md` "Available Dashboards" lists dashboards by name only, so no change needed. No new stack capability, alert, route, or config — so `components.md`, `configuration.md`, `alert-rules.md`, and `project_overview.md` are unaffected.
+
+---
