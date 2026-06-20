@@ -34,9 +34,12 @@ The compiler is a critical piece of the Arkade OS stack: contracts written in Ar
 - `this.activeInputIndex`: compiles directly to `OP_PUSHCURRENTINPUTINDEX` (not a placeholder), so exit tapleaves can enforce self-vs-sibling input identification on chain (used by `StabilityVault.merge` to distinguish the two vaults being consolidated).
 
 ### Asset Introspection
-- Per-input/output asset lookup, count, and indexed access (assetId, amount)
-- Asset groups: find, length, sumInputs, sumOutputs, delta, control, metadataHash, isFresh
+- Canonical Asset IDs are explicit `(txid, gidx)` pairs (`txid` is `bytes32`, `gidx` is an int identifier or a `0..65535` literal)
+- Per-input/output asset access: `assets.lookup(txid, gidx)` (asserts present, returns amount), `assets.has(txid, gidx)` (Bool presence), count (`.length`), and indexed access (assetId, amount)
+- Asset groups: `find(txid, gidx)`, `has(txid, gidx)`, length, sumInputs, sumOutputs, delta, metadataHash, isFresh
+- Group control predicates: `group.hasControl` (Bool presence) and `group.controlIs(txid, gidx)` (Bool full canonical control equality) — replace the old struct-style `.control ==`
 - Per-group IO access with numInputs/numOutputs
+- Compile-time Asset ID operand validation rejects malformed `txid`/`gidx` operands (wrong type, or out-of-range `gidx` literal) before reaching the emulator's runtime check
 
 ### Compilation Model
 Each non-internal function compiles to **two variants**:

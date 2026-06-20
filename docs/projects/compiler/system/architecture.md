@@ -33,7 +33,7 @@ The AST is a fully typed Rust representation:
 | `Contract` | Top-level: name, params, server key, timelocks, functions |
 | `Function` | Name, params, statements, `is_internal` flag |
 | `Statement` | Enum: Require, LetBinding, VarAssign, IfElse, ForIn |
-| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, GroupFind, CurrentInput, introspection, crypto ops, `Concat { left, right, coerce_left, coerce_right }`, one-shot `Sha256 { data }` |
+| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, AssetHas, GroupFind, GroupHas, GroupControlIs, CurrentInput, introspection, crypto ops, `Concat { left, right, coerce_left, coerce_right }`, one-shot `Sha256 { data }`. Asset ID constructs (`AssetLookup`/`AssetHas`/`GroupFind`/`GroupHas`/`GroupControlIs`) now carry `asset_txid` + `asset_gidx` boxed sub-expressions (canonical `(txid, gidx)` pair) rather than a single `asset_id` string |
 | `Requirement` | CheckSig, CheckSigFromStack, CheckMultisig, After, HashEqual, Comparison |
 
 ### Stage 2.5: AST Validation (`src/validator/`)
@@ -47,6 +47,7 @@ Before compilation, `validate_ast()` runs over the parsed `Contract`:
 - **Immutable constructor params** (`check_ctor_assignment`): a `name = expr;` reassignment of a constructor parameter is rejected (constructor parameters are read-only); recurses into `if/else` and `for` bodies.
 - **Scope shadowing** (`check_shadowing` + `walk_scope`): a lexical-scope stack rejects function parameters shadowing constructor parameters, `let`/loop bindings shadowing any name live in an enclosing scope, and `for (x, x)` loops with identical index/value variable names. Each `if`/`else`/`for` block pushes its own frame so sibling blocks don't collide.
 - **Emitted-namespace collisions** (`check_expanded_namespace`): per non-internal function, the names parameters contribute to the emitted placeholder namespace — after array flattening, asset-ID decomposition, and the appended `serverSig` — must be unique, catching collisions distinct source names can't reveal (e.g. `int[] xs` vs `int xs_0`). Reuses the compiler's `collect_lookup_asset_ids` / `decompose_constructor_params` (now `pub(crate)`) so the simulated namespace matches the emitter; `{pubkey}Sig` exit names are deliberately not reserved.
+- **Asset ID operands** (`check_asset_id_operands`, fatal): for every `lookup`/`has`/`find`/`controlIs` operand, `asset_txid` must resolve to `Bytes32` and `asset_gidx` to `Int` (a numeric literal must be in `0..=65535`), rejecting malformed/swapped operands at compile time instead of relying on the emulator's runtime `popAssetID` check. Scope-aware (seeds constructor + function params, infers `let`/assignment types, binds `for` index as `Int`); traversal recurses through every nesting sub-expression via an exhaustive `child_exprs` match so no future `Expression` variant can silently bypass it.
 
 Issues are collected as `Vec<ValidationIssue>`; `has_errors()` decides whether compilation halts.
 
@@ -87,7 +88,7 @@ The N-of-N exit signature chain only lists pubkeys that actually co-sign the spe
 The compiler distinguishes between CScriptNum (standard Bitcoin) and u64le (64-bit) values. Asset lookups and group sums produce u64le; witness inputs arrive as CScriptNum. The `needs_u64_conversion` function determines when `OP_SCRIPTNUMTOLE64` conversion is needed.
 
 ### Asset ID Decomposition
-Constructor parameters used in `AssetLookup` expressions are automatically decomposed from a single `bytes32` into `_txid` (bytes32) + `_gidx` (int) pairs, matching the on-chain asset ID format.
+Canonical Asset IDs are expressed in source as explicit `(txid, gidx)` pairs — `lookup(txid, gidx)`, `has(txid, gidx)`, `assetGroups.find(txid, gidx)`, `assetGroups.has(txid, gidx)`, and `group.controlIs(txid, gidx)` — where `txid` is a `bytes32` reference and `gidx` is an int reference or a `0..65535` literal, matching the on-chain asset ID format. Constructor `bytes32` parameters used as a `txid` operand are still decomposed into the emitter's `_txid` + `_gidx` placeholder pairs via `collect_lookup_asset_ids` / `decompose_constructor_params`.
 
 ### Direct-Emission Properties
 Most `tx.*` / `this.*` properties compile to `<placeholder>` tokens resolved at deploy time. Two exceptions:
@@ -130,6 +131,7 @@ src/
 - **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard, exit-leaf pubkey filtering), `repayment_pool_test` / `bond_mint_test` (fixed-maturity bond market: phased-lifecycle time gates, strict-burn equality, deployment-invariant assertions including `auctionWindow > 0` / `auctionDiscountBps ∈ [0, 10000)`, ceiling-division origination floor, force-liquidation co-spend regression guards)
 - **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
 - **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
-- **Asset groups**: `group_properties_test`
+- **Asset groups**: `group_properties_test` (`controlIs`/`hasControl` predicates)
+- **Asset IDs**: `asset_id_explicit_test` (explicit `(txid, gidx)` operands; compile-time operand-type/range validation)
 - **Complex contracts**: `arkade_kitties_test`, `token_vault_test`, `threshold_oracle_test`, `threshold_multisig_test`, `epoch_limiter_test`
 - **Validation & structure**: `asm_structural_test` (BSST-style ASM checks), `validation_error_test` (AST/output validator errors), `no_shadowing_test` (immutable-ctor-param assignment rejection, scope-shadowing and `for (x, x)` detection, emitted-namespace collisions), `type_system_test` (typechecker behaviour), `compilation_roundtrip_test` (compile-then-re-parse round-trip), `contract_import_instantiation_test` (cross-contract imports)

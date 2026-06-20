@@ -111,9 +111,26 @@ require(tx.outputs[0].scriptPubKey == expectedScript);
 require(tx.outputs[0].value == borrowAmount);
 ```
 
-**Asset Lookup**:
+**Asset Lookup** (canonical Asset ID is an explicit `(txid, gidx)` pair):
 ```solidity
-require(tx.outputs[0].assets.lookup(tokenId) >= tx.inputs[0].assets.lookup(tokenId));
+// lookup(txid, gidx) asserts the asset is present and returns its amount
+require(tx.outputs[0].assets.lookup(tokenTxid, tokenGidx) >= tx.inputs[0].assets.lookup(tokenTxid, tokenGidx));
+// has(txid, gidx) is a Bool presence predicate (true=present, false=absent)
+require(tx.outputs[0].assets.has(tokenTxid, tokenGidx));
+// gidx may be an int identifier or a 0..65535 literal
+require(tx.inputs[0].assets.has(tokenTxid, 0));
+```
+
+**Asset Groups & Control**:
+```solidity
+// find(txid, gidx) → group position (asserts existence); has(txid, gidx) → Bool
+require(tx.assetGroups.has(tokenTxid, tokenGidx));
+let k = tx.assetGroups.find(tokenTxid, tokenGidx);
+// control is tested with predicates, not struct access:
+//   group.hasControl            → Bool (presence only)
+//   group.controlIs(txid, gidx) → Bool (full canonical control Asset ID equality)
+require(tx.assetGroups[k].hasControl);
+require(group.controlIs(ctrlTxid, ctrlGidx));
 ```
 
 **Internal Helper Functions**:

@@ -113,9 +113,9 @@ arkd is always run from `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` (no built-in fallback
 | Boltz Fulmine    | `ghcr.io/arklabshq/fulmine:v0.3.25`                 | 7002 / 7003 / 7004     | boltz    | Ark wallet + Boltz integration                   |
 | Boltz LND        | `btcpayserver/lnd:v0.19.3-beta`                     | 9736 / 10010           | boltz    | Lightning node used by Boltz                     |
 | Nginx (Boltz)    | `nginx:alpine`                                      | 9069                   | boltz    | CORS proxy fronting Boltz                        |
-| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.1.0`              | 9090                   | boltz    | LNURL endpoints for testing                      |
-| Emulator         | `ghcr.io/arkade-os/emulator:v0.0.1`                 | 7073                   | emulator | arkade-script signing service (default-on)       |
-| Solver           | `ghcr.io/arkade-os/solver:v0.0.1-rc.2`              | 7090 / 7091            | solver   | Arkade virtual-mempool intent solver             |
+| LNURL Server     | `ghcr.io/arklabshq/lnurl-server:0.2.6`              | 9090                   | boltz    | LNURL endpoints for testing                      |
+| Emulator         | `ghcr.io/arkade-os/emulator:v0.0.3`                 | 7073                   | emulator | arkade-script signing service (default-on)       |
+| Solver           | `ghcr.io/arkade-os/solver:v0.0.1-rc.5`              | 7090 / 7091            | solver   | Arkade virtual-mempool intent solver             |
 
 All images and host ports are configurable via `.env.defaults` overrides.
 

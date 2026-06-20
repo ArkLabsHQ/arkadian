@@ -19,21 +19,32 @@ View coverage: `open coverage/index.html`
 
 ## Running E2E Tests
 
+The legacy nigiri `test.docker-compose.yml` walkthrough was removed in PR #689; E2E
+now runs against the in-house `arkade-regtest` Node-CLI stack (provisions arkd + boltz
++ LND + fulmine automatically) plus the `nak` Nostr relay. The faucet is driven via the
+Node CLI (`execFile` with an argument array), and the chain-swap tests assert the
+split invariant (`Amount + Fees === Total`) instead of nigiri-Boltz-specific sat constants.
+
 ```bash
-# Start test environment (arkd + nak Nostr relay)
-docker compose -f test.docker-compose.yml up -d
+# Initialize submodules once
+git submodule update --init --recursive
+
+# Start the regtest stack + nak relay
+pnpm run regtest:start     # node regtest/regtest.mjs start --env .env.regtest
+pnpm run regtest:setup     # seed wallets/fixtures
 
 # Run all E2E tests
 pnpm exec playwright test
 
 # Run specific E2E test
-pnpm exec playwright test src/test/e2e/send.test.ts
+pnpm exec playwright test src/test/e2e/swap.test.ts
 
 # Run with UI mode
 pnpm exec playwright test --ui
 
-# Stop test environment
-docker compose -f test.docker-compose.yml down
+# Stop / clean up (LIFO: docker-compose down, then the regtest stack)
+pnpm run regtest:stop      # stop containers
+pnpm run regtest:clean     # stop + wipe volumes
 ```
 
 ## Test Structure

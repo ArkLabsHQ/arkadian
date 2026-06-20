@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js**: Version 20+ (`node --version`)
+- **Node.js**: Version 24.15.0+ (`node --version`; pinned in `.nvmrc`, enforced by `engines.node`)
 - **pnpm**: Version 10.25.0+ (`pnpm --version`) - Install: `npm install -g pnpm`
 - **Docker**: Required for E2E test environment (`docker --version`)
 
@@ -68,7 +68,7 @@ server {
 ## Docker Deployment
 
 ```dockerfile
-FROM node:20-alpine AS builder
+FROM node:24.15.0-alpine AS builder
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install
@@ -98,7 +98,9 @@ git submodule update --init --recursive
 Then:
 
 ```bash
-# Start arkade-regtest (nigiri + arkd + boltz + LND + fulmine) and nak relay
+# Start arkade-regtest Node-CLI stack (arkd + boltz + LND + fulmine) and nak relay
+# regtest:start runs `node regtest/regtest.mjs start --env .env.regtest` (PR #689,
+# replacing the removed nigiri start-env.sh scripts)
 pnpm run regtest:start
 
 # Seed test fixtures
@@ -140,7 +142,7 @@ pnpm install
 
 **Build failures:**
 ```bash
-node --version              # Verify >= 20
+node --version              # Verify >= 24.15.0
 rm -rf node_modules/.vite  # Clear cache
 pnpm run build
 ```

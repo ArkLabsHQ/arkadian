@@ -97,8 +97,8 @@ contract Name(pubkey user) {
 - **Byte-string ops**: type-dispatched `+` — `OP_CAT` when either operand is bytes-like (`bytes`, `bytes20`, `bytes32`), `OP_ADD64` for pure `int + int`. Int operands on a bytes-mixed `+` are auto-coerced to 8-byte LE via `OP_SCRIPTNUMTOLE64`.
 - **Timelocks**: `tx.time >= value`, exit timelock via options
 - **Transaction introspection**: `tx.inputs[i]`, `tx.outputs[o]`, `tx.version`, `tx.locktime`, `tx.time` (Bitcoin nLockTime block height), `tx.offchainTime` (TEE wallclock unix seconds, distinct from `tx.time`), `tx.input.current`, `this.activeInputIndex` (emits `OP_PUSHCURRENTINPUTINDEX` directly so on-chain self-vs-sibling checks work in exit tapleaves)
-- **Asset introspection**: `tx.inputs[i].assets.lookup()`, `.length`, `[t].assetId`, `[t].amount`
-- **Asset groups**: `tx.assetGroups.find()`, `.length`, `[k].sumInputs`, `.sumOutputs`, `.delta`, `.control`, `.isFresh`
+- **Asset introspection**: `tx.inputs[i].assets.lookup(txid, gidx)` (asserts present, returns amount), `.has(txid, gidx)` (Bool presence), `.length`, `[t].assetId`, `[t].amount` — Asset IDs are explicit canonical `(txid, gidx)` pairs with compile-time operand-type/range validation
+- **Asset groups**: `tx.assetGroups.find(txid, gidx)`, `.has(txid, gidx)`, `.length`, `[k].sumInputs`, `.sumOutputs`, `.delta`, `.metadataHash`, `.isFresh`; control via `[k].hasControl` (Bool) and `group.controlIs(txid, gidx)` (Bool) — replacing the old `.control ==` struct access
 - **Cryptographic primitives**: `ecMulScalarVerify`, `tweakVerify`
 - **Conversion**: `neg64`, `le64ToScriptNum`, `le32ToLe64`
 - **Control flow**: `if/else`, `for` loops (compile-time unrolled)

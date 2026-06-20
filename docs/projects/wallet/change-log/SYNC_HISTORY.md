@@ -1,5 +1,45 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-20 - Documentation Sync
+**Commit**: `4d3ac3de8610235fcbd436332425c07bac80d848`
+**Previous Sync**: `7a028c2f570bbd69cad0c980a49677eeaf1e180a`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 non-merge commits
+- `4d3ac3de` chore: bump regtest submodule to master + finish Node-CLI migration (#689)
+- `b1265bea` feat: Add boltz swap version to chatwoot (#691)
+- `7ae88316` chore: use Node 24.x (#690)
+- `f85ff5c1` fix branta errors (#675)
+- `1dccb969` fix: serve .mjs as JS so the service worker registers (+ runtime-configurable LNURL URL) (#685)
+
+**Features Added / Modified**:
+- **Node 24.x** (PR #690): `engines.node` bumped to `>=24.15.0` (was `>=20.19.0 || >=22.12.0`); new `.nvmrc` pins `24.15.0`; Docker builder image `node:22-alpine` → `node:24.15.0-alpine`.
+- **Node-CLI regtest migration** (PR #689): `regtest:start|stop|clean` now call `node regtest/regtest.mjs <cmd> --env .env.regtest`, replacing the removed nigiri `start-env.sh`/`stop-env.sh`/`clean-env.sh`. Stop/clean tear down `docker-compose.nak.yml` before the regtest stack (LIFO). Stale `ARKD_IMAGE` v0.9.5 / `FULMINE_IMAGE` v0.3.23 pins dropped from `.env.regtest` (submodule default Fulmine v0.3.25 + `FULMINE_DELEGATE_*` contract). Regtest explorer API base → `http://localhost:3000/api`. Chain-swap E2E asserts `Amount + Fees === Total` instead of nigiri sat constants; faucet via `execFile` arg array. `docs/swaps.regtest.md` rewritten for the Node-CLI flow; README/swaps Node prereq bumped.
+- **Runtime-configurable VITE_* + LNURL URL** (PR #685): new `fromRuntimeEnv()` helper (`src/lib/constants.ts`) treats a leftover `__VITE_*__` placeholder as unset — applied to new `VITE_LNURL_SERVER_URL` (`lnurlServerUrl`), `VITE_ARK_SERVER`, and `VITE_BOLTZ_URL`. `docker-entrypoint.sh` rewritten to loop over the live `VITE_*` environment (a new runtime var only needs its Dockerfile `ARG`). `nginx.conf` forces a JS MIME type (`no-cache`) for `.mjs` so `wallet-service-worker.mjs` registers. New `VITE_LNURL_SERVER_URL` declared in `src/vite-env.d.ts`.
+- **Chatwoot boltz_swap_version** (PR #691): Support screen imports `@arkade-os/boltz-swap`'s `sdkVersion` and adds it as the `boltz_swap_version` Chatwoot custom attribute.
+- **Branta v2 client** (PR #675): Send form `BrantaService` uses string-literal config (`baseUrl: 'Production' | 'Staging'`, `privacy: 'strict'`) instead of the removed `BrantaServerBaseUrl` / `PrivacyMode` enums.
+
+**Configuration Changes**:
+- Dependency bumps: `@arkade-os/sdk` 0.4.37 → 0.4.38, `@arkade-os/boltz-swap` 0.3.42 → 0.3.43 (PR #691).
+- Node engine `>=24.15.0`; new `.nvmrc`; new `VITE_LNURL_SERVER_URL` env var; `.env.regtest` image pins dropped.
+
+**Breaking Changes**: None for app users. Dev/CI: Node 24.15.0+ now required; regtest commands changed (nigiri scripts removed).
+
+**Files Touched in Repo** (21 files): `.env.regtest`, `.github/workflows/ci.yml`, `.github/workflows/playwright.yml`, `.nvmrc`, `Dockerfile`, `README.md`, `docker-compose.nak.yml`, `docker-entrypoint.sh`, `docs/swaps.regtest.md`, `nginx.conf`, `package.json`, `pnpm-lock.yaml`, `regtest` (submodule), `src/lib/constants.ts`, `src/lib/explorers.ts`, `src/providers/swaps.tsx`, `src/screens/Settings/Support.tsx`, `src/screens/Wallet/Send/Form.tsx`, `src/test/e2e/receive.test.ts`, `src/test/e2e/swap.test.ts`, `src/vite-env.d.ts`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.25 → 1.2.26 + `last_sync_commit`; Prerequisites Node >= 24.15.0; E2E commands + Node-CLI regtest note; new `VITE_LNURL_SERVER_URL` env row; new "Runtime VITE_* substitution" subsection; SDK/boltz-swap versions 0.4.38 / 0.3.43 with PR #691 + Branta v2 notes; Chatwoot bullet extended with `boltz_swap_version`.
+- `docs/projects/wallet/system/project_overview.md` — Technology Stack SDK/boltz-swap/Branta versions + notes; Project Status dependencies + Node.js >= 24.15.0.
+- `docs/projects/wallet/system/tech-stack.md` — SDK 0.4.38 / boltz-swap 0.3.43 headings; Node.js section (>=24.15.0, `.nvmrc`, Docker image); env table + runtime-substitution note + new `VITE_LNURL_SERVER_URL`; regtest scripts reference table (Node CLI).
+- `docs/projects/wallet/testing/how_to_run.md` — Node prereq, Dockerfile base image, E2E regtest note, build-troubleshooting Node check.
+- `docs/projects/wallet/testing/how_to_test.md` — E2E section rewritten from removed `test.docker-compose.yml` to the Node-CLI regtest flow.
+- `docs/projects/wallet/sop/development-workflow.md` — Node prereq; regtest stack note (Node CLI, nigiri scripts removed).
+- `docs/projects/wallet/sop/building-deployment.md` — Environment Configuration: new `VITE_LNURL_SERVER_URL`, "Runtime Substitution in the Docker Image" subsection (entrypoint loop, `fromRuntimeEnv`, `.mjs` MIME).
+- `docs/INDEX.md` — wallet Key Capabilities: SDK/boltz-swap bump line + 5 new capability bullets (Node 24, Node-CLI regtest, runtime VITE_*/LNURL, Chatwoot boltz_swap_version, Branta v2); Dependencies line bumped (0.4.38 / 0.3.43) + Node requirement; Tags `node24` / `runtime-config`.
+- `docs/projects/wallet/change-log/last-sync.txt` → `4d3ac3de8610235fcbd436332425c07bac80d848`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
 ## 2026-06-19 - Documentation Sync
 **Commit**: `7a028c2f570bbd69cad0c980a49677eeaf1e180a`
 **Previous Sync**: `331f6fc91ba063b21ccf04cd7563d64160c51403`

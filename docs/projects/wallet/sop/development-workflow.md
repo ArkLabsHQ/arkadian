@@ -7,7 +7,7 @@ This document outlines the standard development workflow for the Arkade wallet.
 ### Prerequisites
 
 1. **Install Node.js**
-   - Version: >= 20
+   - Version: >= 24.15.0 (PR #690; pinned in `.nvmrc`, enforced by `engines.node`)
    - Download from: https://nodejs.org/
    - Verify: `node --version`
 
@@ -142,8 +142,10 @@ pnpm run test:coverage
 
 ### E2E Tests (Playwright)
 
-The wallet uses the shared `arkade-regtest` submodule for the full regtest stack
-(nigiri, custom arkd, boltz, LND, fulmine) plus a `nak` Nostr relay container.
+The wallet uses the shared `arkade-regtest` submodule for the full regtest stack —
+driven by its in-house Node CLI (`node regtest/regtest.mjs`, PR #689) provisioning
+custom arkd, boltz, LND, and fulmine — plus a `nak` Nostr relay container. The legacy
+nigiri shell scripts (`start-env.sh`/`stop-env.sh`/`clean-env.sh`) have been removed.
 
 ```bash
 # Initialize submodules (first-time only)

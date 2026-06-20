@@ -1,5 +1,44 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-06-20 — Canonical Asset IDs `(txid, gidx)` + Asset ID Operand Validation
+**Commit Range**: `509a6975` → `d7fa09b5`
+**Synced By**: /update-project compiler
+**Status**: Breaking language/ABI change to asset introspection + new compile-time validation + new test file
+
+**Commits Analyzed** (9):
+- `51426fd` rebase asset introspection to current vm semantics
+- `3e08aa1` remove unused const + update doc
+- `d048dbe` remove redundant comments and asserts
+- `92faabc` remove redundant references
+- `c255875` harden to comparison operator
+- `bc28447` make the asset-ID walker exhaustive for nested expressions
+- `3347dae` fix var references
+- `b2db23b` validate gidx ABI fields and recurse into nested examples
+- `732fbde` drop obsolete null guards, fix controlIs grouping and u64le sign
+
+**Changes**:
+- **BREAKING — canonical Asset IDs are now explicit `(txid, gidx)` pairs.** Grammar/AST/compiler reworked so asset lookups take two operands: `txid` (`bytes32` reference) + `gidx` (int reference or `0..65535` literal).
+  - `assets.lookup(assetId)` → `assets.lookup(txid, gidx)` (asserts present, returns amount)
+  - New `assets.has(txid, gidx)` → Bool presence predicate
+  - `assetGroups.find(assetId)` → `assetGroups.find(txid, gidx)`; new `assetGroups.has(txid, gidx)` → Bool
+  - Group control replaced: `.control ==` struct access removed in favour of `group.hasControl` (Bool presence) and `group.controlIs(txid, gidx)` (Bool full canonical control equality)
+  - New `Expression` variants: `AssetHas`, `GroupHas`, `GroupControlIs`; existing `AssetLookup`/`GroupFind` now carry boxed `asset_txid` + `asset_gidx`
+- **New `check_asset_id_operands` validator (fatal)**: rejects malformed Asset ID operands at compile time — `asset_txid` must resolve to `Bytes32`, `asset_gidx` to `Int` (literal must be `0..=65535`). Scope-aware; traversal uses an exhaustive `child_exprs` match so future `Expression` variants can't bypass it.
+- Examples and per-example JSON regenerated to the new syntax (ArkadeKitties, NFT/controlled mints, bonds, options, swaps, vaults, oracle).
+- New test `tests/asset_id_explicit_test.rs`.
+
+**Documentation Updates**:
+- `system/project_overview.md` — Asset Introspection section rewritten for `(txid, gidx)`, `has`, control predicates, and operand validation.
+- `system/architecture.md` — Expression variant table, AST validation (new `check_asset_id_operands`), Asset ID Decomposition design note, and test inventory.
+- `testing/usage.md` — Asset Lookup / Asset Groups & Control examples updated to the new syntax.
+- `projects/compiler/INDEX.md` — Asset introspection / Asset groups capability lines updated.
+- Master `docs/INDEX.md` — asset introspection capability, tags, and triggers updated.
+
+**Notes**:
+- This is a breaking change to `.ark` asset syntax and the emitted ABI; contracts using the old single-argument `lookup`/`find` or `.control ==` must migrate.
+
+---
+
 ## 2026-06-16 — Binding-Hygiene Validation (Immutable Params, Shadowing, Namespace Collisions)
 **Commit Range**: `d021899c` → `509a6975`
 **Synced By**: /update-project compiler

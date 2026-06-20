@@ -1,5 +1,27 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-20 - boltz-swap offchain refund past CLTV + version export + 0.4.38/0.4.39 releases
+**From**: `89c8d4119274ce18f25d1237b889779da6020618`
+**To**: `6c64a055b650c42383038a2bb66d241896b4bf83`
+**Synced By**: update-project skill
+**Status**: Seven-commit sync, all substantive work in the **vendored sibling boltz-swap package** — `packages/ts-sdk/src/` only saw a one-line docstring trim in `src/utils/fetch.ts` (no behaviour change). Two release cuts (`@arkade-os/sdk` `0.4.37 → 0.4.38 → 0.4.39`, `@arkade-os/boltz-swap` `0.3.42 → 0.3.43 → 0.3.44`). The boltz-swap changes: (1) `5f87cd8f` exposes a new root `sdkVersion` export from boltz-swap (`` `boltz-swap/${version}` ``) so a swap consumer can report the plugin build distinctly from the core SDK build; (2) `07051d04` fixes the VHTLC refund path to **refund live VTXOs offchain past CLTV instead of always joining a batch** — once the CLTV refund locktime elapses the `refundWithoutReceiver` leaf (sender + server, no Boltz) is spendable, so a live (non-recoverable) VTXO settles it with an offchain Ark tx while a swept (recoverable) VTXO still falls back to `joinBatch`; applied symmetrically in `refundVHTLC`/`refundArk` and their Boltz-rejection fallbacks, backed by a new `refundWithoutReceiverVHTLCwithOffchainTx` helper in `boltz-swap/src/utils/vhtlc.ts` (mirrors `claimVHTLCwithOffchainTx`, verifying the server co-signs the `refundWithoutReceiver` leaf and checkpoint txs); (3) three refactors (`3f95983d`/`ed1a9478`/`1f17e346`) unify the per-VTXO refund loop and collapse settle call sites. Detailed boltz-swap docs live in `docs/projects/boltz-swap/`.
+
+**Commits analyzed** (7 non-merge commits):
+- `6c64a055` chore: release @arkade-os/sdk@0.4.39, @arkade-os/boltz-swap@0.3.44 (version bumps only)
+- `273dbe9f` chore: release @arkade-os/sdk@0.4.38, @arkade-os/boltz-swap@0.3.43 (version bumps only)
+- `5f87cd8f` feat: expose boltz-swap version (`boltz-swap/src/index.ts` new `sdkVersion`; `ts-sdk/src/utils/fetch.ts` docstring trim)
+- `3f95983d` refactor(boltz-swap): unify refundVHTLC/refundArk per-VTXO loop
+- `ed1a9478` refactor(boltz-swap): bundle refund context to collapse settle call sites
+- `1f17e346` refactor(boltz-swap): extract settleRefundWithoutReceiver helper
+- `07051d04` fix(boltz-swap): refund live VTXOs offchain past CLTV instead of always joining a batch (adds `refundWithoutReceiverVHTLCwithOffchainTx` to `boltz-swap/src/utils/vhtlc.ts`)
+
+**Documentation changes**:
+- `system/project_overview.md`: bumped workspace-table + Package versions (`0.4.36 → 0.4.39` / `0.3.41 → 0.3.44`); extended the **X-Build-Version / X-SDK-VERSION HTTP Headers** row to note the ts-sdk docstring trim and the new boltz-swap `sdkVersion` export
+- Master `docs/INDEX.md`: extended the X-Build-Version capability bullet with the boltz-swap `sdkVersion` export note; added `0.4.38 release` (with the boltz-swap offchain-refund-past-CLTV summary) and `0.4.39 release` bullets to the ts-sdk section
+- `change-log/last-sync.txt`: `89c8d411 → 6c64a055`
+
+**Tests added**: boltz-swap `test/arkade-swaps.test.ts` updated for the offchain-refund-past-CLTV path (in the sibling package, covered under `docs/projects/boltz-swap/`)
+
 ## 2026-06-19 - Improve MissingSigningDescriptorError message + 0.4.37 release
 **From**: `29635dd0489e165636d7ff5024ac608812a1927a`
 **To**: `89c8d4119274ce18f25d1237b889779da6020618`

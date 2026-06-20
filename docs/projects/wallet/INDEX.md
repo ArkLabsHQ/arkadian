@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.25
-last_sync_commit: 7a028c2f570bbd69cad0c980a49677eeaf1e180a
+version: 1.2.26
+last_sync_commit: 4d3ac3de8610235fcbd436332425c07bac80d848
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -99,7 +99,7 @@ Analysis and summaries of pull requests.
 ## Quick Reference
 
 ### Prerequisites
-- Node.js >= 20
+- Node.js >= 24.15.0 (PR #690; `.nvmrc` pins `24.15.0`, `engines.node` is `>=24.15.0`)
 - pnpm >= 8
 
 ### Development
@@ -134,11 +134,20 @@ pnpm run test:coverage
 
 # Run E2E tests (uses arkade-regtest submodule + nak relay)
 git submodule update --init --recursive
-pnpm run regtest:start
+pnpm run regtest:start   # node regtest/regtest.mjs start --env .env.regtest + nak relay
 pnpm run regtest:setup
 pnpm exec playwright test
-pnpm run regtest:stop
+pnpm run regtest:stop     # docker compose down, then node regtest/regtest.mjs stop
 ```
+
+> **Node-CLI regtest (PR #689)**: the regtest stack is now driven by the in-house
+> `arkade-regtest` Node CLI (`node regtest/regtest.mjs start|stop|clean --env .env.regtest`),
+> replacing the removed nigiri shell scripts (`start-env.sh`/`stop-env.sh`/`clean-env.sh`).
+> `regtest:stop`/`regtest:clean` tear down `docker-compose.nak.yml` **before** the regtest
+> stack (LIFO, matching CI). Stale `ARKD_IMAGE` v0.9.5 / `FULMINE_IMAGE` v0.3.23 pins were
+> dropped from `.env.regtest` so the submodule defaults (incl. Fulmine v0.3.25 with its
+> `FULMINE_DELEGATE_*` env contract) are used. The regtest explorer API base is
+> `http://localhost:3000/api`.
 
 ### Code Quality
 ```bash
@@ -164,6 +173,7 @@ pnpm run format:check
 | `VITE_DEV_NSEC` | Dev-only: nsec to auto-init the wallet (bypasses onboarding/unlock; DEV builds only) | `nsec1...` |
 | `VITE_DEV_MNEMONIC` | Dev-only: 12-word mnemonic to auto-init the wallet, preferred over `VITE_DEV_NSEC` when both set (DEV builds only) (PR #674) | `word1 word2 ... word12` |
 | `VITE_BOLTZ_URL` | Boltz swap provider URL | `https://boltz.example.com` |
+| `VITE_LNURL_SERVER_URL` | lnurl-server base URL (runtime-configurable since PR #685; unset → LNURL disabled) | `https://lnurl.example.com` |
 | `VITE_SENTRY_DSN` | Sentry error tracking DSN | `https://...@sentry.io/...` |
 | `VITE_LENDASAT_IFRAME_URL` | LendaSat integration iframe URL | `https://iframe.lendasat.com` |
 | `VITE_MAX_PERCENTAGE` | Maximum fee percentage (default: 10) | `10` |
@@ -171,6 +181,9 @@ pnpm run format:check
 | `GENERATE_SOURCEMAP` | Generate source maps | `false` |
 | `BASIC_AUTH_USERNAME` | Optional HTTP Basic Auth user (dev/preview + Cloudflare Pages). When unset, auth is a no-op. (PR #619) | `arkade` |
 | `BASIC_AUTH_PASSWORD` | Optional HTTP Basic Auth password — paired with `BASIC_AUTH_USERNAME`. (PR #619) | `s3cret` |
+
+### Runtime VITE_* substitution (PR #685)
+Vite bakes `__VITE_FOO__` placeholders into the bundle at build time (one `ARG` per var in the `Dockerfile`); `docker-entrypoint.sh` substitutes them with real values at container startup, so one image serves multiple environments. The entrypoint now **loops over the actual `VITE_*` environment**, so a new runtime-configurable var only needs its `ARG` in the Dockerfile — no parallel list in the entrypoint to keep in sync. The `fromRuntimeEnv()` helper (`src/lib/constants.ts`) treats a leftover `__VITE_*__` placeholder (var not set at deploy time) as **unset** rather than a literal value; it now guards `VITE_LNURL_SERVER_URL` (`lnurlServerUrl`), `VITE_ARK_SERVER` (`defaultArkServer`), and `VITE_BOLTZ_URL` (boltz bitcoin slot). nginx also forces a JS MIME type for `.mjs` (`no-cache`) so the service worker (`wallet-service-worker.mjs`) registers instead of being served as `application/octet-stream`.
 
 ### Default Configuration
 - **Dev server port**: 3002
@@ -196,9 +209,9 @@ pnpm run format:check
 - **shadcn migration of core components (PR #593)**: `Modal`, `Checkbox`, `Select`, and `Toggle` now sit on shadcn primitives. `Modal` uses Framer Motion `AnimatePresence` with new `open`/`onOpenChange`/`onExitComplete` controlled-modal props (Burn/Reissue use `onExitComplete` for async coordination; Backup/Announcement use controlled props). `Checkbox` wraps shadcn `Checkbox` with label-bound control path and same-state event guard. `Select` migrates to shadcn `RadioGroup` (preserves arrow-key navigation). `Toggle` uses shadcn `Switch` with a new `lg` size variant (iOS-like three-layer shadow, 44 px minimum tap target). `MAX_DECIMALS` raised to 8. New `vitest.config.ts` split out from `vite.config.ts`. Uses `cmdk-base` / `vaul-base` and `@base-ui/react`. `bun.lock` restored at repo root for Cloudflare Pages deploys.
 
 ### Arkade Integration
-- **@arkade-os/sdk** (0.4.37): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.36 in PR #684 (0.4.37 is a release-only patch carrying a `MissingSigningDescriptorError` message fix; no other `packages/ts-sdk/src/` changes). Also exports `buildVersion` / `sdkVersion` constants now surfaced in the Support screen's Chatwoot attributes (PR #686). Earlier bumped from 0.4.35 in PR #676, and from 0.4.34 in PR #670 (consumes ts-sdk PR #554 arkd signer-rotation support: `signerSetFromInfo`, `classifyAgainstSignerSet`, `SignerSet`/`SignerStatus` types, typed `ArkError`/`BUILD_VERSION_TOO_OLD`)
-- **@arkade-os/boltz-swap** (0.3.42): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.41 in PR #684. Earlier bumped from 0.3.40 in PR #676 (0.3.41 adds optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, and preimage backfill in `refreshSwapsStatus`), and from 0.3.39 in PR #670. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
-- **@branta-ops/branta** (3.1.3): payment-destination verification for pasted addresses/invoices in the Send form (upgraded in PR #673; uses `getPayments`, debounced 400 ms for typed input)
+- **@arkade-os/sdk** (0.4.38): Ark protocol SDK (wallet operations, VTXOs) — bumped from 0.4.37 in PR #691. Earlier bumped from 0.4.36 in PR #684 (0.4.37 is a release-only patch carrying a `MissingSigningDescriptorError` message fix), from 0.4.35 in PR #676, and from 0.4.34 in PR #670 (consumes ts-sdk PR #554 arkd signer-rotation support: `signerSetFromInfo`, `classifyAgainstSignerSet`, `SignerSet`/`SignerStatus` types, typed `ArkError`/`BUILD_VERSION_TOO_OLD`). Also exports `buildVersion` / `sdkVersion` constants surfaced in the Support screen's Chatwoot attributes (PR #686).
+- **@arkade-os/boltz-swap** (0.3.43): Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId passed to `BoltzSwapProvider` + arkadeSwaps) — bumped from 0.3.42 in PR #691. Its `sdkVersion` is now imported into the Support screen as the `boltz_swap_version` Chatwoot custom attribute (PR #691). Earlier bumped from 0.3.41 in PR #684, from 0.3.40 in PR #676 (0.3.41 adds optimistic `waitFor: 'funded'` Lightning resolution, `waitForSwapFunded`, and preimage backfill in `refreshSwapsStatus`), and from 0.3.39 in PR #670. PR #637 moved pnpm build-dependency settings (`onlyBuiltDependencies: ['@arkade-os/sdk']`, `ignoredBuiltDependencies: ['esbuild']`) out of `package.json` and into `pnpm-workspace.yaml`.
+- **@branta-ops/branta** (3.1.3): payment-destination verification for pasted addresses/invoices in the Send form (upgraded in PR #673; uses `getPayments`, debounced 400 ms for typed input). PR #675 migrated the Send form to the v2 client (`@branta-ops/branta/v2` `BrantaService`) using plain string literals (`baseUrl: 'Production' | 'Staging'`, `privacy: 'strict'`) instead of the removed `BrantaServerBaseUrl` / `PrivacyMode` enums.
 - **@tanstack/react-virtual** (^3.13.19): Virtualized list rendering (`SwapsList`, dev-mode Contracts list)
 
 ### Bitcoin/Cryptography
@@ -322,7 +335,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 
 ### Announcements & Support
 - **In-app announcements**: Server-pushed notification banners
-- **Chatwoot**: Live customer support chat widget. The Support screen (`src/screens/Settings/Support.tsx`) attaches diagnostic Chatwoot custom attributes including `git_commit`, and (PR #686) the `@arkade-os/sdk` `buildVersion` and `sdkVersion` constants as `build_version` / `sdk_version`.
+- **Chatwoot**: Live customer support chat widget. The Support screen (`src/screens/Settings/Support.tsx`) attaches diagnostic Chatwoot custom attributes including `git_commit`, (PR #686) the `@arkade-os/sdk` `buildVersion` and `sdkVersion` constants as `build_version` / `sdk_version`, and (PR #691) the `@arkade-os/boltz-swap` `sdkVersion` as `boltz_swap_version`.
 - **Support page**: Dedicated help and support screen
 
 ### Nostr Backup

@@ -1,5 +1,24 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-06-20 - Sync update (image bumps)
+**From**: `0ed365dce9fd86563eadcc2c6b92ff441dc1764f`
+**To**: `f8afb42aaaa39d1bc530b7a21fc58d0426308e48`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 2
+
+**Upstream commits**:
+- `d79cf08` chore: bump emulator/solver/lnurl images (#34)
+- `f8afb42` fix: avoid creating bitcoin core wallet while previous one is still initializing (#33)
+
+**Changes**:
+- `INDEX.md` (project) — Bundled Services table image bumps: LNURL Server `0.1.0` → `0.2.6`, Emulator `v0.0.1` → `v0.0.3`, Solver `v0.0.1-rc.2` → `v0.0.1-rc.5`.
+- `system/configuration.md` — Updated the same three pinned defaults in the Pinned Image Versions table and in the Emulator (`EMULATOR_IMAGE`) and Solver (`SOLVER_IMAGE`) sections.
+
+**Notes**:
+- Pure image-version bumps in `.env.defaults` and the `compose.ark.yml` fallback defaults (kept in sync). Non-breaking. lnurl `0.2.6` keeps the same env contract (`PORT` / `BASE_URL` / `MIN_SENDABLE` / `MAX_SENDABLE` / `INVOICE_TIMEOUT_MS`); it only adds an admin port 3001 that the compose does not publish.
+- `f8afb42` is an internal `lib/chain.mjs` fix (skip `createwallet` when a Bitcoin Core wallet is already loaded, avoiding a race during initialization) — no documentation impact.
+- Master `docs/INDEX.md` lists the arkade-regtest dependency images without version tags, so no master-index change was needed for these bumps.
+
 ## 2026-06-18 - Sync update (major rewrite)
 **From**: `8b72836e30607439d264cdf4dee8a92e5fb1ec43`
 **To**: `0ed365dce9fd86563eadcc2c6b92ff441dc1764f`

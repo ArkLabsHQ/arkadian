@@ -1,5 +1,50 @@
 # Documentation Sync History - arkana-knowledge
 
+## 2026-06-20 - Operational Memory Sync (no doc changes)
+**Commit Range**: `13613fa2..723729d5` (14 commits, all `memory(*)` agent activity)
+**Previous Recorded Sync**: `57cd133633e94c3365c81fb7b5c395084caa5d02` (2026-06-19T02:19:16Z)
+**Caller-Asserted From**: `13613fa2f8cc8152a3d81edad9ad58e4a4959093` (2026-06-19T08:00 issue-triage run) — 3 commits *ahead* of the previous recorded sync. The intervening gap (`57cd133..13613fa2`) is 3 memory-only commits (`317039b` repo-detector scan stable/zero changes, `2b317b7` release-coordinator quiet window rust-sdk#248 ~30h stall, `13613fa` issue-triage quiet window), touching only `memory/agent-logs/` and `memory/project-context/sdk-parity.md`, so no documentation coverage was lost by syncing forward from the caller-asserted from-commit.
+**Current Sync**: `723729d5f40b99d7aef04d24fa35c6a75005ae42` (committed 2026-06-20T02:29:21Z)
+**Synced By**: /update-project skill
+**Status**: Tracking-only update — no documentation changes required
+
+**Commits Analyzed (14, all internal agent state)**:
+- `723729d` memory(issue-triage): triage run 2026-06-20T04:00:00Z — 0 new issues, both orgs quiet
+- `cb12060` memory(release-coordinator): release check 2026-06-20T00:00:00Z — RED ALERT: arkd standalone signer no release + go-sdk CI failures, June 22 in 2 days
+- `e2aad24` memory(slack-monitor): daily scan 2026-06-19
+- `9a2844b` memory(daily-briefing): morning briefing 2026-06-19
+- `8e9da84` memory(issue-triage): triage run 2026-06-20T00:00:00Z — 0 new issues, both orgs quiet
+- `240e494` memory(linear-sync): state snapshot 2026-06-19
+- `b23ea09` memory(executive-digest): critical corrections + BREAKING changes 2026-06-19
+- `171f7dc` memory(release-coordinator): release check 2026-06-19T20:00:00Z — quiet window, rust-sdk#248 ~46h stall
+- `851f2ad` memory(issue-triage): triage run 2026-06-19T20:00:00Z — 0 new issues, both orgs quiet
+- `81c1ed1` memory(release-coordinator): release check 2026-06-19T16:00:00Z — quiet window, rust-sdk#248 ~42h stall, arkd#1119 protocol-critical noted
+- `33fbc8d` memory(issue-triage): triage run 2026-06-19T16:00:00Z — arkd#1119 SETTLEMENT_MIN_EXPIRY_GAP feature (protocol-critical)
+- `c096bf4` memory(release-coordinator): release check 2026-06-19T12:00:00Z — quiet window, rust-sdk#248 ~38h stall
+- `ed1b48e` memory(issue-triage): triage run 2026-06-19T12:00:00Z — 0 new issues, both orgs quiet
+- `4fc4dc9` memory(release-coordinator): release check 2026-06-19T08:00:00Z — quiet window, rust-sdk#248 ~34h stall
+
+**Files Changed (all under `memory/`)**:
+- `memory/agent-logs/daily-briefing.md`, `executive-digest.md`, `issue-triage.md`, `linear-sync.md`, `release-coordinator.md`, `slack-monitor.md`
+- `memory/executive-digest-queue.json`
+- `memory/slack-log.md`
+
+**Rationale for No Doc Updates**:
+Per the update-project skill's "internal-only changes → skip doc updates" rule. The full range from the previous recorded sync through HEAD touches only `memory/` — routine agent operational run-logs / audit trail appended directly to `main` (the agent-memory exception to the branch+PR rule). No changes to agent configs, the 17-agent roster, architecture, MCP server, Slack bot, webhook relay, dependencies, endpoints, or documented capabilities. Notable ecosystem events tracked in agent memory only (release-coordinator RED ALERT on the arkd standalone-signer release + go-sdk CI failures ahead of a June 22 cutoff, executive-digest BREAKING-change corrections, arkd#1119 SETTLEMENT_MIN_EXPIRY_GAP protocol-critical feature triage, rust-sdk#248 signer-rotation PR ~46h stall) do not alter arkana-knowledge's own structure or surface.
+
+**Files Updated by This Sync**:
+- `docs/projects/arkana-knowledge/INDEX.md` — bumped `last_sync_commit` + `last_sync_date` in frontmatter
+- `docs/projects/arkana-knowledge/change-log/last-sync.txt` — bumped to `723729d5f40b99d7aef04d24fa35c6a75005ae42`
+- `docs/projects/arkana-knowledge/change-log/SYNC_HISTORY.md` — appended this entry
+
+**Files NOT Updated** (no substantive change):
+- `system/*`, `testing/*`, `sop/*` — architecture, capabilities, agent roster, endpoints, policies all unchanged
+- Master `docs/INDEX.md` — arkana-knowledge entry (17 active agents, MCP server, Slack bot, webhook relay, capabilities, tags, dependency surface) already current and unchanged by this memory-only range
+
+**Notes**:
+- All commits are operational state updates produced by Arkana's scheduled agents — by design these do not alter the documented system surface
+- Per caller directive: no commit, no branch created
+
 ## 2026-06-19 - Operational Memory Sync (no doc changes)
 **Commit Range**: `25014f8..57cd133` (15 commits, all `memory(*)` agent activity)
 **Previous Recorded Sync**: `1028154a99677bf818bbe5bcd96fb0c092b7c03f` (2026-06-18T02:10:31Z)

@@ -134,7 +134,7 @@ t.error('Invoice rejected')
 
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.34
+### @arkade-os/sdk 0.4.38
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -159,7 +159,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.39
+### @arkade-os/boltz-swap 0.3.43
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:
@@ -556,13 +556,13 @@ if (process.env.VITE_SENTRY_DSN && !window.location.hostname.includes('localhost
 
 ### Node.js
 
-**Minimum Version**: 20.x
+**Minimum Version**: 24.15.0 (PR #690; bumped from `>=20.19.0 || >=22.12.0`). `.nvmrc` pins `24.15.0`; the Docker builder image is `node:24.15.0-alpine`.
 
 **Engine Enforcement** (`package.json`):
 ```json
 {
   "engines": {
-    "node": ">=20",
+    "node": ">=24.15.0",
     "pnpm": ">=8"
   }
 }
@@ -576,9 +576,12 @@ Configured via `.env` files, accessed in code via `import.meta.env.VITE_*`:
 |----------|---------|---------|
 | `VITE_ARK_SERVER` | Default arkd server URL | `http://localhost:7070` |
 | `VITE_BOLTZ_URL` | Boltz swap provider URL | `https://boltz.exchange/api` |
+| `VITE_LNURL_SERVER_URL` | lnurl-server base URL (runtime-configurable, PR #685; unset → LNURL disabled) | `https://lnurl.example.com` |
 | `VITE_SENTRY_DSN` | Sentry error tracking DSN | `https://...@sentry.io/...` |
 | `CI` | CI environment flag | `true` |
 | `GENERATE_SOURCEMAP` | Enable source maps in build | `false` |
+
+**Runtime substitution (PR #685)**: `VITE_*` values are baked as `__VITE_NAME__` placeholders at build time (one `ARG` per var in the `Dockerfile`) and replaced at container startup by `docker-entrypoint.sh`, which loops over the live `VITE_*` environment (so adding a runtime-configurable var only requires its Dockerfile `ARG`). The `fromRuntimeEnv()` helper in `src/lib/constants.ts` treats a leftover `__VITE_*__` placeholder as "unset" — applied to `VITE_LNURL_SERVER_URL`, `VITE_ARK_SERVER`, and `VITE_BOLTZ_URL`.
 
 ## Progressive Web App (PWA)
 
@@ -692,9 +695,9 @@ if ('serviceWorker' in navigator) {
 | `format` | `prettier --write src` | Format code |
 | `format:check` | `prettier --check src` | Check formatting |
 | `git-info` | `node scripts/git-commit-info.js` | Generate build metadata |
-| `regtest:start` | `./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d` | Start arkade-regtest stack + nak relay |
-| `regtest:stop` | `./regtest/stop-env.sh && docker compose -f docker-compose.nak.yml down` | Stop regtest environment |
-| `regtest:clean` | `./regtest/clean-env.sh && docker compose -f docker-compose.nak.yml down -v` | Tear down and wipe volumes |
+| `regtest:start` | `node regtest/regtest.mjs start --env .env.regtest && docker compose -f docker-compose.nak.yml up -d` | Start arkade-regtest Node-CLI stack + nak relay (PR #689) |
+| `regtest:stop` | `docker compose -f docker-compose.nak.yml down && node regtest/regtest.mjs stop --env .env.regtest` | Stop regtest environment (LIFO teardown) |
+| `regtest:clean` | `docker compose -f docker-compose.nak.yml down -v && node regtest/regtest.mjs clean --env .env.regtest` | Tear down and wipe volumes |
 | `regtest:setup` | `node src/test/setup.mjs` | Seed wallet/test fixtures |
 
 ## Security Dependencies

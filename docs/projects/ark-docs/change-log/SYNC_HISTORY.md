@@ -1,5 +1,39 @@
 # Documentation Sync History - Ark Docs
 
+## 2026-06-20 - New "Run a Delegate Server" wallet runbook (Fulmine headless)
+**Commit**: `581050073324ad4e5f3978d8a34e054f8b5b5abf`
+**Previous Sync**: `549339023bf1771c8211e6a9f551ed8a68acdb1d`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits — a single PR adding one new wallet advanced page plus its cross-links.
+- `a6c3a9d` add Delegate Server runbook (Fulmine headless)
+- `8d4e3b0` simplify delegate runbook - no wallet/unlock/esplora
+- `c22ff3c` fix delegate API port/path and field name
+- `42f37ce` tighten delegate-server intro; fix API name
+- `d0fdf0f` use "Delegate API" consistently; refine env/fee notes
+
+**Structural Changes**:
+- NEW: `wallets/advanced/delegate-server.mdx` — "Run a Delegate Server" runbook. Walks through running [Fulmine](https://github.com/ArkLabsHQ/fulmine) **headless** as a delegate that renews users' VTXOs before batch expiry without ever holding their keys (fully self-custodial; clients hand over presigned, BIP322-bound intents). Covers:
+  - **Ports**: `7000` gRPC (`FULMINE_GRPC_PORT`, unused for delegate-only), `7001` HTTP/REST + Web UI (`FULMINE_HTTP_PORT`, delegation status lookups), `7002` **Delegate API** (`FULMINE_DELEGATE_PORT`, served at `/v1/...` with no `/api` prefix).
+  - **Docker quickstart** with `FULMINE_DELEGATE_ENABLED=true`; the Delegate API needs **no wallet** (nothing to create, unlock, or fund). Verify via `GET /v1/delegate/info` on port 7002.
+  - **Env vars**: `FULMINE_ARK_SERVER`, `FULMINE_DELEGATE_ENABLED`, `FULMINE_DELEGATE_PORT`, `FULMINE_DELEGATE_FEE`, `FULMINE_DATADIR` (config is entirely `FULMINE_`-prefixed env vars — no CLI flags).
+  - **Client flow** (discover → delegate via `POST /v1/delegate` → renew, tracked via `GET /api/v1/delegates` on 7001 with `status`/`limit`/`offset`).
+  - Notes the preferred `delegateAddress` field / `/v1/delegate/info` endpoint and their deprecated `delegatorAddress` / `/v1/delegator/info` aliases; links the TS-SDK `delegate.js` example. Security `<Warning>`: REST/gRPC are unauthenticated — keep off the public internet.
+
+**`docs.json` / Cross-link Changes**:
+- `docs.json`: added `wallets/advanced/delegate-server` to the wallets **advanced** group nav (after `vtxo-management`).
+- `learn/core-concepts/vtxo-lifecycle-and-liveness.mdx`: the "Self-hosted" renewal card now links to `/wallets/advanced/delegate-server`.
+- `wallets/advanced/vtxo-management.mdx`: added a "Delegate Server" entry to its **Next Steps**.
+
+**Other**: No removals, renames, redirects, tooling, or SEO changes.
+
+**Files Updated in Arkadian Registry**:
+- docs/projects/ark-docs/INDEX.md — added `delegate-server` to the wallets `advanced/` listing and the wallets file tree.
+- docs/INDEX.md — ark-docs Key Capabilities: wallets `advanced` bullet now calls out the headless **delegate-server** runbook; Tags add `delegate-server`, `delegate-api`; footer Last Updated 2026-05-26 → 2026-06-20, Version 1.6.5 → 1.6.6.
+- docs/projects/ark-docs/change-log/last-sync.txt → 581050073324ad4e5f3978d8a34e054f8b5b5abf
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md — this entry
+
 ## 2026-06-06 - Reference SDK Rename, New Fulmine Reference, Expanded Agent Context
 **Commit**: `549339023bf1771c8211e6a9f551ed8a68acdb1d`
 **Previous Sync**: `dcc34b2da502ab77a007eeda21ef8162579ce81b`

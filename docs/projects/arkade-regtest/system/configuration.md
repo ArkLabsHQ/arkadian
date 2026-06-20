@@ -47,11 +47,11 @@ node regtest.mjs start                         # auto-discover ../.env.regtest o
 | `BOLTZ_LND_IMAGE`    | `btcpayserver/lnd:v0.19.3-beta`          |
 | `BOLTZ_IMAGE`        | `boltz/boltz:latest`                     |
 | `NGINX_IMAGE`        | `nginx:alpine`                           |
-| `LNURL_IMAGE`        | `ghcr.io/arklabshq/lnurl-server:0.1.0`   |
+| `LNURL_IMAGE`        | `ghcr.io/arklabshq/lnurl-server:0.2.6`   |
 | `WALLET_IMAGE`       | `ghcr.io/arkade-os/wallet:latest`        |
 | `EXPLORER_IMAGE`     | `ghcr.io/arklabshq/arkade-explorer:latest` |
-| `EMULATOR_IMAGE`     | `ghcr.io/arkade-os/emulator:v0.0.1`      |
-| `SOLVER_IMAGE`       | `ghcr.io/arkade-os/solver:v0.0.1-rc.2`   |
+| `EMULATOR_IMAGE`     | `ghcr.io/arkade-os/emulator:v0.0.3`      |
+| `SOLVER_IMAGE`       | `ghcr.io/arkade-os/solver:v0.0.1-rc.5`   |
 
 arkd is **always** run from `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` — there is no built-in fallback. The default `v0.9.9-rc.1` is required for the [signer rotation](#operator-signer-rotation) feature (deprecated-signer support landed after `v0.9.6`).
 
@@ -133,7 +133,7 @@ arkd-wallet reads its active signer from `ARKD_WALLET_SIGNER_KEY` and deprecated
 ### Emulator (arkade-script signing service, default-on)
 | Variable              | Default                            | Meaning                                                       |
 | --------------------- | ---------------------------------- | ------------------------------------------------------------- |
-| `EMULATOR_IMAGE`      | `ghcr.io/arkade-os/emulator:v0.0.1`| Image for the Emulator. Set to `""` to disable the overlay.   |
+| `EMULATOR_IMAGE`      | `ghcr.io/arkade-os/emulator:v0.0.3`| Image for the Emulator. Set to `""` to disable the overlay.   |
 | `EMULATOR_PORT`       | `7073`                             | Host port for the emulator's `/v1/info` HTTP API.             |
 | `EMULATOR_SECRET_KEY` | (32-byte hex; see `.env.defaults`) | Deterministic signing key; the matching x-only pubkey is reported on `/v1/info`. |
 | `EMULATOR_ARKD_URL`   | `arkd:7070`                        | arkd hostname:port reachable inside the docker network.       |
@@ -144,7 +144,7 @@ Started last, after arkd is wallet-ready. Disable for a faster boot with `EMULAT
 ### Solver (arkade virtual-mempool intent solver)
 | Variable                  | Default                                  | Meaning                                                       |
 | ------------------------- | ---------------------------------------- | ------------------------------------------------------------- |
-| `SOLVER_IMAGE`            | `ghcr.io/arkade-os/solver:v0.0.1-rc.2`   | Image for the solver (`solver` profile).                      |
+| `SOLVER_IMAGE`            | `ghcr.io/arkade-os/solver:v0.0.1-rc.5`   | Image for the solver (`solver` profile).                      |
 | `SOLVER_GRPC_PORT` / `SOLVER_HTTP_PORT` | `7090` / `7091`            | Host ports (remapped off arkd's 7070/7071 to avoid collision).|
 | `SOLVER_WALLET_SEED`      | (32-byte / 64-hex; see `.env.defaults`)  | Deterministic wallet seed; must be even-length hex.           |
 | `SOLVER_WALLET_PASSWORD`  | `password`                               | Solver wallet password.                                       |

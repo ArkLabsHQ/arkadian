@@ -193,15 +193,35 @@ Set in `.env.production`:
 ```
 VITE_ARK_SERVER=https://ark.example.com
 VITE_BOLTZ_URL=https://boltz.example.com
+VITE_LNURL_SERVER_URL=https://lnurl.example.com
 VITE_SENTRY_DSN=https://xxx@sentry.io/xxx
 ```
 
 ### Platform-Specific Configuration
 
-Variables are embedded at build time, so:
+For static-host builds (Vercel/Netlify/Pages), variables are embedded at build time, so:
 1. Set environment variables before build
 2. Or configure in hosting platform UI
 3. Rebuild when configuration changes
+
+### Runtime Substitution in the Docker Image (PR #685)
+
+The Docker image bakes `__VITE_NAME__` placeholders into the JS bundle at build time
+(one `ARG` per var in the `Dockerfile`, e.g. `VITE_LNURL_SERVER_URL`) and substitutes
+them at container startup, so **one image can serve multiple environments without a
+rebuild**:
+
+- `docker-entrypoint.sh` loops over the live `VITE_*` environment and rewrites the
+  matching `__VITE_*__` placeholders. Adding a new runtime-configurable var only
+  requires its `ARG` in the `Dockerfile` — there is no parallel list in the entrypoint.
+- Empty/unset values are skipped, leaving the placeholder in the bundle. The app's
+  `fromRuntimeEnv()` helper (`src/lib/constants.ts`) treats a leftover `__VITE_*__`
+  placeholder as **unset** (applies to `VITE_LNURL_SERVER_URL`, `VITE_ARK_SERVER`,
+  `VITE_BOLTZ_URL`) so a deployment that doesn't set a var falls back to defaults
+  rather than using a bogus literal URL.
+- `nginx.conf` forces a JS MIME type (`default_type application/javascript`, `no-cache`)
+  for `.mjs` so the service worker (`wallet-service-worker.mjs`) registers instead of
+  being rejected as `application/octet-stream`.
 
 ## PWA Deployment Checklist
 

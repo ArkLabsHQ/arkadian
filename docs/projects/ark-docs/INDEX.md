@@ -108,7 +108,7 @@ Guide for building Ark wallets with the TypeScript SDK.
 - **getting-started/** — introduction, developer-resources, create-your-wallet, arkade-addresses, ai-agents
 - **operations/** — receiving-payments, checking-balances, sending-payments, payment-history
 - **operations/assets/** — get-started, issue-assets, reissue-and-burn, send-assets, check-balance, verify-asset-metadata
-- **advanced/** — ramps, settlement-process, vtxo-management, storage-adapters, service-worker, expo-react-native
+- **advanced/** — ramps, settlement-process, vtxo-management, delegate-server, storage-adapters, service-worker, expo-react-native
 
 The `v0.4/` prefix was dropped: the latest wallet docs now live directly under `wallets/`. Page slugs no longer carry a `v0.4` segment, and `docs.json` redirects all former `/wallets/v0.4/...` URLs to the new locations. The `version` selector in the Mintlify nav still distinguishes "v0.4 (Latest)" from "v0.3".
 
@@ -294,6 +294,7 @@ wallets/
 │   ├── ramps.mdx
 │   ├── settlement-process.mdx
 │   ├── vtxo-management.mdx
+│   ├── delegate-server.mdx     # Run Fulmine headless as a delegate (renew VTXOs for users)
 │   ├── storage-adapters.mdx
 │   ├── service-worker.mdx
 │   └── expo-react-native.mdx
