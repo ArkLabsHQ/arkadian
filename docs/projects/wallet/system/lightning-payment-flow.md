@@ -11,6 +11,8 @@ When an Arkade wallet user pays a Lightning invoice, the system performs a **sub
 - **Arkd**: Ark server managing VTXOs and rounds
 - **Lightning Node**: User's connected LN node for receiving payment
 
+> **Wallet UX — optimistic send + live settlement tracking (PR #668):** as of PR #668 the wallet no longer blocks the send UI until Boltz claims the HTLC (steps 9–14 below). `payInvoice` (`src/providers/swaps.tsx`) resolves as soon as the swap is **funded** — the lockup tx is observed and funds are committed/refundable — via the SDK's `waitForSwapFunded` (replacing `waitForSwapSettlement`), returning only `{ txid }` (the preimage is no longer surfaced to the UI). The user lands on the success screen immediately, where `Send/Success.tsx` shows a live `processing → completed / failed / refunded` status (`deriveLnSendStatus`, driven by `hasSubmarineStatusReached('invoice.paid')` / `isSubmarineFailedStatus` over the persisted swap in `SwapsContext`). The SDK keeps monitoring in the background, so the `SwapsList` history row still transitions Pending → Successful/Refunded via the SwapManager subscription, and a post-funding failure surfaces as "Payment failed" before the auto-refund. The blocking sequence below still describes the underlying swap mechanics; only the wallet's resolution point moved earlier (from "invoice.settled" to "swap funded").
+
 ---
 
 ## 1. HIGH-LEVEL USER JOURNEY DIAGRAM

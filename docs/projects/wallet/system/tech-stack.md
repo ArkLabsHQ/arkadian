@@ -134,7 +134,7 @@ t.error('Invoice rejected')
 
 ## Arkade Integration
 
-### @arkade-os/sdk 0.4.38
+### @arkade-os/sdk 0.4.39
 **Purpose**: Ark protocol SDK for wallet operations
 
 **Core Capabilities**:
@@ -159,7 +159,7 @@ interface ArkWallet {
 }
 ```
 
-### @arkade-os/boltz-swap 0.3.43
+### @arkade-os/boltz-swap 0.3.44
 **Purpose**: Lightning Network swap integration via Boltz
 
 **Features**:
@@ -170,6 +170,7 @@ interface ArkWallet {
 - HTLC-based atomic execution
 - Submarine recovery API: `scanRecoverableSubmarineSwaps()` returns `SubmarineRecoveryInfo[]` with status `recoverable | pre_cltv | invalid_swap | already_spent | none`; `recoverSubmarineFunds(BoltzSubmarineSwap)` sweeps a single swap (used by Apps → Boltz → Settings bulk recovery)
 - `referralId` constructor option on `BoltzSwapProvider` and the arkadeSwaps service-worker entry — wallet passes `'arkade-money'`
+- Optimistic-send API (0.3.44, consumed by PR #668): `waitForSwapFunded(swap)` resolves once the lockup tx is observed (vs `waitForSwapSettlement` which blocks until Boltz claims the HTLC); plus the `BoltzSwapStatus` type and `hasSubmarineStatusReached(status, target)` / `isSubmarineFailedStatus(status)` helpers the Send success screen uses to derive a live `processing → completed / failed / refunded` status
 
 **API Usage**:
 ```typescript

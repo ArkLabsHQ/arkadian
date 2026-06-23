@@ -314,6 +314,45 @@ Get Boltz's partial signature for cooperative (Taproot key path) claim.
 }
 ```
 
+### POST /v2/swap/restore
+
+Restore (rescue) swaps when local state was lost. Search by an XPUB, a single public
+key, multiple public keys, or — since PR #1434 — a single **EVM claim address**. Returns
+full `RestorableSwap` details needed to resume, claim, or refund.
+
+**Request Body (EVM address variant)**:
+```json
+{
+  "address": "0xAbC...40hex",
+  "timestamp": 1750000000,
+  "signature": "0x...130hex"
+}
+```
+
+- `address`: EVM address (checksummed or lowercase) to match against the swap claim address.
+- `timestamp`: Unix seconds embedded in the signed message; must be within **60 seconds**
+  of server time to limit replay.
+- `signature`: EIP-191 `personal_sign` (65-byte hex) proving ownership of `address`. The
+  signed message uses the EIP-55 checksummed address:
+  ```
+  Boltz swap restore
+  address: <address>
+  timestamp: <timestamp>
+  ```
+
+(The XPUB / public-key variants use the existing `RescueRequest` body.)
+
+**Response**: array of `RestorableSwap`. Each `claimDetails` is discriminated by a `type` field:
+- `type: "utxo"` → `RestoreClaimDetails`: swap `tree`, `keyIndex`, `lockupAddress`,
+  `serverPublicKey`, required `timeoutBlockHeight`, `preimageHash` (the Ark
+  `timeoutBlockHeights` field was removed).
+- `type: "evm"` → `RestoreEvmClaimDetails`: `contractAddress` (EtherSwap/ERC20Swap),
+  `claimAddress`, optional `EvmTransaction` (`{ id }`), `amount`, `timeoutBlockHeight`. Full
+  lockup values can be reconstructed from the contract `Lockup` event filtered by preimage hash.
+
+The lockup `Transaction` object in restore responses now carries `id` + `vout` (output index)
+instead of `id` + `hex`. Invalid/expired signatures return HTTP `400`.
+
 ## WebSocket API
 
 ### Subscribe to Swap Updates

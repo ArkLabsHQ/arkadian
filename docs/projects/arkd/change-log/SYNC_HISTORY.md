@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-23 - Documentation Update
+**Commit**: `51384c05` (arkd repository)
+**Previous Sync**: `ccda5c50`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `51384c05` fix: Return accepted or finalized tx in indexer.GetVirtualTx and service.GetPendingTx (#1123)
+
+**Fixes**:
+- **`SelectOffchainTx` returns only accepted/finalized txs (PR #1123)**: the offchain-tx repository query that backs `indexer.GetVirtualTx` and `service.GetPendingTx` now filters `SELECT sqlc.embed(offchain_tx_vw) FROM offchain_tx_vw WHERE txid = @txid AND (stage_code = 2 OR stage_code = 3)` on both postgres (`internal/infrastructure/db/postgres/sqlc/query.sql`) and sqlite (`internal/infrastructure/db/sqlite/sqlc/query.sql`), with the sqlc-generated `query.sql.go` regenerated to match. This replaces the prior `AND COALESCE(fail_reason, '') = ''` predicate, which returned any non-failed row — including a still-`requested` (stage 1) tx. Stage codes are `OffchainTxRequestedStage = 1`, `OffchainTxAcceptedStage = 2`, `OffchainTxFinalizedStage = 3` (`internal/core/domain/offchain_tx.go`). The fix resolves a concurrency hazard surfaced by concurrent `SubmitTx` calls, where an offchain tx not yet accepted (no `fail_reason` set) could be returned by `GetVirtualTx`/`GetPendingTx`. Covered by expanded `internal/infrastructure/db/service_test.go` cases.
+
+**Breaking Changes**:
+- None. Internal-only change: no proto / gRPC method / env var / config / migration surface changed. Only the row-selection predicate of an existing repository query was tightened.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: new capability bullet for the accepted/finalized `SelectOffchainTx` filter; new tag `offchain-tx-query`; new debug triggers `pending tx not returned`, `concurrent submittx`, `getvirtualtx empty`)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.10 → 1.3.11)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-19 - Documentation Update
 **Commit**: `ccda5c50` (arkd repository)
 **Previous Sync**: `268d19d9`

@@ -1,5 +1,35 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-23 - Documentation Sync
+**Commit**: `907b3e72cd5f3ba64455a1f66a0ecac0b3c38045`
+**Previous Sync**: `4d3ac3de8610235fcbd436332425c07bac80d848`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 non-merge commits
+- `907b3e72` update regtest link (#695)
+- `3f82209c` Add live settlement tracking for Lightning sends (#668)
+- `ade82381` Upgrade ts-sdk 0.4.39 - boltz-swap 0.3.44 (#692)
+
+**Features Added / Modified**:
+- **Optimistic Lightning send + live settlement tracking** (PR #668): `payInvoice` (`src/providers/swaps.tsx`) now resolves as soon as the swap is **funded** (lockup tx observed, funds committed/refundable) via the SDK's `waitForSwapFunded`, instead of blocking on `waitForSwapSettlement`. It returns only `{ txid }` — the preimage is no longer returned, so `Send/Details.tsx` drops the old `handlePreimage` helper and calls `handleTxid(txid)` directly. The user lands on the success screen immediately, where `Send/Success.tsx` derives a live `processing → completed / failed / refunded` status (`deriveLnSendStatus`) from the persisted swap in `SwapsContext` using `hasSubmarineStatusReached('invoice.paid')` / `isSubmarineFailedStatus` (new spinner UI via `CenterScreen` + `Spinner` icon). Background SDK monitoring still drives the `SwapsList` history-row Pending → Successful/Refunded transition; a post-funding failure surfaces as "Payment failed" before the auto-refund (e2e `src/test/e2e/swap.test.ts` adapted from the old blocking flow).
+- **regtest link** (PR #695): `regtest` submodule pointer bump only — no documentation impact.
+
+**Configuration Changes**:
+- Dependency bumps (PR #692): `@arkade-os/sdk` 0.4.38 → 0.4.39, `@arkade-os/boltz-swap` 0.3.43 → 0.3.44. The published 0.3.44 carries the optimistic `waitForSwapFunded` API + `BoltzSwapStatus` / `hasSubmarineStatusReached` / `isSubmarineFailedStatus` helpers consumed by PR #668. PR #668 also added a leftover vendored tarball `vendor/arkade-os-boltz-swap-0.3.39-pr556-10c3898.tgz`, but the lockfile resolves boltz-swap to the registry `0.3.44`.
+
+**Breaking Changes**: None for app users. Internal API: `SwapsContextProps.payInvoice` now returns `Promise<{ txid: string }>` (preimage removed).
+
+**Files Touched in Repo**: `package.json`, `pnpm-lock.yaml`, `regtest` (submodule), `src/providers/swaps.tsx`, `src/screens/Wallet/Send/Details.tsx`, `src/screens/Wallet/Send/Success.tsx`, `src/test/e2e/swap.test.ts`, `vendor/arkade-os-boltz-swap-0.3.39-pr556-10c3898.tgz`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.26 → 1.2.27 + `last_sync_commit`; SDK/boltz-swap versions 0.4.39 / 0.3.44 (PR #692) with `waitForSwapFunded` + vendored-tarball notes; new "Optimistic Lightning send + live settlement tracking (PR #668)" bullet under Lightning Integration.
+- `docs/projects/wallet/system/tech-stack.md` — SDK 0.4.39 / boltz-swap 0.3.44 headings; new boltz-swap optimistic-send API feature bullet (`waitForSwapFunded`, status helpers).
+- `docs/projects/wallet/system/project_overview.md` — Technology Stack SDK/boltz-swap versions (PR #692) + optimistic-send note; Dependencies line bumped.
+- `docs/projects/wallet/system/lightning-payment-flow.md` — added "Wallet UX — optimistic send + live settlement tracking (PR #668)" note explaining the wallet's earlier resolution point vs the blocking sequence.
+- `docs/INDEX.md` — wallet Key Capabilities: new optimistic Lightning send bullet; SDK/boltz-swap bump line (0.4.39 / 0.3.44, PR #692); Dependencies line bumped.
+- `docs/projects/wallet/change-log/last-sync.txt` → `907b3e72cd5f3ba64455a1f66a0ecac0b3c38045`.
+
 ## 2026-06-20 - Documentation Sync
 **Commit**: `4d3ac3de8610235fcbd436332425c07bac80d848`
 **Previous Sync**: `7a028c2f570bbd69cad0c980a49677eeaf1e180a`

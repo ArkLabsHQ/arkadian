@@ -32,6 +32,8 @@ arkade-regtest is a thin orchestration layer that composes upstream Docker image
 ### 1. CLI Layer (`regtest.mjs`)
 Single entry point. Subcommands: `start`, `stop`, `clean`, `faucet`, `mine`, `reorg`, `rpc`, `create-invoice`, `pay-invoice`, `ark`, `arkd`, `rotate-signer`, `set-signers`, `signer-info`. On `start` it: loads env, resolves the requested profiles to their dependency closure, brings up the merged compose project, runs per-service setup (arkd wallet seed/create/unlock, faucet flows, boltz/fulmine/solver wiring, emulator readiness), and starts the auto-miner. `npm start`/`stop`/`run clean` alias the lifecycle commands.
 
+**Phased (two-wave) startup.** When the closure is more than just `base` (`base` + at least one app profile), `start` brings the stack up in two sequential `composeUp` waves instead of one. Wave 1 starts only `base` (bitcoin, nbxplorer, fulcrum, mempool, postgres); the CLI then waits for bitcoind RPC, funds the node wallet, and waits for the explorer's Esplora API. Wave 2 (additive `composeUp`) starts the app layer (ark, boltz, …) against a now-healthy base. This avoids overwhelming Docker's embedded DNS (the arkd ↔ arkd-wallet *"server misbehaving"* failure) and racing arkd-wallet against nbxplorer's first-boot migration, which previously crash-looped both. The waves use plain sequential `composeUp` calls — no `service_healthy` gating — so arkd-wallet's normal startup restart doesn't abort the bring-up. A `base`-only closure stays a single wave.
+
 ### 2. Environment Layer (`lib/env.mjs` + `.env.defaults`)
 `.env.defaults` is always loaded first (baseline). The first matching override is layered on top, in priority order:
 1. `--env <path>` (explicit, highest priority)

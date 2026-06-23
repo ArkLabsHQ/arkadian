@@ -1,5 +1,39 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-06-23 - Arkade server signer key rotation (0.9.3)
+**From**: `de2f2cf32329ebb9dd9d4391d79cd3df53d2a243`
+**To**: `677b1c2d1ef68ac6e19b68048c8810e27001acf7`
+**Synced By**: update-project skill
+**Commits analyzed**: 12 (no merges)
+
+**Summary**: One headline feature — the SDK now handles Arkade **server signer key rotation** end-to-end — shipped as the `0.9.3` release across all publishable crates. When `arkd` advertises a *deprecated* signer with a cooperative-sign cutoff date, holders of VTXOs/boarding outputs minted under the old key can migrate off it while cooperation is still available. `ark-core::server` gains two status models — `DeprecatedSignerStatus` (`Migratable` / `DueNow` / `Expired`) and `ServerSignerStatus` (`Current` / `Deprecated(..)` / `Unknown`) — plus `Info` accessors (`all_server_keys`, `signer_status_at`, `deprecated_signer_status_at`, `signer_requires_recovery_at`, `is_signer_past_cutoff_at`). A new `ark-client::migration` module (934 lines) drives the actual rotation, and several follow-up fixes harden cutoff enforcement and time handling.
+
+**Changes**:
+- `feat: Handle Arkade server signer key rotation` (`057988e`) — the core feature. Adds `ark-core/src/server.rs` rotation status enums + `Info` accessors and the `ark-client::migration` module with `Client::migrate_deprecated_signer_vtxos()`. Touches `ark-client` `batch.rs` / `boltz.rs` / `lib.rs` / `vtxo_watcher.rs` and `ark-rest/src/conversions.rs`; adds `e2e-tests/tests/e2e_signer_rotation.rs` (371 lines).
+- `fix(client): back off on migration leg failures` (`7dd992c`) — a failed VTXO or boarding leg backs off and no longer suppresses the other leg; each leg reports its `error` independently (`MigrationLegReport`).
+- `fix(client): enforce signer cutoff for selected settles` (`e38318d`) — ordinary `settle()` input selection now respects the server signer cutoff so it won't pick VTXOs past their cooperative window.
+- `fix(client): make unix time retrieval fallible` (`5780cbe`) — `unix_now` and friends became fallible (extracted into `ark-client::utils`), surfacing clock errors instead of panicking.
+- `fix(ark-client): Handle negative timestamps` (`ff49912`) — signer-status classification tolerates negative Unix timestamps.
+- `refactor(client): extract time and exit-delay helpers` (`31edc99`), `refactor(client): move signer migration into module` (`c5bba93`), `fix(client): centralize signer cutoff spendability` (`f42d921`), `refactor(core): model signer rotation status` (`f84de7c`) — structural refactors that landed the migration logic into its own module and centralized cutoff-aware spendability.
+- `docs: clarify signer rotation follow-ups` (`f4e2419`), `review` (`5f9b1e1`) — review follow-ups.
+- `chore: prepare 0.9.3 release` (`af97e7e`) — bumps every publishable crate `0.9.2` → `0.9.3` (and intra-workspace path pins); refreshes READMEs.
+- `chore(dprint): Do not format regtest submodule` (`e94b894`) — excludes the `regtest/` submodule from dprint formatting.
+
+**New public API**:
+- `ark-core::server`: `DeprecatedSignerStatus` (`Migratable` / `DueNow` / `Expired`; `from_cutoff`, `seconds_until_cutoff`, `is_cooperatively_migratable`); `ServerSignerStatus` (`Current` / `Deprecated(DeprecatedSignerStatus)` / `Unknown`; `requires_recovery`, `is_pre_cutoff_deprecated`); `Info::{all_server_keys, signer_status_at, deprecated_signer_status_at, signer_requires_recovery_at, is_signer_past_cutoff_at}`.
+- `ark-client::migration`: `MAX_VTXOS_PER_SETTLEMENT = 50`, `MigrationVtxoRef`, `MigrationSkipReason` (`BelowDust` / `OversizedOnly` / `NothingMigratable`), `MigrationLegReport`, `DeprecatedSignerMigrationReport` (`failed`/`rotated`/`settle_txids`), `DeprecatedSignerReport`.
+- `ark-client::Client`: `migrate_deprecated_signer_vtxos()`, `deprecated_signer_status()`, `pending_recovery()`, `refresh_server_info()`.
+
+**Breaking changes**: None at the request/transport level. Internal time helpers became fallible (`Result`-returning) — relevant only to in-tree callers, not SDK consumers. The `0.9.3` version bump is additive.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` + `version`; crate versions `0.9.2` → `0.9.3`; new Protocol Features bullet for server signer key rotation)
+- `docs/projects/rust-sdk/system/project_overview.md` (new Recent Additions entry; `ark-core` server-rotation-models bullet; `ark-client` migration/`pending_recovery`/`refresh_server_info` APIs; crate versions and Project Status → 0.9.3)
+- `docs/INDEX.md` (rust-sdk description `0.9.3`; new Key Capability for signer rotation; `signer-rotation` tag; develop/debug triggers; correlation matrix `SDK 0.9.3`)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-06-18 - Guarded RPC clients + digest-mismatch refresh, smart settle(), and arkade-regtest e2e migration
 **From**: `6d33b088ead85f75e12bf069d4596b2f8add2fa2`
 **To**: `de2f2cf32329ebb9dd9d4391d79cd3df53d2a243`

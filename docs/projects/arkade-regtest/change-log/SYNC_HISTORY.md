@@ -1,5 +1,23 @@
 # Documentation Sync History - Arkade Regtest
 
+## 2026-06-23 - Sync update (phased startup)
+**From**: `f8afb42aaaa39d1bc530b7a21fc58d0426308e48`
+**To**: `5a3ab962b017d98789c6651f86caafbeac2d6fa9`
+**Synced By**: /update-project skill
+**Commits Analyzed**: 1
+
+**Upstream commits**:
+- `5a3ab96` fix: stagger stack startup in two waves (base, then app layer) (#35)
+
+**Changes**:
+- `system/architecture.md` — Added a "Phased (two-wave) startup" paragraph to the CLI Layer section: when the closure is more than `base`, `start` runs two sequential `composeUp` waves (base → settle chain/explorer → app layer) instead of one, with no `service_healthy` gating; a `base`-only closure stays a single wave.
+- `testing/troubleshooting.md` — Added an arkd/arkd-wallet `server misbehaving` crash-loop entry under arkd Issues / Service Connectivity, explaining the Docker-DNS overload + nbxplorer first-boot-migration race and the phased-startup fix (PR #35).
+- `docs/INDEX.md` (master) — Extended the one-command bring-up key-capability bullet to note the phased two-wave startup for multi-profile closures.
+
+**Notes**:
+- Single non-breaking change, entirely in `regtest.mjs` (`start`): bringing up all ~18 containers at once overwhelmed Docker's embedded DNS (arkd ↔ arkd-wallet "server misbehaving") and raced arkd-wallet against nbxplorer's first-boot migration, crash-looping both. Now `base` (bitcoind, nbxplorer, fulcrum, mempool, postgres) comes up first and settles before the app layer starts.
+- No new services, ports, images, env vars, or CLI commands. `composeUp` is additive and the second wave only starts the app-layer containers; sequential calls (no `service_healthy` gating) mean arkd-wallet's normal startup restart doesn't abort the bring-up.
+
 ## 2026-06-20 - Sync update (image bumps)
 **From**: `0ed365dce9fd86563eadcc2c6b92ff441dc1764f`
 **To**: `f8afb42aaaa39d1bc530b7a21fc58d0426308e48`

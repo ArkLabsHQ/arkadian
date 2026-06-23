@@ -59,6 +59,11 @@ Ensure all five tree-expiry / exit-delay values share the same type (all blocks 
 **Cause**: nbxplorer cannot reach Bitcoin Core, or the chain hasn't advanced.
 **Fix**: Mine a few blocks (`node regtest.mjs mine 6`) and check `docker compose -p arkade-regtest logs nbxplorer`. A `clean` + `start` usually resolves a stuck indexer.
 
+### arkd / arkd-wallet crash-loop on a fresh full-stack `start` (`server misbehaving`)
+Symptoms: on a first bring-up of the whole closure, arkd and arkd-wallet restart repeatedly; logs show DNS `server misbehaving` for `arkd` ↔ `arkd-wallet`, and arkd-wallet racing nbxplorer's first-boot migration.
+**Cause**: bringing up all ~18 containers in one `composeUp` overwhelms Docker's embedded DNS and races arkd-wallet against nbxplorer's first-time DB migration.
+**Fix**: pull the latest arkade-regtest base (PR #35). `start` now uses a **phased two-wave bring-up** — `base` settles first, then the app layer starts against a healthy base — which removes this race. arkd-wallet briefly restarting once during normal startup is expected and not gated, so the bring-up does not abort.
+
 ### Fulmine cannot reach arkd
 Symptoms: Fulmine logs show repeated connection refused to `http://arkd:7070`.
 **Cause**: arkd failed to start (see arkd section above) or the compose network isn't healthy.

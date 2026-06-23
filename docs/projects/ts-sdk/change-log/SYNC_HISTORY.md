@@ -1,5 +1,26 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-23 - Test-lint fix (no source/API/version change)
+**From**: `6c64a055b650c42383038a2bb66d241896b4bf83`
+**To**: `cb77d23fbea8a067b11643fa73929b1bc16e58ec`
+**Synced By**: update-project skill
+**Status**: Single-commit, **internal-only**. `cb77d23f` (PR #577, "fix lint errors on tests") touches **only** four boltz-swap test files — no `src/` change, no public-API change, no version bump, no release cut. Per Smart Update Detection (internal/test changes → summary only), no documentation content was updated.
+
+**Commits analyzed** (1 non-merge commit):
+- `cb77d23f` fix lint errors on tests (#577)
+
+**Notable source changes** (test files only — `packages/boltz-swap/test/`):
+- `arkade-swaps.test.ts` + `e2e/arkade-swaps.test.ts`: lint-clean test bodies (60 insertions / 44 deletions across the two main files)
+- `realm-swap-repository.test.ts`: cast `createMockRealm()` to `realm as any` when constructing `RealmSwapRepository` (silences a type-mismatch lint error in the test mock)
+- `swap-manager.test.ts`: add required `preimageHash` / `feeSatsPerByte` fields to a chain-swap request fixture; drop an unused `hex` field from a mocked `getReverseSwapTxId` response
+
+**Documentation changes**:
+- None (test-only lint fix). Sync tracking updated: `change-log/last-sync.txt` → `cb77d23f`; master `docs/INDEX.md` ts-sdk section gained a short post-0.4.39 note recording the test-lint sync.
+
+**Tests added**: none (existing tests lint-cleaned only)
+
+---
+
 ## 2026-06-20 - boltz-swap offchain refund past CLTV + version export + 0.4.38/0.4.39 releases
 **From**: `89c8d4119274ce18f25d1237b889779da6020618`
 **To**: `6c64a055b650c42383038a2bb66d241896b4bf83`

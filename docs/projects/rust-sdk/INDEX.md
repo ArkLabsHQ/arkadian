@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.4.0
-last_sync_commit: de2f2cf32329ebb9dd9d4391d79cd3df53d2a243
+version: 1.4.1
+last_sync_commit: 677b1c2d1ef68ac6e19b68048c8810e27001acf7
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -62,18 +62,18 @@ Feature specifications and implementation tracking.
 ## Key Concepts
 
 ### Workspace Crates
-All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish. A pair of GitHub Actions workflows now drives the crates.io release flow (`draft_release_crates.yml` → `create_release_crates.yml`, the latter idempotent against already-published versions).
+All publishable crates aligned at **v0.9.3** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish. A pair of GitHub Actions workflows now drives the crates.io release flow (`draft_release_crates.yml` → `create_release_crates.yml`, the latter idempotent against already-published versions).
 
-- **ark-core** (v0.9.2): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
-- **ark-client** (v0.9.2): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
-- **ark-grpc** (v0.9.2): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
-- **ark-rest** (v0.9.2): REST transport for arkd (reqwest-based, WASM-compatible)
-- **ark-bdk-wallet** (v0.9.2): BDK integration for on-chain wallet operations
-- **ark-fees** (v0.9.2): Fee estimation utilities
-- **ark-delegator** (v0.9.2): REST client for Ark delegator services (auto-renewal of VTXOs)
-- **ark-script** (v0.9.2): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
-- **ark-introspector-client** (v0.9.2): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
-- **ark-rs** (v0.9.2): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
+- **ark-core** (v0.9.3): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
+- **ark-client** (v0.9.3): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
+- **ark-grpc** (v0.9.3): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
+- **ark-rest** (v0.9.3): REST transport for arkd (reqwest-based, WASM-compatible)
+- **ark-bdk-wallet** (v0.9.3): BDK integration for on-chain wallet operations
+- **ark-fees** (v0.9.3): Fee estimation utilities
+- **ark-delegator** (v0.9.3): REST client for Ark delegator services (auto-renewal of VTXOs)
+- **ark-script** (v0.9.3): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
+- **ark-introspector-client** (v0.9.3): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
+- **ark-rs** (v0.9.3): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
 - **ark-client-sample**: Example client application (with `watch-delegated` command) — not published
 - **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector) — not published
 
@@ -87,6 +87,7 @@ All publishable crates aligned at **v0.9.2** with crates.io metadata (`keywords 
 - DLC (Discreet Log Contracts) support — time-based timelocks (block-based dropped to match production Arkade)
 - Boltz submarine, reverse submarine, **and chain swaps** (ARK ↔ on-chain BTC); reverse-swap persistence now includes BOLT11 invoice + expiry (**breaking** for direct `ReverseSwapData` constructors) plus an optional `claim_address: Option<ArkAddress>` so a reverse-swap invoice can credit another Arkade user's address (new `Client::get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)`; recipient is validated to share the same arkd signer via new `ArkAddress::server()` accessor; existing flows still claim into a fresh local address when no recipient is set); swap creation requests carry a `referralId` (default `arkade-rs-SDK`, overridable via `OfflineClient::with_boltz_referral_id`); reverse-swap creation accepts an optional BOLT11 invoice `description` (max 639 bytes) — `get_ln_invoice` / `get_ln_invoice_with_preimage_hash` gain a `description: Option<String>` parameter (**breaking**)
 - Granular offchain-tx control: `Client::submit_offchain_tx` is now always exposed (previously behind a feature flag), `finalize_offchain_tx` is `pub`, and `finalize_pending_offchain_tx(ark_txid)` lets callers finalize one specific pending tx by `Txid` (useful when an external database tracks individual pending funding attempts)
+- **Server signer key rotation** (0.9.3): when arkd advertises a deprecated signer with a cooperative-sign cutoff, clients migrate VTXOs/boarding outputs off the old key before that cutoff. `ark-core::server` models rotation status — `DeprecatedSignerStatus` (`Migratable` / `DueNow` / `Expired`, with `from_cutoff` / `seconds_until_cutoff` / `is_cooperatively_migratable`) and `ServerSignerStatus` (`Current` / `Deprecated(..)` / `Unknown`, with `requires_recovery` / `is_pre_cutoff_deprecated`); `Info` gains `all_server_keys()`, `signer_status_at()`, `deprecated_signer_status_at()`, `signer_requires_recovery_at()`, `is_signer_past_cutoff_at()`. New `ark-client::migration` module + `Client` APIs: `migrate_deprecated_signer_vtxos()` (two independent legs — VTXO + boarding — each with its own oversized / deferred / dust sizing pipeline, bounded by `MAX_VTXOS_PER_SETTLEMENT = 50`, backing off on per-leg failure; returns `DeprecatedSignerMigrationReport`), `deprecated_signer_status()` (per-signer `DeprecatedSignerReport`), plus `pending_recovery()` and `refresh_server_info()`. Unix-time retrieval is now fallible and tolerates negative timestamps. New `e2e_signer_rotation` test
 - **Delegation**: 3-of-3 delegated VTXOs, third-party delegator service, background `VtxoWatcher` for auto-renewal
 - **Arkade Asset V1**: issue, transfer, burn, reissue (rejects empty asset packets)
 - **Arkade Script** (introspector flow): extension opcodes, key-tweaked introspector pubkeys, `ArkadeVtxoScript` taproot encoding, PSBT-driven introspector packet insertion

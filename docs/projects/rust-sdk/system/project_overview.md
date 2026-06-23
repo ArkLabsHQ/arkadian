@@ -14,6 +14,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Recent Additions
 
+- **Arkade server signer key rotation (0.9.3)** — the SDK now handles Arkade server signer-key rotation end-to-end. When `arkd` advertises a *deprecated* signer alongside a cooperative-sign cutoff date, holders of VTXOs/boarding outputs minted under the old key can migrate off it (settle into the current signer) while cooperation is still available. `ark-core::server` adds two status models: `DeprecatedSignerStatus` — `Migratable` (`cutoff_date > now`), `DueNow` (`cutoff_date == 0`, rotate immediately but the operator still co-signs), `Expired` (cutoff passed) — with `from_cutoff`, `seconds_until_cutoff`, and `is_cooperatively_migratable`; and `ServerSignerStatus` — `Current` / `Deprecated(DeprecatedSignerStatus)` / `Unknown` — with `requires_recovery` (deprecated **and** cooperative window closed) and `is_pre_cutoff_deprecated`. `Info` gains `all_server_keys()`, `signer_status_at(pk, now)`, `deprecated_signer_status_at(..)`, `signer_requires_recovery_at(..)`, and `is_signer_past_cutoff_at(..)`. A new `ark-client::migration` module exposes `Client::migrate_deprecated_signer_vtxos(blockchain)`, which runs **two symmetric, independent legs** — a VTXO leg and a boarding leg, never combined into one intent. Each leg owns its own sizing pipeline: inputs above the server's per-output ceiling (`vtxo_max_amount`) are split out as `oversized` (must exit unilaterally), the remainder is selected highest-value-first bounded by `MAX_VTXOS_PER_SETTLEMENT = 50` and a running aggregate within the ceiling (overflow → `deferred` for a later cycle), and a below-dust selection is `skipped` (`MigrationSkipReason::BelowDust` / `OversizedOnly` / `NothingMigratable`). A leg failure backs off and never suppresses the other leg; results come back as `DeprecatedSignerMigrationReport { vtxo, boarding }` with `failed()`, `rotated()`, and `settle_txids()` helpers (per-leg `MigrationLegReport` carries `settle_txid`, `migrated`, `deferred`, `oversized`, `skipped`, `error`). Companion read APIs: `Client::deprecated_signer_status()` returns per-signer `DeprecatedSignerReport` (status, cutoff, `seconds_until_cutoff`, spendable `vtxo_count` and total amount), and new `Client::pending_recovery()` / `Client::refresh_server_info()`. Supporting fixes in the release: signer cutoff is enforced when selecting VTXOs for ordinary settles, Unix-time retrieval is now fallible and tolerates negative timestamps, and time/exit-delay helpers were extracted into `ark-client::utils`. New `e2e_signer_rotation` integration test. Ships as the **0.9.3** release across all publishable crates.
 - **Guarded gRPC/REST clients + digest-mismatch refresh + new request headers** — both transports now route every non-`GetInfo` RPC through a guard that handles a stale `/info` digest: run the RPC, and if `arkd` rejects it because the cached digest is stale (`DIGEST_MISMATCH` / `invalid digest header`), fetch fresh `/info`, run a refresh hook to update the higher-level client state, commit the new digest header, and return `Error::server_info_changed` **without** retrying the original operation. In `ark-grpc` this is implemented with wrapper newtypes `guarded::Ark` / `guarded::Indexer` that keep the raw generated tonic clients private and expose a single `request(...)` escape hatch, so new RPCs can't accidentally skip the guard (`GetInfo` bootstrap/refresh is the only unguarded path; see `docs/guarded-grpc-client-design.md` in the repo). `ark-rest` mirrors the same digest-mismatch behaviour (`fix(rest): add guarded digest-mismatch parity`). Both `ark_grpc::Error` and `ark_rest::Error` gain a public `is_server_info_changed()` helper. Requests now also carry compatibility/digest/SDK headers: `x-digest` (current `/info` digest), `x-sdk-version` (`SDK_VERSION` = `"rust-sdk/<CARGO_PKG_VERSION>"`), alongside the existing `x-build-version`. `ark-core::server` adds `TARGET_ARKD_VERSION = "0.9.9"` and `SDK_VERSION` constants.
 - **`settle()` narrowed to expired/recoverable VTXOs + boarding outputs; full renewal renamed to `settle_all()`** — the previous full-renewal settle is now `Client::settle_all()` (rolls _all_ prior VTXOs and boarding outputs into the next batch). The new `Client::settle()` only renews VTXOs in the server's recoverable bucket plus any confirmed/pre-confirmed VTXOs the client sees as expired, and always pulls in confirmed boarding outputs so freshly funded coins enter the Ark. Healthy (unexpired) VTXOs are left untouched, keeping periodic renewals cheap. **Sub-dust limitation:** isolated sub-dust recoverable VTXOs can only be rescued when their combined value clears the server's dust threshold; otherwise the batch is rejected with `cannot settle into sub-dust VTXO`. Callers holding isolated sub-dust amounts should fall back to `settle_all()`, which can roll them in alongside a healthy VTXO acting as carrier value.
 - **E2E suite migrated off Nigiri to the in-house arkade-regtest stack** — the e2e setup no longer builds `arkd` from Go source against Nigiri. It now uses the `arkade-regtest` Docker Compose stack (Bitcoin Core + Fulcrum + mempool/esplora + arkd + emulator), added as a git submodule at `regtest/` and driven by its zero-dependency Node CLI `regtest.mjs` (matching ts-sdk / dotnet-sdk). New `justfile` recipes replace the old arkd-build machinery: `regtest-init` (submodule), `regtest-start` (`regtest.mjs start --profile emulator`), `regtest-stop`, `regtest-clean`, `faucet`, `mine`; `e2e-full` now runs `regtest-clean` + `regtest-start` + `e2e-tests`. The stack bundles and self-funds arkd from `ARKD_IMAGE` and provides the introspector as the emulator profile (port 7073). On-chain state is resolved via Bitcoin Core (`gettxout` / `getrawtransaction`, `txindex=1`) rather than the esplora indexer, which lagged the chain on regtest and broke multi-settlement flows. `setup_arkd.sh` and the Go-source build/fund recipes were removed.
@@ -46,7 +47,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Workspace Crates
 
-### ark-core (v0.9.2)
+### ark-core (v0.9.3)
 Core types and protocol primitives:
 - `ArkAddress`: Ark address encoding/decoding (bech32)
 - `Vtxo`, `VtxoList`: Virtual transaction output management — including delegator (3-of-3) VTXOs and split forfeit / unilateral-exit keys
@@ -60,8 +61,9 @@ Core types and protocol primitives:
 - Transaction graph construction
 - **Asset support** (Arkade Asset V1): `AssetId`, `Packet`/`AssetGroup` OP_RETURN encoding, asset issuance / reissuance / burn transaction builders, settlement asset preservation
 - **Introspector packet builder** (`introspector::packet`): strict-validating packet construction for the introspector co-signer; appended via the new `extension` module as Ark extensions
+- **Server signer rotation models** (`server`): `DeprecatedSignerStatus` / `ServerSignerStatus` enums and `Info` accessors (`all_server_keys`, `signer_status_at`, `deprecated_signer_status_at`, `signer_requires_recovery_at`, `is_signer_past_cutoff_at`) for classifying server signer keys against their advertised cooperative-sign cutoff
 
-### ark-client (v0.9.2)
+### ark-client (v0.9.3)
 High-level client API:
 - `OfflineClient` → `Client` connection lifecycle (delegator pubkey + historical pubkeys configured at OfflineClient layer)
 - `send_vtxo()`: Send off-chain payments (now backed by a generic offchain transaction builder shared with asset sends)
@@ -71,8 +73,10 @@ High-level client API:
 - `get_boarding_address()`: Generate boarding addresses
 - `get_offchain_address()`: Returns delegated (3-leaf) addresses when a delegator is configured
 - `transaction_history()`: Query transaction history
-- `settle()`: renew only expired/recoverable VTXOs plus confirmed boarding outputs (cheap periodic renewal; healthy VTXOs untouched)
+- `settle()`: renew only expired/recoverable VTXOs plus confirmed boarding outputs (cheap periodic renewal; healthy VTXOs untouched; now also enforces the server signer cutoff when selecting inputs)
 - `settle_all()`: full renewal — roll _all_ prior VTXOs and boarding outputs into the next batch (use when rescuing isolated sub-dust amounts)
+- `migrate_deprecated_signer_vtxos()` / `deprecated_signer_status()`: migrate VTXOs/boarding outputs off a deprecated server signer before its cooperative-sign cutoff (two independent legs, sizing-bounded; see `ark-client::migration`) and inspect per-signer rotation status
+- `pending_recovery()`: total value of outputs awaiting recovery; `refresh_server_info()`: re-fetch and commit `/info`
 - Round participation and settlement (with asset preservation)
 - `generate_delegate()`: prepare delegate forfeit PSBTs for a third-party delegator
 - `start_vtxo_watcher()`: launch background `VtxoWatcher` that auto-delegates new VTXOs and self-renews near-expiry VTXOs (safety net)
@@ -81,7 +85,7 @@ High-level client API:
 - Boltz submarine and reverse submarine swaps — incl. `get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)` to receive Lightning into another Arkade user's address (recipient validated to share the same arkd signer via `ArkAddress::server()`)
 - Swap storage (in-memory or SQLite) — `chain_swaps` table; `reverse_swaps` row now persists optional `claim_address`
 
-### ark-grpc (v0.9.2)
+### ark-grpc (v0.9.3)
 gRPC transport layer (default):
 - tonic-based gRPC client
 - Protobuf message types (prost)
@@ -89,22 +93,22 @@ gRPC transport layer (default):
 - Test utilities
 - **Guarded RPC wrappers** (`guarded::Ark` / `guarded::Indexer`): every non-`GetInfo` RPC goes through a digest-mismatch guard; raw generated clients stay private. `Error::is_server_info_changed()` signals a digest refresh occurred
 
-### ark-rest (v0.9.2)
+### ark-rest (v0.9.3)
 REST transport layer:
 - reqwest-based HTTP client
 - WASM-compatible (browser builds)
 - OpenAPI-generated client types
 - Digest-mismatch parity with `ark-grpc`; `Error::is_server_info_changed()` helper
 
-### ark-bdk-wallet (v0.9.2)
+### ark-bdk-wallet (v0.9.3)
 Bitcoin Development Kit integration:
 - On-chain wallet operations
 - BDK wallet wrapper for Ark boarding/exit
 
-### ark-fees (v0.9.2)
+### ark-fees (v0.9.3)
 Fee estimation for Ark transactions.
 
-### ark-delegator (v0.9.2)
+### ark-delegator (v0.9.3)
 REST client for Ark delegator services. A delegator is a third-party service (e.g. fulmine) that automatically renews VTXOs before they expire, allowing wallets to stay offline without losing funds.
 - `DelegatorClient::info()` — fetch delegator pubkey, fee, on-chain address (`GET /v1/delegator/info`)
 - `DelegatorClient::delegate()` — submit signed intent + forfeit PSBTs (`POST /v1/delegate`)
@@ -163,7 +167,7 @@ Reference implementation for understanding Ark protocol internals (round signing
 
 ## Project Status
 
-Active development, version 0.9.2 across all publishable crates (0.9.x release line, crates.io metadata aligned). Automated crates.io release pipeline via GitHub Actions (`draft_release_crates.yml` + `create_release_crates.yml`). MIT licensed.
+Active development, version 0.9.3 across all publishable crates (0.9.x release line, crates.io metadata aligned). Automated crates.io release pipeline via GitHub Actions (`draft_release_crates.yml` + `create_release_crates.yml`). MIT licensed.
 
 **Repository**: https://github.com/arkade-os/rust-sdk
 **MSRV**: Rust 1.86
