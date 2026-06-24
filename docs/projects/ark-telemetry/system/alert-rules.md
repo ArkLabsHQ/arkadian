@@ -618,7 +618,7 @@ Loki alert rules use LogQL (Loki Query Language) to detect patterns in applicati
 ```yaml
 - alert: ArkdDigestMismatch
   expr: |
-    sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [1h])) > 0
+    sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" | error =~ "DIGEST_MISMATCH.*" [1h])) > 0
   for: 0s
   labels:
     severity: warning
@@ -628,8 +628,10 @@ Loki alert rules use LogQL (Loki Query Language) to detect patterns in applicati
     firing_title: "⚠️ Digest Mismatch"
     summary: "Client digest mismatch errors detected"
     description: "{{ $value }} DIGEST_MISMATCH error(s) in the last hour. Clients are sending requests with invalid or missing digest headers."
-    logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH"'
+    logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" | error =~ "DIGEST_MISMATCH.*"'
 ```
+
+> **PR #22 (June 2026)**: the query now matches on the structured-metadata `error` label (`| error =~ "DIGEST_MISMATCH.*"`) instead of a raw line filter (`|~ "DIGEST_MISMATCH"`), so it keys off the parsed `error` field in Loki structured metadata rather than substring-matching the log line.
 
 **When It Fires:**
 - A client sends a request whose digest header does not match the payload, or is missing

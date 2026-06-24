@@ -1,5 +1,27 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-24 - Documentation Sync
+**Commit**: `09fa6ef6a9071bb73f31d23c2c5a117169266dfb`
+**Previous Sync**: `907b3e72cd5f3ba64455a1f66a0ecac0b3c38045`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `09fa6ef6` fix(receive): allow clearing a set amount on the mobile keyboard (#693)
+- `87a5771f` fix hand written lnurl (#696)
+
+**Features Added / Modified**:
+- **Receive mobile clear-amount** (PR #693): the on-screen `Keyboard` (`src/components/Keyboard.tsx`) gains an opt-in `onClear` prop that renders a "Clear amount" button; `Receive/QrCode.tsx` wires it gated on `hasAmount` so touch users can remove a set amount (previously only reachable from the desktop sheet the mobile path never renders). Clearing now dismisses the keyboard/sheet to match the confirm flow, and the desktop "Clear amount" button shares the same `hasAmount` check so it also appears for asset receives. New test `src/test/screens/wallet/receive-clear-amount.test.tsx`.
+- **Hand-written LNURL fix** (PR #696): `Send/Form.tsx`'s `parseRecipient` effect is gated behind a debounced `readyToParse` flag (`RECIPIENT_DEBOUNCE_MS = 800`, `timeoutRef` cleared on unmount) so a typed LNURL is parsed only once typing settles instead of erroring per keystroke; the per-branch `base` reset is replaced by spreading the live `sendInfo` (`satoshis: satoshis ?? sendInfo.satoshis`) so partial input no longer wipes state, the unused `resetDerivedState` helper was removed, and a `404` from the LNURL conditions fetch surfaces a dedicated "LNURL not found" error. Coverage added in `src/test/e2e/form.test.ts` and `src/test/screens/wallet/send.test.tsx`.
+
+**Configuration Changes**: None.
+**Breaking Changes**: None — both changes are UI bug fixes to existing Receive/Send flows.
+
+**Docs Updated**:
+- `docs/INDEX.md` — added two capability bullets to the wallet section
+- `docs/projects/wallet/INDEX.md` — added Receive mobile clear-amount and Hand-written LNURL fix bullets; bumped `last_sync_commit`
+- `docs/projects/wallet/change-log/last-sync.txt`, `SYNC_HISTORY.md`
+
 ## 2026-06-23 - Documentation Sync
 **Commit**: `907b3e72cd5f3ba64455a1f66a0ecac0b3c38045`
 **Previous Sync**: `4d3ac3de8610235fcbd436332425c07bac80d848`

@@ -1,5 +1,25 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-06-24 - PR #22: DIGEST_MISMATCH queries search structured metadata
+**From**: `42fccfdb567ead2e5eae7906add19f5f3c6f825e`
+**To**: `dc280ac35f6f2589f160d49c8aa3e5a5f2d422e7`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1 (squash-merged PR #22)
+
+**Changes**:
+- `ArkdDigestMismatch` Loki alert (`loki.alert.rules.yml`) and the "Digest Mismatch Errors" dashboard panel (`dashboards/Ark_Go_metrics.json`) now match on the structured-metadata `error` label (`| error =~ "DIGEST_MISMATCH.*"`) instead of a raw log-line filter (`|~ "DIGEST_MISMATCH"`). Both the `expr` and the `logql_query` annotation were updated.
+
+**Docs updated**:
+- `system/alert-rules.md` — updated `ArkdDigestMismatch` `expr` + `logql_query`, added PR #22 note
+- `system/dashboards.md` — updated Digest Mismatch Errors panel query
+- `docs/INDEX.md` — noted the structured-metadata query change in the ark-telemetry capabilities
+
+**Notes**:
+- No new capabilities, dependencies, or breaking changes — query-syntax refinement only.
+
+---
+
 ## 2025-10-16 12:00:00 - Initial Metadata Setup
 **Commit**: ``
 **Synced By**: Manual setup

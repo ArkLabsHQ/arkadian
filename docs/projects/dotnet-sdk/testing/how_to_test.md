@@ -34,7 +34,10 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 - `CheckpointTapScriptTests.cs` -- Tapscript construction
 - `BlockchainServiceCollectionExtensionsTests.cs` -- DI helpers for `AddNBXplorerBlockchain` / `AddEsploraBlockchain` / `AddRpcBlockchain` (each registers the right `IBitcoinBlockchain` impls, RPC omits UTXO-discovery, mixed-backend composition resolves cleanly)
 - `ContractServiceTests.cs` -- Contract derivation and management
-- `DefaultCoinSelectorTests.cs` -- Coin selection algorithm
+- `DefaultCoinSelectorTests.cs` -- Coin selection algorithm. Updated for PR #145's weight-budget model — exercises `maxInputWeightWu` (the `long?` budget that replaced the `int? maxInputs` count): budget exhaustion throws `TooManyInputsException`, the push-change-above-dust and max-change-fallback strategies respect the budget, and the asset-aware overload threads the remaining budget into the BTC fill
+- `EarsCoinSelectorTests.cs` -- PR #124 expiry-aware `EARSCoinSelector` — expiry bucketing (`ExpiryWindowBlocks` windowing, no-expiry coins last), per-strategy selection (`ExpiryFirst` / `RGLI` / `SRD` / `BnB`), lowest-`Waste` choice across strategies, asset-requirement reservation + BTC merge, and `TooManyInputsException` when funds are sufficient but too fragmented for the weight budget
+- `ArkTxWeightEstimatorTests.cs` -- PR #145 `ArkTxWeightEstimator` — input WU from control-block + script + one signature per `OP_CHECKSIG`/`OP_CHECKSIGVERIFY` + spending-condition witness items, output WU (P2TR / P2A / asset-packet), and the `BaseTxWu` / `P2TrOutputWu` / `P2AOutputWu` constants
+- `SimpleIntentSchedulerTests.cs` -- PR #145 `ChunkByProofTxWeight` — packs consolidation VTXOs into chunks whose proof-tx weight stays under `max_tx_weight` (fixed overhead, `inputs[0]` counted twice, asset-packet growth), and a single oversized coin emitting as its own chunk
 - `EfCoreSqliteOrderByTests.cs` -- `StoreDateTimeOffsetAsTicks` opt-in (proves SQLite `ORDER BY DateTimeOffset` works with the flag on, default mapping still works with the flag off, ticks converter is scoped to Ark-owned entities and doesn't bleed into consumer entities, documented round-trip-strips-offset trade-off)
 - `Exit/InMemoryExitStorageTests.cs` -- `InMemoryExitSessionStorage` + `InMemoryVirtualTxStorage` (upsert / state filter / wallet filter / Lite→Full hex merge / orphan cleanup with shared chain nodes)
 - `IntentGenerationServiceTests.cs` -- Intent creation logic
@@ -46,7 +49,7 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 - `Recovery/IndexerVtxoDiscoveryProviderTests.cs` -- PR #104 legacy-signer probe (4 tests). Pins the cross-product candidate-script derivation `{ current signer ∪ DeprecatedSigners } × { current exit delay ∪ mainnet-legacy 7-day delay (mainnet-only) }` × `{ default ∪ delegate-per-`RecoveryDelegateConfig` }`, including the mainnet wallet whose VTXO was minted under the original 7-day delay while arkd now reports a shorter one (recovery still finds it). Covers the server-info caching reshape (transient failure on first probe doesn't poison later probes into silent empty results — the `Lazy<Task>`-based shape would have)
 - `SweeperServiceTests.cs` -- VTXO sweep/recovery
 - `SwapRecoveryTests.cs` -- `InspectSwapRecoveryAsync` + `ScanRecoverableSwapsAsync` (each `SwapRecoveryStatus` branch, bulk skip-Pending, chain-swap renegotiation guard)
-- `SwapRouteTests.cs` / `SwapRoutingTests.cs` -- Multi-provider routing + `SwapRoute` / `SwapAsset` model coverage
+- `SwapRouteTests.cs` / `SwapRoutingTests.cs` -- Multi-provider routing + `SwapRoute` / `SwapAsset` model coverage. PR #141 moved the swap unit tests (`SwapRouteTests`, `SwapRoutingTests`, `SwapRecoveryTests`, `BoltzLimitsValidatorTests`, `BoltzOperationClassifierTests`, `BoltzClientNotFoundTests`, `SwapServiceRegistrationTests`) under a `NArk.Tests/Swaps/` subfolder (filter strings unchanged)
 - `VHtlcContractTests.cs` -- VHTLC contract construction
 - `VtxoPollingHandlerTests.cs` -- VTXO polling after events
 
@@ -66,7 +69,8 @@ dotnet test --filter "FullyQualifiedName~BatchSessionTests"
 
 - `BatchSessionTests.cs` -- Batch round participation
 - `BuilderStyleTests.cs` -- Builder pattern integration
-- `ChainSwapTests.cs` -- ARK<->BTC chain swaps via Boltz
+- `ChainSwapTests.cs` -- ARK<->BTC chain swaps via Boltz (moved under `Swaps/` in PR #141)
+- `Swaps/MockBoltzChainUnilateralTests.cs` / `Swaps/MockBoltzSubmarineRefundTests.cs` -- PR #141 unilateral-refund matrix driven by the in-process `MockBoltzServer` (which *refuses* the cooperative co-sign so the fallback paths fire): BTC→ARK script-path CLTV refund and `refundWithoutReceiver` Arkade-batch refund for submarine + ARK→BTC, plus the block-height vs time-lock `RefundLocktime` branches. Mock uses real MuSig2 + PSBT so the signing paths are genuinely exercised
 - `IntentSchedulerTests.cs` -- Intent scheduling and submission
 - `NoteTests.cs` -- Note contract operations
 - `OnchainTests.cs` -- On-chain boarding and settlement
@@ -79,6 +83,8 @@ dotnet test --filter "FullyQualifiedName~BatchSessionTests"
 
 - `SharedArkInfrastructure.cs` / `SharedDelegationInfrastructure.cs` -- bring up the regtest stack via the `regtest/` git submodule (replaces the deprecated `NArk.Tests.End2End/Infrastructure/` compose files). PR #104 migrated the submodule from **nigiri** (Go binary + shell scripts + chopsticks/esplora) to **denigiri** (zero-dependency Node orchestrator + mempool as the Esplora source); `ChopsticksEndpoint` now points at `http://localhost:3000/api/` (trailing slash required so `HttpClient` base-address resolution keeps the `/api` prefix when `EsploraBlockchain` appends relative paths)
 - `Common/DockerHelper.cs` -- Central wrapper for every `docker exec` call the E2E suite makes (PR #108). Public surface: `SendArkdNoteTo(arkAddress, amountSats, ct)` — issues a Fulmine offchain send via `POST http://localhost:7003/api/v1/send/offchain` after calling `FulmineLiquidityHelper.EnsureArkLiquidity(minBalance, maxAttempts: 5)` first (replaces the prior `docker exec ark ark send` CLI call that broke against newer arkd images that don't carry the embedded `ark` wallet binary); `PayLndInvoice(bolt11, ct)` — `docker exec lnd lncli --network=regtest payinvoice --force`; `BitcoinSendToAddress(address, btcAmount, ct)` and `BitcoinGetNewAddress(ct)` — route through a new `BitcoinCli(args, ct)` helper that prepends denigiri's btcpayserver-image connection flags `-regtest -rpcuser=admin1 -rpcpassword=123` (PR #104 — without them `bitcoin-cli` defaults to mainnet `127.0.0.1:8332` under `.env.regtest`'s container override and fails to connect, breaking every test that needs an on-chain faucet/mine: boarding, unilateral exit, chain swaps; 8 failures). `DockerHelper.CreateArkNote` execs into the `arkd` container (denigiri renamed it from `ark`). Tests that previously inlined `CliWrap.Cli.Wrap("docker")` now call these helpers (`BuilderStyleTests`, `ChainSwapTests`, `FundedWalletHelper`, `OnchainTests`, `SwapManagementServiceTests`, `VtxoSynchronizationTests`)
+- `Mocks/MockBoltzServer.cs` -- In-process Boltz API mock (PR #141, real MuSig2 + PSBT) used by the unilateral-refund tests to simulate Boltz refusing the cooperative refund without depending on the live Boltz container
+- `Common/TestWaiter.cs` -- Polling/await helpers added in PR #141 for the mock-Boltz refund tests
 - `Common/FundedWalletHelper.cs` -- Helper for creating and funding test wallets
 - `Common/FulmineLiquidityHelper.cs` -- `EnsureArkLiquidity(minBalance, maxAttempts)` + `RetryWithSettle(action)` — guard rails for tests that need the Fulmine faucet to have at least N sats of ARK liquidity before issuing an offchain send (consulted by `DockerHelper.SendArkdNoteTo` and by every chain-/submarine-/reverse-swap test under `ChainSwapTests` / `SwapManagementServiceTests`). PR #108 switched the swap suite to consult this helper rather than overriding `.env` to bump Fulmine's seed amount
 - `Common/TestFeeWallet.cs` -- Self-funding `IFeeWallet` for CPFP exit tests (funds via `bitcoin-cli sendtoaddress` against a BIP86 P2TR address, parses `getrawtransaction` to resolve the funding vout, mines 1 block to confirm; validates the requested outpoint belongs to this wallet before signing)
@@ -99,3 +105,5 @@ GitHub Actions (`build.yml`):
 3. `dotnet test --no-build --verbosity normal`
 4. `dotnet pack -c Release -o dist/`
 5. Push to NuGet (on master/tags only)
+
+**E2E split (PR #141)**: the formerly monolithic E2E job is now four reusable workflows invoked in parallel from `build.yml` — `e2e-core.yml`, `e2e-swaps.yml`, `e2e-recovery.yml`, `e2e-rotation.yml` — with regtest bring-up + `dotnet build` factored into the shared `.github/actions/e2e-setup` composite action (each workflow checks out before invoking it). Running a single category locally is still just a `--filter` against the relevant test namespace.

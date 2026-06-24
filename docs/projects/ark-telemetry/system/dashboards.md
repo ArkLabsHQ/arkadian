@@ -98,8 +98,8 @@ rate(go_gc_duration_seconds_sum[5m])
 ```
 
 **Client Compatibility Panels (PR #17, June 2026)** — Loki-backed panels (datasource uid `loki`) track client integrity and SDK adoption. The aggregation window is driven by the dashboard's `$window` template variable (PR #20; selectable 1m / 5m / 15m / 1h, default 5m):
-- **Digest Mismatch Errors**: count of `DIGEST_MISMATCH` errors over time
-  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "DIGEST_MISMATCH" [$window]))`
+- **Digest Mismatch Errors**: count of `DIGEST_MISMATCH` errors over time (PR #22 switched this from a raw line filter to the structured-metadata `error` label)
+  - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" | error =~ "DIGEST_MISMATCH.*" [$window]))`
 - **Requests by Build Version**: request volume grouped by the `x-build-version` header value, plus a `missing` series for requests with no `x-build-version` header — tracks client adoption of v0.9.9+ (renamed from "Requests Missing Client Version" and re-segmented in PR #21)
   - `sum by (build_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-build-version" | regexp "x-build-version.{3}(?P<build_version>[^\"]+)" [$window]))`
   - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-build-version" [$window]))` → `missing`
