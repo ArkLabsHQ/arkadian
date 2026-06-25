@@ -1,5 +1,30 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-25 - Documentation Update
+**Commit**: `3e11a6fc` (arkd repository)
+**Previous Sync**: `51384c05`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `3e11a6fc` bump golang/crypto and golang/net libs (#1126)
+
+**Dependencies / Internal Refactor (PR #1126)**:
+- **Dependency bump**: `golang.org/x/crypto` 0.49.0 → 0.52.0 and `golang.org/x/net` 0.52.0 → 0.55.0, plus transitive bumps `golang.org/x/sys` 0.42.0 → 0.45.0, `golang.org/x/text` 0.35.0 → 0.37.0, `golang.org/x/term` 0.41.0 → 0.43.0, `golang.org/x/mod` 0.33.0 → 0.35.0, `golang.org/x/tools` 0.42.0 → 0.44.0. Reflected across all module `go.mod`/`go.sum` (`go.mod`, `api-spec/go.mod`, `pkg/ark-cli/go.mod`, `pkg/ark-lib/go.mod`, `pkg/arkd-wallet/go.mod`, `pkg/client-lib/go.mod`, `pkg/errors/go.mod`, `pkg/kvdb/go.mod`, `pkg/macaroons/go.mod`).
+- **Stdlib HTTP/2 server migration (`internal/interface/grpc/service.go`)**: the public and admin HTTP servers no longer import `golang.org/x/net/http2` or `golang.org/x/net/http2/h2c`. The manually-constructed `http2.Server{MaxConcurrentStreams}` + conditional `h2c.NewHandler` wrapping + `http2.ConfigureServer` is replaced by the Go stdlib `http.Protocols` / `http.HTTP2Config` API: `protocols.SetHTTP1(true)` always; `protocols.SetUnencryptedHTTP2(true)` when `s.config.insecure()` else `protocols.SetHTTP2(true)`; and `http.Server{Protocols: protocols, HTTP2: &http.HTTP2Config{MaxConcurrentStreams: int(s.config.MaxConcurrentStreams)}}`. The admin server reuses the same `protocols`. The mux handler is now assigned directly (no h2c wrapper).
+
+**Breaking Changes**:
+- None. Behavior is preserved end-to-end: HTTP/1 + h2c in insecure mode, HTTP/1 + TLS HTTP/2 otherwise, and the `ARKD_MAX_CONCURRENT_STREAMS` budget still applied (now via `http.HTTP2Config.MaxConcurrentStreams`). No proto / gRPC method / env var / config / migration surface changed.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: new capability bullet for the golang/crypto+golang/net bump and the stdlib `http.Protocols`/`http.HTTP2Config` migration; new tags `dependency-bump`, `http2`)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.11 → 1.3.12)
+- docs/projects/arkd/system/tech_stack.md (Communication & APIs: note that the public/admin HTTP servers configure HTTP/2 via stdlib `http.Protocols`/`http.HTTP2Config`, replacing the prior `x/net/http2` + `h2c` wiring)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-23 - Documentation Update
 **Commit**: `51384c05` (arkd repository)
 **Previous Sync**: `ccda5c50`

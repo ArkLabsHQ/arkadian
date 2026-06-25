@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
-version: 1.1.1
-last_sync_commit: 50b81819687e4287c468ee020a2eff6bbb8c3095
+version: 1.1.2
+last_sync_commit: cbdeba228b741868438ca4ce22fd11246dd255a4
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -19,6 +19,7 @@ scripts:
   build: "pnpm build"
   lint: "pnpm lint"
   preview: "pnpm preview"
+  test: "pnpm test"
 ---
 
 # Arkade Explorer -- Project Index
@@ -80,7 +81,7 @@ Documentation sync history and tracking:
 
 1. **Transaction Explorer** -- View batch commitment transactions with batch details, VTXO tree viewer, metadata, timestamps; on-chain inputs/outputs link to mempool.space and outputs render Bitcoin (`bc1p`/`bc1q`) addresses
 2. **Cross-links** -- Commitment-tx inputs cross-link to the originating settlement commitment tx (via VTXO `settledBy`); batch outputs link to the batch root Arkade transaction
-3. **Address Explorer** -- View all VTXOs for an Arkade address/script with status badges and pagination; Recoverable badge is hidden on spent VTXOs
+3. **Address Explorer** -- View all VTXOs for an Arkade address/script with status badges and pagination; Recoverable badge is hidden on spent VTXOs. Balance/stats drain all VTXO pages so totals are complete; VTXO list, asset balances, and tx packet groups are window-virtualized (with per-group row caps) to stay responsive on high-activity addresses
 4. **Asset Explorer** -- View asset details by asset ID
 5. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (exactly 68 hex chars), outpoints (txid:vout, navigates to /tx/txid), and addresses; mobile/desktop search palette opens unconditionally
 6. **Real-time Activity** -- Live activity stream on homepage via ActivityStreamContext (events typed as `batch | vtxo | transaction`)
@@ -133,11 +134,14 @@ arkade-explorer/
 │   │   ├── api/              # fetchAllPages.ts (pagination helper)
 │   │   ├── arkAddress.ts     # Ark address construction (P2TR + OP_RETURN)
 │   │   ├── assetIconApproval.ts  # Asset icon verification logic
+│   │   ├── cap-list.ts       # capList(): limit list to N items + hidden count (tested)
 │   │   ├── constants.ts      # App constants
+│   │   ├── debounce.ts       # Trailing-edge debounce with cancel() (tested)
 │   │   ├── decode.ts         # Bitcoin decoding utilities
 │   │   ├── formatters.ts     # Additional formatters
 │   │   ├── utils.ts          # Core utilities (cn, formatSats, truncateHash)
-│   │   └── validation.ts     # Input validation
+│   │   ├── validation.ts     # Input validation
+│   │   └── vtxo-aggregation.ts  # VTXO active/total sums, per-asset balances, page-drain predicate (tested)
 │   ├── pages/                # HomePage, TransactionPage, CommitmentTxPage, AddressPage, AssetPage
 │   ├── types/                # TypeScript interfaces (Vtxo, Batch, CommitmentTx, PageResponse)
 │   ├── App.tsx               # Main app with routing and context providers
@@ -149,6 +153,7 @@ arkade-explorer/
 ├── Dockerfile                # Multi-stage Docker build (Node 22 + nginx)
 ├── tailwind.config.js        # Tailwind configuration with custom colors
 ├── vite.config.ts            # Vite configuration with git commit hash injection
+├── vitest.config.ts          # Vitest config (node env, runs src/**/*.test.ts)
 ├── nginx.conf                # nginx config for SPA routing
 ├── vercel.json               # Vercel deployment config
 ├── netlify.toml              # Netlify deployment config
@@ -186,6 +191,9 @@ pnpm preview
 
 # Run linting
 pnpm lint
+
+# Run unit tests (Vitest)
+pnpm test
 
 # Docker (pre-built image from GHCR)
 docker run -p 8080:80 ghcr.io/arklabshq/arkade-explorer:latest

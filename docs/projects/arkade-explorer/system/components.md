@@ -167,6 +167,19 @@ Debounces a rapidly changing value (e.g., search input) with a configurable dela
 ### useRecentSearches
 Manages recent search history in localStorage. Returns search list and add/clear methods.
 
+## Library Utilities (`lib/`)
+
+These pure, unit-tested (Vitest) helpers back the address-page reliability/performance fixes:
+
+### vtxo-aggregation.ts
+VTXO balance math: `isVtxoActive`, `sumVtxoValue`, `sumActiveVtxoValue`, `aggregateAssetBalances` (per-asset active/total map), and `hasMorePages` — the page-drain predicate that mirrors the address query's `getNextPageParam` so balances aggregate over **all** pages.
+
+### cap-list.ts
+`capList(items, cap, expanded)` returns `{ visible, hiddenCount }`, limiting a list to `cap` items (unless expanded) — used to cap rows per transaction packet group.
+
+### debounce.ts
+`debounce(fn, ms)` — trailing-edge debounce with a `cancel()` method; used to debounce subscription-triggered refetches on the address page.
+
 ## Component Patterns
 
 ### Loading States

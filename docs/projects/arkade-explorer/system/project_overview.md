@@ -29,6 +29,9 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 
 ### 2. Address Explorer (`/address/:address`)
 - **Statistics Dashboard**: Total balance, total received, total VTXOs, active/spent/swept counts
+- **Complete balance**: The address query drains **all** VTXO pages before aggregating, so balance/received totals are no longer skewed by pagination (previously only the first page was summed). Aggregation logic (`isVtxoActive`, `sumVtxoValue`, `sumActiveVtxoValue`, `aggregateAssetBalances`, `hasMorePages`) lives in the unit-tested `src/lib/vtxo-aggregation.ts`
+- **Crash resistance on high-activity addresses**: The VTXO list, per-asset balance list, and transaction packet groups are **window-virtualized** (via `@tanstack/react-virtual`), and packet groups cap rows per group (`src/lib/cap-list.ts`), so addresses with thousands of VTXOs/assets render without crashing the browser
+- **Debounced refetch**: Subscription-triggered refetches on the address page are debounced (`src/lib/debounce.ts`) to avoid refetch storms under live activity
 - **VTXO List**: Status badges (Active, Spent, Swept), outpoints, amounts, timestamps, links to transactions, pagination support
 - The **Recoverable** badge is suppressed when a VTXO's status is `spent` (applies to BatchList, VtxoList, and OutputCard)
 

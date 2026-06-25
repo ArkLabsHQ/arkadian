@@ -1,5 +1,25 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-25 - OnchainSweepService unilateral-exit sweep tx now implemented (PR #147), repo-wide XML-doc-comment cleanup (PR #144)
+**From**: `7a6278ec32a0503bc7045a1ae14a09a72c7ecfc0`
+**To**: `3f10e69caddfe38f2cc01c98601a842e7705716a`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 2 squash-merge PRs — #147 (`chore(core): build and broadcast unilateral exit tx in OnchainSweepService.cs`), #144 (`Chore: code cleanup`). 111 files changed across the window (the bulk are doc-comment-only edits from #144).
+
+**Highlights**:
+- **OnchainSweepService sweep tx implemented (PR #147)** — `OnchainSweepService.SweepExpiredUtxosAsync` previously threw `NotImplementedException` after deriving the destination contract (a TODO stub). It now completes the flow: parses the stored `ArkBoardingContract`, spends the expired VTXO via its `UnilateralPath()` (`UnilateralPathArkTapScript`) at the contract's CSV `Timeout`, derives a fresh boarding destination address, builds the CSV-spend tx, computes the taproot script-path sighash, signs with the wallet signer, sets the witness, and broadcasts via `IBitcoinBlockchain.BroadcastAsync` (throwing on broadcast failure). The constructor gained an `IClientTransport transport` dependency (for `GetServerInfoAsync` → network) and renamed `chainTimeProvider` → `blockchain` (`IBitcoinBlockchain`, also used for `EstimateFeeRateAsync`). Throws `InvalidOperationException` when the VTXO's contract isn't a boarding contract, the wallet has no signer, or the `user` descriptor is missing.
+- **Shared CSV-spend tx builder (PR #147)** — CSV-spend transaction construction was extracted into `TransactionHelpers.BuildCsvSpendTransaction(outpoint, txOut, destination, timeout, tapScript, controlBlock, feeRate, network)`, now shared by both `UnilateralExitService` (where the logic already lived) and the new `OnchainSweepService` path. New internal helpers: `Constants.ArkP2A` (the `51024e73` Arkade P2A anchor marker script) and `WalletProviderExtensions.{GetSignerOrThrowAsync, GetSignerAndPubKeyAsync}`.
+- **Repo-wide XML doc comments (PR #144)** — The remaining ~100 changed files are non-functional: `<summary>`/`<param>`/`<remarks>` documentation comments added across `NArk.Abstractions` (contracts, batches, scripting, intents, wallets, VTXOs), `NArk.Core`, and `NArk.Swaps`, plus minor unused-`using` removals. `Constants.cs` gained one byte (`+4` lines is the new `ArkP2A` field + `using NBitcoin`). No public API, dependency, configuration, or behavioural changes beyond #147.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/system/project_overview.md` — "Sweeping" capability now describes the completed `OnchainSweepService` build/sign/broadcast flow.
+- `docs/projects/dotnet-sdk/system/architecture.md` — added `OnchainSweepService` to the services list with the PR #147 detail; noted `TransactionHelpers.BuildCsvSpendTransaction` extraction.
+- `docs/INDEX.md` — updated the "Sweeping" key capability and the Project Status recent-changes line.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `3f10e69c`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
 ## 2026-06-24 - Per-input tx weight estimation replaces the fixed VTXO cap (PR #145/#146), EARS expiry-aware coin selector (PR #124), Boltz unilateral CLTV / `refundWithoutReceiver`-batch refund fallbacks + MockBoltz E2E + CI split (PR #141), Boltz `VersionResponse.CommitHash` removed (PR #143)
 **From**: `0b8d2991cbe3a7761b762fbb970e1fb27f5fd792`
 **To**: `7a6278ec32a0503bc7045a1ae14a09a72c7ecfc0`

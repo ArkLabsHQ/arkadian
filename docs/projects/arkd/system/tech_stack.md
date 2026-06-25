@@ -31,6 +31,8 @@ arkd is built with Go 1.26.4+ using modern Bitcoin libraries and infrastructure 
 
 **Protocol Buffers** - Interface Definition Language for efficient binary serialization with generated Go code.
 
+The public and admin HTTP servers configure HTTP/2 through the Go stdlib `http.Protocols` / `http.HTTP2Config` API (`internal/interface/grpc/service.go`): HTTP/1 is always enabled, unencrypted HTTP/2 (h2c) is enabled in insecure mode and TLS HTTP/2 otherwise, with the `ARKD_MAX_CONCURRENT_STREAMS` budget passed via `HTTP2Config.MaxConcurrentStreams`. This replaced the prior manual `golang.org/x/net/http2` + `h2c` wiring as of the `x/net` 0.55.0 bump (PR #1126).
+
 ## Database Technologies
 
 **PostgreSQL (Production)** - Primary database with ACID transactions, JSONB support for tree structures, advanced indexing, and connection pooling. Integrated with sqlc for type-safe queries and Watermill for event streaming. The bundled `docker-compose.regtest.yml` uses `postgres:17.8`.

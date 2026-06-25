@@ -56,6 +56,10 @@
 - **Versions**: clsx 2.1.1, tailwind-merge 3.4.0
 - **Purpose**: Conditional class name composition via `cn()` utility
 
+### @tanstack/react-virtual
+- **Version**: ^3.14.3
+- **Purpose**: Window virtualization for long lists (address VTXO list, asset balances, tx packet groups) to keep high-activity addresses responsive
+
 ## Ark/Bitcoin Libraries
 
 ### @arkade-os/sdk
@@ -81,6 +85,10 @@
 - **Version**: @vitejs/plugin-react 4.2.1
 - **Purpose**: React Fast Refresh and JSX transform
 
+### Vitest
+- **Version**: ^4.1.9
+- **Purpose**: Unit test runner (configured in `vitest.config.ts`, node environment, runs `src/**/*.test.ts`). Scripts: `pnpm test` (run once) and `pnpm test:watch`. Covers the `src/lib/` utility modules (`vtxo-aggregation`, `cap-list`, `debounce`)
+
 ## Deployment
 
 ### Docker
@@ -104,11 +112,13 @@
 | Routing | react-router-dom | 7.9.6 | Client routing |
 | Data | @tanstack/react-query | 5.90.10 | Server state |
 | Styling | tailwindcss | 4.1.17 | CSS framework |
+| Virtualization | @tanstack/react-virtual | ^3.14.3 | Windowed long-list rendering |
 | Icons | lucide-react | 0.554.0 | Icons |
 | Ark SDK | @arkade-os/sdk | ^0.4.0-next.7 | Ark protocol |
 | Bitcoin | @scure/btc-signer | 2.0.1 | TX parsing |
 | Bitcoin | @scure/base | 2.0.0 | Encoding |
 | Build | vite | 5.1.0 | Bundler |
+| Testing | vitest | ^4.1.9 | Unit test runner |
 | Types | typescript | 5.2.2 | Type system |
 
 ## Performance Characteristics

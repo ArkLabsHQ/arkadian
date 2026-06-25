@@ -1,5 +1,32 @@
 # Arkade Explorer -- Sync History
 
+## 2026-06-25 -- Incremental Documentation Sync
+**Commit**: `cbdeba228b741868438ca4ce22fd11246dd255a4`
+**Previous Sync**: `50b81819687e4287c468ee020a2eff6bbb8c3095`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `cbdeba2` Fix skewed address balance and browser crash on high-activity addresses (#29)
+
+**Changes** (PR #29 — squashed from 6 sub-commits):
+- **Skewed balance fix**: The address query now drains **all** VTXO pages before aggregating, so balance/received totals are complete (previously only the first page was summed). Aggregation logic extracted to the new, unit-tested `src/lib/vtxo-aggregation.ts` (`isVtxoActive`, `sumVtxoValue`, `sumActiveVtxoValue`, `aggregateAssetBalances`, `hasMorePages`). (`src/pages/address.tsx`, `src/components/shared/address-stats.tsx`)
+- **Browser crash fix (high-activity addresses)**: Window-virtualized the address VTXO list, the per-asset balance list, and transaction packet groups via the new `@tanstack/react-virtual` (^3.14.3) dependency; packet groups also cap rows per group via the new unit-tested `src/lib/cap-list.ts`. Prevents crashes on addresses with thousands of VTXOs/assets. (`src/components/shared/vtxo-list.tsx`, `src/components/shared/transaction-detail.tsx`, `src/components/shared/address-stats.tsx`)
+- **Refetch debounce (perf)**: Subscription-triggered refetches on the address page are debounced via the new unit-tested `src/lib/debounce.ts` (trailing-edge debounce with `cancel()`).
+- **Vitest harness added**: New `vitest.config.ts` (node env, runs `src/**/*.test.ts`); `package.json` adds `test` (`vitest run`) and `test:watch` scripts and `vitest` (^4.1.9) devDependency. Tests added for `cap-list`, `debounce`, and `vtxo-aggregation`. This is the project's first unit-test framework (docs previously listed Vitest as a recommended-but-unconfigured addition).
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md (frontmatter: last_sync_commit + version 1.1.2; scripts.test; lib + vitest.config.ts in directory structure; Address Explorer feature note; `pnpm test` dev command)
+- docs/projects/arkade-explorer/system/project_overview.md (Address Explorer: complete balance, virtualization, debounced refetch)
+- docs/projects/arkade-explorer/system/tech-stack.md (@tanstack/react-virtual, Vitest, dependency-summary rows)
+- docs/projects/arkade-explorer/system/components.md (new "Library Utilities" section: vtxo-aggregation, cap-list, debounce)
+- docs/projects/arkade-explorer/testing/how_to_test.md (Vitest now configured: overview, run commands, full validation, adding-tests, CI, address-page checklist)
+- docs/INDEX.md (arkade-explorer entry: Key Capabilities, Tags, Dependencies)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-05-27 -- Incremental Documentation Sync
 **Commit**: `50b81819687e4287c468ee020a2eff6bbb8c3095`
 **Previous Sync**: `453b0b152469a1929b2b359c478040864b6cc453`
