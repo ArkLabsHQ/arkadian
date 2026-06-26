@@ -23,26 +23,30 @@ ark-client = { version = "0.8", features = ["sqlite"] }
 ## Client Initialization
 
 ```rust
-use ark_client::OfflineClient;
+use ark_client::{OfflineClient, OfflineClientConfig, BoltzReferralId};
 use bitcoin::key::Keypair;
 
-// Create offline client with configuration
-let offline_client = OfflineClient::new(
-    "my-wallet".to_string(),
+// Configuration struct; #[derive(Default)] targets mainnet.
+// Override only the fields you need via ..Default::default().
+let config = OfflineClientConfig {
+    ark_server_url: "https://ark-server.example.com".to_string(),
+    boltz_url: "https://boltz.example.com".to_string(),
+    // timeout: DEFAULT_TIMEOUT (30s),
+    // server_info_ttl: DEFAULT_SERVER_INFO_TTL (15 min); set Duration::ZERO to always refresh,
+    // boltz_referral_id: BoltzReferralId::Default,  // or ::Disabled / ::Custom("...".into())
+    // delegator_pk: None,
+    // historical_delegator_pks: vec![],
+    ..Default::default()
+};
+
+// Create offline client with a static keypair (or with_bip32 / with_key_provider)
+let offline_client = OfflineClient::with_keypair(
+    config,
     keypair,
     blockchain,            // Esplora backend
     wallet,                // BDK wallet
-    "https://ark-server.example.com".to_string(),
     swap_storage,          // InMemorySwapStorage or SQLite
-    "https://boltz.example.com".to_string(),
-    None,                  // boltz_referral_id (None → DEFAULT_BOLTZ_REFERRAL_ID = "arkade-rs-SDK")
-    timeout,
-    None,                  // delegator_pk
-    vec![],                // historical_delegator_pks
 );
-
-// Optionally opt out of the default Boltz referral ID:
-// let offline_client = offline_client.with_boltz_referral_id(None);
 
 // Connect to arkd server
 let client = offline_client.connect().await?;

@@ -1,5 +1,36 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-06-26 - `OfflineClientConfig` builder + TTL-based server-info refresh
+**From**: `677b1c2d1ef68ac6e19b68048c8810e27001acf7`
+**To**: `4e8b696007594614f48f9bd1086ef6c24cb5d5c2`
+**Synced By**: update-project skill
+**Commits analyzed**: 6 (no merges)
+
+**Summary**: An ergonomics/refresh refactor of `ark-client` (no crate version bump — stays at `0.9.3`). Client construction moves from long positional constructors to a single `OfflineClientConfig` struct, and `Client::server_info()` becomes async, transparently refreshing the cached `/info` snapshot once a configurable TTL expires. **Breaking** for any direct constructor caller.
+
+**Changes**:
+- `fix(client): refresh server info by ttl` (`2aff82e`) — `Client::server_info()` is now async; it serves a cached snapshot and refreshes from the server once `SERVER_INFO_TTL` (15 min) has elapsed, single-flight behind an async `server_info_refresh_lock` with a lock-free fast path. `ServerState` gains `server_info_refreshed_at: Instant`; connect-time boarding persistence reuses the bootstrap server info.
+- `refactor(client): introduce offline client config` (`1ac9f60`) — introduces `OfflineClientConfig` and the `with_key_provider` / `with_keypair` / `with_bip32` constructors, replacing `new` / `new_with_keypair` / `new_with_bip32`. Drops the `K` key-provider generic (`OfflineClient<B,W,S,K>` → `OfflineClient<B,W,S>`; key provider stored as `Arc<dyn KeyProvider>`) and the `name` field/argument. Replaces `boltz_referral_id: Option<String>` + `with_boltz_referral_id` with the `BoltzReferralId` enum (`Default`/`Disabled`/`Custom`). Promotes `server_info_ttl` to a per-client config value (replacing the hard-coded const) and trims a trailing `/` from `boltz_url`. Migrates the sample app and e2e harness.
+- `fix(client): keep batch server info snapshot consistent` (`1500948`) — the batch round loop snapshots server info once so it stays consistent for the round despite the new TTL refresh.
+- `test(client): reuse server info in exit delay check` (`4d0f014`), `test(client): exercise signer rotation ttl refresh` (`92e3d02`), `test: verify digest refresh during signer rotation e2e` (`d658a97`) — test coverage for the refresh path and exit-delay reuse.
+
+**New public API**:
+- `ark-client`: `OfflineClientConfig` (fields `ark_server_url`, `boltz_url`, `timeout`, `server_info_ttl`, `boltz_referral_id`, `delegator_pk`, `historical_delegator_pks`; `#[derive(Default)]` → mainnet); `BoltzReferralId` (`Default` / `Disabled` / `Custom(String)`); constructors `OfflineClient::{with_key_provider, with_keypair, with_bip32}`; constants `ARKADE_MAINNET_URL`, `ARKADE_MUTINYNET_URL`, `BOLTZ_MAINNET_URL`, `BOLTZ_MUTINYNET_URL`, `DEFAULT_TIMEOUT`, `DEFAULT_SERVER_INFO_TTL`.
+
+**Breaking changes**:
+- `OfflineClient::new` / `new_with_keypair` / `new_with_bip32` removed in favor of config-based constructors; `OfflineClient` / `Client` lose the `K` generic; `name` field/argument removed; `with_boltz_referral_id` removed (use `BoltzReferralId` on the config).
+- `Client::server_info()` is now `async` (callers must `.await` it).
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` + `version`; new Protocol Features bullet; Boltz `referralId` reference updated to `BoltzReferralId`)
+- `docs/projects/rust-sdk/system/project_overview.md` (new Recent Additions entry; `ark-client` connection-lifecycle and `server_info` bullets)
+- `docs/projects/rust-sdk/system/architecture.md` (OfflineClient → Client pattern updated; new Server-Info TTL Refresh section; Boltz Referral ID section rewritten for `BoltzReferralId`)
+- `docs/projects/rust-sdk/testing/usage.md` (Client Initialization example rewritten for `OfflineClientConfig` + `with_keypair`)
+- `docs/INDEX.md` (new rust-sdk Key Capability; Boltz `referralId` reference updated)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-06-23 - Arkade server signer key rotation (0.9.3)
 **From**: `de2f2cf32329ebb9dd9d4391d79cd3df53d2a243`
 **To**: `677b1c2d1ef68ac6e19b68048c8810e27001acf7`

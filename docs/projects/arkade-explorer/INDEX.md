@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
-version: 1.1.2
-last_sync_commit: cbdeba228b741868438ca4ce22fd11246dd255a4
+version: 1.1.3
+last_sync_commit: 34295ba46a65e84f4b0ff1992445cf4c1f70807e
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -81,7 +81,7 @@ Documentation sync history and tracking:
 
 1. **Transaction Explorer** -- View batch commitment transactions with batch details, VTXO tree viewer, metadata, timestamps; on-chain inputs/outputs link to mempool.space and outputs render Bitcoin (`bc1p`/`bc1q`) addresses
 2. **Cross-links** -- Commitment-tx inputs cross-link to the originating settlement commitment tx (via VTXO `settledBy`); batch outputs link to the batch root Arkade transaction
-3. **Address Explorer** -- View all VTXOs for an Arkade address/script with status badges and pagination; Recoverable badge is hidden on spent VTXOs. Balance/stats drain all VTXO pages so totals are complete; VTXO list, asset balances, and tx packet groups are window-virtualized (with per-group row caps) to stay responsive on high-activity addresses
+3. **Address Explorer** -- View all VTXOs for an Arkade address/script with status badges (Unspent, Spent, **Unfinalized Spend**, Swept) and pagination; Recoverable badge is hidden on spent VTXOs. Consumed VTXOs replace their expiry countdown with a terminal "Settled"/"Spent" word (`deriveExpiryKind()`), with an inline `settled:xxxx` commitment-tx link in dense rows. Balance/stats drain all VTXO pages so totals are complete; VTXO list, asset balances, and tx packet groups are window-virtualized (with per-group row caps) to stay responsive on high-activity addresses
 4. **Asset Explorer** -- View asset details by asset ID
 5. **Smart Search** -- Auto-detect transaction IDs (64 hex chars), asset IDs (exactly 68 hex chars), outpoints (txid:vout, navigates to /tx/txid), and addresses; mobile/desktop search palette opens unconditionally
 6. **Real-time Activity** -- Live activity stream on homepage via ActivityStreamContext (events typed as `batch | vtxo | transaction`)
@@ -129,10 +129,11 @@ arkade-explorer/
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useAssetDetails.ts
 │   │   ├── useDebounce.ts
+│   │   ├── use-pending-outpoints.ts  # indexer pendingOnly scripts query -> unfinalized-spend set (tested)
 │   │   └── useRecentSearches.ts
 │   ├── lib/
 │   │   ├── api/              # fetchAllPages.ts (pagination helper)
-│   │   ├── arkAddress.ts     # Ark address construction (P2TR + OP_RETURN)
+│   │   ├── arkAddress.ts     # Ark address construction (P2TR + OP_RETURN) + deriveOutputDisplayAddress() (tested)
 │   │   ├── assetIconApproval.ts  # Asset icon verification logic
 │   │   ├── cap-list.ts       # capList(): limit list to N items + hidden count (tested)
 │   │   ├── constants.ts      # App constants
@@ -141,7 +142,8 @@ arkade-explorer/
 │   │   ├── formatters.ts     # Additional formatters
 │   │   ├── utils.ts          # Core utilities (cn, formatSats, truncateHash)
 │   │   ├── validation.ts     # Input validation
-│   │   └── vtxo-aggregation.ts  # VTXO active/total sums, per-asset balances, page-drain predicate (tested)
+│   │   ├── vtxo-aggregation.ts  # VTXO active/total sums, per-asset balances, page-drain predicate (tested)
+│   │   └── vtxo-display.ts   # deriveExpiryKind()/expiryKindLabel(): terminal Settled/Spent vs live countdown (tested)
 │   ├── pages/                # HomePage, TransactionPage, CommitmentTxPage, AddressPage, AssetPage
 │   ├── types/                # TypeScript interfaces (Vtxo, Batch, CommitmentTx, PageResponse)
 │   ├── App.tsx               # Main app with routing and context providers

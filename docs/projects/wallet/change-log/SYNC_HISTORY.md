@@ -1,5 +1,34 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-26 - Documentation Sync
+**Commit**: `e512413dfb39c491d4f6756c5a841ee28f7c7231`
+**Previous Sync**: `09fa6ef6a9071bb73f31d23c2c5a117169266dfb`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `e512413d` make boarded funds link point to arkade.space (#699)
+- `2f208c27` update regtest link (#698)
+
+**Features Added / Modified**:
+- **Boarded-funds TXID link → Arkade explorer** (PR #699): `src/screens/Wallet/Transaction.tsx`'s `isOffchainTx` flag now also evaluates true when only `tx.roundTxid` is present — `!tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid))` (was `!tx.boardingTxid && Boolean(tx.redeemTxid)`). The transaction-detail TXID link is routed off this flag in `src/components/Details.tsx`: off-chain transactions open the Arkade explorer via `openOffchainTxInNewTab` → `getOffchainTxURL` (the network's vmempool base, `https://arkade.space` on mainnet), while on-chain ones use `openInNewTab` (mempool explorer); `showTxidLink` still hides the link on networks with no configured off-chain explorer URL. Result: round-settled offboarding "boarded funds" transactions — whose displayed TXID falls back to `roundTxid` since PR #648 (2026-06-06 sync) — now link to arkade.space instead of being mis-routed to the on-chain mempool explorer. One-line logic change despite the per-commit `--stat` showing it under the "boarded funds" PR title.
+- **regtest link** (PR #698): `regtest` submodule pointer bump only (`f8afb42a` → `5a3ab962`) — no documentation impact.
+
+**Configuration Changes**: None.
+**Dependencies**: No `package.json` / `pnpm-lock.yaml` changes.
+**Breaking Changes**: None — explorer-link routing fix for an existing transaction-detail view.
+
+**Files Touched in Repo** (2 files): `regtest` (submodule pointer), `src/screens/Wallet/Transaction.tsx`.
+
+**Files Updated**:
+- `docs/projects/wallet/INDEX.md` — frontmatter `version` 1.2.27 → 1.2.28 + `last_sync_commit`; new "Boarded-funds TXID link → Arkade explorer (PR #699)" Developer / Diagnostics bullet.
+- `docs/INDEX.md` — wallet **Key Capabilities**: new PR #699 bullet (after the PR #648 `roundTxid`-fallback bullet) describing the `isOffchainTx` change and the Arkade vs mempool link routing.
+- `docs/projects/wallet/change-log/last-sync.txt` → `e512413dfb39c491d4f6756c5a841ee28f7c7231`
+- `docs/projects/wallet/change-log/SYNC_HISTORY.md` (this entry)
+
+**Files Not Updated** (intentional):
+- `docs/projects/wallet/system/*` and `testing/*` — no architectural component, env var, API endpoint, or build/test command change; PR #699 is a one-line link-routing fix and PR #698 is a dev/regtest submodule pointer bump (the E2E regtest capability bullet is branch/pointer-agnostic and remains accurate).
+
 ## 2026-06-24 - Documentation Sync
 **Commit**: `09fa6ef6a9071bb73f31d23c2c5a117169266dfb`
 **Previous Sync**: `907b3e72cd5f3ba64455a1f66a0ecac0b3c38045`

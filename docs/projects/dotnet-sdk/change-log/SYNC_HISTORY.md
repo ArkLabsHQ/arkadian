@@ -1,5 +1,31 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-26 - `VHTLCContract.Create(...)` validating factory + `VHtlcDelay` value type, rust-sdk `vhtlc.json` test vectors imported (PR #149)
+**From**: `3f10e69caddfe38f2cc01c98601a842e7705716a`
+**To**: `220d758a8d777b4e05abc0312853e97f9b3f1821`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge PR (#149 — `feat(tests): Add rust-sdk test vectors`). 2 files changed, +129 / -29 (`NArk.Core/Contracts/VHTLCContract.cs`, `NArk.Tests/VHtlcContractTests.cs`).
+
+**Highlights**:
+- **`VHTLCContract.Create(...)` validating factory** — New `public static VHTLCContract Create(OutputDescriptor server, sender, receiver, byte[] preimageHashBytes, LockTime refundLocktime, VHtlcDelay unilateralClaimDelay, unilateralRefundDelay, unilateralRefundWithoutReceiverDelay)`. It validates the raw parameters **before** encoding them into NBitcoin types (which lose the original value on rounding): throws `ArgumentException` when `preimageHashBytes.Length != 20` or `refundLocktime.Value == 0`, then constructs the contract via `new uint160(preimageHashBytes, false)` and each delay's `.ToSequence(name)`. The raw `new VHTLCContract(...)` constructor is unchanged for callers that already hold NBitcoin `uint160` / `Sequence` values.
+- **`VHtlcDelay` value type** — New `public readonly record struct VHtlcDelay(bool IsSeconds, uint Value)` with `VHtlcDelay.Blocks(uint)` / `VHtlcDelay.Seconds(uint)` factories. Its `internal Sequence ToSequence(string fieldName)` throws on `Value == 0`; for seconds timelocks it additionally requires `Value >= 512` and `Value % 512 == 0` (BIP-68 512-second granularity) and emits `new Sequence(TimeSpan.FromSeconds(Value))`; block delays emit `new Sequence(Value)`.
+- **rust-sdk `vhtlc.json` test vectors** — `NArk.Tests/VHtlcContractTests.cs` rewritten to import the canonical `arkade-os/rust-sdk` vectors (removing the prior `//TODO` to do so). Shared `Server` / `Sender` / `Receiver` descriptors + `ValidHashBytes` hoisted to fields. 3 valid cases now assert the resulting `GetArkAddress().ToString(false)` (block CSV > 16, block CSV ≤ 16, seconds CSV); 6 new invalid cases assert `VHTLCContract.Create(...)` throws `ArgumentException` (preimage hash 19 bytes / 28 bytes, zero block delay, zero refund locktime, seconds timelock 1000 = not a multiple of 512, seconds timelock 511 < 512).
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/system/project_overview.md` — Core Feature (5) "Taproot Contracts" extended with the `VHTLCContract.Create(...)` validating factory + `VHtlcDelay` rules.
+- `docs/projects/dotnet-sdk/INDEX.md` — new `VHTLCContract / VHtlcDelay` Key Concept entry below `ArkContract`.
+- `docs/projects/dotnet-sdk/testing/how_to_test.md` — `VHtlcContractTests.cs` entry expanded for the rust-sdk valid/invalid vectors.
+- `docs/INDEX.md` — dotnet-sdk "Taproot contracts" Key Capability extended; Tags appended (`vhtlc-create-factory`, `vhtlc-delay`, `vhtlc-test-vectors`, `rust-sdk-vhtlc-fixtures`); `ask_question` triggers appended; Project Status row extended with the PR #149 note.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `220d758a8d777b4e05abc0312853e97f9b3f1821`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/projects/dotnet-sdk/system/architecture.md` — no new component, service, DI registration, or dependency; `VHTLCContract` is an existing `NArk.Core/Contracts/` type and the change is an additive factory + value type on it, captured in `INDEX.md` Key Concepts + `project_overview.md`.
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — no transport-layer change.
+- `docs/projects/dotnet-sdk/testing/usage.md`, `testing/how_to_run.md`, `testing/troubleshooting.md`, `sop/development-workflow.md` — no impact. The factory is a pure construction-time validation helper with no new DI knob, env var, or build/test invocation; the new vectors run under the existing `dotnet test --filter "FullyQualifiedName~NArk.Tests"` command already documented.
+
 ## 2026-06-25 - OnchainSweepService unilateral-exit sweep tx now implemented (PR #147), repo-wide XML-doc-comment cleanup (PR #144)
 **From**: `7a6278ec32a0503bc7045a1ae14a09a72c7ecfc0`
 **To**: `3f10e69caddfe38f2cc01c98601a842e7705716a`

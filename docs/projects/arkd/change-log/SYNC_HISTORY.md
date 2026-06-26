@@ -1,5 +1,31 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-26 - Documentation Update
+**Commit**: `67332efb` (arkd repository)
+**Previous Sync**: `3e11a6fc`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `67332efb` Fix interceptors order & Prevent digest interceptor to cause panic (#1125)
+
+**Fixes (PR #1125)**:
+- **gRPC interceptor order (`internal/interface/grpc/interceptors/interceptor.go`)**: the readiness interceptor (`unaryReadinessHandler`/`streamReadinessHandler`) was moved from **last** to **third** in both the unary and stream chains — now running immediately after the logger and **ahead** of the version-guard, digest, and macaroon-auth interceptors. Because chained interceptors execute outside-in, an un-ready server now short-circuits with a readiness error **before** those guards run, in particular before the digest guard attempts to compute the settings digest on a not-yet-initialized server.
+- **Digest panic prevention (`internal/core/ports/live_store.go`)**: `Settings.Digest()` now guards `if s.SignerPubkey == nil || s.ForfeitPubkey == nil { return "", fmt.Errorf("settings not initialized") }` at the top, returning an error instead of dereferencing nil pubkeys and panicking when the settings cache has not been populated yet (e.g. before the wallet/signer is unlocked). The `fmt` import is added.
+- **Digest handler logging (`internal/interface/grpc/interceptors/digest.go`)**: both `unaryDigestHandler` and `streamDigestHandler` now `log.WithError(err).Warn("failed to get digest")` (logrus) on a digest-retrieval failure before returning the existing `INTERNAL_ERROR` "failed to verify digest header, retry later" — so the previously-opaque internal error is now traceable in the server logs.
+
+**Breaking Changes**:
+- None. Internal-only change: no proto / gRPC method / env var / config / migration surface changed. Behavior change is limited to interceptor ordering (readiness now short-circuits earlier) and a panic-to-error conversion in the digest path.
+
+**Files Updated**:
+- docs/INDEX.md (arkd entry: new capability bullet for the interceptor-order fix + digest panic guard; new tags `interceptor-order`, `readiness`, `digest-guard`; new debug triggers `digest interceptor panic`, `settings not initialized`, `failed to verify digest header`)
+- docs/projects/arkd/INDEX.md (sync commit + date, version 1.3.12 → 1.3.13)
+- docs/projects/arkd/system/integration_points.md (Error Mapping: reordered the downstream-interceptor list to readiness-first; new "Interceptor order (PR #1125)" note covering the readiness move, the `Settings.Digest()` nil guard, and the digest-handler warn log)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-25 - Documentation Update
 **Commit**: `3e11a6fc` (arkd repository)
 **Previous Sync**: `51384c05`

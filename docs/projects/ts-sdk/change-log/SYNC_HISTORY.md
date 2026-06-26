@@ -1,5 +1,32 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-26 - arkfee eval→evaluate (BREAKING) + SW init guard + boltz-swap descriptionHash
+**From**: `cb77d23fbea8a067b11643fa73929b1bc16e58ec`
+**To**: `c9a7e7537ed15b3389729f4ec5c7c96613e04a69`
+**Synced By**: update-project skill
+**Status**: Three-commit sync, all **post-0.4.39 unreleased** (no version bump — `packages/ts-sdk` stays `0.4.39`, `packages/boltz-swap` stays `0.3.44`). One **breaking** public-API change (`Estimator.eval()` → `Estimator.evaluate()`), one service-worker robustness fix introducing a new public error export, and one feature in the vendored sibling boltz-swap package.
+
+**Commits analyzed** (3 non-merge commits):
+- `0b00d834` fix(arkfee)!: rename Estimator.eval() to evaluate() for SES/Snap compatibility (#581) — **BREAKING**
+- `e96dbe63` feat(boltz-swap): support descriptionHash on reverse swaps (#576)
+- `c9a7e753` fix(worker): guard service-worker init against stale identity binding (#571) — also fixes Electrum `get_merkle` error classification
+
+**Notable source changes**:
+- **`packages/ts-sdk/src/arkfee/estimator.ts`** (#581, BREAKING): aggregate method `eval(...)` → `evaluate(...)`. SES's static "direct eval" detector rejects any bare `eval(` token, so the old name broke the whole SDK bundle inside a MetaMask Snap (arkade-os/ts-sdk#580). Per-input helpers (`evalOffchainInput` etc.) untouched — only the exact `eval` identifier is flagged.
+- **`packages/ts-sdk/src/worker/errors.ts` + `messageBus.ts` + `wallet/serviceWorker/wallet.ts` + `index.ts`** (#571): new `MessageBusInitializingError` / `MESSAGE_BUS_INITIALIZING` (superset of `MESSAGE_BUS_NOT_INITIALIZED`; both re-exported from the package root). `create()` / `reinitialize()` now assert the worker's reported x-only pubkey via `assertWorkerIdentityMatches()` (`GET_STATUS`) before returning. `INITIALIZE_MESSAGE_BUS` serialized on a FIFO chain; ordinary messages rejected during a pending init; callers wait on bounded backoff (~100ms→2s, `MAX_INIT_WAITS = 8`) instead of forcing a re-init; `sendMessageWithEvents` folded into `sendMessageWithRetry(request, withEvents?)`; `doInit()` cancels pending tick / skips `runTick()` during re-init.
+- **`packages/ts-sdk/src/providers/electrum.ts`** (#571): new `normalizedErrorText(err)` lowercases + strips all whitespace before matching — `ws-electrumx-client` drops spaces inside server error messages, so the `get_merkle` classifiers (`isMissingHeightError` / `isTxNotInBlockError`) missed the mangled wording and `getTxStatus` threw on the index-lag race; needles now whitespace-free.
+- **`packages/boltz-swap/src/{types,arkade-swaps,utils/decoding}.ts`** (#576): optional `descriptionHash` on `createLightningInvoice` / `createReverseSwap` (`CreateLightningInvoiceRequest.descriptionHash?: string`) to commit `SHA256(...)` into the reverse-swap BOLT11 invoice (NIP-57 zaps); BOLT11 carries description OR hash, never both, so the plaintext is dropped when set; gated on `!== undefined` + validated as 64-char hex. `DecodedInvoice.descriptionHash` (BOLT11 `h`, hex; `""` if none) surfaced by `decodeInvoice` via a locally-widened lookup. Substantive boltz-swap work → see `docs/projects/boltz-swap/`.
+
+**Documentation changes**:
+- `system/architecture.md`: added `arkfee/estimator.ts` (eval→evaluate BREAKING note); extended `providers/electrum.ts` (whitespace-tolerant `get_merkle` matching) and `wallet/serviceWorker/wallet.ts` (stale-identity init guard + `MessageBusInitializingError` + FIFO init serialization)
+- `INDEX.md` (project): added four new Key Concept entries (Estimator rename, SW init guard, Electrum error matching, sibling boltz-swap descriptionHash); corrected stale Version fields `0.4.37 → 0.4.39` and `0.3.42 → 0.3.44`
+- `docs/INDEX.md` (master): added four Key Capabilities entries, new tags, and new debug triggers
+- Sync tracking: `change-log/last-sync.txt` → `c9a7e753...`
+
+**Tests added**: extensive — `packages/ts-sdk/test/{fee,electrum,serviceWorker/wallet,worker/messageBus}.test.ts` (+544 lines) and `packages/boltz-swap/test/{arkade-swaps,boltz-swap-provider,decoding,e2e/arkade-swaps}.test.ts` (+150 lines)
+
+---
+
 ## 2026-06-23 - Test-lint fix (no source/API/version change)
 **From**: `6c64a055b650c42383038a2bb66d241896b4bf83`
 **To**: `cb77d23fbea8a067b11643fa73929b1bc16e58ec`

@@ -50,7 +50,7 @@ dotnet test --filter "FullyQualifiedName~NArk.Tests" --collect:"XPlat Code Cover
 - `SweeperServiceTests.cs` -- VTXO sweep/recovery
 - `SwapRecoveryTests.cs` -- `InspectSwapRecoveryAsync` + `ScanRecoverableSwapsAsync` (each `SwapRecoveryStatus` branch, bulk skip-Pending, chain-swap renegotiation guard)
 - `SwapRouteTests.cs` / `SwapRoutingTests.cs` -- Multi-provider routing + `SwapRoute` / `SwapAsset` model coverage. PR #141 moved the swap unit tests (`SwapRouteTests`, `SwapRoutingTests`, `SwapRecoveryTests`, `BoltzLimitsValidatorTests`, `BoltzOperationClassifierTests`, `BoltzClientNotFoundTests`, `SwapServiceRegistrationTests`) under a `NArk.Tests/Swaps/` subfolder (filter strings unchanged)
-- `VHtlcContractTests.cs` -- VHTLC contract construction
+- `VHtlcContractTests.cs` -- VHTLC contract construction + parameter validation. PR #149 imported the canonical `arkade-os/rust-sdk` `vhtlc.json` test vectors: 3 valid cases assert the resulting Ark address (block CSV > 16, block CSV ≤ 16, seconds CSV) and 6 invalid cases assert `VHTLCContract.Create(...)` throws `ArgumentException` (preimage hash 19 / 28 bytes, zero block delay, zero refund locktime, seconds timelock not a multiple of 512, seconds timelock < 512) via the new `VHtlcDelay.Blocks` / `VHtlcDelay.Seconds` inputs
 - `VtxoPollingHandlerTests.cs` -- VTXO polling after events
 
 ## End-to-End Tests

@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.27
-last_sync_commit: 09fa6ef6a9071bb73f31d23c2c5a117169266dfb
+version: 1.2.28
+last_sync_commit: e512413dfb39c491d4f6756c5a841ee28f7c7231
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -326,6 +326,7 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **Toast deduplication** (PR #641): `ToastProvider` (`src/components/Toast.tsx`) sets sonner `<Toaster visibleToasts={1}>` so at most one notification renders at a time, preventing stacked toasts when several actions complete in quick succession.
 - **Pull-to-refresh threshold** (PR #642): `Refresher` (`src/components/Refresher.tsx`) doubles the drag distance required to trigger a refresh, reducing accidental refreshes from short downward scrolls.
 - **Hand-written LNURL fix** (PR #696, `src/screens/Wallet/Send/Form.tsx`): typing an LNURL by hand previously errored on every intermediate keystroke. The `parseRecipient` effect is now gated behind a debounced `readyToParse` flag (`RECIPIENT_DEBOUNCE_MS = 800`, with a `timeoutRef` cleared on unmount), so parsing only runs once typing settles. The per-branch `base` reset (which started every parsed target from empty) was removed in favour of spreading the live `sendInfo` and preserving the prior amount (`satoshis: satoshis ?? sendInfo.satoshis`), so partial input no longer wipes accumulated state; the now-unused `resetDerivedState` helper was deleted. A `404` from the LNURL conditions fetch now surfaces a dedicated "LNURL not found" error instead of the generic message. New coverage in `src/test/e2e/form.test.ts` and `src/test/screens/wallet/send.test.tsx`.
+- **Boarded-funds TXID link → Arkade explorer** (PR #699, `src/screens/Wallet/Transaction.tsx`): the transaction-detail `isOffchainTx` flag now also evaluates true when only `tx.roundTxid` is present (`!tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid))`). `Details.tsx` routes the TXID link off this flag — off-chain transactions open the Arkade explorer via `openOffchainTxInNewTab` / `getOffchainTxURL` (`arkade.space` on mainnet, the vmempool base for the network), while on-chain ones use the mempool explorer (`openInNewTab`). So round-settled offboarding "boarded funds" transactions — whose displayed TXID falls back to `roundTxid` since PR #648 — now link to arkade.space instead of being mis-routed to the on-chain mempool explorer. (`showTxidLink` still hides the link on networks without a configured vmempool/off-chain explorer URL.)
 - **Skip LNURL checks when ARK address present** (PR #643): in `src/screens/Wallet/Send/Form.tsx`, the LNURL-conditions `useEffect` now early-returns when `sendInfo.arkAddress` is set, and `sendInfo.arkAddress` is added to the dependency array — pasting a unified BIP21 URI with both `ark=` and `lightning=lnurl…` no longer fires an unnecessary LNURL fetch. `encodeBip21` (`src/lib/bip21.ts`) refactored to build the query progressively, omitting empty `ark=` segments and trimming trailing `&`/`?` so e.g. `bitcoin:<addr>` with no ARK/LN/amount no longer leaves a dangling `?`. New `src/test/e2e/form.test.ts` E2E suite covers these Send-form interactions.
 
 ### Lightning Integration

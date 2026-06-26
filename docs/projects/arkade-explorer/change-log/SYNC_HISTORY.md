@@ -1,5 +1,30 @@
 # Arkade Explorer -- Sync History
 
+## 2026-06-26 -- Incremental Documentation Sync
+**Commit**: `34295ba46a65e84f4b0ff1992445cf4c1f70807e`
+**Previous Sync**: `cbdeba228b741868438ca4ce22fd11246dd255a4`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `34295ba` feat: show Settled/Spent status in VTXO expiry slot; add settled tx link (#31)
+- `17d41da` Fix checkpoint Arkade address + add Unfinalized Spend badge (#30)
+
+**Changes**:
+- **Terminal expiry slot (PR #31)**: A consumed VTXO's batch-expiry countdown is replaced by a terminal status word — `settledBy` set → "Settled", spent (no settle) → "Spent", otherwise the live countdown (unchanged). Logic is the pure, unit-tested `deriveExpiryKind()` / `expiryKindLabel()` helper in the new `src/lib/vtxo-display.ts` (`settled` takes precedence over `spent`). Applies to all three address VTXO-list variants and the transaction-detail header; the dense-rows variant also gains an inline `settled:xxxx` commitment-tx link mirroring the existing `spent:xxxx` link. No spent/settled timestamp is available from the indexer, so a status word (not a date) is shown. (`src/lib/vtxo-display.ts`, `src/components/shared/vtxo-list.tsx`, `src/components/shared/transaction-detail.tsx`)
+- **Checkpoint Arkade address fix (PR #30)**: New `deriveOutputDisplayAddress()` in `src/lib/arkAddress.ts` — only genuine on-chain outputs (commitment txs and connector-tree outputs) render as Bitcoin addresses (`bc1…`/`tb1…`); all other off-chain outputs, **including checkpoint outputs**, render as Arkade addresses (`ark1…`/`tark1…`). Fixes checkpoint outputs previously shown as Bitcoin addresses. (`src/lib/arkAddress.ts`, `src/components/shared/transaction-detail.tsx`)
+- **Unfinalized Spend badge (PR #30)**: New `unfinalized` VTXO status (amber "Unfinalized Spend" badge) for a spent VTXO whose offchain spend was submitted but not finalized. The new `usePendingOutpoints` hook (`src/hooks/use-pending-outpoints.ts`) queries the indexer with `pendingOnly: true` over the displayed VTXO **scripts** (the indexer only honors status filters for `scripts` queries, not `outpoints`), gated on a spent VTXO being present so nothing-spent views pay no extra request. `deriveVtxoStatus()` now takes an optional `pendingOutpoints` set and returns `unfinalized` only when the VTXO is actually spent and its outpoint is in that set. (`src/components/shared/badge-status.tsx`, `src/hooks/use-pending-outpoints.ts`, `src/pages/address.tsx`)
+- **Tests**: New unit tests for `vtxo-display`, `arkAddress.deriveOutputDisplayAddress`, and `badge-status.deriveVtxoStatus`.
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md (frontmatter: last_sync_commit + version 1.1.3; Key Features Address Explorer note; directory structure: use-pending-outpoints.ts, vtxo-display.ts, deriveOutputDisplayAddress)
+- docs/projects/arkade-explorer/system/project_overview.md (Arkade Tx View: output display addresses/checkpoint; Address Explorer: Unfinalized Spend badge, terminal expiry slot)
+- docs/INDEX.md (arkade-explorer entry: Key Capabilities — output addresses, status badges/terminal expiry, unfinalized-spend detection)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-25 -- Incremental Documentation Sync
 **Commit**: `cbdeba228b741868438ca4ce22fd11246dd255a4`
 **Previous Sync**: `50b81819687e4287c468ee020a2eff6bbb8c3095`

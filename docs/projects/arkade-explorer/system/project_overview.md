@@ -26,13 +26,16 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
   - Display transaction details with timestamps (createdAt, expiry)
   - Spent status indicators and spending transaction links on outputs (route to `/commitment-tx/` when settled, never to self)
   - Subtype badges expanded to full names: "Forfeit transaction", "Checkpoint transaction", "Batch tree transaction", "Connector tree transaction"
+  - **Output display addresses** via `deriveOutputDisplayAddress()` (`src/lib/arkAddress.ts`): only genuine on-chain outputs (commitment txs and connector-tree outputs) render as Bitcoin addresses (`bc1…`/`tb1…`); all other off-chain outputs — **including checkpoint outputs** — render as Arkade addresses (`ark1…`/`tark1…`)
 
 ### 2. Address Explorer (`/address/:address`)
 - **Statistics Dashboard**: Total balance, total received, total VTXOs, active/spent/swept counts
 - **Complete balance**: The address query drains **all** VTXO pages before aggregating, so balance/received totals are no longer skewed by pagination (previously only the first page was summed). Aggregation logic (`isVtxoActive`, `sumVtxoValue`, `sumActiveVtxoValue`, `aggregateAssetBalances`, `hasMorePages`) lives in the unit-tested `src/lib/vtxo-aggregation.ts`
 - **Crash resistance on high-activity addresses**: The VTXO list, per-asset balance list, and transaction packet groups are **window-virtualized** (via `@tanstack/react-virtual`), and packet groups cap rows per group (`src/lib/cap-list.ts`), so addresses with thousands of VTXOs/assets render without crashing the browser
 - **Debounced refetch**: Subscription-triggered refetches on the address page are debounced (`src/lib/debounce.ts`) to avoid refetch storms under live activity
-- **VTXO List**: Status badges (Active, Spent, Swept), outpoints, amounts, timestamps, links to transactions, pagination support
+- **VTXO List**: Status badges (Unspent, Spent, **Unfinalized Spend**, Swept), outpoints, amounts, timestamps, links to transactions, pagination support
+- **Unfinalized Spend badge**: A spent VTXO whose offchain spend was submitted but not finalized renders an amber "Unfinalized Spend" badge. Detection (`src/hooks/use-pending-outpoints.ts`) queries the indexer with `pendingOnly: true` over the displayed VTXO **scripts** (the indexer only honors the filter for `scripts` queries, not `outpoints`); `deriveVtxoStatus()` returns `unfinalized` only when the VTXO is actually spent and its outpoint is in the pending set
+- **Terminal expiry slot**: Once a VTXO is consumed its batch-expiry countdown is meaningless, so the expiry slot shows a terminal status word instead — `settledBy` set → "Settled", spent (no settle) → "Spent", otherwise the live countdown. Logic is the pure `deriveExpiryKind()` / `expiryKindLabel()` helper in `src/lib/vtxo-display.ts` (`settled` takes precedence over `spent`). Applies to all three address VTXO-list variants and the transaction-detail header; the dense-rows variant also gains an inline `settled:xxxx` commitment-tx link mirroring the existing `spent:xxxx` link
 - The **Recoverable** badge is suppressed when a VTXO's status is `spent` (applies to BatchList, VtxoList, and OutputCard)
 
 ### 3. Asset Explorer (`/asset/:assetId`)
