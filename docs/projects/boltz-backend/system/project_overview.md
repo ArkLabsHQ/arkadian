@@ -76,6 +76,12 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Persisted gRPC surface (`DisableSigners` / `EnableSigners` / `GetDisabledSigners`) and `boltzr-cli signer …` commands let operators disable individual cooperative/lockup signer paths (submarine-refund, reverse-claim, chain-refund, chain-claim, deferred-claim, EVM-refund, EVM-commitment-refund, reverse-lockup, chain-lockup, submarine-invoice-payment) at runtime
 - State lives in the `disabled_signers` table and is enforced by an in-process `SignerControlRegistry`; the legacy dev-only `DevDisableCooperative` toggle has been removed
 
+**Claim-Failure Alerting**
+- A new `claim.failure` event (`{ swap, symbol, error }`) is emitted by `SwapNursery` when a swap claim fails, relayed through `EventHandler`, and surfaced by `NotificationProvider` as a 🚨 alert message (per-symbol, with basic swap info and the error truncated to 200 chars) on the configured Discord/notification channel (PR #1445)
+
+**Balance-Cache Refresh (Operational)**
+- New dev gRPC method `DevRefreshBalanceCache(symbol?)` and `boltzr-cli dev refresh-balance-cache [symbol]` command let operators force-refresh the wallet balance cache used for liquidity checks, either for a single symbol or for every wallet (PR #1447). Backed by `Service.refreshBalanceCache` → `BalanceCheck.refresh`; an unknown symbol returns `CURRENCY_NOT_FOUND`. The underlying `BalanceCheck` was refactored to a per-symbol `updateBalance(symbol, wallet)` used by both the periodic update and the on-demand refresh
+
 **Liquid 0-Conf Observation API**
 - Optional `[liquid.chain.zeroConfTool]` configuration enables an external bridge-observation quorum for Liquid 0-conf safety; transport (`http(s)` polling vs `ws(s)` push) is selected by URL scheme, with separate tunables per transport (`interval` / `max_retries` for HTTP, `deadline_secs` and the new `rotation_interval_secs` for WS — preemptive reconnects before the server-side TTL drops the WebSocket; default `3300` seconds, `0` disables)
 - Removes the legacy `[liquid.chain.lowball]` backup-node configuration and the in-process `ElementsWrapper` dual-Elements-node failover (PR #1417); `liquid.chain` now configures a single Elements RPC endpoint

@@ -1,5 +1,26 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-27 - Documentation Update
+**Commit**: `5fae2026` (arkd repository)
+**Previous Sync**: `67332efb`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `5fae2026` Expose gRPC channelz introspection on the admin port via env var (#1127)
+
+**Features (PR #1127)**:
+- New `ARKD_ENABLE_CHANNELZ` env var (default `false`) registers the gRPC channelz service on the admin port, letting operators inspect live channel/connection/socket state via `grpc_cli`. Threaded through `internal/config` (`EnableChannelz`) and the grpc-interface `Config`; `envs/arkd.dev.env` enables it for dev. Off by default; no proto / gRPC method / migration surface changed.
+
+**Files Updated**:
+- docs/INDEX.md (key capability, tags, monitor trigger)
+- docs/projects/arkd/system/configuration.md (new env var)
+- docs/projects/arkd/system/project_overview.md (observability section)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-26 - Documentation Update
 **Commit**: `67332efb` (arkd repository)
 **Previous Sync**: `3e11a6fc`

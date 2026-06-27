@@ -1,5 +1,32 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-27 - BIP-322 intent-proof message field + boarding-sweep phantom-receive fix
+**From**: `c9a7e7537ed15b3389729f4ec5c7c96613e04a69`
+**To**: `506b649e40ad63e3f00e57b74b7cc15d61b84081`
+**Synced By**: update-project skill
+**Status**: Two-commit sync, both **post-0.4.39 unreleased** (no version bump — `packages/ts-sdk` stays `0.4.39`). One additive feature on the intent-proof PSBT (sets the BIP-322 `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE` global field) and one transaction-history bug fix (phantom-receive double-count when Esplora `/outspends` omits the spender txid). No public-API breaks.
+
+**Commits analyzed** (2 non-merge commits):
+- `506b649e` feat(intent): set BIP-322 PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE (0x09) (#578)
+- `839a43dd` fix(wallet): phantom receive inflation from boarding sweeps (Esplora outspends without txid) (#587)
+
+**Files changed in repo**:
+- `packages/ts-sdk/src/intent/index.ts` — `craftToSignTx` gains a `message` param and writes it to the `tx.global.unknown` entry `{ type: 0x09 }` (BIP-322 v2 generic signed message); JSDoc added
+- `packages/ts-sdk/src/providers/onchain.ts` — `getTxOutspends` return type `txid` made optional; `ExplorerTransaction` gains optional `vin?: { txid; vout }[]`; `isExplorerTransaction` validates `vin` only when present
+- `packages/ts-sdk/src/wallet/wallet.ts` — boarding scan builds a `commitmentByOutpoint` map from address-history `vin` and falls back to it for the spender/commitment txid (`||` over the electrum `txid: ""` sentinel)
+- `packages/ts-sdk/test/intent.test.ts`, `test/transactionHistory.test.ts`, `test/walletBoardingTxs.test.ts` — coverage for both changes
+
+**Documentation changes**:
+- `docs/projects/ts-sdk/INDEX.md`: Version row extended with `#578` / `#587`; two new Key Concepts entries (BIP-322 intent-proof global field; phantom-receive boarding-sweep fix)
+- `docs/projects/ts-sdk/system/project_overview.md`: Transaction History core-feature row + Esplora integration point extended with the `getTxOutspends` `txid?` / `ExplorerTransaction.vin?` / `commitmentByOutpoint` fix
+- `docs/projects/ts-sdk/system/architecture.md`: `intent/index.ts` and `providers/onchain.ts` (EsploraProvider) module annotations extended
+- Master `docs/INDEX.md`: two Key Capabilities entries, new Tags, new debug/triggers
+- `change-log/last-sync.txt` → `506b649e40ad63e3f00e57b74b7cc15d61b84081`
+
+**Notes**:
+- Both commits are unreleased — the published `@arkade-os/sdk` remains `0.4.39` and the sibling `@arkade-os/boltz-swap` remains `0.3.44`
+- `#578` is purely additive on the PSBT wire (an unknown global field that round-trips); `#587` is a correctness fix for transaction-history accuracy against non-electrs Esplora backends
+
 ## 2026-06-26 - arkfee eval→evaluate (BREAKING) + SW init guard + boltz-swap descriptionHash
 **From**: `cb77d23fbea8a067b11643fa73929b1bc16e58ec`
 **To**: `c9a7e7537ed15b3389729f4ec5c7c96613e04a69`

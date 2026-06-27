@@ -116,6 +116,7 @@ These variables are read by the **arkd-wallet** service (env prefix `ARKD_WALLET
 - `ARKD_PYROSCOPE_SERVER_URL` - Pyroscope profiling server URL
 - `ARKD_ALERT_MANAGER_URL` - AlertManager URL for alerts integration
 - `ARKD_ENABLE_PPROF` (default: false) - Enable pprof profiling endpoint
+- `ARKD_ENABLE_CHANNELZ` (default: false) - Expose gRPC channelz introspection on the admin port; query via `grpc_cli`
 
 ## Configuration Examples
 

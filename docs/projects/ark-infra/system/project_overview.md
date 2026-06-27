@@ -154,6 +154,14 @@ ark-infra/
    - P2P port 8333, RPC port 8332
    - Storage on EBS volume
 
+6. **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.4`, production only, since #92)
+   - Monitors on-chain + mempool activity for threats and alerts to Slack
+   - On-chain provider: `nbxplorer` (`http://nbxplorer:32838`); also queries the Ark indexer (`https://${ARKD_DOMAIN}`), Ark explorer (`https://arkade.space`), and mempool.space
+   - Mempool scan every 300s, block reconcile disabled (`0s`), scans from height `952900`
+   - Persists state in a named `threat-monitor` volume (`/data/threat-monitor.badger`)
+   - Requires `THREAT_MONITOR_SLACK_WEBHOOK_URL`; `traefik.enable=false`; CloudWatch stream `threat-monitor`
+   - `depends_on: nbxplorer` intentionally commented out to reduce NBX restart risk
+
 ### Ingress & Routing
 
 1. **cloudflared** (Tunnel) — legacy ingress, still used on prod

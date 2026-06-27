@@ -171,6 +171,10 @@ npm run dev
 - `boltzr-cli signer {disable,enable,list-disabled} <SIGNER>…` wraps the new RPCs (and `boltzr` boots accept a CLI flag to enable/disable all signers at startup)
 - **Replaces** the previous dev-only `DevDisableCooperative` RPC and `boltzr-cli dev toggle-cooperative` command, which have been removed
 
+### Dev gRPC Surface
+- **`DevRefreshBalanceCache(symbol?)`** (PR #1447): forces a refresh of the wallet balance cache used for liquidity checks — for a single `symbol` or, when omitted, every wallet. Exposed end-to-end as `boltzr-cli dev refresh-balance-cache [symbol]`. Backed by `Service.refreshBalanceCache` → `BalanceCheck.refresh`; an unknown symbol yields `CURRENCY_NOT_FOUND`. `BalanceCheck` was refactored to share a per-symbol `updateBalance(symbol, wallet)` between the periodic update loop and the on-demand refresh.
+- Other dev RPCs on `boltzrpc.Boltz`: `DevHeapDump`, `DevClearSwapUpdateCache`.
+
 ### Fulmine Integration
 - **Macaroon authentication** for Fulmine RPCs (also exposed by `boltzr-cli`)
 - Uses Fulmine **`ListVHTLCs`** for VHTLC discovery
@@ -190,6 +194,7 @@ npm run dev
 - **Prometheus**: Metrics collection. Node-side async-lock instrumentation added in PR #1427 — `lib/InstrumentedLock.ts` wraps `async-lock` with per-key holder, pending-task, and overflow-rejection tracking, exposing three new gauges on the swap registry: `lock_pending{name,key}` (waiters per key), `lock_hold_age_seconds{name,key,op}` (current holder age), and `lock_rejections{name,key}` (cumulative "Too many pending tasks" overflows). Overflow rejections are enriched with the stuck holder and queue depth so the failing waiter sees who is stuck. **PR #1428** rolled `InstrumentedLock` out to **every remaining `async-lock` site** in the Node-side codebase — `SwapNursery` (the central swap/lockup/expiry/payment lock), `SwapManager`, `UtxoNursery`, `ArkNursery`, `LightningNursery`, `RefundWatcher`, `DeferredClaimer`, `MusigSigner`, `LockupTransactionTracker`, `SelfPaymentClient`, `ConsolidatedEventHandler`, and `SequentialSigner` — and added an ESLint `no-restricted-imports` rule under `lib/**` that forbids importing `async-lock` directly (only `lib/InstrumentedLock.ts` may). Each `acquire(key, op, cb)` call now also opens an **OpenTelemetry** span named `lock <name> <op>` (`SpanKind.INTERNAL`, attributes `lock.name`, `lock.key`, `lock.op`, plus `lock.wait_ms` once acquired and `lock.held_ms` on release; errors set `SpanStatusCode.ERROR`); the callback runs inside the span context so downstream spans nest under the lock. The pending-counter map also self-cleans idle keys (decrement to `0` deletes the entry) so locks with dynamic keys no longer grow unbounded.
 - **OpenTelemetry**: Distributed tracing — now includes per-lock spans for every instrumented `acquire` (see above).
 - **Grafana**: Visualization (via Loki integration)
+- **Claim-failure alerts** (PR #1445): `SwapNursery` emits a `claim.failure` event (`{ swap, symbol, error }`) when a swap claim fails; `EventHandler` re-emits it and `NotificationProvider` posts a 🚨 alert to the configured notification channel with per-symbol basic swap info and the error truncated to 200 chars.
 
 ---
 

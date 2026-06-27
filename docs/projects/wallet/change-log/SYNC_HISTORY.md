@@ -1,5 +1,27 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-27 - Documentation Sync
+**Commit**: `074c52441db4f5d19fd805673c4e0f5f3db7964f`
+**Previous Sync**: `e512413dfb39c491d4f6756c5a841ee28f7c7231`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `074c5244` fix(receive): show 'Edit amount' after setting an asset amount (#697)
+
+**Bug Fixes**:
+- **Receive amount label for assets** (PR #697): in `src/screens/Wallet/Receive/QrCode.tsx` the amount-button label now derives from `hasAmount` instead of `satoshis` (`const amountLabel = hasAmount ? 'Edit amount' : 'Add amount'`). Previously the label only flipped to "Edit amount" when sats were set, so after setting an asset (non-sats) amount it incorrectly still read "Add amount". One-line fix to the existing Receive v2 flow.
+
+**Documentation Impact**: None — minor UI bug fix to an existing capability; no change to features, dependencies, or architecture.
+
+**Files Updated**:
+- docs/projects/wallet/INDEX.md (last_sync_commit)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+- docs/INDEX.md (Last Updated date)
+
+---
+
 ## 2026-06-26 - Documentation Sync
 **Commit**: `e512413dfb39c491d4f6756c5a841ee28f7c7231`
 **Previous Sync**: `09fa6ef6a9071bb73f31d23c2c5a117169266dfb`

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.2
-last_sync_commit: 52a431a13d9cbd776319c9068c40210738be4329
-last_sync_date: 2026-06-17T00:00:00Z
+version: 1.7.3
+last_sync_commit: 448a34e38dd1f511741d5aae3e4752d8e5cd05b1
+last_sync_date: 2026-06-27T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -228,6 +228,9 @@ make clean-local-state ENV=prod
 
 ### Administration
 - **ark-admin-app** — Go-based web application for managing AWS Ark infrastructure via SSM commands and port forwarding. Provides web UI for service deployment, port forwarding management, infrastructure overview, and health monitoring.
+
+### Security Monitoring
+- **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.4`, prod only, since #92) — Watches on-chain and mempool activity for threats and alerts to Slack. Sources: `nbxplorer` on-chain provider (`THREAT_MONITOR_NBXPLORER_URL=http://nbxplorer:32838`, `THREAT_MONITOR_ONCHAIN_PROVIDER=nbxplorer`), Ark indexer (`https://${ARKD_DOMAIN}`), Ark explorer (`https://arkade.space`), and mempool.space explorer. Tuning: `THREAT_MONITOR_MEMPOOL_SCAN_INTERVAL=300s`, `THREAT_MONITOR_BLOCK_RECONCILE_INTERVAL=0s` (disabled), `THREAT_MONITOR_START_HEIGHT=952900`. State persisted to a named `threat-monitor` volume (`/data/threat-monitor.badger`); `traefik.enable=false`; logs to CloudWatch stream `threat-monitor`. New required env var `THREAT_MONITOR_SLACK_WEBHOOK_URL`. `depends_on: { nbxplorer }` is commented out to reduce the risk of NBX restarts.
 
 ### Ingress & Routing
 - **cloudflared** — Cloudflare Tunnel for secure ingress (legacy path; still used on prod)

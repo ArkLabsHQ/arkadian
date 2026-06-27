@@ -1,5 +1,33 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-27 - Documentation Update
+**Commit**: `448a34e38dd1f511741d5aae3e4752d8e5cd05b1`
+**Previous Sync**: `aac096318ef6033a207b969dcc40294b76ab0920`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (PR #92 + version bump)
+
+**Highlights**:
+- 🛡️ **Threat-monitor deployed to prod** (#92, `1507c2e` + `448a34e`): new `threat-monitor`
+  service added to `compose/docker-compose.ark.prod.yaml` (prod only), pinned to
+  `ghcr.io/arklabshq/threat-monitor:v0.2.4` (initial deploy `v0.1.1` → tuned to `v0.2.3` →
+  finalized at `v0.2.4`). Watches on-chain + mempool activity for threats and alerts to Slack.
+  Config: `THREAT_MONITOR_ONCHAIN_PROVIDER=nbxplorer` with `THREAT_MONITOR_NBXPLORER_URL=http://nbxplorer:32838`,
+  Ark indexer `https://${ARKD_DOMAIN}`, Ark explorer `https://arkade.space`, mempool.space explorer,
+  `MEMPOOL_SCAN_INTERVAL=300s`, `BLOCK_RECONCILE_INTERVAL=0s` (disabled), `START_HEIGHT=952900`.
+  Persists state in a new named `threat-monitor` volume (`/data/threat-monitor.badger`);
+  `traefik.enable=false`; ships logs to CloudWatch stream `threat-monitor`. New required env var
+  `THREAT_MONITOR_SLACK_WEBHOOK_URL`. `depends_on: { nbxplorer: { condition: service_healthy } }`
+  is intentionally commented out to reduce the risk of NBX restarts.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: new threat-monitor deployment bullet; tags appended: `threat-monitor`, `security-monitoring`, `slack-alerts`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.3, `last_sync_commit`, `last_sync_date`; new "Security Monitoring" subsection under Deployed Services)
+- docs/projects/ark-infra/system/project_overview.md (Application Services: new threat-monitor entry #6)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `448a34e38dd1f511741d5aae3e4752d8e5cd05b1`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-06-24 - Documentation Update
 **Commit**: `aac096318ef6033a207b969dcc40294b76ab0920`
 **Previous Sync**: `52a431a13d9cbd776319c9068c40210738be4329`

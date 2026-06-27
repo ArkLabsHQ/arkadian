@@ -1,5 +1,32 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-27 - VTXO subscription retargeted to arkd's unified `GetSubscription` / `UpdateSubscription` API, proto resync + proto-sync-check CI (PR #148)
+**From**: `220d758a8d777b4e05abc0312853e97f9b3f1821`
+**To**: `36898e71558c9dc63abe6c2623f0a21db8b97838`
+**Synced By**: update-project skill
+**Status**: Updated
+
+**Commits Analysed**: 1 squash-merge PR (#148 — `chore(transport): Use new Subscription Id defined in latest protobuf`). 12 files changed, +540 / -316 (transport interface + impls, `VtxoSynchronizationService`, the three `ark/v1/*.proto` files, a new CI workflow, and two test files).
+
+**Highlights**:
+- **VTXO subscription rewritten onto arkd's unified subscription API** — The previous three-primitive surface (`SubscribeForScriptsAsync` / `UnsubscribeForScriptsAsync` / `GetVtxoSubscriptionStreamAsync`) plus the `GetVtxoToPollAsStream` default-method (all PR #103) was **removed** from `IClientTransport` and replaced by two methods: `OpenSubscriptionStreamAsync(initialScripts, existingSubscriptionId)` — a single server-streaming call over arkd's `GetSubscription` RPC that yields a `VtxoSubscriptionEvent` discriminated union, and `UpdateSubscriptionScriptsAsync(subscriptionId, add, remove)` — an in-place mutation over arkd's new `UpdateSubscription` RPC (no-op when both deltas are empty, throws `NotFound` when the subscription was GC'd).
+- **New `VtxoSubscriptionEvent` discriminated union** (`NArk.Core/Transport/IndexerSubscriptionEvent.cs`) — `abstract record VtxoSubscriptionEvent` with `VtxoSubscriptionStarted(string SubscriptionId)` (always the first event on a new subscription; carries the server-assigned id the caller must store for later `UpdateSubscription` / reconnect calls) and `VtxoScriptsChanged(HashSet<string> Scripts)` (scripts whose VTXOs changed since the last push). The server assigning the id replaces the old client-side flow where `SubscribeForScriptsAsync` returned it.
+- **`VtxoSynchronizationService` supervisor retargeted** — `RunStreamSupervisorAsync` opens the stream via `OpenSubscriptionStreamAsync`, stores `VtxoSubscriptionStarted.SubscriptionId` in `_subscriptionId`, and on a delta issues one `UpdateSubscriptionScriptsAsync(_subscriptionId, added, removed)` instead of separate subscribe/unsubscribe calls. A `NotFound` (arkd TTL-GC'd the listener) clears `_subscriptionId` and signals the supervisor to reopen fresh (null id, current `_subscribedScripts` passed as the initial stream-open filter) with a full-history catch-up poll. The fresh-derive safety-net poll (PR #102), per-provider isolation, single-immediate-poll-per-push (PR #99), and the per-wallet `vtxo.lastFullPollAt` cursor are all unchanged.
+- **Proto resync to arkd master** — `indexer.proto` now carries the unified `GetSubscription` (optional `SubscriptionFilter` on creation; emits `SubscriptionStartedEvent`) + `UpdateSubscription` RPC with `SubscriptionFilter { ScriptFilter { add, remove } }`, replacing the old `SubscribeForScripts` / `UnsubscribeForScripts` RPCs; `types.proto`'s `TxNotification` gained a `swept_vtxos` field; `service.proto` reformatted.
+- **`proto-sync-check.yml` CI workflow** — New PR-triggered job (alpine container) that wget-fetches `indexer/service/types.proto` from `arkade-os/arkd` master and `diff -u`s them against the bundled copies, failing the PR with a `::error` annotation if any drift.
+
+**Files Updated**:
+- `docs/projects/dotnet-sdk/INDEX.md` — `VtxoSynchronizationService` Key Concept rewritten for the new `OpenSubscriptionStreamAsync` / `UpdateSubscriptionScriptsAsync` API + `VtxoSubscriptionStarted` / `VtxoScriptsChanged` events; CI row extended with the `proto-sync-check.yml` workflow.
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — Transport Interface table rows replaced with the two new methods; **In-place script-set updates** bullet retargeted; Proto Files section notes the unified `GetSubscription`/`UpdateSubscription` RPCs, `swept_vtxos`, and the proto-sync CI guard.
+- `docs/projects/dotnet-sdk/system/architecture.md` — `IClientTransport` entry (line ~34) and the VTXO Sync section (line ~183) rewritten for the new subscription API.
+- `docs/projects/dotnet-sdk/system/project_overview.md` — Resilient VTXO Sync feature (14) updated for the unified API.
+- `docs/INDEX.md` — dotnet-sdk resilient-VTXO-sync Key Capability rewritten; `ask_question` triggers updated (old method names dropped; `opensubscriptionstreamasync`, `updatesubscriptionscriptsasync`, `vtxosubscriptionstarted`, `vtxoscriptschanged`, `vtxosubscriptionevent`, `arkd unified getsubscription`, `updatesubscription rpc`, `proto sync check`, `proto drift ci`, `swept_vtxos txnotification` added).
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `36898e71558c9dc63abe6c2623f0a21db8b97838`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
+**Not Updated** (intentional):
+- `docs/projects/dotnet-sdk/testing/usage.md`, `testing/how_to_run.md`, `testing/how_to_test.md`, `testing/troubleshooting.md`, `sop/development-workflow.md` — no impact. PR #148 is a transport-internal refactor + proto resync; it adds no new env var, DI knob, or build/test invocation (the updated `VtxoSynchronizationService` and transport tests run under the already-documented `dotnet test` filters), and the proto-sync CI job needs no local workflow change. The subscription event names use generic "subscription stream" wording already present in troubleshooting/usage.
+
 ## 2026-06-26 - `VHTLCContract.Create(...)` validating factory + `VHtlcDelay` value type, rust-sdk `vhtlc.json` test vectors imported (PR #149)
 **From**: `3f10e69caddfe38f2cc01c98601a842e7705716a`
 **To**: `220d758a8d777b4e05abc0312853e97f9b3f1821`

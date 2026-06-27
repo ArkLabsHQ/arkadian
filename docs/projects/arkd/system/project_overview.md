@@ -114,6 +114,7 @@ internal/
 - **Pyroscope** - Continuous profiling (CPU, memory, goroutines, mutex, block)
 - **AlertManager** - Alerts integration for batch lifecycle events
 - **pprof** - On-demand profiling via admin interface
+- **gRPC channelz** - Optional gRPC connection/channel introspection on the admin port (`ARKD_ENABLE_CHANNELZ`)
 
 ## Related Components
 
