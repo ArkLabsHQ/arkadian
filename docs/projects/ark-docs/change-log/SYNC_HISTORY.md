@@ -347,3 +347,22 @@
 - docs/projects/ark-docs/change-log/last-sync.txt → dcc34b2da502ab77a007eeda21ef8162579ce81b
 - docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
 
+## 2026-06-30 - Tapscript deep-dive: CSV Exit Delay clarification ("or exceeding")
+**Commit**: `eac840035ec41c1ff57606d0dc10bfd87a5626db`
+**Previous Sync**: `581050073324ad4e5f3978d8a34e054f8b5b5abf`
+**Synced By**: /update-project ark-docs
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit — `eac8400 Update deep-dive` (single-file content edit in `contracts/deep-dive.mdx`, +1/−1 line).
+
+**Content Changes** (protocol-rules prose, no code/structure change):
+- `contracts/deep-dive.mdx`: the unilateral spending-path rule now reads "must include a CSV Exit Delay using **or exceeding** the value from `getInfo()`" (was "using the value from `getInfo()`"). Clarifies that the exit timelock must be at least the server's configured value, not exactly equal.
+
+**Notes**: Pure wording clarification — no body restructure, no new pages, no `docs.json`/redirect/tooling/SEO/dependency changes. The Arkadian registry's description of `deep-dive.mdx` ("Tapscript / contracts deep dive") still holds, so no INDEX content edits were warranted. Capabilities and tag set unchanged.
+
+**Files Updated in Arkadian Registry**:
+- docs/INDEX.md
+  - Footer Last Updated 2026-06-27 → 2026-06-30, Version 1.6.6 → 1.6.7.
+- docs/projects/ark-docs/change-log/last-sync.txt → eac840035ec41c1ff57606d0dc10bfd87a5626db
+- docs/projects/ark-docs/change-log/SYNC_HISTORY.md (this entry)
+

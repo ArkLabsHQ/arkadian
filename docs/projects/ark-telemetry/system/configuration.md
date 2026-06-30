@@ -269,7 +269,7 @@ route:
     - receiver: 'default'
 ```
 
-**Client compatibility route (PR #17, June 2026):** alerts labelled `alert_type =~ "client_integrity|client_compatibility"` (i.e. `ArkdDigestMismatch`, `ArkdMissingClientVersion`) are routed to a dedicated `slack-notifications-info` receiver as hourly observational notifications:
+**Client compatibility route (PR #17, June 2026):** alerts labelled `alert_type =~ "client_integrity|client_compatibility"` are routed to a dedicated `slack-notifications-info` receiver as hourly observational notifications. The only currently active alert on this route is `ArkdDigestMismatch` (`alert_type: client_integrity`); the `client_compatibility` alert `ArkdMissingClientVersion` was disabled in `loki.alert.rules.yml` (June 2026), though the route matcher still covers that label should it be re-enabled:
 
 ```yaml
     - matchers:

@@ -79,6 +79,10 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 **Claim-Failure Alerting**
 - A new `claim.failure` event (`{ swap, symbol, error }`) is emitted by `SwapNursery` when a swap claim fails, relayed through `EventHandler`, and surfaced by `NotificationProvider` as a 🚨 alert message (per-symbol, with basic swap info and the error truncated to 200 chars) on the configured Discord/notification channel (PR #1445)
 
+**Send-Approval Hook (Operational)**
+- A new streaming gRPC hook `SendApprovalHook` on `boltzrpc.Boltz` lets an external approver gate every outbound send (the request carries `id`, `pair`, `symbol` of the asset being sent out, and `amount`) before Boltz pays out funds (PR #1446). The approver replies with `SendApprovalAction` — `ACCEPT` (continue the send), `REJECT` (fail the swap), or `HOLD` (pause the send and keep retrying until a later response)
+- The fallback action used when no approver is connected or the 60s hook call times out is configured by `[swap.sendApproval] defaultAction` in `boltz.conf` (`accept` default, `reject` to fail closed, `hold` to keep retrying). Once a send is held, `SendApprovalGuard` keeps holding on any non-resolution so only a real approver response can release it. Holds are persisted in the new `send_approval_holds` table (model `SendApprovalHold` / `SendApprovalHoldRepository`), keyed by swap id
+
 **Balance-Cache Refresh (Operational)**
 - New dev gRPC method `DevRefreshBalanceCache(symbol?)` and `boltzr-cli dev refresh-balance-cache [symbol]` command let operators force-refresh the wallet balance cache used for liquidity checks, either for a single symbol or for every wallet (PR #1447). Backed by `Service.refreshBalanceCache` → `BalanceCheck.refresh`; an unknown symbol returns `CURRENCY_NOT_FOUND`. The underlying `BalanceCheck` was refactored to a per-symbol `updateBalance(symbol, wallet)` used by both the periodic update and the on-demand refresh
 

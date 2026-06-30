@@ -43,6 +43,8 @@ Dependencies flow **inward only**. Core never imports infrastructure.
 
 **Interceptor order (PR #1125):** the chain runs (outside-in) panic recovery → error converter → logger → **readiness** → version guard → digest → macaroon auth. The readiness handler was moved **ahead** of the version/digest/macaroon guards so that an un-ready server short-circuits with a readiness error before those guards run — in particular before the digest guard computes the settings digest. This pairs with a nil guard in `Settings.Digest()` (`internal/core/ports/live_store.go`): when `SignerPubkey`/`ForfeitPubkey` are not yet populated it now returns a `"settings not initialized"` error instead of panicking, and `unaryDigestHandler`/`streamDigestHandler` warn-log any digest-retrieval error before returning `INTERNAL_ERROR` "failed to verify digest header, retry later".
 
+**Logger metadata capping (PR #1131):** the logger interceptor's `sanitizeMetadata` now bounds each logged "metadata of interest" value to `maxMetadataValueSizeBytes = 100`. Any oversized value is warn-logged (`metadata of interest value too large` with `{key, len}`) and replaced with the sentinel `arklabs/invalid` before being attached to the log entry, preventing oversized client-supplied metadata from bloating logs.
+
 ### Application � Domain
 **Integration Point:** Use case orchestration with domain logic through method calls and state machines.
 
@@ -116,6 +118,8 @@ Services share dependencies but don't call each other directly:
 - Real-time WebSocket notifications
 
 **Startup resilience:** The nbxplorer adapter constructor retries its initial `GetBitcoinStatus` probe up to 30 times at 5s intervals (≈2.5 min) before failing, so `arkd-wallet` does not crash when nbxplorer isn't yet ready to serve RPCs at boot (PR #1083).
+
+**Runtime resilience (PR #1130):** The blockchain `scanner` now survives nbxplorer WebSocket drops at runtime. When the notification channel closes, the scanner logs `nbxplorer disconnected`, waits with exponential backoff (`defaultInitialBackoff = 1s`, doubling up to `defaultMaxBackoff = 30s`), and calls `GetAddressNotifications` again, resetting the backoff and resuming on success. The nbxplorer adapter's `GetAddressNotifications` now establishes the WebSocket **synchronously** and returns an error on failure (instead of dialing inside the goroutine and silently closing the channel), and a read error closes the channel for the scanner to reconnect rather than retrying the dial in place.
 
 ### arkd � Bitcoin Network
 **Via Esplora API:**

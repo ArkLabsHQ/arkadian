@@ -1,5 +1,27 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-06-30 - SSE subscription `Accept` header + 501 polling fallback (PR #152), preimage-derivation test vectors (PR #151)
+**From**: `36898e71558c9dc63abe6c2623f0a21db8b97838`
+**To**: `dc90149d286d005cdeb33c6ed972371759536324`
+**Synced By**: update-project skill
+**Status**: Updated (minor — one transport-resilience behavior; remainder is tests)
+
+**Commits Analysed**: 2 squash-merge PRs (no merges). 21 files changed, +511 / -94.
+- **#152 `fix(transport): send Accept: text/event-stream for SSE subscription`** — 8 files, transport layer. The REST/SSE client now sends `Accept: text/event-stream` on subscribe (arkd returns 501 without it), and `VtxoSynchronizationService` classifies an HTTP `501 Not Implemented` subscription open as a *permanent* failure via the new `IsNonRetryableSubscriptionError` — it logs a single `Information` line and falls back to polling-only instead of reconnect-looping and spamming logs. A new shared `NArk.Core/Transport/Extensions/JsonExtensions.cs` (`TryGetPropInvariantCase` / `GetPropInvariantCase`) formalises the snake_case→camelCase proto3-JSON fallback the `RestClientTransport.*` partials already relied on; the `.Batch`/`.Info`/`.Intents`/`.Txs`/`.Vtxo`/`.Assets` partials were refactored onto it.
+- **#151 `Feat(tests): preimage derivation tests`** — 13 files, test-only. Adds `NArk.Tests/Swaps/PreimageDerivationTests.cs` (248 lines, replacing the old top-level `PreimageDerivationTests.cs`) with `NArk.Tests/Assets/Fixtures/preimage_vectors.json` test vectors; moves `SimpleSeedWallet` + `InMemoryWalletStorage` into `NArk.Tests/Common/` (now referenced by the E2E project) and gives `SimpleSeedWallet` a flexible-overload constructor plus deterministic transport-less signing. Minor signature touch-ups in `IRemoteSignerTransport`, `Bip39SigningSource`, `NsecSigningSource`, `SwapsManagementService`, and per-file additions across the E2E suite.
+
+**Changes Made**:
+- The SSE `Accept`-header handshake and snake_case/camelCase REST parsing were **already documented** (`integration-with-arkd.md` lines 11 & 13) — no change needed there.
+- Added the new 501→polling-only fallback as a bullet in `integration-with-arkd.md`'s `VtxoSynchronizationService` hardening list.
+- Appended the #152 transport-resilience + #151 test-vector notes to the dotnet-sdk Status cell in the master `docs/INDEX.md`.
+- No capability/dependency/tag changes; #151 is internal test work.
+
+**Files Updated**:
+- `docs/INDEX.md` — dotnet-sdk Status cell appended with #152 (Accept header, 501 fallback, `JsonExtensions`) and #151 (preimage vectors, deterministic `SimpleSeedWallet` signing).
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — new "Subscription-unsupported fallback (PR #152)" bullet.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — bumped to `dc90149d`.
+- `docs/projects/dotnet-sdk/change-log/SYNC_HISTORY.md` — this entry.
+
 ## 2026-06-27 - VTXO subscription retargeted to arkd's unified `GetSubscription` / `UpdateSubscription` API, proto resync + proto-sync-check CI (PR #148)
 **From**: `220d758a8d777b4e05abc0312853e97f9b3f1821`
 **To**: `36898e71558c9dc63abe6c2623f0a21db8b97838`

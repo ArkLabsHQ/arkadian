@@ -1,5 +1,28 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-06-30 - Documentation Update
+**Commit**: `93a5c10460e4eeb603d9db15acd309114eef682c`
+**Previous Sync**: `448a34e38dd1f511741d5aae3e4752d8e5cd05b1`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (config/version tweaks only)
+
+**Highlights**:
+- 🛡️ **Threat-monitor upgraded** (`7df3aae`): prod image bumped
+  `ghcr.io/arklabshq/threat-monitor:v0.2.4` → `v0.2.5` in
+  `compose/docker-compose.ark.prod.yaml`. No config or env-var changes.
+- 🏷️ **Ignore tags on `aruokhai` IAM user** (`93a5c10`): `aws/dev-438465126741/organizations.tf`
+  adds `lifecycle { ignore_changes = [tags] }` to `aws_iam_user.aruokhai` so out-of-band
+  tag edits in the sandbox sub-account aren't reverted by OpenTofu.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: threat-monitor version → `v0.2.5`; aruokhai bullet notes `ignore_changes = [tags]`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.4, `last_sync_commit`, `last_sync_date`; threat-monitor version → `v0.2.5`)
+- docs/projects/ark-infra/system/project_overview.md (threat-monitor entry #6: version → `v0.2.5`)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `93a5c10460e4eeb603d9db15acd309114eef682c`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-06-27 - Documentation Update
 **Commit**: `448a34e38dd1f511741d5aae3e4752d8e5cd05b1`
 **Previous Sync**: `aac096318ef6033a207b969dcc40294b76ab0920`

@@ -554,7 +554,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 ### Buttons & Actions
 - **Button**: Primary/secondary/outline variants
 - **ButtonsOnBottom**: Footer button container with safe-area padding
-- **Paste**: Paste-from-clipboard pill
+- **Paste**: Paste-from-clipboard pill. Always rendered (PR #700) — the button no longer pre-reads/validates the clipboard on mount to decide visibility; instead it queries `clipboard-read` permission and pastes on click. The `validator` prop was removed. `queryPastePermission` (`src/lib/clipboard.ts`) now returns `'prompt'` (was `'denied'`) when `navigator.permissions.query` is unsupported, so the paste button works on Safari/Firefox
 - **Refresher**: Pull-to-refresh component (replaces `ion-refresher`)
 
 ### Modals & Feedback

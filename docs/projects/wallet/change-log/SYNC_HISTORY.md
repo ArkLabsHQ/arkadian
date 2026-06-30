@@ -1,5 +1,26 @@
 # Documentation Sync History - Wallet
 
+## 2026-06-30 - Documentation Sync
+**Commit**: `a1ccfbf1c55fe19eceaf1f0f3d394164ab5e56d0`
+**Previous Sync**: `074c52441db4f5d19fd805673c4e0f5f3db7964f`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `a1ccfbf1` always show Paste button (#700)
+
+**Features Modified**:
+- **Always show Paste button** (PR #700): `src/components/Paste.tsx` is now unconditionally rendered rather than mounting a `useEffect` that pre-read and validated the clipboard to decide visibility. The `validator` prop was removed; the button now queries `clipboard-read` permission on click and pastes when the state is `prompt`/`granted`. `queryPastePermission` (`src/lib/clipboard.ts`) returns `'prompt'` instead of `'denied'` when `navigator.permissions.query` lacks `clipboard-read` support (Safari/Firefox), so the paste button is usable on those browsers. Callers `InputAddress`, `InputAssetId`, `InputNote`, `InputNpub`, `InputUrl`, and `InputWithScanner` were simplified to drop the validator wiring.
+
+**Documentation Impact**: Minor — UI behavior change to the existing Paste component. Updated component description and added a capability bullet/tag; no change to dependencies or architecture.
+
+**Files Updated**:
+- docs/INDEX.md (wallet capability bullet + `clipboard` tag)
+- docs/projects/wallet/INDEX.md (last_sync_commit)
+- docs/projects/wallet/system/components.md (Paste component description)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
 ## 2026-06-27 - Documentation Sync
 **Commit**: `074c52441db4f5d19fd805673c4e0f5f3db7964f`
 **Previous Sync**: `e512413dfb39c491d4f6756c5a841ee28f7c7231`

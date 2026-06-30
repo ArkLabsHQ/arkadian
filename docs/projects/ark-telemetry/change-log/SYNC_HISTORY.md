@@ -1,5 +1,26 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-06-30 - Disable ArkdMissingClientVersion Loki alert
+**From**: `dc280ac35f6f2589f160d49c8aa3e5a5f2d422e7`
+**To**: `f7c2a5a8007eafb6d6f0e49287887523e57a2ac2`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `f7c2a5a` loki: Disable missing `x-build-version` alert
+
+**Changes**:
+- The `ArkdMissingClientVersion` Loki alert (`loki.alert.rules.yml`) was commented out / disabled. It no longer fires. The rule body is unchanged (still present as a comment), and the `slack-notifications-info` AlertManager route matcher (`alert_type =~ "client_compatibility"`) is untouched. Client build-version adoption remains observable via the "Requests by Build Version" Grafana dashboard panel.
+
+**Docs updated**:
+- `system/alert-rules.md` — marked `ArkdMissingClientVersion` section **[DISABLED]**, commented the YAML config block, updated "When It Fires"
+- `system/project_overview.md` — alerting bullet now notes the alert is disabled; `ArkdDigestMismatch` is the active client-compatibility alert
+- `system/configuration.md` — client-compatibility route note clarified: only `ArkdDigestMismatch` is active; `ArkdMissingClientVersion` disabled but route matcher retained
+- `INDEX.md` (project) — `ArkdMissingClientVersion` bullet marked *(disabled June 2026)*
+- `docs/INDEX.md` (master) — ark-telemetry client-compatibility capability bullet updated to reflect the disabled alert
+
+**Notes**:
+- Configuration/alert-rule change only — no new capabilities, dependencies, or breaking changes. The alert can be re-enabled by uncommenting the rule.
+
 ## 2026-06-24 - PR #22: DIGEST_MISMATCH queries search structured metadata
 **From**: `42fccfdb567ead2e5eae7906add19f5f3c6f825e`
 **To**: `dc280ac35f6f2589f160d49c8aa3e5a5f2d422e7`

@@ -154,7 +154,7 @@ ark-infra/
    - P2P port 8333, RPC port 8332
    - Storage on EBS volume
 
-6. **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.4`, production only, since #92)
+6. **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.5`, production only, since #92)
    - Monitors on-chain + mempool activity for threats and alerts to Slack
    - On-chain provider: `nbxplorer` (`http://nbxplorer:32838`); also queries the Ark indexer (`https://${ARKD_DOMAIN}`), Ark explorer (`https://arkade.space`), and mempool.space
    - Mempool scan every 300s, block reconcile disabled (`0s`), scans from height `952900`

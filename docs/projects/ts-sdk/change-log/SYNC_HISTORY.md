@@ -1,5 +1,29 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-06-30 - 0.4.40 / boltz-swap 0.3.45 release (publishes #571 / #576 / #578 / #581 / #587)
+**From**: `506b649e40ad63e3f00e57b74b7cc15d61b84081`
+**To**: `d98f44c51c9f4df48f88378c25cd249e94f45921`
+**Synced By**: update-project skill
+**Status**: One-commit sync — a **release-only version bump** (`@arkade-os/sdk` 0.4.39 → 0.4.40, `@arkade-os/boltz-swap` 0.3.44 → 0.3.45). No `src/` changes in the release commit; it publishes the five changes that the previous two syncs documented as "post-0.4.39 unreleased". No new code behaviour.
+
+**Commits analyzed** (1 non-merge commit):
+- `d98f44c5` chore: release @arkade-os/sdk@0.4.40, @arkade-os/boltz-swap@0.3.45
+
+**Files changed in repo**:
+- `packages/ts-sdk/package.json` — `version` 0.4.39 → 0.4.40
+- `packages/boltz-swap/package.json` — `version` 0.3.44 → 0.3.45
+
+**Documentation changes**:
+- `docs/projects/ts-sdk/INDEX.md`: package-version table → 0.4.40 / 0.3.45; Quick-Reference Version row → 0.4.40 (now "release-only bump; ships the previously unreleased #571 / #576 / #581 / #578 / #587"); the five `post-0.4.39` Key Concept labels relabeled to `0.4.40`
+- `docs/projects/ts-sdk/system/project_overview.md`: workspace-package version table → 0.4.40 / 0.3.45; **Version** field → 0.4.40; `Post-0.4.39 (#587)` labels → `0.4.40 (#587)`
+- `docs/projects/ts-sdk/system/architecture.md`: `Post-0.4.39 (#…)` module annotations (#571 / #578 / #581 / #587) relabeled to `0.4.40 (#…)`
+- Master `docs/INDEX.md`: the five `post-0.4.39 unreleased` ts-sdk release-log labels → `released in 0.4.40`; new **0.4.40 release** entry appended
+- `change-log/last-sync.txt` → `d98f44c51c9f4df48f88378c25cd249e94f45921`
+
+**Notes**:
+- The wallet/banco/other consumers' pinned `@arkade-os/sdk` dependency versions in `docs/INDEX.md` were intentionally left unchanged — those record each consumer's own pin, not the ts-sdk repo's published version
+- Historical SYNC_HISTORY entries below still say "post-0.4.39 unreleased"; that was accurate at the time of those syncs and is preserved as-is
+
 ## 2026-06-27 - BIP-322 intent-proof message field + boarding-sweep phantom-receive fix
 **From**: `c9a7e7537ed15b3389729f4ec5c7c96613e04a69`
 **To**: `506b649e40ad63e3f00e57b74b7cc15d61b84081`

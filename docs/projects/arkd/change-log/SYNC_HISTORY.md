@@ -1,5 +1,34 @@
 # Documentation Sync History - Arkd
 
+## 2026-06-30 - Documentation Update
+**Commit**: `e6217887` (arkd repository)
+**Previous Sync**: `5fae2026`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `e6217887` Fix: reconnect arkd-wallet scanner to NBXplorer with backoff (#1130)
+- `ab51920d` Fix: cap metadata of interest values size in logging interceptor (#1131)
+
+**Fixes (PR #1130 — scanner runtime reconnect)**:
+- The blockchain `scanner` (`pkg/arkd-wallet/core/application/scanner/service.go`) now survives runtime nbxplorer WebSocket drops. The notification goroutine detects a **closed** notification channel (`utxos, ok := <-notificationCh; !ok`) and, instead of exiting, warn-logs `nbxplorer disconnected`, waits with exponential backoff (`defaultInitialBackoff = 1 * time.Second`, doubling up to `defaultMaxBackoff = 30 * time.Second`), then re-calls `s.nbxplorer.GetAddressNotifications(ctx)`. On success it logs `reconnected to nbxplorer`, resets the backoff, swaps in the new channel and resumes; on failure it doubles the backoff (capped) and retries. The backoff durations are struct fields (`initialBackoff`/`maxBackoff`) seeded from the defaults in `New`, so tests can inject shorter values. Backoff/`ctx.Done()` waits use a stoppable `time.Timer`.
+- The nbxplorer adapter `GetAddressNotifications` (`pkg/arkd-wallet/core/infrastructure/nbxplorer/service.go`) now opens the WebSocket **synchronously** and returns `failed to connect to WebSocket: …` on dial failure, instead of dialing inside the goroutine and silently closing the channel. A subsequent `ReadMessage` error now logs `failed to read WebSocket message` and **closes** the channel (letting the scanner reconnect) rather than re-dialing in place.
+- Runtime counterpart to the startup-retry of PR #1083. New tests: `scanner/service_test.go`.
+
+**Fixes (PR #1131 — logger metadata capping)**:
+- `sanitizeMetadata` (`internal/interface/grpc/interceptors/logger.go`) now bounds each logged "metadata of interest" value to `maxMetadataValueSizeBytes = 100`. Oversized values are warn-logged (`metadata of interest value too large` with `{key, len}`) and replaced with the sentinel `invalidMetadataValue = "arklabs/invalid"` before being attached to the log entry, preventing oversized client-supplied metadata from bloating logs. Single-element selections stay scalar; multi-element selections remain slices. New tests: `logger_test.go`.
+
+**Breaking Changes**: None. Both PRs are internal resilience/logging-hygiene fixes — no proto / gRPC method / env var / config / migration surface changed.
+
+**Files Updated**:
+- docs/INDEX.md (two recent-change bullets; new tags `nbxplorer-reconnect`, `scanner-backoff`, `runtime-resilience`, `metadata-capping`; new debug triggers)
+- docs/projects/arkd/INDEX.md (version 1.3.13 → 1.3.14, sync commit/date)
+- docs/projects/arkd/system/integration_points.md (arkd-wallet→NBXplorer runtime-resilience note; logger metadata-capping note in interceptor section)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-27 - Documentation Update
 **Commit**: `5fae2026` (arkd repository)
 **Previous Sync**: `67332efb`

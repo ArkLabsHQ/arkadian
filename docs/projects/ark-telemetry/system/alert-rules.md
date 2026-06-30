@@ -640,29 +640,31 @@ Loki alert rules use LogQL (Loki Query Language) to detect patterns in applicati
 - Identify the offending client/SDK version (correlate with the SDK Version dashboard panel)
 - Confirm whether a client is running outdated or tampered request-signing logic
 
-### ArkdMissingClientVersion
+### ArkdMissingClientVersion **[DISABLED]**
+
+> **[DISABLED]** This alert was commented out in `loki.alert.rules.yml` and no longer fires (disabled June 2026). The rule definition is retained below for reference; client version adoption is still observable via the "Requests by Build Version" dashboard panel (see `dashboards.md`).
 
 **Purpose**: Track requests that arrive without an `x-build-version` header, indicating clients that have not updated to v0.9.9+.
 
-**Configuration:**
+**Configuration (currently commented out / disabled):**
 ```yaml
-- alert: ArkdMissingClientVersion
-  expr: |
-    sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"` [1h])) > 0
-  for: 0s
-  labels:
-    severity: info
-    component: arkd
-    alert_type: client_compatibility
-  annotations:
-    firing_title: "ℹ️ Clients Missing Version Header"
-    summary: "Requests without x-build-version detected"
-    description: "{{ $value }} request(s) with missing or empty x-build-version in the last hour. These clients have not updated to v0.9.9+."
-    logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"`'
+# - alert: ArkdMissingClientVersion
+#   expr: |
+#     sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"` [1h])) > 0
+#   for: 0s
+#   labels:
+#     severity: info
+#     component: arkd
+#     alert_type: client_compatibility
+#   annotations:
+#     firing_title: "ℹ️ Clients Missing Version Header"
+#     summary: "Requests without x-build-version detected"
+#     description: "{{ $value }} request(s) with missing or empty x-build-version in the last hour. These clients have not updated to v0.9.9+."
+#     logql_query: '{service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ `"x-build-version":"[^"]+"`'
 ```
 
 **When It Fires:**
-- One or more requests in the last hour lacked a populated `x-build-version` header
+- Disabled — does not fire. When previously active, fired when one or more requests in the last hour lacked a populated `x-build-version` header
 
 **Response Actions:**
 - Treat as adoption telemetry, not an incident — track the volume trend over time
