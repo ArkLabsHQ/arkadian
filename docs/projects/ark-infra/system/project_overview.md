@@ -140,12 +140,13 @@ ark-infra/
    - Backs up wallet seed to Secrets Manager
    - Zero manual intervention required
 
-4. **nbxplorer** (Auto-managed, `2.6.7`)
+4. **nbxplorer** (Auto-managed; prod `2.6.8`, regtest `2.6.7-curl`)
    - Bitcoin blockchain indexer
    - Dedicated PostgreSQL database
    - Connects to bitcoind (prod) or external node (regtest)
-   - Built from local `compose/Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`) — base image lacks curl/wget for reliable HTTP health checks
-   - Tagged `ark-infra/nbxplorer:2.6.7-curl`; health check posts a JSON-RPC `getblockchaininfo` to `/v1/cryptos/BTC/rpc` (60 retries × 5s)
+   - **Prod (since #97):** now runs the stock `nicolasdorier/nbxplorer:2.6.8` image directly — the local `compose/Dockerfile.nbxplorer` curl-override hack was removed and the file deleted
+   - **Regtest:** still builds `ark-infra/nbxplorer:2.6.7-curl` from `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`)
+   - Health check posts a JSON-RPC `getblockchaininfo` to `/v1/cryptos/BTC/rpc` probing for `"result"` (60 retries × 5s)
    - `arkd-wallet` now declares `depends_on: { nbxplorer: { condition: service_healthy } }` in both prod and regtest compose files
 
 5. **bitcoind** (Production only)
@@ -161,6 +162,12 @@ ark-infra/
    - Persists state in a named `threat-monitor` volume (`/data/threat-monitor.badger`)
    - Requires `THREAT_MONITOR_SLACK_WEBHOOK_URL`; `traefik.enable=false`; CloudWatch stream `threat-monitor`
    - `depends_on: nbxplorer` intentionally commented out to reduce NBX restart risk
+
+7. **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.1.0`, production only, since #98)
+   - Collects Ark protocol metrics and exports them to the telemetry stack via OTLP
+   - `depends_on: [arkd, otel-agent]`; exports to `otel-agent` at `http://otel-agent:4318` (`ARK_METRICS_OTLP_ENDPOINT`, `ARK_METRICS_OTLP_INSECURE=true`)
+   - Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`
+   - `traefik.enable=false`; CloudWatch stream `ark-metrics`
 
 ### Ingress & Routing
 

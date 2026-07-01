@@ -107,12 +107,16 @@ rate(go_gc_duration_seconds_sum[5m])
   - `sum by (sdk_version) (count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" |~ "x-sdk-version" | regexp "x-sdk-version.{3}(?P<sdk_version>[^\"]+)" [$window]))`
   - `sum(count_over_time({service_name="arkd"} |~ "method=/ark.v1.ArkService/" !~ "x-sdk-version" [$window]))` → `missing`
 
+**Signer Key VTXO Usage (PR #23, June 2026)** — Prometheus-backed panel (datasource `Prometheus`, unlike the Loki client-compatibility panels above) tracking the number of active VTXOs matched per signer pubkey. Rendered as **stacked bars** with a multi-value tooltip; series are labelled by the `pubkey` label (`legendFormat: {{pubkey}}`). Use to track signer key rotation progress.
+- Query: `ark_signer_key_matched`
+
 **Use Cases:**
 - Detect memory leaks (increasing heap usage)
 - Identify goroutine leaks (unbounded goroutine growth)
 - Monitor GC pressure and performance impact
 - Validate Go runtime health
 - Track client SDK adoption and integrity (digest mismatches, version headers)
+- Track signer key rotation progress via active VTXOs matched per signer pubkey
 
 ### 3. Cadvisor Exporter (Cadvisor_exporter.json)
 

@@ -95,6 +95,7 @@ Services share dependencies but don't call each other directly:
 - Task scheduling at specific times/heights
 - Blockchain monitoring for watched scripts
 - Coordinated expiry and fraud detection
+- Checkpoint-script watching (PR #1129): on each new offchain tx the service now also registers each checkpoint tx's first output pkscript with the scanner (`scanner.WatchScripts`), so an onchain broadcast of a finalized checkpoint is detected. On restart, `restoreWatchingVtxos` additionally fetches finalized checkpoint txs via the new `VtxoRepository.GetCheckpointTxsByVtxoPubKeys(ctx, pubkeys)` and re-watches their output scripts (soft-fail: a DB error or a corrupted PSBT is skipped/logged and must not block startup); `stopWatchingVtxos` unwatches them symmetrically.
 
 ## External Service Integration
 

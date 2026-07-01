@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-01 - Documentation Update
+**Commit**: `9589ce8a` (boltz-backend repository)
+**Previous Sync**: `7a1a22ef`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Dependency Bumps**:
+- chore: bump LND to v0.21.1 (#1452) (`9589ce8a`) — `docker/build.py` `LND_VERSION 0.21.0-beta → 0.21.1-beta` and `VersionCheck` LND `maximal 0.21.0 → 0.21.1` (`minimal` unchanged at `0.19.0`). The vendored `proto/lnd/router.proto` was refreshed for 0.21.1: doc-only clarifications to the HTLC interceptor — `ForwardHtlcInterceptRequest` circuit keys must be handled idempotently (requests can be replayed after reconnect / when an htlc moves on-chain), and once the incoming channel force-closes only `Settle` affects the on-chain HTLC while `Resume` / `ResumeModified` / `Fail` return a stream-terminating error. No generated code, API, or config surface changed.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (LND capability line), `INDEX.md` (Lightning Integration LND entry), `system/architecture.md` (LndClient version). No `system/project_overview.md` change (internal dependency bump only).
+
 ## 2026-06-30 - Documentation Update
 **Commit**: `7a1a22ef` (boltz-backend repository)
 **Previous Sync**: `172f17a1`

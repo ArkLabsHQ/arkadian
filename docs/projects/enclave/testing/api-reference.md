@@ -101,7 +101,7 @@ curl -X PUT https://your-enclave/v1/secrets/api-token \
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/v1/start-migration` | Re-encrypt secrets and storage DEK for locked-key migration. Body: `{"new_pcr0": "<hex>"}`. Called by the host supervisor. Inline-creates the migration key via `CreateMigrationKey` (policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time), runs `commitPCR31` first (audit-only) so a retry at a different target fails before any external write, re-encrypts each secret + storage DEK to key-scoped SSM paths `/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}` and `/{dep}/{app}/StorageDEK/Ciphertext/{kmsKeyId}`, then `storePCR0WithAttestation` writes the chain proof to `MigrationPreviousPCR0[Attestation]`, and finally the atomic `PutParameter` on `/{dep}/{app}/KMSKeyID` commits the migration. A deferred `ScheduleKeyDeletion` cleans up the new key if anything before the flip fails. Renamed from `/v1/export-key` in a prior release. |
+| `POST` | `/v1/start-migration` | Re-encrypt secrets and storage DEK for locked-key migration. Body: `{"new_pcr0": "<hex>"}`. Called by the host supervisor. Inline-creates the migration key via `CreateMigrationKey` (policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time), runs `commitPCR31` first so a retry at a different target fails before any external write, re-encrypts each secret + storage DEK to lock/key-scoped SSM paths `/{dep}/{app}/{locked|unlocked}/{secret}/Ciphertext/{kmsKeyId}` and `/{dep}/{app}/{locked|unlocked}/StorageDEK/Ciphertext/{kmsKeyId}` (`GenerateDataKey` is attestation-gated, so `generateDataKey` mints with an NSM `Recipient`), then `storePCR0WithAttestation` writes the chain proof to `MigrationPreviousPCR0[Attestation]` (attestation first, PCR0 second), and finally the atomic `PutParameter` on `/{dep}/{app}/{locked|unlocked}/KMSKeyID` commits the migration. On the successor's next boot `VerifyPredecessorCommitment` cryptographically verifies that recorded attestation (COSE + Nitro chain) and binds its PCR0 before trusting PCR31. A deferred `ScheduleKeyDeletion` cleans up the new key if anything before the flip fails. Renamed from `/v1/export-key` in a prior release. |
 
 ### Telemetry ingest vs introspection
 
@@ -175,7 +175,7 @@ Plain HTTP, **localhost only**. Reach it via [SSM Session Manager](https://docs.
 {"step":7,"total":7,"status":"complete","message":"Migration complete. New KMS key: arn:aws:kms:..."}
 ```
 
-The supervisor steps are: `0=stepCooldown`, `1=stepReadCurrentKey`, `2=stepStartMigration`, `3=stepDownloadEIF`, `4=stepSwapAndStart`, `5=stepWaitOutcome`, `6=stepHostCleanup`, `7=stepSupervisorUpdate`. Migration commits atomically when the runtime flips `/{dep}/{app}/KMSKeyID`; if the new enclave never becomes healthy by step 5, `rollbackMigration` emits under `stepWaitOutcome`, restores the EIF backup, and restarts the old enclave.
+The supervisor steps are: `0=stepCooldown`, `1=stepReadCurrentKey`, `2=stepStartMigration`, `3=stepDownloadEIF`, `4=stepSwapAndStart`, `5=stepWaitOutcome`, `6=stepHostCleanup`, `7=stepSupervisorUpdate`. Migration commits atomically when the runtime flips `/{dep}/{app}/{locked|unlocked}/KMSKeyID`; if the new enclave never becomes healthy by step 5, `rollbackMigration` emits under `stepWaitOutcome`, restores the EIF backup, and restarts the old enclave.
 
 ## `metrics` field in `/v1/enclave-info`
 

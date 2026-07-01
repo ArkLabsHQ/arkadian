@@ -1,5 +1,38 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-01 - Documentation Update
+**Commit**: `278bde6b` (arkd repository)
+**Previous Sync**: `e6217887`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `278bde6b` Add cursor-based pagination for GetVtxoChain rpc (#1092)
+- `01570cf0` Watch checkpoint scripts (#1129)
+
+**Feature (PR #1092 — GetVtxoChain cursor pagination)**:
+- `GetVtxoChainRequest` gains an opaque `page_token` (proto field 5) and `GetVtxoChainResponse` gains `next_page_token` (`api-spec/protobuf/ark/v1/indexer.proto`, regenerated `indexer.pb.go` + `indexer.openapi.json`). When `page_token` is set the response resumes from where the prior page ended; an empty `next_page_token` signals no more pages.
+- The cursor path (`internal/core/application/indexer.go`, `types.go`) is decoupled from the legacy `IndexerPageResponse page` struct — it uses a fixed max page size and ignores the page struct. An invalid/undecodable `page_token` maps to gRPC `InvalidArgument` (`internal/interface/grpc/handlers/indexer.go`); combining `intent` + `page_token` is rejected. The auth-token TTL stays a hard ceiling (no pagination-session keepalive).
+- Hardens indexer signer-key handling: `NewIndexerService` fails fast when a withheld/private exposure mode is configured without a privkey (auth-token paths require it) instead of panicking later; `allSignerPubkeys` skips nil pubkeys so `stripSignerSignatures` never calls `schnorr.SerializePubKey` on nil.
+- New tests: `internal/core/application/indexer_pagination_test.go`; updated `indexer_test.go`.
+
+**Feature (PR #1129 — checkpoint-script watching)**:
+- On each new offchain tx, `service.registerEventHandlers` (`internal/core/application/service.go`) now collects each checkpoint tx's first output pkscript and registers them with the chain `scanner` via `scanner.WatchScripts` (in a soft-fail goroutine), so an onchain broadcast of a finalized checkpoint is detected.
+- New domain method `VtxoRepository.GetCheckpointTxsByVtxoPubKeys(ctx, pubkeys []string) ([]Tx, error)` (`internal/core/domain/vtxo_repo.go`) with postgres (`sqlc` `query.sql`), sqlite (`sqlc` `query.sql`), and badger implementations.
+- Restart recovery: `restoreWatchingVtxos` fetches finalized checkpoint txs for the sweepable rounds' vtxo pubkeys and re-watches their output scripts via the new helper `checkpointOutputScripts`; `stopWatchingVtxos` unwatches them symmetrically. Fetch/parse failures soft-fail (DB error or corrupted PSBT is logged/skipped) so a single bad row cannot abort startup or shutdown.
+- New tests: `internal/core/application/script_watch_test.go`, `mocks_test.go`, `db/service_test.go` additions.
+
+**Breaking Changes**: None on the wire (PR #1092 is an additive proto change). **Interface note:** PR #1129 adds `GetCheckpointTxsByVtxoPubKeys` to the `VtxoRepository` domain interface — any external implementer of that interface must add the method.
+
+**Files Updated**:
+- docs/INDEX.md (two Key Capabilities bullets; new tags `cursor-pagination`, `getvtxochain`, `page-token`, `checkpoint-watching`, `script-watching`; new develop/debug triggers)
+- docs/projects/arkd/INDEX.md (version 1.3.14 → 1.3.15, sync commit/date)
+- docs/projects/arkd/system/integration_points.md (checkpoint-script watching note in Scheduler + Scanner section)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-06-30 - Documentation Update
 **Commit**: `e6217887` (arkd repository)
 **Previous Sync**: `5fae2026`

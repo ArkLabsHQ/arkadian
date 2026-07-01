@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.4
-last_sync_commit: 93a5c10460e4eeb603d9db15acd309114eef682c
-last_sync_date: 2026-06-30T00:00:00Z
+version: 1.7.5
+last_sync_commit: b85ab3bc1ce62f188e34407154ae270bb2516f4f
+last_sync_date: 2026-07-01T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -116,7 +116,7 @@ Analysis and summaries of pull requests.
 ### Centralized Logging (CloudWatch)
 All container stdout/stderr is shipped directly to CloudWatch via the Docker `awslogs` driver:
 - Log group: `/ark/${ARK_ENVIRONMENT}` (14-day retention, created by OpenTofu)
-- Per-service streams: `traefik`, `arkd`, `arkd-wallet`, `kms-unlocker`, `nbxplorer`, `bitcoind`, `cloudflared`
+- Per-service streams: `traefik`, `arkd`, `arkd-wallet`, `kms-unlocker`, `nbxplorer`, `bitcoind`, `cloudflared`, `threat-monitor`, `ark-metrics`
 - ⚠️ `docker logs` no longer works on the host — use the CloudWatch UI / `aws logs tail`
 - Manual deploys must export `ARK_ENVIRONMENT` in `.env.ark`
 
@@ -223,7 +223,7 @@ make clean-local-state ENV=prod
 - **arkd** (7070, `v0.9.10` since #96) — Main Ark daemon (REST + gRPC API)
 - **arkd-wallet** (6060, `v0.9.10`) — Wallet sidecar (auto-unlocked)
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
-- **nbxplorer** (`2.6.7`) — Bitcoin blockchain indexer (automatic); built from local `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`), tagged `ark-infra/nbxplorer:2.6.7-curl`, JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
+- **nbxplorer** (prod `2.6.8`, regtest `2.6.7-curl`) — Bitcoin blockchain indexer (automatic). **Prod (since #97)** runs the stock `nicolasdorier/nbxplorer:2.6.8` image directly — the `compose/Dockerfile.nbxplorer` curl-override hack was removed and the file deleted. **Regtest** still builds `ark-infra/nbxplorer:2.6.7-curl` from `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`). JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, probing for `"result"`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
 
 ### Administration
@@ -231,6 +231,9 @@ make clean-local-state ENV=prod
 
 ### Security Monitoring
 - **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.5`, prod only, since #92) — Watches on-chain and mempool activity for threats and alerts to Slack. Sources: `nbxplorer` on-chain provider (`THREAT_MONITOR_NBXPLORER_URL=http://nbxplorer:32838`, `THREAT_MONITOR_ONCHAIN_PROVIDER=nbxplorer`), Ark indexer (`https://${ARKD_DOMAIN}`), Ark explorer (`https://arkade.space`), and mempool.space explorer. Tuning: `THREAT_MONITOR_MEMPOOL_SCAN_INTERVAL=300s`, `THREAT_MONITOR_BLOCK_RECONCILE_INTERVAL=0s` (disabled), `THREAT_MONITOR_START_HEIGHT=952900`. State persisted to a named `threat-monitor` volume (`/data/threat-monitor.badger`); `traefik.enable=false`; logs to CloudWatch stream `threat-monitor`. New required env var `THREAT_MONITOR_SLACK_WEBHOOK_URL`. `depends_on: { nbxplorer }` is commented out to reduce the risk of NBX restarts.
+
+### Metrics
+- **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.1.0`, prod only, since #98) — Collects Ark protocol metrics and exports them to the telemetry stack over OTLP. `depends_on: [arkd, otel-agent]`; exports to `otel-agent` (`ARK_METRICS_OTLP_ENDPOINT=http://otel-agent:4318`, `ARK_METRICS_OTLP_INSECURE=true`). Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`. `traefik.enable=false`; logs to CloudWatch stream `ark-metrics`.
 
 ### Ingress & Routing
 - **cloudflared** — Cloudflare Tunnel for secure ingress (legacy path; still used on prod)

@@ -1,5 +1,30 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-01 - Documentation Sync
+**Commit**: `37eff0a57ce25706aed5620a06e58ce5a910f3a6`
+**Previous Sync**: `a1ccfbf1c55fe19eceaf1f0f3d394164ab5e56d0`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `37eff0a5` feat: HD address rotation, dev-mode selectors, and restore recovery (#682)
+
+**Features Added/Modified**:
+- **HD address rotation** (PR #682): `Config.walletMode` (`ServiceWorkerWalletMode`, default `'static'`) is now a persisted config field. Mnemonic (HD-capable) wallets can opt into `'hd'` mode to rotate the receive address per incoming payment; `SingleKey` wallets are forced `'static'`. New `resolveWalletMode({ hasMnemonic, requested, persisted })` helper in `src/lib/walletMode.ts` picks the effective mode. `initWallet`/`initSvcWorkerWallet` gain `walletMode` + `restoring` params; the resolved mode is persisted via `updateConfig` on mnemonic init. This overturns the prior "all wallets use `walletMode: 'static'`" invariant documented for PR #624.
+- **Restore recovery**: on wallet restore, the service-worker wallet runs `svcWallet.restore()` ("Recovering addresses…") — an HD address gap-scan to recover rotated addresses; errors are non-fatal (logged via `consoleError`).
+- **Dev-mode selectors**: triple-tapping the onboarding "Welcome to Arkade" heading (`data-testid='onboarding-devmode-tap'`) toggles `devMode` before a wallet exists. With dev mode on, **Init** shows a "Rotate receive addresses" `Toggle` in a create-wallet `SheetModal`, and **Restore** shows an Inherit/Static/HD `SegmentedControl` for mnemonic input (`ROTATION_TO_MODE`, Inherit → `undefined` inherits `config.walletMode`).
+
+**Tests**: New `src/test/lib/walletMode.test.ts`, additions to `src/test/screens/Init.test.tsx`, `src/test/screens/Restore.test.tsx`, and `src/test/screens/mocks.ts`.
+
+**Documentation Impact**: Moderate — new persisted wallet-mode concept + restore-recovery behavior; corrects the previously-documented static-address invariant. Added a capability bullet, key-concept, and overview subsection; added `hd-wallet` / `address-rotation` / `dev-mode` tags.
+
+**Files Updated**:
+- docs/INDEX.md (wallet capability bullet, corrected static-invariant text, tags)
+- docs/projects/wallet/INDEX.md (front matter version + last_sync_commit, wallet-mode key concept, dev-mode selectors)
+- docs/projects/wallet/system/project_overview.md (corrected static invariant + new HD Address Rotation subsection)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
 ## 2026-06-30 - Documentation Sync
 **Commit**: `a1ccfbf1c55fe19eceaf1f0f3d394164ab5e56d0`
 **Previous Sync**: `074c52441db4f5d19fd805673c4e0f5f3db7964f`

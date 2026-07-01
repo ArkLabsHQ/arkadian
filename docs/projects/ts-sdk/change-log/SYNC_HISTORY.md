@@ -1,5 +1,49 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-01 - wallet clear() local-data wipe + IndexedDB deletion unblock + unsignable-boarding fast-fail
+**From**: `d98f44c51c9f4df48f88378c25cd249e94f45921`
+**To**: `eb618f1ddf9ba6159a48d5eb6473c5788cdb7592`
+**Synced By**: update-project skill
+**Status**: 12-commit sync, all **post-0.4.40 unreleased** (no version bump — `packages/ts-sdk` stays `0.4.40`, `packages/boltz-swap` stays `0.3.45`). Three substantive threads: a new public `IWallet`/`IReadonlyWallet.clear()` local-data-wipe API (consolidating the old page-side/service-worker split), an IndexedDB `onversionchange` change that unblocks external `deleteDatabase()`, and a settle-time fast-fail on unsignable boarding inputs. Plus repo-level AGENTS.md contributor guidance. No breaking public-API changes (`clear()` is additive on the interfaces).
+
+**Commits analyzed** (12 non-merge commits):
+- `e88ea0a9` feat(wallet): add clearLocalData() to reset a wallet's stored data
+- `bd9e9005` add test
+- `b8357c20` feat(wallet): unblock IndexedDb deletion (`db.onversionchange`)
+- `aabc916f` fix: throw error if clearLocalData fails
+- `8703a3dc` refactor(wallet): fold clearLocalData into clear()
+- `29ec250d` fix(worker): clear both repositories in the worker, not page-side
+- `57155984` fix(worker): reset wallet handler state only after a successful clear
+- `ea265d0e` fix(expo): drain in-flight poll before wiping in ExpoWallet.clear()
+- `7126e75e` fix(wallet): fail fast on unsignable boarding input during settle
+- `326dc753` chore: trim verbose comments and docs in unsignable boarding input change
+- `6199f94d` chore: update comment
+- `aae42c88` Instruct agents to re-use functionalities from ts-sdk (#592)
+
+**Files changed in repo**:
+- `packages/ts-sdk/src/wallet/index.ts` — `IReadonlyWallet` gains `clear(): Promise<void>`
+- `packages/ts-sdk/src/wallet/wallet.ts` — `ReadonlyWallet.clear()` (dispose-then-`Promise.all` wipe in a `finally`); `Wallet.settle` boarding-input `tapScriptSig` assertion + new private `unsignableBoardingInputError(input, script)`
+- `packages/ts-sdk/src/wallet/expo/wallet.ts` — `ExpoWallet.clear()` with `cleared` guard + serialized `foregroundPollChain` drain + `removeContractPollTasks()`
+- `packages/ts-sdk/src/wallet/serviceWorker/wallet.ts` — `ServiceWorkerReadonlyWallet.clear()` now only posts `CLEAR` (dropped page-side `deleteVtxos` parity)
+- `packages/ts-sdk/src/wallet/serviceWorker/wallet-message-handler.ts` — `CLEAR` handler tears down subscriptions then delegates to `(wallet ?? readonlyWallet).clear()`, resets handler state only on success
+- `packages/ts-sdk/src/repositories/indexedDB/manager.ts` — `openDatabase` sets `db.onversionchange` (close + evict from `dbCache`/`refCounts`)
+- `packages/boltz-swap/src/expo/background.ts` — one-line change riding along
+- `AGENTS.md` — new "Core Package, Plugins & Code Reuse" section (#592)
+- `packages/ts-sdk/test/{db,wallet}.test.ts`, `test/wallet/unsignableBoardingInput.test.ts` — coverage for all three threads
+- `regtest` submodule pointer bump
+
+**Documentation changes**:
+- `docs/projects/ts-sdk/INDEX.md`: Version row extended with the three post-0.4.40 unreleased commit ranges; three new Key Concepts entries (wallet `clear()`, IndexedDB `onversionchange` unblock, unsignable-boarding fast-fail)
+- `docs/projects/ts-sdk/system/project_overview.md`: two new Core Feature rows (Local Data Wipe `clear()`; Unsignable Boarding Input Fast-Fail)
+- `docs/projects/ts-sdk/system/architecture.md`: `wallet.ts`, `expo/wallet.ts`, `serviceWorker/wallet.ts`, `wallet-message-handler.ts`, and `walletRepository.ts`/IndexedDB module annotations extended
+- Master `docs/INDEX.md`: four new Key Capabilities entries (clear(), IndexedDB unblock, boarding fast-fail, AGENTS.md guidance) + new tags
+- `change-log/last-sync.txt` → `eb618f1ddf9ba6159a48d5eb6473c5788cdb7592`
+
+**Notes**:
+- All 12 commits are unreleased — published `@arkade-os/sdk` remains `0.4.40`, `@arkade-os/boltz-swap` remains `0.3.45`
+- The `clearLocalData()` name appears in early commits but was folded into `clear()` before the range ends; docs describe only the final `clear()` surface
+- The AGENTS.md change is contributor guidance (core/plugin reuse direction), not an SDK behaviour change
+
 ## 2026-06-30 - 0.4.40 / boltz-swap 0.3.45 release (publishes #571 / #576 / #578 / #581 / #587)
 **From**: `506b649e40ad63e3f00e57b74b7cc15d61b84081`
 **To**: `d98f44c51c9f4df48f88378c25cd249e94f45921`

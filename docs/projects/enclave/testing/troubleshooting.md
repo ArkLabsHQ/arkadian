@@ -38,9 +38,9 @@
 
 **Cause:** the supervisor swapped in the new EIF (step 4) and started polling `/health` (step 5), but the new enclave never became healthy within the timeout. With the new model the most common reasons are:
 
-- `EnsureKeyID` cannot read `/{dep}/{app}/KMSKeyID` (wrong app name baked into the EIF, IAM scope mismatch). This is what the integration test's v3 ("wrong app name") scenario exercises.
+- `EnsureKeyID` cannot read `/{dep}/{app}/{locked|unlocked}/KMSKeyID` (wrong app name baked into the EIF, IAM scope mismatch, or a lock-posture flip that moved the key to a different `locked`/`unlocked` namespace). This is what the integration test's v3 ("wrong app name") scenario exercises.
 - The migration key's `[ownPCR0, newPCR0]` policy doesn't admit the booting PCR0 (wrong `new_pcr0` supplied to `/v1/start-migration`).
-- `VerifyKeyAuthorization` / `VerifyPredecessorCommitment` failed.
+- `VerifyKeyAuthorization` / `VerifyPredecessorCommitment` failed. `VerifyPredecessorCommitment` now fails closed on a missing predecessor attestation (`"predecessor PCR0 … recorded but its attestation is missing"`), a COSE-verification failure against the AWS Nitro root, or an attested-PCR0 vs stored-`MigrationPreviousPCR0` mismatch (`"attested PCR0 does not match stored MigrationPreviousPCR0"`).
 
 **Fix:** the supervisor automatically rolls back — restores the EIF backup, restarts the old enclave (`stepWaitOutcome` emits `rollback` / `rollback-complete` events). Confirm the old enclave returns to healthy, correct the EIF inputs (app name, target PCR0), and re-run `POST /migrate`. The atomic `KMSKeyID` flip means an unsuccessful migration leaves primary state untouched — no manual SSM cleanup. A deferred `ScheduleKeyDeletion` inside `handleStartMigration` cleans up the migration key on failure.
 
@@ -191,7 +191,7 @@ If the EC2 instance itself fails: the CDK stack creates a new instance from the 
 
 `enclave migrate` orchestrates a 7-step locked-key migration:
 
-1. Old enclave inline-creates a new KMS key with policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time, re-encrypts each secret + storage DEK to key-scoped SSM paths (`/{dep}/{app}/{secret}/Ciphertext/{kmsKeyId}`), writes the chain proof, then atomically flips `/{dep}/{app}/KMSKeyID` — that `PutParameter` is the commit.
+1. Old enclave inline-creates a new KMS key with policy locked to `[ownPCR0, newPCR0]` at `CreateKey` time, re-encrypts each secret + storage DEK to lock/key-scoped SSM paths (`/{dep}/{app}/{locked|unlocked}/{secret}/Ciphertext/{kmsKeyId}`), writes the chain proof, then atomically flips `/{dep}/{app}/{locked|unlocked}/KMSKeyID` — that `PutParameter` is the commit.
 2. Supervisor downloads + swaps the new EIF, polls `/health` until healthy (rolls back on timeout).
 3. Old key is scheduled for 7-day deletion.
 

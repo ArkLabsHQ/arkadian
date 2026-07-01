@@ -84,6 +84,7 @@ Analysis and summaries of pull requests.
 | `name` | App name |
 | `region` | AWS region |
 | `account` | AWS account ID |
+| `deployment` | Deployment name (renamed from `prefix`; stack = `{deployment}Nitro{Name}`). Baked into the EIF and measured into PCR0 — names the SSM/KMS namespace. `dev` skips COSE attestation verification (QEMU mock NSM). |
 | `sdk.{rev,hash,vendor_hash}` | SDK Nix hashes (auto-baked via `make build`) |
 | `app.language` | `go`, `nodejs`, or `dotnet` |
 | `app.{nix_owner,nix_repo,nix_rev,nix_hash,nix_vendor_hash}` | Auto-populated by `enclave setup` |
@@ -95,7 +96,7 @@ Analysis and summaries of pull requests.
 | `nix.nixpkgs_rev` | 40-char hex commit SHA pinning the `nixpkgs` flake input — pins the derivation graph and therefore PCR0. Written by `enclave nixpkgs pin`. Must be set together with `nix.nixpkgs_hash`. |
 | `nix.nixpkgs_hash` | SRI-formatted (`sha256-…`) hash of the `nixpkgs` tarball at `nixpkgs_rev`. Validated by regex at config-load. |
 | `secrets[].{name,env_var}` | KMS-managed static secrets (env var injection) |
-| `is_kms_key_locked` | Permanent KMS lockdown flag |
+| `is_kms_key_locked` | Permanent KMS lockdown flag. Also drives the `locked`/`unlocked` SSM namespace segment (plumbed to `ENCLAVE_KMS_KEY_LOCKED`) — a locked deployment mints a fresh key in its own namespace, orphaning the unlocked key/ciphertexts. |
 | `release_tag` | GitHub Release tag for `--remote` artifact pull |
 | `tls.fqdn` | Domain the cert is issued for (required when `provider` ≠ `self-signed`; FQDN-validated) |
 | `tls.provider` | `self-signed` (default) \| `letsencrypt` \| `letsencrypt-staging` |
@@ -149,7 +150,7 @@ EC2 Instance (Amazon Linux 2023, Nitro)
 | `enclave build --push-cache` | Build, then push the closure to the first Cachix substituter (requires `CACHIX_AUTH_TOKEN` + `cachix` CLI on PATH). Used by the CI workflow when `vars.CACHIX_CACHE_NAME` + `secrets.CACHIX_AUTH_TOKEN` are set. |
 | `enclave nixpkgs pin [--check]` | Pin `nixpkgs` to the current tip of `nixos-25.11` (writes `nix.nixpkgs_rev` + `nix.nixpkgs_hash` to `enclave.yaml` and `nixpkgs.url` to `flake.nix`). `--check` validates the existing pin without network. The framework ships a pinned default, so this is only needed when upgrading. See `BINARY-CACHE.md` for the full reproducibility model. |
 | `enclave vendor --path <dir>` | Vendor the upstream app's deps for offline builds — runs `cargo vendor` (Rust) or `go mod vendor` (Go) in the upstream source tree. Then commit `vendor/`, run `enclave setup` (skips hash discovery when `app.vendor: true`), set `app.vendor: true` in `enclave.yaml`. Not supported for Node.js (npm has no clean vendor-mode) or .NET (nugetDeps already manifest-pins every package). |
-| `enclave deploy` | Deploy CDK stack (VPC, EC2, KMS, IAM, S3, secrets) |
+| `enclave tofu apply` | Deploy via OpenTofu (VPC, EC2, KMS, IAM, S3, secrets) — the legacy CDK deploy path is gone |
 | `enclave verify` | Verify attestation + PCR0 |
 | `enclave status` | Show deployment status |
 | `enclave destroy` | Tear down stack (irreversible) |

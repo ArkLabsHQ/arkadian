@@ -1,5 +1,33 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-01 - Documentation Update
+**Commit**: `b85ab3bc1ce62f188e34407154ae270bb2516f4f`
+**Previous Sync**: `93a5c10460e4eeb603d9db15acd309114eef682c`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (prod compose only)
+
+**Highlights**:
+- 📊 **ark-metrics deployed to prod** (#98, `b85ab3b`): new `ark-metrics` service added to
+  `compose/docker-compose.ark.prod.yaml` (prod only), pinned to `ghcr.io/arklabshq/ark-metrics:v0.1.0`.
+  Collects Ark protocol metrics and exports over OTLP to `otel-agent`
+  (`ARK_METRICS_OTLP_ENDPOINT=http://otel-agent:4318`, `ARK_METRICS_OTLP_INSECURE=true`).
+  `depends_on: [arkd, otel-agent]`; reads arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`)
+  and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`;
+  `traefik.enable=false`; CloudWatch stream `ark-metrics`.
+- 🔧 **NBXplorer upgraded to `2.6.8` on prod** (#97, `65eb3d8`): prod compose now uses the stock
+  `nicolasdorier/nbxplorer:2.6.8` image directly. The local `compose/Dockerfile.nbxplorer` curl-override
+  hack (build of `ark-infra/nbxplorer:2.6.7-curl`) was removed and the file deleted. Regtest compose
+  still references the Dockerfile build at `2.6.7-curl`. Health check unchanged (JSON-RPC `getblockchaininfo`).
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: NBXplorer line → prod `2.6.8` stock image / regtest `2.6.7-curl`; added ark-metrics bullet)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.5, `last_sync_commit`, `last_sync_date`; nbxplorer service entry; new Metrics subsection for ark-metrics; CloudWatch streams list adds `threat-monitor`, `ark-metrics`)
+- docs/projects/ark-infra/system/project_overview.md (nbxplorer entry #4; new ark-metrics entry #7)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `b85ab3bc1ce62f188e34407154ae270bb2516f4f`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-06-30 - Documentation Update
 **Commit**: `93a5c10460e4eeb603d9db15acd309114eef682c`
 **Previous Sync**: `448a34e38dd1f511741d5aae3e4752d8e5cd05b1`

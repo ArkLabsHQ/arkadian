@@ -1,5 +1,23 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-07-01 - PR #23: VTXOs by signer key dashboard pane
+**From**: `f7c2a5a8007eafb6d6f0e49287887523e57a2ac2`
+**To**: `f65ac4cdcc0d22bb844701e518bee35edc89cd64`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1 (squash-merged PR #23)
+- `f65ac4c` VTXOs by signer key pane (#23)
+
+**Changes**:
+- Added a new "Signer Key VTXO Usage" panel to the Ark Go Metrics dashboard (`dashboards/Ark_Go_metrics.json`). Unlike the existing Loki client-compatibility panels, this panel is **Prometheus-backed** and plots the `ark_signer_key_matched` metric — the number of active VTXOs matched per signer pubkey. Rendered as stacked bars with a multi-value tooltip, series labelled by `pubkey` (`legendFormat: {{pubkey}}`). Intended to track signer key rotation progress.
+
+**Docs updated**:
+- `system/dashboards.md` — documented the new "Signer Key VTXO Usage" panel and added a matching use case under Ark Go Metrics
+- `docs/INDEX.md` (master) — extended the Grafana dashboards capability bullet to note the new signer-key VTXO panel
+
+**Notes**:
+- Dashboard-only, additive change — no new dependencies or breaking changes.
+
 ## 2026-06-30 - Disable ArkdMissingClientVersion Loki alert
 **From**: `dc280ac35f6f2589f160d49c8aa3e5a5f2d422e7`
 **To**: `f7c2a5a8007eafb6d6f0e49287887523e57a2ac2`
