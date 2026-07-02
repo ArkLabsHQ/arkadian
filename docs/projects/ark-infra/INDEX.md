@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.5
-last_sync_commit: b85ab3bc1ce62f188e34407154ae270bb2516f4f
-last_sync_date: 2026-07-01T00:00:00Z
+version: 1.7.6
+last_sync_commit: ef236141d3fbb7b17a580f107bdfc7310c6375d3
+last_sync_date: 2026-07-02T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -346,9 +346,17 @@ Defined in `aws/{prod-982590065524,dev-438465126741}/`, built from reusable modu
 
 ### Modules
 - `modules/vpc/` — Shared VPC module (since #86, 2026-06): VPC, public/private subnets across 3 AZs (keyed by AZ suffix), IGW, NAT gateway(s) controlled by `nat_per_az` (default `true`, HA), private route tables, egress-only `vpc_endpoints_sg` (callers add their own ingress rules), six interface VPC endpoints + S3 gateway endpoint. Subnets are tagged `Tier = "public"`/`"private"` for cleaner data-source lookups. Not yet consumed by `apps/ark/*` — invocation in `docker-compose/opentofu/main.tf` is commented out pending migration.
+- `modules/foundation/` — Foundation module (since #99, 2026-07): **long-lived** resources that survive app-stack destroy/recreate cycles. Creates the master KMS key (`alias/ark-master-{env}`, multi-region symmetric, not shared cross-account), the data KMS key (`alias/ark-data-{env}`, multi-region symmetric, optionally shared cross-account via `data_key_cross_account_ids`), and the arkd wallet signer-key Secrets Manager secret (`ark/${env}/arkd-wallet-signer-key`, encrypted with the master key). Both keys have rotation enabled; the module creates **containers only** — secret/SSM values are set outside Terraform to keep them out of state. Vars: `env`, `kms_key_deletion_window_in_days` (default 30, 7–30), `data_key_cross_account_ids` (default `[]`). Wired into `aws/dev-438465126741/main.tf` (env=`staging`, deletion window 7, data key shared with prod account `982590065524`).
 - `modules/ark/` — Shared Ark app + telemetry module (ALB, arkd target groups, telemetry ASG, Cloud Map, Ansible provisioning, S3 buckets)
 - `modules/ark-iam-roles/` — SAML-federated IAM roles + guardrail policies (per account)
 - `modules/ark-gws-sync/` — Lambda syncing Google Workspace group membership to AWS role attribute
+
+### Base AMI (Packer + Ansible) — since #102, 2026-07
+Reusable **base image** that child AMIs (and live hosts) build from, in top-level `packer/` + `ansible/`:
+- **`packer/base.pkr.hcl`** — `amazon-ebs` source (arm64) + `ansible-local` provisioner + manifest post-processor. Builds `ark-base-ubuntu-26.04-arm64-<timestamp>` on Ubuntu 26.04 LTS, **arm64 / Graviton only**, in `eu-central-1` (`t4g.small`, gp3 root). Deliberately minimal: no Docker, no `ufw`/`fail2ban` (SSM-only access, no SSH ingress). Vars: `region`, `instance_type`, `root_volume_size` (20), `kms_key_id`, `git_sha`.
+- **`ansible/site.yml`** — connection-agnostic (`hosts: all`); the same roles run at Packer build time and idempotently on a live host via `sudo ansible-playbook -c local -i localhost, /opt/ark/ansible/site.yml`. Roles: `baseline`, `awscli`, `ssm_agent`, `cloudwatch_agent`, `ansible_runtime` (persists the playbook to `/opt/ark/ansible`), and build-only `deprovision` (gated on `packer_build_name`).
+- `ansible/requirements.yml` pulls `community.general >= 8.0.0` (snap module); child images add their own collections. Base ships a minimal CloudWatch host-metrics config (`00-baseline.json`, merged) that children override via file drop or the `cloudwatch_agent_fetch_from_ssm` SSM path.
+- Follow-up (not yet done): wire Terraform to consume the AMI via `data "aws_ami"` (replacing the hardcoded `ami-…` ids).
 
 ---
 

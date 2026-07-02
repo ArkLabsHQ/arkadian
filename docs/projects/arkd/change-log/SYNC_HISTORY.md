@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-02 - Documentation Update
+**Commit**: `b33f7edf` (arkd repository)
+**Previous Sync**: `278bde6b`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `b33f7edf` Whitelist `channelz` endpoints in permissions (#1133)
+
+**Feature (PR #1133 — channelz permission whitelist)**:
+- The seven gRPC channelz RPCs (`GetTopChannels`, `GetServers`, `GetServer`, `GetServerSockets`, `GetChannel`, `GetSubchannel`, `GetSocket`) are added to `permissions.Whitelist()` (`internal/interface/grpc/permissions/permissions.go`) under a new `EntityChannelz = "channelz"` entity. Because the auth interceptor (`internal/interface/grpc/interceptors/auth.go`) allows any method present in `Whitelist()` without checking a macaroon, the channelz introspection RPCs are now reachable auth-free — they are already restricted to the admin port, so no additional guard is needed.
+- Complements PR #1127 (`ARKD_ENABLE_CHANNELZ`), which registers the channelz service on the admin port; before this change the service was registered but its RPCs would fail macaroon auth.
+- Covered by `permissions_test.go` updates.
+
+**Breaking Changes**: None. Internal-only, additive to the permission whitelist; no proto / gRPC method / env-var / config / migration surface changed.
+
+**Files Updated**:
+- docs/INDEX.md (new Key Capabilities bullet for the channelz whitelist; new tag `permissions-whitelist`)
+- docs/projects/arkd/INDEX.md (version 1.3.15 → 1.3.16, sync commit/date)
+- docs/projects/arkd/system/configuration.md (channelz whitelist note on `ARKD_ENABLE_CHANNELZ`)
+
+---
+
 ## 2026-07-01 - Documentation Update
 **Commit**: `278bde6b` (arkd repository)
 **Previous Sync**: `e6217887`

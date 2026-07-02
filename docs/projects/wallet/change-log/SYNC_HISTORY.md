@@ -1,5 +1,31 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-02 - Documentation Sync
+**Commit**: `341bf560854fb412611e257b9fafc900ef841b21`
+**Previous Sync**: `37eff0a57ce25706aed5620a06e58ce5a910f3a6`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `341bf560` Allow deprecated keys delegate (#708)
+- `4ead848e` Upgrade ts-sdk 0.4.41 - boltz-swap 0.3.46 (#709)
+
+**Features Added/Modified**:
+- **Delegation accepts deprecated signer keys** (PR #708, `src/screens/Settings/Delegates.tsx` / `src/lib/asp.ts`): `testConnection` now validates the delegate server's advertised key against a set of acceptable x-only pubkeys — the current `aspInfo.signerPubkey` plus every `aspInfo.deprecatedSigners` entry whose `cutoffDate > now` (each normalised to x-only by stripping the leading byte when 66 hex chars) — and accepts the delegate when the decoded `serverPubKey` matches **any** of them, so a delegate keyed on a not-yet-expired deprecated signer keeps working across a cooperative key rotation. Connection errors now log via `consoleError('Error testing delegate connection:')`. In `delegateVtxos` (`asp.ts`), `dm.getDelegateInfo()` (typed `DelegateInfo` from the SDK) is wrapped in try/catch — a fetch failure logs via `consoleError` and returns early instead of throwing — and the partial-delegation-failure `console.warn` was replaced with `consoleError('Delegation partial failure:')`.
+
+**Dependencies**:
+- **@arkade-os/sdk** bumped 0.4.39 → 0.4.41 (PR #709) — adds the `DelegateInfo` type consumed by PR #708.
+- **@arkade-os/boltz-swap** bumped 0.3.44 → 0.3.46 (PR #709).
+
+**Documentation Impact**: Minor–Moderate — new delegation-tolerates-deprecated-signers behavior plus a routine SDK/boltz-swap dependency bump. Added capability/feature bullets in the master registry, project index, and project overview; bumped all `@arkade-os/sdk` / `@arkade-os/boltz-swap` version references; added a `delegation` tag.
+
+**Files Updated**:
+- docs/INDEX.md (delegate capability bullet, SDK/boltz-swap version bullet + Dependencies line, `delegation` tag)
+- docs/projects/wallet/INDEX.md (front matter version + last_sync_commit, delegate feature bullet, SDK/boltz-swap version lines)
+- docs/projects/wallet/system/project_overview.md (tech-stack SDK/boltz-swap versions, delegate diagnostics bullet, Dependencies line)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
 ## 2026-07-01 - Documentation Sync
 **Commit**: `37eff0a57ce25706aed5620a06e58ce5a910f3a6`
 **Previous Sync**: `a1ccfbf1c55fe19eceaf1f0f3d394164ab5e56d0`

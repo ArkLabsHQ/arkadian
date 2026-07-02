@@ -1,5 +1,47 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-02 - 0.4.41 release: wallet activity-history API + getNetwork fail-closed + chain-swap BTC HTLC verification
+**From**: `eb618f1ddf9ba6159a48d5eb6473c5788cdb7592`
+**To**: `8741a646cac68d3c2012ca6ff56a74f3085a7a9c`
+**Synced By**: update-project skill
+**Status**: 16-commit sync, cut as **`@arkade-os/sdk@0.4.41` + `@arkade-os/boltz-swap@0.3.46`** (`8741a646`). This release publishes everything accumulated since 0.4.40, including the previously-unreleased `clear()` wipe / IndexedDB `onversionchange` / unsignable-boarding fast-fail from the prior sync. Three new substantive threads this range: a new **wallet activity-history API** (`getActivityHistory()` + a pluggable `ActivityRegistry` / resolver engine), `getNetwork()` now **fails closed** on unknown networks (was silently falling through to mainnet params) and is re-exported from the package root, and the sibling boltz-swap package gained **chain-swap BTC HTLC verification** before funds are committed. No breaking public-API changes (activity surface is additive; delegate-info init tolerance is a behaviour relaxation).
+
+**Commits analyzed** (16 non-merge commits):
+- `0b5252f2` feat(wallet): activity types + pure buildActivities grouping engine
+- `89f1a310` feat(wallet): ActivityRegistry + getActivityHistory() across wallet implementations
+- `682af93e` feat(wallet): boarding built-in resolver + default registry (pre-registered on all wallets)
+- `dbdc3293` docs(wallet): export the activity history API + README example
+- `6c91cfcd` fix(boltz-swap): implement activity members on the background IWallet shim
+- `aea4289e` test(wallet): stub fetch in getActivityHistory test (was hitting live :7070 in CI)
+- `9db3f81c` fix(wallet): isolate resolver prepare() failures in buildActivities
+- `83346115` refactor(wallet): name ActivityIntent + document resolver id/groupId/metadata conventions
+- `fa0a5b0e` fix activity history accounting
+- `ed3ca80c` fix activity grouping edge cases
+- `3f2009da` refactor(wallet): tidy activity helpers
+- `61dd60bc` docs: clarify activity history
+- `86bc9774` fix activity grouping: drop malformed resolver memberships
+- `7dd8bd5e` feat(boltz-swap): verify BTC HTLC in chain swaps (#591)
+- `1a5da0e8` fix: don't fail on delegate errors
+- `8741a646` chore: release @arkade-os/sdk@0.4.41, @arkade-os/boltz-swap@0.3.46
+
+**Documentation Changes**:
+- Bumped versions 0.4.40 → 0.4.41 (`@arkade-os/sdk`) and 0.3.45 → 0.3.46 (`@arkade-os/boltz-swap`) in `INDEX.md` (workspace table + Quick Reference version row) and master `docs/INDEX.md` (0.4.41 release entry)
+- `INDEX.md` Key Concepts: added **Activity History API**, **`getNetwork()` fails closed + root export**, **Delegate-info init no longer fatal**, and **Chain-swap BTC HTLC verification** (sibling boltz-swap 0.3.46); flipped the `clear()` / `onversionchange` / unsignable-boarding markers from *post-0.4.40 unreleased* → *0.4.41*
+- `system/project_overview.md` Core Features: added **Activity History**, **`getNetwork()` Fail-Closed**, and **Delegate-Info Init Non-Fatal** rows; flipped the `clear()` and unsignable-boarding rows to 0.4.41
+- Master `docs/INDEX.md`: added the four new capability bullets + a **0.4.41 release** bullet, flipped the three unreleased markers + AGENTS.md guidance to 0.4.41, and added activity/getNetwork/chain-swap-verify tags
+
+**Notable Source Changes**:
+- New module `packages/ts-sdk/src/wallet/activity.ts` (232 lines): `buildActivities` grouping engine + `ActivityRegistry` + `boardingResolver` + `createDefaultActivityRegistry` + `Activity` / `ActivityIntent` / `GroupMembership` / `ActivityResolver` types. Wired into `IReadonlyWallet` (`readonly activity` + `getActivityHistory()`), `ReadonlyWallet`/`Wallet` (`wallet.ts`), `ServiceWorkerReadonlyWallet` (`serviceWorker/wallet.ts`), and `ExpoWallet` (`expo/wallet.ts`); exported from `src/index.ts` + `src/wallet/index.ts`; README "Activity history" section added
+- `src/networks.ts`: `getNetwork` throws `Unsupported network` on an unknown key (fail-closed); `getNetwork` re-exported from `src/index.ts`
+- `src/wallet/wallet.ts`: `ReadonlyWallet` init `.catch(() => undefined)` on delegate/delegator `getDelegateInfo()`
+- boltz-swap: `arkade-swaps.ts` new `verifyBtcChainHtlc`, `utils/boltz-swap-tx.ts` new `assertChainHtlcLeaves` + exported `p2trScript`/`toXOnly` (removed `REGTEST_NETWORK`/`MUTINYNET_NETWORK` constants), `expo/background.ts` shim gains `activity`/`getActivityHistory` stubs + `getNetwork`-based HRP, `utils/scripts.ts` `getNetwork`-based HRP
+
+**Tests Added**: `packages/ts-sdk/test/wallet/activity.test.ts` (247 lines, buildActivities grouping/accounting/isolation); boltz-swap `test/arkade-swaps.test.ts` extended (+208 lines) for chain-HTLC verification
+
+**Notes**:
+- Sibling boltz-swap 0.3.46 chain-swap HTLC verification is summarized here for the release context; the substantive change belongs to `docs/projects/boltz-swap/`
+- The prior sync (2026-07-01) documented `clear()` / `onversionchange` / unsignable-boarding as *post-0.4.40 unreleased*; those commits precede this range but are now shipped by the 0.4.41 cut, so their release markers were updated
+
 ## 2026-07-01 - wallet clear() local-data wipe + IndexedDB deletion unblock + unsignable-boarding fast-fail
 **From**: `d98f44c51c9f4df48f88378c25cd249e94f45921`
 **To**: `eb618f1ddf9ba6159a48d5eb6473c5788cdb7592`

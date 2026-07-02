@@ -1,5 +1,33 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-02 - Per-type `ContractScope` (on-chain/off-chain) as a first-class contract property (PR #121)
+**From**: `dc90149d286d005cdeb33c6ed972371759536324`
+**To**: `8c8fa2c7b840dc080a569fb286a790394263dd36`
+**Synced By**: update-project skill
+**Status**: Updated (new capability — contract-model/storage change)
+
+**Commits Analysed**: 1 squash-merge PR (no merges). 23 files changed, +433 / -8.
+- **#121 `feat(contracts): per-type ContractScope (on-chain/off-chain) as a first-class property`** — replaces the scattered `Type == "Boarding"` checks that implicitly decided whether a contract's funds live on-chain (boarding UTXOs) or off-chain (VTXOs).
+  - New `[Flags] ContractScope { Onchain = 1, Offchain = 2 }` (`NArk.Abstractions/Contracts/ContractScope.cs`); `Both = Onchain | Offchain`.
+  - Abstract `ArkContract.DefaultScope` — every type must declare its scope so a new type can't silently inherit a wrong default: `Boarding => Onchain`; `Payment` / `HashLockPayment` / `Delegate` / `VHTLC` / `Note` / `Unknown` / `Generic => Offchain`.
+  - Resolved scope persisted on `ArkContractEntity.Scope` / `ArkWalletContractEntity` (indexed). `ToEntity(scopeOverride:)` is the per-instance escape hatch (`Scope = scopeOverride ?? DefaultScope`; nothing sets it yet).
+  - New `IContractStorage.GetContracts(scope:)` filters via the SQL-translatable bitwise predicate `(Scope & s) == s` (NOT `HasFlag`, which EF can't translate) — implemented in `EfCoreContractStorage`.
+  - Consumers migrated off the boarding-type check: `BoardingUtxoPollService` / `BoardingUtxoSyncService` / `OnchainSweepService` → `scope: Onchain`; `WalletRecoveryService` → offchain bitwise filter.
+  - Tests (TDD): `ContractScopeTests.cs` (per-type `DefaultScope`, `ToEntity` override resolution, flags semantics) + `EfCoreContractScopeStorageTests.cs` (real-SQLite-backed `GetContracts(scope:)` — InMemory would client-evaluate and hide the non-translatable query).
+  - Schema note: `NArk.Storage.EfCore` is provider-agnostic with no migrations history — the `Scope` column ships via entity configuration; consumers that manage their own schema with EF migrations must add a migration creating the column (default `Offchain`) and backfilling existing boarding rows to `Onchain`.
+
+**Changes Made**:
+- Updated the `ArkContract` **Key Concept** in `docs/projects/dotnet-sdk/INDEX.md` to reference `DefaultScope` and the per-type scope decision; added a new **ContractScope** Key Concept covering the enum, the bitwise-query rule, and the migration caveat.
+- Added a new **Key Capability** bullet to the dotnet-sdk section of the master `docs/INDEX.md`; added scope-related tags, ask/develop triggers, and debug triggers (HasFlag-not-translated, missing migration, boarding-rows-default-offchain).
+- No dependency / package / dependency-graph changes.
+
+**Files Updated**:
+- `docs/INDEX.md` — new Key Capability, tags, and triggers for `ContractScope`.
+- `docs/projects/dotnet-sdk/INDEX.md` — `ArkContract` concept updated + new `ContractScope` concept.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `8c8fa2c`.
+
+---
+
 ## 2026-06-30 - SSE subscription `Accept` header + 501 polling fallback (PR #152), preimage-derivation test vectors (PR #151)
 **From**: `36898e71558c9dc63abe6c2623f0a21db8b97838`
 **To**: `dc90149d286d005cdeb33c6ed972371759536324`

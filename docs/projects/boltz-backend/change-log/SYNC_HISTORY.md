@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-02 - Documentation Update
+**Commit**: `4e90aee5` (boltz-backend repository)
+**Previous Sync**: `9589ce8a`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Bug Fixes**:
+- fix: catch unhandled errors from static file routes (#1453) (`4e90aee5`) — `res.sendFile` (used for static files) rejects requests with a bogus `Range` header asynchronously, bypassing the route handlers' `try/catch`. Added a catch-all Express error middleware (`handleUnhandledError`, exported from `lib/api/Api.ts`, registered via `app.use` after all routes) so these errors return a proper JSON `errorResponse` (using `error.status`/`error.statusCode`, default `500`) instead of going unhandled; forwards to `next` when headers were already sent. Covered by `test/unit/api/Api.spec.ts`. No API surface, config, or dependency change.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (REST API capability line), `testing/api-reference.md` (Error Responses section). No `system/` or project `INDEX.md` change (internal robustness fix only).
+
 ## 2026-07-01 - Documentation Update
 **Commit**: `9589ce8a` (boltz-backend repository)
 **Previous Sync**: `7a1a22ef`

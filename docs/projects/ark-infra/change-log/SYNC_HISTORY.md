@@ -1,5 +1,39 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-02 - Documentation Update
+**Commit**: `ef236141d3fbb7b17a580f107bdfc7310c6375d3`
+**Previous Sync**: `b85ab3bc1ce62f188e34407154ae270bb2516f4f`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (new modules/dirs, no compose changes)
+
+**Highlights**:
+- 🔐 **Foundation module + master KMS key** (#99, `ef23614`): new reusable `modules/foundation/`
+  for **long-lived** resources that survive app-stack destroy/recreate. Creates the master KMS key
+  (`alias/ark-master-{env}`, multi-region symmetric, rotation on, root-only policy, not shared
+  cross-account), the data KMS key (`alias/ark-data-{env}`, multi-region symmetric, optionally
+  shared cross-account via `data_key_cross_account_ids`), and the arkd wallet signer-key secret
+  (`ark/${env}/arkd-wallet-signer-key`, encrypted with the master key). Containers only — values
+  set outside Terraform. Vars: `env`, `kms_key_deletion_window_in_days` (default 30, 7–30),
+  `data_key_cross_account_ids` (default `[]`). Wired into `aws/dev-438465126741/main.tf`
+  (env=`staging`, deletion window 7, data key shared with prod account `982590065524`).
+- 📦 **Base AMI via Packer + Ansible** (#102, `4bc4eaf`): new top-level `packer/` + `ansible/`
+  build a reusable base image `ark-base-ubuntu-26.04-arm64-<timestamp>` (Ubuntu 26.04 LTS,
+  arm64/Graviton only, eu-central-1) via `amazon-ebs` + `ansible-local`. Deliberately minimal
+  (no Docker, no `ufw`/`fail2ban`; SSM-only, no SSH). Connection-agnostic `ansible/site.yml`
+  (`hosts: all`) runs the same roles at build time and idempotently on live hosts via
+  `/opt/ark/ansible`: `baseline`, `awscli`, `ssm_agent`, `cloudwatch_agent`, `ansible_runtime`,
+  and build-only `deprovision` (gated on `packer_build_name`). Follow-up: wire Terraform to
+  consume the AMI via `data "aws_ami"`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra: added foundation-module + base-AMI capability bullets; new tags `foundation-module`, `kms`, `multi-region-key`, `key-rotation`, `secrets-manager`, `signer-key`, `packer`, `base-ami`, `graviton`, `arm64`, `ubuntu`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.6, `last_sync_commit`, `last_sync_date`; Modules list adds `modules/foundation/`; new "Base AMI (Packer + Ansible)" subsection)
+- docs/projects/ark-infra/system/project_overview.md (Repository Structure tree: added `modules/foundation/`, top-level `packer/` and `ansible/`)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `ef236141d3fbb7b17a580f107bdfc7310c6375d3`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-07-01 - Documentation Update
 **Commit**: `b85ab3bc1ce62f188e34407154ae270bb2516f4f`
 **Previous Sync**: `93a5c10460e4eeb603d9db15acd309114eef682c`

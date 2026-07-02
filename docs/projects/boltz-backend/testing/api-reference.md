@@ -391,6 +391,8 @@ All errors return HTTP status codes with JSON body:
 }
 ```
 
+A catch-all Express error middleware (`handleUnhandledError` in `lib/api/Api.ts`, PR #1453) guarantees a JSON error response even for errors that bypass a route handler's `try/catch` — e.g. `res.sendFile` (static file routes) rejecting a request with a bogus `Range` header asynchronously. The middleware forwards to the next handler if headers were already sent; otherwise it responds with `error.status`/`error.statusCode` (default `500`).
+
 **Common Error Codes**:
 - `ERR_INVALID_PAIR`: Invalid trading pair
 - `ERR_INVALID_AMOUNT`: Amount outside limits

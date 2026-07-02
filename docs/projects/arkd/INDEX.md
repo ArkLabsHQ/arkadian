@@ -1,8 +1,8 @@
 ---
 project_id: arkd
-version: 1.3.15
-last_sync_commit: 278bde6bacff28da4ba98f8c0f942e4d2a9886bd
-last_sync_date: 2026-07-01T00:00:00Z
+version: 1.3.16
+last_sync_commit: b33f7edfe0a6c47b9f8f9ca032d5fd857952b72e
+last_sync_date: 2026-07-02T00:00:00Z
 repository_path: ${ARKD_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/arkd
 commits_behind_upstream: 0

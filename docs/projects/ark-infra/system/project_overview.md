@@ -47,8 +47,11 @@ ark-infra/
 │   │   ├── ansible/telemetry-playbook.yml # Telemetry instance provisioning (Docker, EBS data volume mount, ark-telemetry clone, systemd; renamed 2026-06, #80)
 │   │   └── agent/otel-agent-config.yaml # Local OTLP collector config used on app hosts
 │   ├── vpc/                           # Shared VPC module (since 2026-06, #86) — VPC, 3-AZ public/private subnets (tagged Tier=public|private), IGW, NAT (`nat_per_az` toggle), egress-only `vpc_endpoints_sg`, 6 interface endpoints + S3 gateway. Provider `aws ~> 5.0`. Not yet wired into apps/ark/*; migration via `scripts/migrate-vpc-state.sh`.
+│   ├── foundation/                    # Long-lived resources (since 2026-07, #99) — master + data KMS keys (aliases ark-{master,data}-{env}, multi-region, rotation on) and arkd wallet signer-key secret (ark/${env}/arkd-wallet-signer-key). Containers only; values set outside Terraform. Wired into aws/dev-438465126741/main.tf.
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
 │   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
+├── packer/                            # Base AMI build (since 2026-07, #102) — base.pkr.hcl (amazon-ebs arm64 + ansible-local + manifest), variables.pkr.hcl. Produces ark-base-ubuntu-26.04-arm64-<ts> (Ubuntu 26.04, Graviton-only, eu-central-1)
+├── ansible/                           # Base-image playbook (since 2026-07, #102) — site.yml (connection-agnostic, hosts: all) + roles baseline/awscli/ssm_agent/cloudwatch_agent/ansible_runtime/deprovision. Runs at Packer build and idempotently on live hosts via /opt/ark/ansible
 ├── scripts/                           # Repo-level scripts
 │   └── migrate-vpc-state.sh           # VPC state migration: docker-compose/opentofu → aws/{dev,prod}/ (`--dry-run` supported; backs up state, imports into `module.vpc_{env}.*`, prints `state rm` commands)
 └── docker-compose/                    # Docker Compose + OpenTofu automation
