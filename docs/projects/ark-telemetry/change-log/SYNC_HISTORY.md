@@ -1,5 +1,25 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-07-03 - Jaeger span TTL 72h → 48h
+**From**: `f65ac4cdcc0d22bb844701e518bee35edc89cd64`
+**To**: `71c21a1747b8893a31fc4e4c5a7d61253a36f836`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `71c21a1` jaeger: Drop TTL from 72h to 48h
+
+**Changes**:
+- `jaeger-config.yaml`: BadgerDB storage extension span retention TTL reduced from `72h` to `48h`.
+
+**Docs updated**:
+- `system/components.md` — Jaeger TTL bullet updated to `48h`
+- `system/configuration.md` — jaeger-config.yaml description updated to `48h span TTL`
+- `sop/jaeger-manual.md` — PR #13 note updated to `48h span TTL`
+- `docs/INDEX.md` (master) — Jaeger capability bullet updated to `48h span TTL`
+
+**Notes**:
+- Config-only, non-breaking change. Traces now retained 48h instead of 72h; no capability, dependency, or tag changes.
+
 ## 2026-07-01 - PR #23: VTXOs by signer key dashboard pane
 **From**: `f7c2a5a8007eafb6d6f0e49287887523e57a2ac2`
 **To**: `f65ac4cdcc0d22bb844701e518bee35edc89cd64`

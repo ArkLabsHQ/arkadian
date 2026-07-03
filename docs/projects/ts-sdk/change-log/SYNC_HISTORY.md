@@ -1,5 +1,34 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-03 - Sibling boltz-swap: exact claim-fee sizing for chain-swap arkToBtc (#595)
+**From**: `8741a646cac68d3c2012ca6ff56a74f3085a7a9c`
+**To**: `07991c26736ff27b070a7a22547301403d51ffa3`
+**Synced By**: update-project skill
+**Status**: Single-commit sync, **all in the sibling `packages/boltz-swap/` package** — no `packages/ts-sdk/src/` change, **no version bump** (`@arkade-os/sdk` stays `0.4.41`, `@arkade-os/boltz-swap` stays `0.3.46`; both **post-0.4.41 unreleased**). `07991c26` (PR #595) fixes chain-swap claim-fee sizing so `arkToBtc` delivers the exact amount. Substantive change belongs to `docs/projects/boltz-swap/`; recorded here for release/sync context.
+
+**Commits analyzed** (1 non-merge commit):
+- `07991c26` fix(boltz-swap): size claim fee from exact vsize (#595)
+
+**Files changed in repo** (sibling boltz-swap package only):
+- `packages/boltz-swap/src/utils/boltz-swap-tx.ts` — `targetFee` drops the `+ tx.inputsLength` pad; sizes the claim-tx fee from the exact `@scure/btc-signer` vsize (`ceil(probe.vsize * satPerVbyte)`)
+- `packages/boltz-swap/src/arkade-swaps.ts` — docstring on `claimBtc` documenting the claim output as `swapOutput.amount − max(feeToDeliverExactAmount, targetFee)`
+- `packages/boltz-swap/test/boltz-swap-tx.test.ts` — **new** unit test locking the exact `ceil(vsize * rate)` sizing (1-in/1-out P2TR key-path claim vsize 111; no `+1` per-input pad)
+- `packages/boltz-swap/test/e2e/arkade-swaps.test.ts` — "exact amount to btc address" assertion rebounded to the Boltz reservation (`>= amountSats - 99`, was `> amountSats - 200`)
+
+**Notable source change**:
+- The prior `targetFee` returned `constructTx(ceil((tx.vsize + tx.inputsLength) * satPerVbyte))`, overpaying ~1 sat/input over the accurate `@scure` vsize. `claimBtc` subtracts the claim fee from the recipient (`max(feeToDeliverExactAmount, targetFee)`), so the pad made `arkToBtc` **under-deliver by ~1 sat/input**. Dropping the pad matches Boltz's grossed-up `minerFees.user.claim` and delivers the exact amount — where Boltz's reservation covers the real claim fee (mainnet/mutinynet). On regtest the Boltz image reserves a sub-min-relay ~23-sat fee, below the 99-sat min-relay floor of the 1-in P2TR / 1-out P2WPKH claim, so the receiver is short by the residual and the e2e assertion is bounded rather than exact (the exact sizing is locked by the new unit test).
+
+**Documentation changes**:
+- `INDEX.md` (project): new Key Concept entry ("Sibling boltz-swap — exact claim-fee sizing"); Version row's post-0.4.41 marker flipped from "none" to record this unreleased boltz-swap fix
+- Master `docs/INDEX.md`: new ts-sdk Key Capabilities bullet + `exact-claim-fee` / `target-fee-vsize` tags
+- `change-log/last-sync.txt`: `8741a646 → 07991c26`
+
+**Tests added**: `packages/boltz-swap/test/boltz-swap-tx.test.ts` (new, 53 lines) + the e2e assertion rebound (both in the sibling package, covered under `docs/projects/boltz-swap/`)
+
+**Notes**:
+- No version bump — published `@arkade-os/sdk` remains `0.4.41`, `@arkade-os/boltz-swap` remains `0.3.46`
+- This fix follows up the post-0.4.33 "exact amount to btc address" fee-aware assertion rework (recorded in the ts-sdk INDEX Esplora mempool-compat entry); the earlier change made the assertion fee-aware, this one corrects the actual claim-fee sizing
+
 ## 2026-07-02 - 0.4.41 release: wallet activity-history API + getNetwork fail-closed + chain-swap BTC HTLC verification
 **From**: `eb618f1ddf9ba6159a48d5eb6473c5788cdb7592`
 **To**: `8741a646cac68d3c2012ca6ff56a74f3085a7a9c`

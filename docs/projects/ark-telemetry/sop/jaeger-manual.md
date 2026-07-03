@@ -2,7 +2,7 @@
 
 Quick reference for querying Jaeger traces during investigation workflows.
 
-> **PR #13 (June 2026)**: stack now runs **Jaeger v2** (`jaegertracing/jaeger:2.18.0`) with BadgerDB filesystem storage (72h span TTL, persisted across restarts). OTLP is received directly on `:4317` / `:4318` — the legacy `14250` collector port and `COLLECTOR_OTLP_ENABLED` env var are gone. The query API surface (`/api/services`, `/api/traces`, `/api/dependencies`, …) is unchanged.
+> **PR #13 (June 2026)**: stack now runs **Jaeger v2** (`jaegertracing/jaeger:2.18.0`) with BadgerDB filesystem storage (48h span TTL, persisted across restarts). OTLP is received directly on `:4317` / `:4318` — the legacy `14250` collector port and `COLLECTOR_OTLP_ENABLED` env var are gone. The query API surface (`/api/services`, `/api/traces`, `/api/dependencies`, …) is unchanged.
 
 ---
 

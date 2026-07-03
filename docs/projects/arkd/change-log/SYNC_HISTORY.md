@@ -1,5 +1,36 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-03 - Documentation Update
+**Commit**: `af56a868` (arkd repository)
+**Previous Sync**: `b33f7edf`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `af56a868` fix: CSVMultisigClosure small int decoding logic (#1135)
+- `61976b61` client-lib: Fix send on closed replay channel & Update explorer.GetFeeRate endpoint (#1134)
+
+**Fix (PR #1134 — replay-channel panic + mempool fee-rate endpoint)**:
+- `JoinBatchSession` (`pkg/client-lib/batch_session_handler.go`) now forwards notify events to the caller's `replayEventsCh` with an inline non-blocking `select` instead of a detached goroutine. The caller owns and closes that channel once `JoinBatchSession` returns, so a goroutine outliving the return raced the close and panicked (`send on closed channel`). The inline send guarantees every send happens-before the return; a slow/unread consumer simply drops the event.
+- The mempool explorer's `GetFeeRate` (`pkg/client-lib/explorer/mempool/explorer.go`) now queries `v1/fees/recommended` and returns its `fastestFee`, falling back to the legacy (deprecated) `fee-estimates` endpoint only on HTTP 404 for backward compatibility with older mempool backends (e.g. `mempool.mutinynet.arkade.sh` no longer serves `fee-estimates`).
+- Both paths route through a new shared `explorerSvc.get(path, target)` helper that reads the body and checks the HTTP status **before** JSON-decoding, so a non-JSON error body surfaces the real status instead of a misleading parse error.
+- Covered by `pkg/client-lib/batch_session_handler_test.go` and `pkg/client-lib/explorer/service_test.go` additions.
+
+**Fix (PR #1135 — CSV small-int sequence decoding)**:
+- `CSVMultisigClosure.Decode` (`pkg/ark-lib/script/closure.go`) now decodes a small-int (OP_1..OP_16) locktime sequence back to its numeric value (`opcode − (OP_1 − 1)`) instead of storing the raw opcode byte, matching Bitcoin's minimal scriptnum encoding. `OP_0` still decodes to an empty byte slice; values > 16 remain pushdata byte slices.
+- The paired change removes the now-redundant OP_1..OP_16 → number remapping from `BIP68DecodeSequenceFromBytes` (`pkg/ark-lib/locktime.go`), which previously compensated for the raw-opcode storage — leaving it in place would have double-shifted the corrected value.
+- Prevents mis-decoding of CSV relative-locktimes in the 1–16 range. Covered by new `pkg/ark-lib/script/script_test.go` and `pkg/ark-lib/locktime_test.go` cases.
+
+**Breaking Changes**: None. Both are bug fixes internal to `pkg/client-lib` and `pkg/ark-lib`; no proto / gRPC method / env-var / config / migration surface changed.
+
+**Files Updated**:
+- docs/INDEX.md (two new Key Capabilities bullets for PR #1134 and #1135; new tags `replay-channel`, `batch-session`, `fee-rate`, `mempool-explorer`, `csv-closure`, `script-decoding`, `bip68`; new debug triggers)
+- docs/projects/arkd/INDEX.md (version 1.3.16 → 1.3.17, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-02 - Documentation Update
 **Commit**: `b33f7edf` (arkd repository)
 **Previous Sync**: `278bde6b`

@@ -231,7 +231,7 @@ Storage (PR #13):
 - **Backend**: BadgerDB on the local filesystem (named volume `jaeger_data` → `/badger`)
 - **Keys**: `/badger/key` — **Values**: `/badger/data`
 - **Ephemeral**: `false` (traces persist across container restarts)
-- **TTL**: `72h` for spans
+- **TTL**: `48h` for spans
 - **Pipeline**: `otlp` receiver → `batch` processor → `jaeger_storage_exporter` (badger_store); query served by the `jaeger_query` extension
 
 ### Use Cases

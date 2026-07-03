@@ -1,5 +1,24 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-03 - Documentation Update
+**Commit**: `1e496c49` (boltz-backend repository)
+**Previous Sync**: `4e90aee5`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Features / API Changes**:
+- feat: add PATCH endpoint for swap metadata (#1455) (`1e496c49`) — new `PATCH /v2/swap/{id}/metadata` route (`SwapRouter.patchMetadata`) sets or replaces the swap metadata stored via PR #1423 *after* creation, for **any** swap type. The handler resolves `id` across `SwapRepository` / `ReverseSwapRepository` / `ChainSwapRepository` (`findSwapForMetadata`, `Promise.all` then first non-null) and returns `404 SWAP_NOT_FOUND` if none match; it rejects any body key other than `metadata` with `INVALID_PARAMETER(<key>)`, validates the `metadata` HEX with the existing `parseMetadata` (shared `MetadataHex` constraints: regex `^(?:[0-9a-fA-F]{2})+$`, 2–2048 hex chars / 1–1024 bytes), and responds `200 {}` on success. The metadata write path changed from create-only to **upsert**: `SwapMetadataRepository.add` was renamed to `set` and now calls `SwapMetadata.upsert` instead of `.create`, so both the create-time `persistMetadata` and the new PATCH path overwrite any prior value idempotently. `swagger-spec.json` gained the new `/swap/{id}/metadata` PATCH operation and a shared `MetadataHex` / `MetadataRequest` component schema (the inline `metadata` fields on the create + restore schemas now `$ref` it; the "rescue endpoint" wording was corrected to "restore endpoint"). Covered by expanded `test/unit/api/v2/routers/SwapRouter.spec.ts` (+129) and `test/integration/db/repositories/SwapMetadataRepository.spec.ts` (+16, `set`/upsert semantics).
+
+**Tooling / Chores (no docs surface)**:
+- CI: `setup-build-environment` composite action now derives the actual `rustc --version` into a step output and includes it in the Cargo cache key (cache invalidation correctness).
+- `regtest` submodule advanced `97d2c11b → 8d529456`.
+
+**Database Migrations**: none (the `swap_metadata` table from PR #1423 is unchanged; only the writer switched `create` → `upsert`).
+
+**Docs Touched**: `docs/INDEX.md` (swap-metadata Key Capability line — added the PATCH endpoint + upsert note), `INDEX.md` (Database → Swap routing metadata bullet — `add` → `set` upsert, new PATCH endpoint, shared `MetadataHex` schema), `testing/api-reference.md` (new `PATCH /v2/swap/{id}/metadata` section + upsert note on the create-time `metadata` field). No `system/` edits (no new component or architecture change — this is a REST-surface + repository-method refinement).
+
 ## 2026-07-02 - Documentation Update
 **Commit**: `4e90aee5` (boltz-backend repository)
 **Previous Sync**: `9589ce8a`

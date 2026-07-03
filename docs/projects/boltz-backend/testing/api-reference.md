@@ -75,7 +75,7 @@ Create a new submarine swap (Chain → Lightning).
 - `orderSide`: `sell` for submarine, `buy` for reverse
 - `invoice`: Lightning invoice (optional, can set later with `/setinvoice`)
 - `refundPublicKey`: Public key for refund transaction
-- `metadata` *(optional, PR #1423)*: client-supplied opaque blob encoded as HEX (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes**). Persisted to the `swap_metadata` table keyed by swap id and returned on `/v2/swap/restore` for the same swap. Accepted on all three swap-create endpoints (`/v2/swap/submarine`, `/v2/swap/reverse`, `/v2/swap/chain`). Invalid hex or out-of-range length yields `INVALID_PARAMETER('metadata')`.
+- `metadata` *(optional, PR #1423)*: client-supplied opaque blob encoded as HEX (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes**). Persisted to the `swap_metadata` table keyed by swap id and returned on `/v2/swap/restore` for the same swap. Accepted on all three swap-create endpoints (`/v2/swap/submarine`, `/v2/swap/reverse`, `/v2/swap/chain`). Invalid hex or out-of-range length yields `INVALID_PARAMETER('metadata')`. Metadata can also be set or replaced after creation via `PATCH /v2/swap/{id}/metadata` (see below) — the write path is now an **upsert** (`SwapMetadataRepository.set`, PR #1455), so re-supplying metadata overwrites any previous value instead of erroring.
 
 **Response**:
 ```json
@@ -352,6 +352,36 @@ full `RestorableSwap` details needed to resume, claim, or refund.
 
 The lockup `Transaction` object in restore responses now carries `id` + `vout` (output index)
 instead of `id` + `hex`. Invalid/expired signatures return HTTP `400`.
+
+### PATCH /v2/swap/{id}/metadata
+
+Set or replace the metadata stored alongside an existing swap (PR #1455). Works for **any**
+swap type — the handler resolves `id` against submarine, reverse, and chain swap repositories
+(`SwapRepository`, `ReverseSwapRepository`, `ChainSwapRepository`) and applies the write to
+whichever one matches.
+
+**Path Parameter**:
+- `id`: ID of the swap.
+
+**Request Body**:
+```json
+{
+  "metadata": "0a1b2c..."
+}
+```
+
+- `metadata` *(required)*: HEX-encoded opaque blob, same `MetadataHex` constraints as at
+  creation (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes**). It **replaces**
+  any metadata previously stored for the swap (backed by `SwapMetadataRepository.set`, an
+  upsert). Any body key other than `metadata` yields `INVALID_PARAMETER(<key>)`; invalid hex or
+  out-of-range length yields `INVALID_PARAMETER('metadata')`.
+
+**Responses**:
+- `200`: metadata stored successfully; body is an empty object `{}`.
+- `404`: no swap with the provided `id` exists (`ERR_SWAP_NOT_FOUND`).
+- `400`: `ErrorResponse` for invalid parameters.
+
+The stored metadata is returned on `/v2/swap/restore` for the same swap.
 
 ## WebSocket API
 

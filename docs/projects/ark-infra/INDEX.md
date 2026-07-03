@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.6
-last_sync_commit: ef236141d3fbb7b17a580f107bdfc7310c6375d3
-last_sync_date: 2026-07-02T00:00:00Z
+version: 1.7.7
+last_sync_commit: e24aa73ad1157cb381dab06973ebefd656d1d725
+last_sync_date: 2026-07-03T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -354,7 +354,7 @@ Defined in `aws/{prod-982590065524,dev-438465126741}/`, built from reusable modu
 ### Base AMI (Packer + Ansible) — since #102, 2026-07
 Reusable **base image** that child AMIs (and live hosts) build from, in top-level `packer/` + `ansible/`:
 - **`packer/base.pkr.hcl`** — `amazon-ebs` source (arm64) + `ansible-local` provisioner + manifest post-processor. Builds `ark-base-ubuntu-26.04-arm64-<timestamp>` on Ubuntu 26.04 LTS, **arm64 / Graviton only**, in `eu-central-1` (`t4g.small`, gp3 root). Deliberately minimal: no Docker, no `ufw`/`fail2ban` (SSM-only access, no SSH ingress). Vars: `region`, `instance_type`, `root_volume_size` (20), `kms_key_id`, `git_sha`.
-- **`ansible/site.yml`** — connection-agnostic (`hosts: all`); the same roles run at Packer build time and idempotently on a live host via `sudo ansible-playbook -c local -i localhost, /opt/ark/ansible/site.yml`. Roles: `baseline`, `awscli`, `ssm_agent`, `cloudwatch_agent`, `ansible_runtime` (persists the playbook to `/opt/ark/ansible`), and build-only `deprovision` (gated on `packer_build_name`).
+- **`ansible/site.yml`** — connection-agnostic (`hosts: all`); the same roles run at Packer build time and idempotently on a live host via `sudo ansible-playbook -c local -i localhost, /opt/ark/ansible/site.yml`. Roles: `baseline`, `awscli` (installs the AWS CLI, verifying the installer signature against the committed PGP key `roles/awscli/files/aws-cli.gpg`), `ssm_agent`, `cloudwatch_agent`, `ansible_runtime` (persists the playbook to `/opt/ark/ansible`), and build-only `deprovision` (gated on `packer_build_name`).
 - `ansible/requirements.yml` pulls `community.general >= 8.0.0` (snap module); child images add their own collections. Base ships a minimal CloudWatch host-metrics config (`00-baseline.json`, merged) that children override via file drop or the `cloudwatch_agent_fetch_from_ssm` SSM path.
 - Follow-up (not yet done): wire Terraform to consume the AMI via `data "aws_ami"` (replacing the hardcoded `ami-…` ids).
 

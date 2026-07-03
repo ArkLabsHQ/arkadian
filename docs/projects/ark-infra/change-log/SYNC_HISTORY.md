@@ -1,5 +1,26 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-03 - Documentation Update
+**Commit**: `e24aa73ad1157cb381dab06973ebefd656d1d725`
+**Previous Sync**: `ef236141d3fbb7b17a580f107bdfc7310c6375d3`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (internal fix, no compose/module changes)
+
+**Highlights**:
+- 🔐 **Missing awscli PGP key added** (`e24aa73`): committed `ansible/roles/awscli/files/aws-cli.gpg`,
+  the PGP key used by the base-AMI `awscli` Ansible role to verify the AWS CLI installer signature.
+  Fixes AWS CLI installation on base-AMI/live-host provisioning where the key file was previously absent.
+
+**Files Updated**:
+- docs/INDEX.md (annotated `awscli` role with installer PGP-key verification detail)
+- docs/projects/ark-infra/INDEX.md (frontmatter sync metadata + version bump; `awscli` role detail)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-02 - Documentation Update
 **Commit**: `ef236141d3fbb7b17a580f107bdfc7310c6375d3`
 **Previous Sync**: `b85ab3bc1ce62f188e34407154ae270bb2516f4f`

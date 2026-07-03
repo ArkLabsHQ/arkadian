@@ -333,7 +333,7 @@ slack_configs:
 
 Located at: `${ARK_TELEMETRY_REPO}/jaeger-config.yaml` (added in PR #13 alongside the `jaegertracing/jaeger:2.18.0` upgrade).
 
-Configures the Jaeger v2 binary: BadgerDB storage extension (`/badger/key`, `/badger/data`, ephemeral=false, 72h span TTL), `jaeger_query` extension reading from the same backend, OTLP receivers on gRPC `0.0.0.0:4317` and HTTP `0.0.0.0:4318`, a `batch` processor, and a `jaeger_storage_exporter` that writes to the badger backend. Mounted read-only into the container at `/etc/jaeger/config.yaml` and selected via `command: ["--config", "/etc/jaeger/config.yaml"]`. A `jaeger-init` sidecar (same image, run as root) creates `/badger/{key,data}` and chowns to UID 10001 before jaeger starts.
+Configures the Jaeger v2 binary: BadgerDB storage extension (`/badger/key`, `/badger/data`, ephemeral=false, 48h span TTL), `jaeger_query` extension reading from the same backend, OTLP receivers on gRPC `0.0.0.0:4317` and HTTP `0.0.0.0:4318`, a `batch` processor, and a `jaeger_storage_exporter` that writes to the badger backend. Mounted read-only into the container at `/etc/jaeger/config.yaml` and selected via `command: ["--config", "/etc/jaeger/config.yaml"]`. A `jaeger-init` sidecar (same image, run as root) creates `/badger/{key,data}` and chowns to UID 10001 before jaeger starts.
 
 ## Docker Compose Configuration
 
