@@ -1,5 +1,28 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-04 - CI solution filter (`NArk.CI.slnf`), Blazor sample fixes, `GetVtxoChain` pagination, address-provider cleanup (PRs #153, #155, #156)
+**From**: `8c8fa2c7b840dc080a569fb286a790394263dd36`
+**To**: `aa152eccc678523d5c77eb4c314555a2f30367c7`
+**Synced By**: update-project skill
+**Status**: Updated (minor — CI/build tooling + one transport-API addition; remainder is sample-wallet + internal fixes)
+
+**Commits Analysed**: 3 squash-merge PRs (no merges).
+- **#155 `chore(transport): update indexer protofile`** — 1 file. `indexer.proto` adds opaque cursor pagination to `GetVtxoChain`: `GetVtxoChainRequest.page_token` (field 5) resumes from a prior page's cursor; `GetVtxoChainResponse.next_page_token` (field 4) returns the cursor for the next page (empty when exhausted).
+- **#156 `Fix: example blazor wallet`** — 19 files. Introduces the **`NArk.CI.slnf`** solution filter (the 8 library + test projects, excluding the Blazor wallet sample) and points `build.yml`, `.github/actions/e2e-setup/action.yml`, and `e2e-rotation.yml` at it (`dotnet restore/build/test/pack NArk.CI.slnf`) so the browser-only WASM wallet (needs `wasm-tools`) doesn't gate library CI; `build.yml` also installs `wasm-tools` and bumps dotnet versions. `docs.yml` rewrites the WASM `<base href="/">` → `/dotnet-sdk/wallet/` in `index.html` / `404.html` at deploy. Sample-wallet fixes: JSON transport-field parsing (json extensions moved to transport extensions), local dev setup (base href, COOP/COEP headers, `WasmBuildNative`, `launchSettings.json`), receive button + welcome gradient, QR fit, boarding flow, efcore-log suppression + simple intent scheduler config, and a vtxos boarding-status pill. Core fixes: `BoardingUtxoPollService` chicken-and-egg — it no longer gates on `HasUnspentBoardingVtxos` (which read `IVtxoStorage` before `SyncAsync` had a chance to add the VTXOs) and now always delegates to `BoardingUtxoSyncService.SyncAsync` (which itself exits early when no boarding contracts are registered); `SpendingService` now re-throws `AlreadyLockedVtxoException` instead of collapsing it into the generic catch/log.
+- **#153 `chore: cleanup address providers logic`** — 2 files (`HierarchicalDeterministicAddressProvider.cs`, `SingleKeyAddressProvider.cs`). Derive an `ArkPaymentContract` for an unknown purpose (like the HD wallet path) rather than an HTLC with a random preimage; refactor `HDAddressProvider` for readability and remove dead code; the `SingleKeyAddressProvider` change was rolled back (wasn't a bug).
+
+**Changes Made**:
+- `docs/projects/dotnet-sdk/system/architecture.md` — gRPC Transport section notes `GetVtxoChain` `page_token`/`next_page_token` pagination; Wallet section notes the PR #153 address-provider cleanup; Sample Wallet & Docs Site section notes the `NArk.CI.slnf` CI exclusion, the `docs.yml` base-href rewrite, the local Blazor dev-setup fixes, and the `BoardingUtxoPollService` chicken-and-egg fix.
+- `docs/projects/dotnet-sdk/system/integration-with-arkd.md` — `GetVtxoChainAsync` row notes cursor pagination.
+- `docs/projects/dotnet-sdk/testing/how_to_test.md` — CI Pipeline section rewritten to run against `NArk.CI.slnf` (+ project list, e2e-setup/rotation note).
+- `docs/projects/dotnet-sdk/sop/development-workflow.md` — PR Flow CI step notes the slnf scope.
+- `docs/projects/dotnet-sdk/INDEX.md` — CI Quick-Reference row notes the slnf + base-href rewrite.
+- `docs/INDEX.md` — added tags (`ci-solution-filter`, `narkci-slnf`, `getvtxochain-pagination`, `vtxo-chain-page-token`, `address-provider-cleanup`) and ask/develop/test triggers.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `aa152ec`.
+- No dependency / package / dependency-graph changes.
+
+---
+
 ## 2026-07-02 - Per-type `ContractScope` (on-chain/off-chain) as a first-class contract property (PR #121)
 **From**: `dc90149d286d005cdeb33c6ed972371759536324`
 **To**: `8c8fa2c7b840dc080a569fb286a790394263dd36`

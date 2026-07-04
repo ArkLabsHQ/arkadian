@@ -74,28 +74,39 @@ Analysis and summaries of pull requests.
 ## Key Concepts
 
 ### Arkade Language
-A domain-specific language for Bitcoin Taproot contracts with Ivy-like syntax. Contracts define spending paths that compile to two variants per function:
-- **Cooperative path** (`serverVariant: true`): user signature + server signature
-- **Exit path** (`serverVariant: false`): user signature + timelock (or N-of-N for introspection)
+A domain-specific language for Bitcoin Taproot contracts with Ivy-like syntax. A contract compiles to a unified `functions[]` ABI of **spend groups**, each carrying an optional emulator-run `arkade` covenant plus one or more L1 `leaves` (taproot tapleaves):
+- **Covenant** (unmodified `function`): emits the arkade ASM executed inside the TEE emulator.
+- **Tapleaves** (`tapscript` functions): pure L1 taproot leaves for cooperative signing, hashlocks, and unilateral exit. A covenant function with no matching `tapscript` receives a synthesized default collaborative leaf `checkMultisig([server, tweak(emulator, fn)], [serverSig, emulatorSig], 2)`.
+
+The `options {}` block has been **removed** from the language — cooperative signing, exit, and renewal are expressed via tapscript leaves and `int` constructor params (referenced by `older(...)` / `after(...)` / `tx.time >= ...`).
 
 ### Contract Structure
 ```
-options { server = key; exit = 144; }
-contract Name(pubkey user) {
+contract Name(pubkey user, int exit) {
+    // Arkade covenant (cooperative signing = synthesized default leaf).
     function spend(signature userSig) {
+        require(checkSig(userSig, user));
+    }
+    // Unilateral L1 CSV exit leaf.
+    function unilateral(signature userSig) tapscript {
+        require(older(exit));
         require(checkSig(userSig, user));
     }
 }
 ```
 
+### Tapscript Closures
+Each `tapscript` leaf must assemble to one of arkd's 5 closure shapes, with source order `condition? · timelock? · multisig`:
+`Multisig`, `CsvMultisig`, `CltvMultisig`, `ConditionMultisig`, `ConditionCsvMultisig`. Multisig is always N-of-N. Reserved key roles `server` → `<SERVER_KEY>` (arkd operator) and `emulator` → `<EMULATOR_KEY:fn>` (emulator key tweaked by `fn`'s covenant hash) may appear only as key operands inside a tapscript; covenant bodies use only the contract's own pubkeys.
+
 ### Data Types
 `pubkey`, `signature`, `bytes`, `bytes20`, `bytes32`, `int`, `bool`, `asset`
 
 ### Supported Operations
-- **Signature verification**: `checkSig`, `checkMultisig`, `checkSigFromStack`, `checkSigFromStackVerify`
-- **Hash functions**: one-shot `sha256(data)` (compiles to `OP_SHA256`, accepts concatenation chains like `sha256(a + b + c)`) and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`)
+- **Signature verification**: `checkSig`, `checkMultisig` (2-arg N-of-N or 3-arg `checkMultisig(keys, sigs, threshold)`), `checkSigFromStack`, `checkSigFromStackVerify`
+- **Hash functions**: one-shot `sha256(data)` (compiles to `OP_SHA256`, accepts concatenation chains like `sha256(a + b + c)`) and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`); tapscript condition hashlocks additionally support `hash160` (`OP_HASH160`), `hash256` (`OP_HASH256`), and `ripemd160` (`OP_RIPEMD160`)
 - **Byte-string ops**: type-dispatched `+` — `OP_CAT` when either operand is bytes-like (`bytes`, `bytes20`, `bytes32`), `OP_ADD64` for pure `int + int`. Int operands on a bytes-mixed `+` are auto-coerced to 8-byte LE via `OP_SCRIPTNUMTOLE64`.
-- **Timelocks**: `tx.time >= value`, exit timelock via options
+- **Timelocks**: `tx.time >= value` / `after(value)` (absolute, CLTV); `older(value)` (relative, CSV) for unilateral exit leaves referencing constructor `int` params (no more `options`)
 - **Transaction introspection**: `tx.inputs[i]`, `tx.outputs[o]`, `tx.version`, `tx.locktime`, `tx.time` (Bitcoin nLockTime block height), `tx.offchainTime` (TEE wallclock unix seconds, distinct from `tx.time`), `tx.input.current`, `this.activeInputIndex` (emits `OP_PUSHCURRENTINPUTINDEX` directly so on-chain self-vs-sibling checks work in exit tapleaves)
 - **Asset introspection**: `tx.inputs[i].assets.lookup(txid, gidx)` (asserts present, returns amount), `.has(txid, gidx)` (Bool presence), `.length`, `[t].assetId`, `[t].amount` — Asset IDs are explicit canonical `(txid, gidx)` pairs with compile-time operand-type/range validation
 - **Asset groups**: `tx.assetGroups.find(txid, gidx)`, `.has(txid, gidx)`, `.length`, `[k].sumInputs`, `.sumOutputs`, `.delta`, `.metadataHash`, `.isFresh`; control via `[k].hasControl` (Bool) and `group.controlIs(txid, gidx)` (Bool) — replacing the old `.control ==` struct access
@@ -123,8 +134,8 @@ contract Name(pubkey user) {
 | `stability/stability_offer.ark` | Non-interactive StabilityVault offer with configurable `collateralRatioPct`, basis-point `takeFee` (sats-routed-to-provider, or rolled into vault.value when dust ≤ 330 sats) and `seekerExitFee` (propagated into every opened vault); `take()` opens a vault at the oracle-signed price with bounds-checked fees (0–10000 bp) |
 | `options/covered_call.ark` | Bitcoin-native, single-locked, physically-settled European covered call (Rysk Finance v12 mechanics). Seller locks `btcSats` BTC; buyer pays `strikeAmount` of `stableAssetId` only at exercise time. 4 functions × 2 variants → 8 tapleaves: `exercise(buyerSig)` valid in `[expiryHeight, expiryHeight + graceBlocks)` with asset/value introspection on outputs; `reclaim(sellerSig)` at `expiryHeight + graceBlocks`; `transferSeller`/`transferBuyer` are pre-expiry key-swaps guarded by `require(tx.time < expiryHeight)`. No oracle — buyer's voluntary exercise is the settlement signal |
 | `options/cash_secured_put.ark` | Mirror of CoveredCall with sides reversed. Seller locks `stableAmount` of `stableAssetId`; buyer delivers `btcSats` BTC at exercise. Same 4-function/8-tapleaf shape and same exercise/reclaim time windows |
-| `bonds/repayment_pool.ark` | Fixed-maturity bond market per-maturity singleton (7 functions × cooperative+exit → 14 tapleaves): `issue`, `acceptRepayment`, `rollOut`, `rollIn`, `liquidate` (pre-maturity margin call), `acceptAuction` (post-maturity default), `redeem` (pro-rata after auction window). 1:1 credit + debit mint against collateral; oracle-priced settlement with `auctionDiscountBps` spread. Four deployment invariants on `issue`/`rollIn` (`initRatioBps > liqThresholdBps`, `liqThresholdBps > 0`, `auctionWindow > 0`, `auctionDiscountBps ∈ [0, 10000)`). Strict-burn equality on every settlement path; ceiling-division collateral floor (`required = (amount × initRatioBps + 9999) / 10000`) prevents dust-mint at the unit boundary. Per-function output-pin conflicts + pool-side borrower signature on `rollOut` block force-liquidation co-spend pairings. |
-| `bonds/bond_mint.ark` | Fixed-maturity per-issuance bond vault (4 functions × cooperative+exit → 8 tapleaves): `repay` (pre-maturity, borrower-signed), `liquidate` (pre-maturity, permissionless margin call), `auction` (post-maturity, permissionless), `roll` (pre-maturity, borrower-signed authorisation that burns the old debit and releases collateral for a same-tx `rollIn`). Phase-gated time windows match the pool side; strict-equality debit burn. |
+| `bonds/repayment_pool.ark` | Fixed-maturity bond market per-maturity singleton (7 covenant functions, each with a synthesized or explicit tapleaf): `issue`, `acceptRepayment`, `rollOut`, `rollIn`, `liquidate` (pre-maturity margin call), `acceptAuction` (post-maturity default), `redeem` (pro-rata after auction window). 1:1 credit + debit mint against collateral; oracle-priced settlement with `auctionDiscountBps` spread. Four deployment invariants on `issue`/`rollIn` (`initRatioBps > liqThresholdBps`, `liqThresholdBps > 0`, `auctionWindow > 0`, `auctionDiscountBps ∈ [0, 10000)`). Strict-burn equality on every settlement path; ceiling-division collateral floor (`required = (amount × initRatioBps + 9999) / 10000`) prevents dust-mint at the unit boundary. Per-function output-pin conflicts + pool-side borrower signature on `rollOut` block force-liquidation co-spend pairings. |
+| `bonds/bond_mint.ark` | Fixed-maturity per-issuance bond vault (4 covenant functions, each with a synthesized or explicit tapleaf): `repay` (pre-maturity, borrower-signed), `liquidate` (pre-maturity, permissionless margin call), `auction` (post-maturity, permissionless), `roll` (pre-maturity, borrower-signed authorisation that burns the old debit and releases collateral for a same-tx `rollIn`). Phase-gated time windows match the pool side; strict-equality debit burn. |
 
 ## Technology Stack
 
@@ -143,7 +154,7 @@ contract Name(pubkey user) {
          │ parse()
          ▼
 ┌─────────────────┐
-│  PEG Grammar     │  grammar.pest (559 rules)
+│  PEG Grammar     │  grammar.pest (611 lines)
 │  (pest parser)   │
 └────────┬────────┘
          │ build_ast()
@@ -155,8 +166,8 @@ contract Name(pubkey user) {
          │ compile()
          ▼
 ┌─────────────────┐
-│  ContractJson    │  ABI functions with asm[], requirements, metadata
-│  (compiler/)     │  Each function → cooperative + exit variant
+│  ContractJson    │  functions[] spend groups: { name, arkade?, leaves[] }
+│  (compiler/)     │  Covenant ASM + L1 tapleaves (compiler/tapscript.rs)
 └────────┬────────┘
          │ serde_json
          ▼

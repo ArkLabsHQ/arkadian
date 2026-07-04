@@ -48,9 +48,12 @@ Options:
 use arkade_compiler::compile;
 
 let source = r#"
-options { server = server; exit = 144; }
-contract Example(pubkey owner, pubkey server) {
+contract Example(pubkey owner, int exit) {
     function spend(signature ownerSig) {
+        require(checkSig(ownerSig, owner));
+    }
+    function unilateral(signature ownerSig) tapscript {
+        require(older(exit));
         require(checkSig(ownerSig, owner));
     }
 }
@@ -65,21 +68,35 @@ println!("{}", json);
 
 ### Contract Declaration
 
-```solidity
-options {
-  server = serverKeyParam;  // Which param is the server key
-  exit = 144;               // Exit timelock in blocks
-  renew = 1008;             // Renewal timelock in blocks
-}
+The `options {}` block has been **removed**. A contract is zero or more `import`s followed by a `contract` declaration. Unmodified `function`s are arkade covenants; `tapscript` functions are L1 tapleaves; exit timelocks are ordinary `int` constructor params referenced by `older(...)`.
 
+```solidity
 contract Name(
   pubkey user,
   bytes32 hash,
-  int amount
+  int amount,
+  int exit                  // exit timelock (blocks), referenced by older(exit)
 ) {
+  // Arkade covenant (cooperative signing = synthesized default leaf).
   function spend(signature userSig) {
     require(checkSig(userSig, user));
   }
+
+  // Unilateral L1 CSV exit leaf.
+  function unilateral(signature userSig) tapscript {
+    require(older(exit));
+    require(checkSig(userSig, user));
+  }
+}
+```
+
+**Custom tapleaves** must assemble to an arkd closure (`condition? · timelock? · multisig`), and may use reserved roles `server` / `emulator`:
+
+```solidity
+// Hashlocked forfeit leaf: condition + N-of-N multisig with server co-sign.
+function claim(bytes preimage, signature serverSig, signature emulatorSig) tapscript {
+  require(hash160(preimage) == preimageHash);
+  require(checkMultisig([server, emulator], [serverSig, emulatorSig], 2));
 }
 ```
 
@@ -143,7 +160,7 @@ function verifyBurning(pubkey key) internal {
 
 ## Output Format
 
-The compiler produces JSON with this structure:
+The compiler produces JSON with the unified `functions[]` spend-group ABI — each group has an optional `arkade` covenant and one or more L1 `leaves`. Signatures live in each leaf's `witness` (`injected: true` for infra-supplied fields), never in leaf `asm`:
 
 ```json
 {
@@ -154,20 +171,25 @@ The compiler produces JSON with this structure:
   "functions": [
     {
       "name": "spend",
-      "functionInputs": [{ "name": "userSig", "type": "signature" }],
-      "serverVariant": true,
-      "require": [{ "type": "signature" }, { "type": "serverSignature" }],
-      "asm": ["<user>", "<userSig>", "OP_CHECKSIG", "<SERVER_KEY>", "<serverSig>", "OP_CHECKSIG"]
-    },
-    {
-      "name": "spend",
-      "functionInputs": [{ "name": "userSig", "type": "signature" }],
-      "serverVariant": false,
-      "require": [{ "type": "signature" }, { "type": "older", "message": "Exit timelock of 144 blocks" }],
-      "asm": ["<user>", "<userSig>", "OP_CHECKSIG", "144", "OP_CHECKSEQUENCEVERIFY", "OP_DROP"]
+      "arkade": {
+        "inputs": [{ "name": "userSig", "type": "signature" }],
+        "asm": ["<user>", "<userSig>", "OP_CHECKSIG"]
+      },
+      "leaves": [
+        {
+          "name": "spend",
+          "witness": [
+            { "name": "serverSig", "type": "signature", "encoding": "schnorr-64", "injected": true },
+            { "name": "emulatorSig", "type": "signature", "encoding": "schnorr-64", "injected": true }
+          ],
+          "asm": ["<SERVER_KEY>", "OP_CHECKSIGVERIFY", "<EMULATOR_KEY:spend>", "OP_CHECKSIG"]
+        }
+      ]
     }
   ],
   "source": "...",
   "compiler": { "name": "arkade-compiler", "version": "0.1.0" }
 }
 ```
+
+> The legacy `serverVariant` / `functionInputs` / `require` / `witnessSchema` fields no longer exist.

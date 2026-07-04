@@ -134,7 +134,7 @@ Shared utilities and data structures reusable by arkd and SDK.
 - Tree structures (binary VTXOs, quaternary connectors)
 - MuSig2 protocol implementation
 - PSBT extensions and utilities
-- BIP322-inspired proof-of-ownership
+- BIP322-inspired proof-of-ownership (intent-proof PSBTs now set the BIP-322 `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE` `0x09` global field carrying the signed message, so a co-signer can recompute the `to_spend` commitment from PSBT-internal data alone — PR #1132)
 - Arkade Assets codec (encoding/decoding asset packets, IDs, metadata)
 - Fee estimation via CEL formula engine (`arkfee/`)
 
@@ -160,6 +160,9 @@ The operator can rotate the server signing key without invalidating VTXOs that w
 
 ### Client-Side Deprecated-Signer Verification (PR #1117)
 The embedded `pkg/client-lib` SDK now verifies the server's signatures on ark and checkpoint transactions against the **set** of valid signer keys (current + deprecated) — the client-side counterpart to the server-side signer-key rotation (PR #1097). `types.Config` gains a `DeprecatedSigners []DeprecatedSigner` field (each `{PubKey, CutoffDate}`) and a `Config.AllSigners()` helper returning a `map[string]*btcec.PublicKey` keyed by x-only hex pubkey. The verification helpers (`verifySignedArk` / `verifySignedCheckpoints` / `verifyOffchainPsbt`) now take that signer map instead of a single pubkey, match each signed input's `TaprootScriptSpendSig.XOnlyPubKey` against any key in the set, and verify with the matched key. `SendOffChain`, `IssueAsset`, `ReissueAsset`, and `BurnAsset` load the config via `GetConfigData` and pass `AllSigners()`. The file store persists deprecated signers as a `deprecated_signers` JSON array (`{pubkey, cutoff_date}`, compressed-hex pubkey + RFC3339 cutoff).
+
+### CEL-Based Batch Trigger Gate (PR #1046)
+An optional `ARKD_BATCH_TRIGGER` CEL formula (stored as the `batch_trigger` setting) decides whether the server starts a new batch round. When unset (default), the legacy "always start a round" behaviour is preserved. The program is evaluated at the top of `startRound()` against `intents_count`, `current_feerate`, `time_since_last_batch`, `boarding_inputs_count`, `total_boarding_amount`, `total_intent_fees` and a `now()` helper; it must return `bool`. Seeded from the env var on first boot, it is admin-updatable at runtime via `UpdateSettings` (the compiled program is cached and recompiled only on text change). Validated at startup and on every update; round-time evaluation **fails open** so a buggy formula never halts rounds. Backed by a new `internal/core/domain/batchtrigger` package and `add_batch_trigger` migrations (sqlite + postgres).
 
 ### Fee System (CEL-Based)
 Programmable fee management using CEL (Common Expression Language) formulas. Supports per-intent-type fees (onchain input, offchain input, onchain output, offchain output) with admin APIs for managing fee programs and a client-facing fee estimation RPC.

@@ -1,5 +1,41 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-07-04 — Unified Tapscript ABI: `options {}` removed, `functions[]={arkade,leaves}`
+**Commit Range**: `d7fa09b5` → `cf5a52dd`
+**Synced By**: /update-project compiler
+**Status**: Major breaking language + ABI change (tapscript leaves), plus test-suite migration and new opcodes
+
+**Commits Analyzed** (35, highlights):
+- `078fce4` feat!: unified functions[]={arkade,leaves} ABI; covenants drop server cosig; synth default leaves
+- `e1da20a` feat!: remove options block from language (grammar/parser/Contract)
+- `fd57e64` / `a52d0e5` feat: NamedTapscript/TapItem/KeyExpr/HashFn models + tapscript parsing
+- `2115c1e` / `ee4ec70` / `caab2b2` / `066468a` / `8701fee` feat(compiler): tapscript closure assembly, opcode-safety/closure-shape validators, binding resolution, arkd-rules validator, ASM emitter (`src/compiler/tapscript.rs`)
+- `abff008` feat: add HASH160/HASH256/RIPEMD160 opcode constants
+- `2102dcf` feat(grammar): tapscript modifier, tweak keys, 3-arg checkMultisig, generalized hash condition
+- `e64bf18` feat(playground): render unified tapscript ABI (groups + leaves)
+- `d46fc06` / `8cc3767` / `e14a9ab` refactor: remove dead two-variant ABI types, covenant closure indirection, KeyExpr role helpers
+- Test migration to the group/leaf ABI across the whole suite; new `tapscript_{parse,validation,abi,golden}_test.rs`
+
+**Changes**:
+- **BREAKING — `options {}` block removed.** Cooperative signing, exit, and renewal are no longer configured via `options`; they are expressed through `tapscript` leaves and `int` constructor params referenced by `older(...)`/`after(...)`/`tx.time >= ...`.
+- **BREAKING — unified `functions[]` spend-group ABI.** Each group is `{ name, arkade?: { inputs, asm }, leaves: [{ name, witness, asm }] }`. The old two-variant `serverVariant=true/false`, `witnessSchema`, `functionInputs`, `require`, automatic N-of-N exit generation, and tx-signing/data-signing pubkey classification were all removed. Covenant ASM carries contract pubkeys only; signatures live in each leaf's witness (never in leaf ASM).
+- **Tapscript leaves** (`function <name>(...) tapscript { ... }`): compile in `src/compiler/tapscript.rs` to one of arkd's 5 closures (Multisig / CsvMultisig / CltvMultisig / ConditionMultisig / ConditionCsvMultisig), source order `condition? · timelock? · multisig`. Reserved roles `server` → `<SERVER_KEY>`, `emulator`/`tweak(emulator, fn)` → `<EMULATOR_KEY:fn>`. A covenant with no matching tapscript gets a synthesized default collaborative leaf `checkMultisig([server, tweak(emulator, fn)], [serverSig, emulatorSig], 2)`.
+- **New model types**: `Contract.tapscripts`, `NamedTapscript`, `TapItem` (Hash/Older/After/Sig), `KeyExpr` (Ident/Tweak), `HashFn` (Sha256/Hash160/Hash256/Ripemd160); ABI types `AbiFunctionGroup`, `ArkadeCovenant`, `AbiLeaf`, `WitnessElement`.
+- **New opcodes**: `OP_HASH160`, `OP_HASH256`, `OP_RIPEMD160`; hashlock hash fns `hash160`/`hash256`/`ripemd160`; 3-arg `checkMultisig(keys, sigs, threshold)`.
+- **Validation rework**: `validate_ast` adds ≥1 function-or-tapscript, unique tapscript names, reserved-role misuse, duplicate tapscript inputs; drops the `options.exit` check. `validate_output` now asserts unified-ABI invariants (non-empty leaves/covenant asm, witness-only signatures) instead of `serverVariant`/`witnessSchema`/BSST checks. Closure-shape rules live in `compiler::tapscript::validate_arkd_rules`.
+- Grammar grew from 559 → 611 lines. Examples migrated to tapscript leaves; goldens regenerated. Suite grew to 32 test files.
+
+**Documentation Updates**:
+- `docs/projects/compiler/INDEX.md` — Key Concepts (unified ABI, tapscript closures), Contract Structure example, supported ops (hash fns, 3-arg checkMultisig, older/after), pipeline diagram
+- `system/project_overview.md` — Compilation Model, semantic validation, project structure, security model
+- `system/architecture.md` — grammar/AST/stages 2–4, key design decisions (unified ABI, tapscript closures), source structure, testing
+- `testing/usage.md` — contract declaration, library example, output format
+- `testing/how_to_test.md` — tapscript test group, "what tests verify", writing-new-tests example, count 28 → 32
+- `testing/troubleshooting.md` — syntax, JSON validation, unilateral exit pattern
+- `docs/INDEX.md` — compiler description, key capabilities, tags, triggers
+
+---
+
 ## 2026-06-20 — Canonical Asset IDs `(txid, gidx)` + Asset ID Operand Validation
 **Commit Range**: `509a6975` → `d7fa09b5`
 **Synced By**: /update-project compiler

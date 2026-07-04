@@ -37,7 +37,7 @@ scripts:
 | **Docs Site** | DocFX → `https://arkade-os.github.io/dotnet-sdk/` |
 | **Test Framework** | NUnit 4 + NSubstitute |
 | **E2E Infrastructure** | `regtest/` git submodule (`arkade-os/arkade-regtest`) + .NET Aspire `NArk.AppHost` |
-| **CI** | GitHub Actions: build, test, pack, push to NuGet; docs.yml deploys DocFX + WASM wallet; `proto-sync-check.yml` (PR #148) fails a PR when the bundled `ark/v1/*.proto` files drift from `arkade-os/arkd` master (fetched via wget, `diff -u` against each of indexer/service/types.proto) |
+| **CI** | GitHub Actions: build, test, pack, push to NuGet — scoped to the `NArk.CI.slnf` solution filter (PR #156, excludes the Blazor wallet sample so library CI doesn't need `wasm-tools`); docs.yml deploys DocFX + WASM wallet (rewriting the WASM `<base href>` to `/dotnet-sdk/wallet/` at deploy time); `proto-sync-check.yml` (PR #148) fails a PR when the bundled `ark/v1/*.proto` files drift from `arkade-os/arkd` master (fetched via wget, `diff -u` against each of indexer/service/types.proto) |
 | **Transport** | gRPC (Grpc.Net.Client) **or** REST + SSE to arkd |
 | **Version** | `1.0-beta` (Nerdbank.GitVersioning) |
 | **License** | MIT |

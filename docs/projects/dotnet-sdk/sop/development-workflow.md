@@ -96,7 +96,7 @@ User-facing prose uses **Arkade** (not "Ark"). Code identifiers (`NArk`, `ArkCoi
 1. Create feature branch from `master`
 2. Make changes, ensure build + tests pass
 3. Push and create PR against `master`
-4. CI builds, tests, and packs on every push
+4. CI builds, tests, and packs on every push — scoped to the `NArk.CI.slnf` solution filter (PR #156), which excludes the browser-only Blazor wallet sample from library CI (`dotnet restore/build/test/pack NArk.CI.slnf`). Build the full `NArk.sln` locally to also compile the sample wallet.
 5. NuGet packages published on merge to `master`
 
 ## Versioning

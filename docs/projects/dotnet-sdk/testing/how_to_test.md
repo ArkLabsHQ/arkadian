@@ -99,11 +99,13 @@ dotnet test --filter "FullyQualifiedName~BatchSessionTests"
 
 ## CI Pipeline
 
-GitHub Actions (`build.yml`):
-1. `dotnet restore`
-2. `dotnet build --no-restore`
-3. `dotnet test --no-build --verbosity normal`
-4. `dotnet pack -c Release -o dist/`
+GitHub Actions (`build.yml`) — all steps run against the **`NArk.CI.slnf`** solution filter (PR #156), which scopes CI to the eight library + test projects and excludes the browser-only Blazor wallet sample (it needs `wasm-tools` and would otherwise slow/break library CI):
+1. `dotnet restore NArk.CI.slnf`
+2. `dotnet build NArk.CI.slnf --no-restore`
+3. `dotnet test NArk.CI.slnf --no-build --verbosity normal --filter "FullyQualifiedName!~End2End"`
+4. `dotnet pack NArk.CI.slnf -c Release -o dist/`
 5. Push to NuGet (on master/tags only)
+
+The `.github/actions/e2e-setup` composite action and `e2e-rotation.yml` also build the slnf (`dotnet build NArk.CI.slnf`). The slnf lists: `NArk.Abstractions`, `NArk.Core`, `NArk.Storage.EfCore`, `NArk.Swaps`, `NArk`, `NArk.Tests`, `NArk.Transport.GrpcClient.Tests`, `NArk.Tests.End2End`.
 
 **E2E split (PR #141)**: the formerly monolithic E2E job is now four reusable workflows invoked in parallel from `build.yml` — `e2e-core.yml`, `e2e-swaps.yml`, `e2e-recovery.yml`, `e2e-rotation.yml` — with regtest bring-up + `dotnet build` factored into the shared `.github/actions/e2e-setup` composite action (each workflow checks out before invoking it). Running a single category locally is still just a `--filter` against the relevant test namespace.

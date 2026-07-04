@@ -46,6 +46,7 @@ See `docs/settings.md` in the arkd repo for the full seed-variable table and lif
 - `ARKD_UNROLLED_VTXO_MIN_EXPIRY_MARGIN` (default: 300) - Minimum expiry margin for unrolled VTXOs, in seconds
 - `ARKD_ROUND_MIN_PARTICIPANTS_COUNT` (default: 1) - Minimum participants
 - `ARKD_ROUND_MAX_PARTICIPANTS_COUNT` (default: 128) - Maximum participants
+- `ARKD_BATCH_TRIGGER` (default: "" = always start) - Optional [CEL](https://github.com/google/cel-spec) formula that gates whether the server starts a new batch round (PR #1046). Empty/unset preserves the legacy "start every session" behaviour. Seeded into the settings row on first boot; thereafter admin-updatable at runtime via the `batch_trigger` field of `POST /v1/admin/settings` (also settable with the `--batch-trigger` CLI flag). See [Batch Trigger Gate](#batch-trigger-gate) below.
 
 **Timelocks (relative locktimes: >= 512 = seconds, < 512 = blocks; block-based only on regtest):**
 - `ARKD_VTXO_TREE_EXPIRY` (default: 604672) - VTXO tree expiration (7 days in seconds)
@@ -87,6 +88,29 @@ Once seeded, settings are managed exclusively through the admin API (macaroon: `
 | `/v1/admin/settings`    | POST   | Update settings (`AdminService.UpdateSettings`; partial — only provided fields change; response returns a `change_log`) |
 
 Updates are validated server-side (locktime rules, amount min/max consistency, uint32 overflow guards, `MaxTxWeight`, `BanThreshold`, etc.), serialized under a mutex, and applied to the live-store settings cache synchronously, so concurrent updates can't lose each other. The scheduled-session (`/v1/admin/scheduledSession`) and batch-fee (`/v1/admin/intentFees`) endpoints now mutate the same unified settings row.
+
+### Batch Trigger Gate
+
+`ARKD_BATCH_TRIGGER` (PR #1046) is an optional CEL formula, stored as the `batch_trigger` field of the unified settings row, that decides whether the server starts a new batch round. It is evaluated at the top of `startRound()` before any round state is created; the compiled program is cached and recompiled only when the text changes, so a runtime update via `UpdateSettings` takes effect on the next round without a restart. If it returns `false`, the server waits one sixth of `ARKD_SESSION_DURATION` and re-checks. The program **must return `bool`** and is validated both at startup (a bad `ARKD_BATCH_TRIGGER` fails `Validate()`) and on every `UpdateSettings` call. At round time the gate **fails open** — a program that fails to compile or evaluate allows the round and logs a warning, so a buggy formula can never wedge the scheduler. A nil/empty program is permissive (always allow).
+
+Exposed variables (all typed as `double`; numeric literals must use the `.0` form) plus a `now() -> double` helper (current Unix seconds):
+
+| Variable | Description |
+|----------|-------------|
+| `intents_count` | Number of pending intents queued |
+| `current_feerate` | Current mempool fee rate in sat/kvbyte (from the wallet) |
+| `time_since_last_batch` | Seconds since the last finalized batch (`0` if none since boot) |
+| `boarding_inputs_count` | Total pending boarding UTXOs across all queued intents |
+| `total_boarding_amount` | Total satoshis across all pending boarding UTXOs |
+| `total_intent_fees` | Total implicit fees (sum of input − output amounts) across pending intents |
+
+Example — only batch when there is more than one intent and either fees are low or an hour has passed:
+
+```cel
+intents_count > 1.0 && (current_feerate <= 2.0 || time_since_last_batch >= 3600.0)
+```
+
+See `internal/core/domain/batchtrigger/README.md` in the arkd repo for the full variable reference and more examples.
 
 ### Transaction Fees
 Fees are managed via a programmable CEL formula engine (see Admin Fee APIs) and are persisted as `BatchFees` inside the unified settings row. The static `ARKD_ONCHAIN_OUTPUT_FEE` has been **[DEPRECATED]** and replaced by the dynamic fee system.

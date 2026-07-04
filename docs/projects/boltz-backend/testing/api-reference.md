@@ -77,6 +77,8 @@ Create a new submarine swap (Chain → Lightning).
 - `refundPublicKey`: Public key for refund transaction
 - `metadata` *(optional, PR #1423)*: client-supplied opaque blob encoded as HEX (regex `^(?:[0-9a-fA-F]{2})+$`, **2–2048 hex chars / 1–1024 bytes**). Persisted to the `swap_metadata` table keyed by swap id and returned on `/v2/swap/restore` for the same swap. Accepted on all three swap-create endpoints (`/v2/swap/submarine`, `/v2/swap/reverse`, `/v2/swap/chain`). Invalid hex or out-of-range length yields `INVALID_PARAMETER('metadata')`. Metadata can also be set or replaced after creation via `PATCH /v2/swap/{id}/metadata` (see below) — the write path is now an **upsert** (`SwapMetadataRepository.set`, PR #1455), so re-supplying metadata overwrites any previous value instead of erroring.
 
+> **Submarine creation: `invoice` or `preimageHash`** *(clarified in swagger PR #1454)*. A Submarine Swap must be created with **either** an `invoice` **or** a `preimageHash` — the request `anyOf` requires at least one. `invoice` takes precedence over `preimageHash` when both are supplied; supplying only a `preimageHash` defers the invoice to a later `/setinvoice` (or `PATCH`) call. Because of this, several `SubmarineResponse` fields are **conditional**: only `id` is always present, while `bip21`, `acceptZeroConf`, and `expectedAmount` are set **only when the swap was created with an invoice**. A `claimAddress` field (the EVM address Boltz uses to claim the onchain HTLC) is present **only for swaps to EVM-based chains**.
+
 **Response**:
 ```json
 {

@@ -33,7 +33,8 @@ cargo build     # Retry
 ```
 Compilation error: Parse error: ...
 ```
-- Check your `.ark` file follows the syntax: `options {}`, `contract Name(params) { functions }`
+- Check your `.ark` file follows the syntax: optional `import`s, then `contract Name(params) { functions }` — the `options {}` block was removed and is now a parse error
+- For an L1 leaf, use the `function <name>(...) tapscript { ... }` form (source order `condition? · timelock? · multisig`)
 - Ensure all statements end with `;`
 - Verify `require()` wraps a valid expression
 - Check that data types are valid: `pubkey`, `signature`, `bytes`, `bytes20`, `bytes32`, `int`, `bool`, `asset`
@@ -70,17 +71,18 @@ Check write permissions for the output directory. By default, output goes to the
 
 ### JSON Output Validation
 
-If the output JSON seems incorrect:
-1. Check that `serverVariant: true` functions include `<SERVER_KEY>` and `OP_CHECKSIG`
-2. Check that `serverVariant: false` functions include `OP_CHECKSEQUENCEVERIFY` (or N-of-N for introspection)
-3. Verify `constructorInputs` match your contract parameters
-4. Asset ID parameters should be decomposed into `_txid` + `_gidx` pairs
+If the output JSON seems incorrect (unified `functions[]` spend-group ABI: `{ name, arkade?, leaves[] }`):
+1. Check the `arkade.asm` covenant carries only the contract's own pubkeys (no `<SERVER_KEY>` / signatures)
+2. Check each `leaves[].asm` is signature-free — signatures belong in `leaves[].witness` (`injected: true` for `serverSig` / `emulatorSig`)
+3. A covenant with no matching `tapscript` should show a synthesized default leaf `<SERVER_KEY> OP_CHECKSIGVERIFY <EMULATOR_KEY:fn> OP_CHECKSIG`
+4. Verify `constructorInputs` match your contract parameters
+5. Asset ID parameters should be decomposed into `_txid` + `_gidx` pairs
 
 ## Common Patterns
 
-### Introspection Exit Paths
+### Unilateral Exit Leaves
 
-If your contract uses transaction introspection (`tx.inputs`, `tx.outputs`, `tx.input.current`), the exit path will NOT use a simple timelock. Instead, it generates an N-of-N CHECKSIG chain for all pubkey parameters. This is expected behavior — introspection opcodes require TEE execution, so the exit path falls back to pure Bitcoin consensus.
+There is no automatic exit variant anymore. To give a contract an on-chain exit, add an explicit CSV `tapscript` — `require(older(exit)); require(checkSig(ownerSig, owner));` — referencing an `int exit` constructor param. A contract with no exit leaf is valid (it simply has no unilateral exit). Covenant bodies that use introspection (`tx.inputs`, `tx.outputs`, `tx.input.current`) run inside the TEE emulator; they no longer generate an N-of-N exit chain.
 
 ### Array Type Flattening
 

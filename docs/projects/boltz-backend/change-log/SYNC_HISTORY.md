@@ -1,5 +1,24 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-04 - Documentation Update
+**Commit**: `74de3691` (boltz-backend repository)
+**Previous Sync**: `1e496c49`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits
+
+**Bug Fixes**:
+- fix: Arbitrum provider in regtest (#1456) (`cae53b83`) — Arbitrum swap locktimes are denominated in the **L1** block height, exposed per-block as `l1BlockNumber`. `ArbitrumProvider` (`lib/wallet/ethereum/ArbitrumProvider.ts`) now reads `l1BlockNumber` (falling back to the block `number`) from its own `getLatestBlock` instead of maintaining a separate `l1Provider` (`InjectedProvider` against Ethereum mainnet), so the `arbitrum.l1Providers` config array is **removed** and replaced by a single boolean `arbitrum.regtest` flag (default `false`; `lib/Config.ts` `ArbitrumConfig` and `docs/boltz.conf` updated to match). When an RPC returns no `l1BlockNumber` and `regtest` is not set, the provider now **throws** with a descriptive error instead of silently falling back to the L2 block number; `regtest = true` permits the fallback for anvil/regtest forks (whose decimal `l1BlockNumber` is now parsed via `ethers.getNumber`). `init()` also eagerly calls `getLatestBlock()` so a misconfigured Arbitrum RPC fails fast at startup instead of being swallowed by the block poller. `InjectedProvider` incidentally exposes `logger` as `protected` and switches a `Promise.race` `.then` cleanup to `.finally`. Covered by updated unit + integration `ArbitrumProvider.spec.ts`.
+- docs: align swagger spec with actual API behavior (#1454) (`cbb8dfd6`) — **docs/swagger-only** correction of `swagger-spec.json` + router `@openapi` doc comments to match how the REST API already behaves; no runtime behaviour change. Notable clarifications: a **Submarine Swap** can be created with **either** an `invoice` **or** a `preimageHash` (`SubmarineRequest.anyOf`; `invoice` takes precedence when both are set), so `SubmarineResponse` now requires only `id` and marks `bip21` / `acceptZeroConf` / `expectedAmount` as set **only when created with an invoice**, and adds a `claimAddress` field returned **only for swaps to EVM chains**. Also: `POST /v2/swap/submarine/{id}/invoice` gains an `extraFees` body field and a `404 SwapNotFound` response; `GET` submarine pairs documents an optional `referral` header; `GET /v1/chain/{currency}/contracts` description fixed (was mislabelled "Raw transaction") and a `501` (Ethereum integration disabled) added; `LightningRouter` factored BOLT12 request/response into shared `components` (`Bolt12Delete`, `BadRequest`, `InvalidSignature`, `Bolt12NotFound`, `InvalidSignatureHex`) and corrected `LightningChannel` / `LightningChannelInfo` required fields (new `LightningChannelSide` schema); `NodeStats.oldestChannel` made optional; `ReferralRouter` monthly fees retyped from `string` to `int64` integer.
+
+**Dependency Bumps**:
+- chore: bump cmov from 0.5.3 to 0.5.4 (#1457) (`74de3691`) — Rust dependency bump, `Cargo.lock` only. `cmov` is not pinned anywhere in `docs/projects/boltz-backend/`; no docs surface.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (two new Key Capabilities bullets — the Arbitrum L1-block-height fix and the swagger/actual-behavior alignment — plus a new `arbitrum` tag), `INDEX.md` (new **EVM Chains** subsection under **Configuration** documenting the `[arbitrum]` `regtest` flag and the removed `l1Providers`), `system/architecture.md` (**Wallet** section gained an `ArbitrumProvider` bullet), `testing/api-reference.md` (note on Submarine `invoice`-or-`preimageHash` creation and the conditional `bip21` / `acceptZeroConf` / `expectedAmount` / `claimAddress` response fields). The `cmov` bump has no docs surface.
+
 ## 2026-07-03 - Documentation Update
 **Commit**: `1e496c49` (boltz-backend repository)
 **Previous Sync**: `4e90aee5`

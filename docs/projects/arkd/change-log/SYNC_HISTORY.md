@@ -1,5 +1,37 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-04 - Documentation Update
+**Commit**: `ae56672f` (arkd repository)
+**Previous Sync**: `af56a868`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+- `ae56672f` Add CEL-based batch_trigger gate for round start (#1046)
+- `fc7f23ec` Update BIP-322 intent: Encode message as PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE - 0x09 (unknown) field (#1132)
+
+**Feature (PR #1046 — CEL-based batch_trigger gate)**:
+- New optional `ARKD_BATCH_TRIGGER` CEL formula gates whether the server starts a new batch round; unset (default) preserves the legacy "start every session" behaviour.
+- Stored as a new `batch_trigger` field on the unified `domain.Settings` row (proto `Settings` field 26; new `add_batch_trigger` sqlite + postgres migrations). Seeded from the env var on **first boot only**; thereafter admin-updatable at runtime via `UpdateSettings` (`POST /v1/admin/settings`) and reported by `GetSettings`. Also settable via the new `--batch-trigger` CLI flag.
+- Evaluated at the top of `startRound()` against `intents_count`, `current_feerate` (sat/kvbyte), `time_since_last_batch`, `boarding_inputs_count`, `total_boarding_amount`, `total_intent_fees` (all `double`) plus a `now()` helper; the program must return `bool`. The compiled trigger is cached and recompiled only when the text changes, so an update takes effect on the next round without a restart. On `false` the server waits one sixth of `ARKD_SESSION_DURATION` and re-checks.
+- Backed by a new `internal/core/domain/batchtrigger` package (mirrors `arkfee`'s compile-once/reuse design). Validated at startup (`Validate()`) and on every `UpdateSettings`; round-time evaluation **fails open** (a broken program allows the round and logs a warning) so a buggy formula can never wedge the scheduler. `envs/arkd.dev.env` and `envs/arkd.light.env` document the (empty) default.
+
+**Feature (PR #1132 — BIP-322 intent proof `0x09` field)**:
+- `intent.New` (`pkg/ark-lib/intent/proof.go`) now appends the BIP-322 `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE` (`0x09`) global Unknown (key `0x09`, value = UTF-8 message bytes) to the toSign PSBT, so a co-signer can recompute the `to_spend` commitment from PSBT-internal data alone and distinguish a genuine ownership proof from an ordinary fund-moving spend before contributing a partial signature.
+- Proof fixtures updated to the new wire format with a `BIP-322_global_0x09_field` sub-test asserting the field is present and equal to the message across all valid fixtures. Added docstrings to `Fees`, `IntentOutpoint`, `FinalizeAndExtract`, and the exported `Test*` helpers.
+
+**Breaking Changes**: None to the public gRPC surface — the `batch_trigger` field is an additive optional proto field. `intent.New` now emits an extra PSBT global field, changing the intent-proof wire bytes (fixtures updated accordingly).
+
+**Files Updated**:
+- docs/INDEX.md (two new Key Capabilities bullets for PR #1046 and #1132; new tags `batch-trigger`, `round-gate`, `bip322`, `intent-proof`; new ask_question/develop triggers)
+- docs/projects/arkd/INDEX.md (version 1.3.17 → 1.3.18, sync commit/date)
+- docs/projects/arkd/system/configuration.md (new `ARKD_BATCH_TRIGGER` operational setting + Batch Trigger Gate section)
+- docs/projects/arkd/system/project_overview.md (new batch-trigger Major Feature; BIP-322 0x09 note in ark-lib section)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-03 - Documentation Update
 **Commit**: `af56a868` (arkd repository)
 **Previous Sync**: `b33f7edf`
