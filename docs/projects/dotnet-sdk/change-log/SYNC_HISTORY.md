@@ -1,5 +1,23 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-05 - LUD-06-compliant reverse-swap invoice amounts + configurable fee payer (PR #138)
+**From**: `aa152eccc678523d5c77eb4c314555a2f30367c7`
+**To**: `303eaf6589dcf68432ff37e60ea6c58b6b4a4f6c`
+**Synced By**: update-project skill
+**Status**: Updated (bug fix + additive public API — new `ReverseSwapFeePayer` enum and `InitiateReverseSwap` overload)
+
+**Commits Analysed**: 1 squash-merge PR (no merges).
+- **#138 `fix(swaps): reverse-swap invoice must equal requested amount (LUD-06)`** — 8 files. Reverse swaps previously pinned Boltz's `OnchainAmount = requested`, so the returned BOLT11 was inflated by the swap fee (e.g. 1000 sats requested → 1003 sat invoice). LNURL-pay / LUD-06 wallets verify the invoice equals the amount to pay and reject any mismatch, so lightning-address payments never settled (stuck at `swap.created → invoice.expired`). Fix pins `invoiceAmount = requested` instead. Made configurable via a new public `ReverseSwapFeePayer { Recipient, Sender }` enum (`NArk.Swaps/Models/ReverseSwapFeePayer.cs`): `Recipient` (default, LUD-06-safe) pins `invoiceAmount` so the receiver absorbs the fee (nets `requested − fee`); `Sender` pins `onchainAmount` so the receiver nets exactly requested but the invoice inflates to `requested + fee` (not LUD-06-safe). `SwapsManagementService.InitiateReverseSwap` gains an optional `feePayer` overload (default `Recipient`); `BoltzSwapService.CreateReverseSwap` gains a `feePayer` param and the `BuildReverseAmounts` / `ValidateReverseAmounts` / `ResolveExpectedOnchainAmount` helpers, plus a `BoltzLimitsValidator` dependency (reverse fees now run through `ValidateFeesAsync`). `ReverseResponse` gains a nullable `OnchainAmount`; the delivered on-chain amount is stored as `ArkSwap.ExpectedAmount` (previously the raw requested amount). Both modes covered by new `NArk.Tests/Swaps/ReverseSwapAmountTests.cs` (124 lines) + `NArk.Tests.End2End/Swaps/ReverseSwapAmountTests.cs` (144 lines). README gains a "Reverse Swap" section with the fee-payer table.
+
+**Changes Made**:
+- `docs/projects/dotnet-sdk/system/project_overview.md` — Core Feature (8) Multi-Provider Swaps extended with the PR #138 reverse-swap fee payer (`ReverseSwapFeePayer`), the LUD-06 fix, and the `ArkSwap.ExpectedAmount` note.
+- `docs/projects/dotnet-sdk/system/architecture.md` — `SwapsManagementService` entry extended with the `feePayer` overload, `BuildReverseAmounts` / `ValidateReverseAmounts` / `ResolveExpectedOnchainAmount`, the always-`OnchainAmount` bug it fixes, `ReverseResponse.OnchainAmount`, the `BoltzLimitsValidator.ValidateFeesAsync` reverse-fee check, and the new test files.
+- `docs/INDEX.md` — added a reverse-swap fee-payer / LUD-06 Key Capability bullet; added tags (`reverse-swap-fee-payer`, `reverse-swap-invoice-amount`, `lud-06`, `lud-06-invoice-match`, `lnurl-pay-invoice`, `boltz-invoice-amount`, `build-reverse-amounts`) and ask/develop/debug triggers.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `303eaf6`.
+- No dependency / package / dependency-graph changes.
+
+---
+
 ## 2026-07-04 - CI solution filter (`NArk.CI.slnf`), Blazor sample fixes, `GetVtxoChain` pagination, address-provider cleanup (PRs #153, #155, #156)
 **From**: `8c8fa2c7b840dc080a569fb286a790394263dd36`
 **To**: `aa152eccc678523d5c77eb4c314555a2f30367c7`
