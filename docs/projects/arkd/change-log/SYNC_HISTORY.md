@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-06 - Documentation Update
+**Commit**: `0718d54b` (arkd repository)
+**Previous Sync**: `ae56672f`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `0718d54b` arkd-wallet: Use `minRelayTxFee` as fallback for fee estimation (#1089)
+
+**Bug Fix (PR #1089 — nbxplorer fee-estimation fallback)**:
+- The nbxplorer adapter's `EstimateFeeRate` (`pkg/arkd-wallet/core/infrastructure/nbxplorer/service.go`) now appends a `fallbackFeeRate` query parameter — set to `minRelayTxFee / 1000` — to the `/v1/cryptos/{cryptoCode}/fees/{blockCount}` request. When nbxplorer cannot produce a fee estimate it now returns the min-relay fee rate instead of erroring, avoiding a failure from `nbxplorer`.
+- Internal-only change: no proto / gRPC method / env-var / config / migration surface changed.
+
+**Breaking Changes**: None.
+
+**Files Updated**:
+- docs/INDEX.md (new Key Capability bullet for PR #1089; new tags `fee-estimation`, `min-relay-fee`, `nbxplorer-fallback`; new debug triggers)
+- docs/projects/arkd/INDEX.md (version 1.3.18 → 1.3.19, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-04 - Documentation Update
 **Commit**: `ae56672f` (arkd repository)
 **Previous Sync**: `af56a868`
