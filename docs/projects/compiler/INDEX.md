@@ -106,6 +106,8 @@ Each `tapscript` leaf must assemble to one of arkd's 5 closure shapes, with sour
 - **Signature verification**: `checkSig`, `checkMultisig` (2-arg N-of-N or 3-arg `checkMultisig(keys, sigs, threshold)`), `checkSigFromStack`, `checkSigFromStackVerify`
 - **Hash functions**: one-shot `sha256(data)` (compiles to `OP_SHA256`, accepts concatenation chains like `sha256(a + b + c)`) and streaming SHA256 (`sha256Initialize`, `sha256Update`, `sha256Finalize`); tapscript condition hashlocks additionally support `hash160` (`OP_HASH160`), `hash256` (`OP_HASH256`), and `ripemd160` (`OP_RIPEMD160`)
 - **Byte-string ops**: type-dispatched `+` — `OP_CAT` when either operand is bytes-like (`bytes`, `bytes20`, `bytes32`), `OP_ADD64` for pure `int + int`. Int operands on a bytes-mixed `+` are auto-coerced to 8-byte LE via `OP_SCRIPTNUMTOLE64`.
+- **Byte-slicing / conversion primitives**: `substr(data, offset, size)` (`OP_SUBSTR`), `cat(a, b)` (`OP_CAT`), `bin2num(bytes)` (`OP_BIN2NUM`), `num2bin(num, size)` (`OP_NUM2BIN`), `size(bytes)` (`OP_SIZE OP_NIP`), inline `sha256(data)` — combinable in the `byte_expr_comparison` shape and accepted on the RHS of asset/group/introspection comparisons
+- **Packet introspection**: `tx.packet(t)` (`OP_INSPECTPACKET`), `tx.inputs[i].packet(t)` (`OP_INSPECTINPUTPACKET`), `tx.inputs[i].arkadeScriptHash` / `arkadeWitnessHash` (`OP_INSPECTINPUTARKADESCRIPTHASH`), `this.activeBytecode` (`OP_INPUTBYTECODE`)
 - **Timelocks**: `tx.time >= value` / `after(value)` (absolute, CLTV); `older(value)` (relative, CSV) for unilateral exit leaves referencing constructor `int` params (no more `options`)
 - **Transaction introspection**: `tx.inputs[i]`, `tx.outputs[o]`, `tx.version`, `tx.locktime`, `tx.time` (Bitcoin nLockTime block height), `tx.offchainTime` (TEE wallclock unix seconds, distinct from `tx.time`), `tx.input.current`, `this.activeInputIndex` (emits `OP_PUSHCURRENTINPUTINDEX` directly so on-chain self-vs-sibling checks work in exit tapleaves)
 - **Asset introspection**: `tx.inputs[i].assets.lookup(txid, gidx)` (asserts present, returns amount), `.has(txid, gidx)` (Bool presence), `.length`, `[t].assetId`, `[t].amount` — Asset IDs are explicit canonical `(txid, gidx)` pairs with compile-time operand-type/range validation
@@ -136,6 +138,9 @@ Each `tapscript` leaf must assemble to one of arkd's 5 closure shapes, with sour
 | `options/cash_secured_put.ark` | Mirror of CoveredCall with sides reversed. Seller locks `stableAmount` of `stableAssetId`; buyer delivers `btcSats` BTC at exercise. Same 4-function/8-tapleaf shape and same exercise/reclaim time windows |
 | `bonds/repayment_pool.ark` | Fixed-maturity bond market per-maturity singleton (7 covenant functions, each with a synthesized or explicit tapleaf): `issue`, `acceptRepayment`, `rollOut`, `rollIn`, `liquidate` (pre-maturity margin call), `acceptAuction` (post-maturity default), `redeem` (pro-rata after auction window). 1:1 credit + debit mint against collateral; oracle-priced settlement with `auctionDiscountBps` spread. Four deployment invariants on `issue`/`rollIn` (`initRatioBps > liqThresholdBps`, `liqThresholdBps > 0`, `auctionWindow > 0`, `auctionDiscountBps ∈ [0, 10000)`). Strict-burn equality on every settlement path; ceiling-division collateral floor (`required = (amount × initRatioBps + 9999) / 10000`) prevents dust-mint at the unit boundary. Per-function output-pin conflicts + pool-side borrower signature on `rollOut` block force-liquidation co-spend pairings. |
 | `bonds/bond_mint.ark` | Fixed-maturity per-issuance bond vault (4 covenant functions, each with a synthesized or explicit tapleaf): `repay` (pre-maturity, borrower-signed), `liquidate` (pre-maturity, permissionless margin call), `auction` (post-maturity, permissionless), `roll` (pre-maturity, borrower-signed authorisation that burns the old debit and releases collateral for a same-tx `rollIn`). Phase-gated time windows match the pool side; strict-equality debit burn. |
+| `layerzero/endpoint.ark` | LayerZero Endpoint state with `receive()` + `send()` transitions. Verifies 2-of-2 DVN attestation (`checkSigFromStackVerify` over the canonical receive hash), checks packet version/size/route fields via `substr(tx.packet(t), …)`, binds the DVN attested hash to `sha256(substr(LzReceive, …))`, mints/burns receive & send markers. Packet-native — expresses the full `builders.go` Go-script semantics on chain. |
+| `layerzero/oapp.ark` | USDT0 OApp state with `receive()` + `send()` transitions. Reads `LzReceive` from `tx.inputs[0].packet(...)`, pins the recipient output's scriptPubKey to a `CreditMessage` byte slice, credits/burns USDT0 by `bin2num(substr(packet, …))`, and consumes/emits markers. |
+| `layerzero/receive_marker.ark` / `layerzero/send_marker.ark` | Endpoint↔OApp invocation markers: pin `this.activeInputIndex` and `tx.inputs[i].arkadeScriptHash` to the consuming contract, with control-asset singleton defense-in-depth. |
 
 ## Technology Stack
 
@@ -154,7 +159,7 @@ Each `tapscript` leaf must assemble to one of arkd's 5 closure shapes, with sour
          │ parse()
          ▼
 ┌─────────────────┐
-│  PEG Grammar     │  grammar.pest (611 lines)
+│  PEG Grammar     │  grammar.pest (752 lines)
 │  (pest parser)   │
 └────────┬────────┘
          │ build_ast()

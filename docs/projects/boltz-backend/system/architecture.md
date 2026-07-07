@@ -154,6 +154,10 @@ Core cryptographic library shared between TypeScript and Rust:
 - Preimage/hash operations
 - Transaction signing
 
+Published as a standalone, permissively **MIT-licensed** crate ("Atomic swap
+primitives for Bitcoin and Liquid used by Boltz"), distinct from the
+workspace's `AGPL-3.0-only`, so it can be reused by third-party integrators.
+
 ### boltzr-cli
 Command-line interface for boltzr operations:
 - Manage boltzr sidecar

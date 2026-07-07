@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-07 - Documentation Update
+**Commit**: `c220f078` (boltz-backend repository)
+**Previous Sync**: `74de3691`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Tooling / Chores**:
+- chore: use MIT license for boltz-core (#1459) (`c220f078`) — the `boltz-core` Rust crate is re-licensed from the workspace's shared `license.workspace = true` to a standalone **`license = "MIT"`** and gains a `description` ("Atomic swap primitives for Bitcoin and Liquid used by Boltz") plus `repository.workspace = true`, packaging it as a permissively-licensed, reusable crate distinct from the rest of the AGPL workspace. The workspace `license` string is normalized `AGPL-3` → `AGPL-3.0-only` (SPDX), and a `repository` URL + `boltz-core/LICENSE` (MIT text) + `boltz-core/README.md` are added. Remaining changes are cosmetic: `README.md` reflow + bullet-style normalization and a `.prettierignore`/`package.json` touch. No runtime, API, config, schema, or dependency change.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend **Description** — note that `boltz-core` is now MIT-licensed and reusable while the workspace stays `AGPL-3.0-only`), `INDEX.md` (Rust Components — `boltz-core` bullet flagged as a standalone MIT crate), `system/architecture.md` (**boltz-core** section — MIT-license/reuse note). No capability, tag, dependency, API, or config surface changed by this chore.
+
 ## 2026-07-04 - Documentation Update
 **Commit**: `74de3691` (boltz-backend repository)
 **Previous Sync**: `1e496c49`

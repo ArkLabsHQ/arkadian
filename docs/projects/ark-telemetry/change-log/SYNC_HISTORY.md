@@ -1,5 +1,24 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-07-07 - PR #24: Ark Channelz gateway proxy dashboard
+**From**: `71c21a1747b8893a31fc4e4c5a7d61253a36f836`
+**To**: `d0eb7581fcf8a60d824b1bd2793c54a9a350b45c`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1 (squash-merged PR #24)
+- `d0eb758` Dashboard for ark-metrics Channelz data (#24)
+
+**Changes**:
+- Added a new Grafana dashboard `dashboards/Ark_Channelz.json` ("Ark Channelz — Gateway Proxy", uid `ark-channelz-gateway`) with 8 panels visualizing HTTP/2 stream utilization on the arkd gRPC gateway proxy. Prometheus-backed, driven by the `ark_channelz_unary_active_streams` and `ark_channelz_stream_pool_active_streams` metrics exported by ark-metrics scraping arkd channelz. Panels cover active streams (overview, per-connection), utilization % against the 1000-stream `MaxConcurrentStreams` budget, and stat tiles (unary/stream-pool active streams, peak utilization, active pool connections).
+
+**Docs updated**:
+- `system/dashboards.md` — overview count updated "five" → "six"; added a new "6. Ark Channelz — Gateway Proxy" section documenting all 8 panels and their queries
+- `docs/projects/ark-telemetry/INDEX.md` — added the dashboard to the Available Dashboards list
+- `docs/INDEX.md` (master) — extended the Grafana dashboards capability bullet with the Channelz dashboard; added `channelz`, `grpc-gateway` tags
+
+**Notes**:
+- Dashboard-only, additive change — no new dependencies or breaking changes.
+
 ## 2026-07-03 - Jaeger span TTL 72h → 48h
 **From**: `f65ac4cdcc0d22bb844701e518bee35edc89cd64`
 **To**: `71c21a1747b8893a31fc4e4c5a7d61253a36f836`

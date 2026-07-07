@@ -146,6 +146,7 @@ As of PR #9 the stack runs on a **standalone EC2 instance**. Ports are exposed p
 - **Cadvisor Exporter** — Docker container resource usage, filtered by `host_role`
 - **RPC Latency** — gRPC request latencies
 - **RPC Request/Response Size** — Message sizes
+- **Ark Channelz — Gateway Proxy** — HTTP/2 stream utilization on the arkd gRPC gateway proxy (unary + stream-pool), from ark-metrics channelz (`ark_channelz_*`) (PR #24)
 
 ### Alert Rules
 Alerts are split by `host_role` (`app` vs `telemetry`):

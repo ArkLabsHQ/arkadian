@@ -1,5 +1,35 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-07-07 — Native introspector primitives + LayerZero / USDT0 suite
+**Commit Range**: `cf5a52dd` → `e1a768df`
+**Synced By**: /update-project compiler
+**Status**: Feature — new byte/packet primitives exposed at grammar level; new cross-chain example suite; validator/compiler fixes
+
+**Commits Analyzed** (16, highlights):
+- `c2acbb5` feat: add LayerZero / USDT0 contract suite (`examples/layerzero/`, tests/layerzero_test.rs)
+- `318a116` feat: expose canonical introspector primitives in the compiler
+- `fbee352` feat: extend grammar for byte / packet comparisons + native LayerZero rewrite (`byte_expr_comparison`, `Expression::Sha256`, `this.activeBytecode` → `OP_INPUTBYTECODE`)
+- `56bf9c1` / `25473b9` fix(compiler): comparison operand order + sha256 arg parsing; Property==Literal stack order
+- `961131e` refactor(layerzero): plain CSFS + recursive covenant; `f0fb289` recipient pkScript = 34-byte P2TR, DVN witnesses
+- `72f6d61` test/validator: allow empty exit witness on permissionless contracts
+- `cc99cf7` fix(validator): case-insensitive signature-leak check in leaf asm
+- `79aa582` fix(arkade-bindgen): clone cli.input before partial move; `00a562b` fix(oapp): drop redundant owner signature
+
+**Changes**:
+- **Native byte/packet primitives** (previously delegated to the introspector runtime): `substr(data, offset, size)` → `OP_SUBSTR`, `cat(a, b)` → `OP_CAT`, `bin2num(bytes)` → `OP_BIN2NUM`, `num2bin(num, size)` → `OP_NUM2BIN`, `size(bytes)` → `OP_SIZE OP_NIP`, inline `sha256(data)` (`Expression::Sha256`). Packet introspection: `tx.packet(t)` → `OP_INSPECTPACKET`, `tx.inputs[i].packet(t)` → `OP_INSPECTINPUTPACKET`, `tx.inputs[i].arkadeScriptHash` / `arkadeWitnessHash` → `OP_INSPECTINPUTARKADESCRIPTHASH`, `this.activeBytecode` → `OP_INPUTBYTECODE` (was a placeholder).
+- **New grammar shape** `byte_expr_comparison` lets byte-producing terms flow into comparisons and small byte-arith; `substr`/`cat`/`num2bin`/`bin2num` accepted on the RHS of hash, asset-lookup, group-property, and input/output introspection comparisons. New `Expression` variants: `Substr`, `Cat`, `Bin2Num`, `Num2Bin`, `SizeOf`, `PacketInspect`, `InputPacketInspect`, `Sha256`.
+- **LayerZero / USDT0 suite** (`examples/layerzero/`): four packet-native contracts (`endpoint.ark`, `oapp.ark`, `receive_marker.ark`, `send_marker.ark`) rendering the Go-script (`builders.go`) prototype on chain — 2-of-2 DVN attestation via `checkSigFromStackVerify`, packet version/size/route-field checks, recipient-output pinning, marker mint/burn via group sums, and `arkadeScriptHash` input pinning.
+- **Fixes**: case-insensitive leaf-asm signature-leak check (catches lowercase `<ownersig>` leaks); permissionless contracts may have an empty exit witness; corrected comparison operand order, `sha256` arg parsing, and Property==Literal stack order; `arkade-bindgen` clones `cli.input` before a partial move.
+- Grammar grew from 611 → 752 lines. Suite grew to 35 test files / 138 tests (`packet_primitives_test`, `layerzero_test`).
+
+**Documentation Updates**:
+- `docs/INDEX.md` — compiler description, Key Capabilities (byte/packet primitives, LayerZero suite), Tags, Triggers
+- `system/project_overview.md` — Byte-string Operations, new Packet Introspection section, use cases, project structure (layerzero example), grammar/test counts
+- `system/architecture.md` — parser expressions, `Expression` variants, Direct-Emission Properties, output-validation case-insensitivity, testing (packet_primitives / layerzero), grammar/test counts
+- `docs/projects/compiler/INDEX.md` — Supported Operations (byte-slicing + packet introspection), Example Contracts (layerzero), grammar line count
+
+---
+
 ## 2026-07-04 — Unified Tapscript ABI: `options {}` removed, `functions[]={arkade,leaves}`
 **Commit Range**: `d7fa09b5` → `cf5a52dd`
 **Synced By**: /update-project compiler

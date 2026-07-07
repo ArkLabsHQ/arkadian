@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ark-telemetry includes five pre-configured Grafana dashboards that provide comprehensive visibility into host metrics, application performance, and container resource usage. All dashboards are automatically provisioned when Grafana starts and are stored in persistent storage.
+Ark-telemetry includes six pre-configured Grafana dashboards that provide comprehensive visibility into host metrics, application performance, container resource usage, and gRPC gateway proxy connection health. All dashboards are automatically provisioned when Grafana starts and are stored in persistent storage.
 
 ## Dashboard Architecture
 
@@ -191,6 +191,37 @@ rate(grpc_server_msg_sent_size_bytes_sum[5m]) /
 - Detect payload size anomalies
 - Optimize data serialization
 - Validate network bandwidth usage
+
+### 6. Ark Channelz — Gateway Proxy (Ark_Channelz.json)
+
+**Purpose**: Monitor HTTP/2 stream utilization on the arkd gRPC gateway proxy connections, sourced from ark-metrics gRPC channelz introspection (uid `ark-channelz-gateway`).
+
+**Metrics** (Prometheus-backed, exported by `ark-metrics` scraping arkd channelz):
+- `ark_channelz_unary_active_streams` — active HTTP/2 streams on the unary (request/response) proxy connection
+- `ark_channelz_stream_pool_active_streams` — active HTTP/2 streams per stream-pool (SSE/streaming) connection
+
+Each connection has a `MaxConcurrentStreams` budget of **1000**; utilization panels compute `active / 1000 * 100`.
+
+**Panels:**
+- **Active Streams Overview** (timeseries) — unary active streams vs. total stream-pool active streams
+  - `ark_channelz_unary_active_streams`, `sum(ark_channelz_stream_pool_active_streams)`
+- **Stream Pool — Per Connection** (timeseries) — active streams on each stream-pool connection (independent budgets)
+  - `ark_channelz_stream_pool_active_streams`
+- **Unary Proxy Utilization (%)** (timeseries) — % of MaxConcurrentStreams used on the unary connection; sustained >80% risks request queuing
+  - `ark_channelz_unary_active_streams / 1000 * 100`
+- **Stream Pool Utilization (%) — Per Connection** (timeseries) — % used per stream-pool connection; 100% blocks new streams on that connection
+  - `ark_channelz_stream_pool_active_streams / 1000 * 100`
+- **Unary Active Streams** (stat) — current active streams on the unary proxy
+- **Stream Pool Active Streams** (stat) — total active streams across all stream-pool connections
+- **Peak Stream Pool Utilization** (stat) — highest per-connection utilization %, i.e. the connection closest to saturation
+  - `max(ark_channelz_stream_pool_active_streams) / 1000 * 100`
+- **Active Pool Connections** (stat) — number of stream-pool connections with ≥1 active stream
+  - `count(ark_channelz_stream_pool_active_streams > 0) or vector(0)`
+
+**Use Cases:**
+- Detect gateway proxy connections approaching the HTTP/2 stream budget (queuing/blocking risk)
+- Monitor stream-pool balance across connections
+- Capacity-plan SSE/streaming vs. unary gRPC-gateway load
 
 ## Dashboard Features
 

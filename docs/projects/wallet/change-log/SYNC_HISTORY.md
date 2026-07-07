@@ -1,5 +1,30 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-07 - Documentation Sync
+**Commit**: `04d919510a1890ac859d8e77ae5e6084c9299469`
+**Previous Sync**: `341bf560854fb412611e257b9fafc900ef841b21`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 non-merge commit
+- `04d91951` Upgrade ts-sdk 0.4.42 - boltz-swap 0.3.47 (#714)
+
+**Features Added/Modified**:
+- None — dependency-only change (`package.json` / `pnpm-lock.yaml`).
+
+**Dependencies**:
+- **@arkade-os/sdk** bumped 0.4.41 → 0.4.42 (PR #714).
+- **@arkade-os/boltz-swap** bumped 0.3.46 → 0.3.47 (PR #714).
+
+**Documentation Impact**: Minor — routine SDK/boltz-swap version bump with no new features or API surface. Bumped all `@arkade-os/sdk` / `@arkade-os/boltz-swap` version references across the registry, project index, and project overview.
+
+**Files Updated**:
+- docs/INDEX.md (SDK/boltz-swap version bullet)
+- docs/projects/wallet/INDEX.md (front matter version + last_sync_commit, SDK/boltz-swap version lines)
+- docs/projects/wallet/system/project_overview.md (tech-stack SDK/boltz-swap versions, Dependencies line)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
 ## 2026-07-02 - Documentation Sync
 **Commit**: `341bf560854fb412611e257b9fafc900ef841b21`
 **Previous Sync**: `37eff0a57ce25706aed5620a06e58ce5a910f3a6`

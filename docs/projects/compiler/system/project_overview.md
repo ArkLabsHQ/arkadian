@@ -26,6 +26,11 @@ The compiler is a critical piece of the Arkade OS stack: contracts written in Ar
 
 ### Byte-string Operations
 - **Type-dispatched `+`**: when at least one operand resolves to a bytes-like type (`bytes`, `bytes20`, `bytes32`), `+` compiles to `OP_CAT` (concatenation) instead of `OP_ADD64`. An `int` operand on either side is auto-coerced with `OP_SCRIPTNUMTOLE64` so on-chain and off-chain hashing remain byte-identical. Pure `int + int` keeps the existing arithmetic semantics. Implemented via a bottom-up rewrite pass over the AST that calls `typechecker::infer_type()` before emission.
+- **Byte-slicing / conversion primitives** (canonical introspector opcode set, now emitted natively rather than delegated to the runtime): `substr(data, offset, size)` → `OP_SUBSTR`, `cat(a, b)` → `OP_CAT`, `bin2num(bytes)` → `OP_BIN2NUM`, `num2bin(num, size)` → `OP_NUM2BIN`, `size(bytes)` → `OP_SIZE OP_NIP`, and inline `sha256(data)` (`Expression::Sha256` → `<data> OP_SHA256`). A new `byte_expr_comparison` grammar shape lets these terms flow into comparisons and small byte-arith expressions (e.g. `bin2num(substr(state, 167, 8)) + 1 == bin2num(substr(recv, 69, 8))`), and they are accepted on the RHS of asset-lookup, group-property, and input/output introspection comparisons.
+
+### Packet Introspection (LayerZero / cross-chain)
+- `tx.packet(packetType)` → `OP_INSPECTPACKET` and `tx.inputs[i].packet(packetType)` → `OP_INSPECTINPUTPACKET` read attested packet bytes (asserting presence via the opcode's bool flag), enabling on-chain checks of packet version, size, and per-field slices.
+- `tx.inputs[i].arkadeScriptHash` / `arkadeWitnessHash` → `OP_INSPECTINPUTARKADESCRIPTHASH` pins a consumed input to an expected contract, and `this.activeBytecode` → `OP_INPUTBYTECODE` (was a placeholder before) exposes the current input's script.
 
 ### Transaction Introspection
 - Input/output value, scriptPubKey, sequence, outpoint, nonce, issuance
@@ -85,7 +90,8 @@ Exit/renewal timelocks are ordinary `int` constructor parameters referenced by `
 2. **DeFi Protocols**: Build lending (Fuji Safe), swaps, and vault contracts on Ark
 3. **NFT/Token Minting**: Create asset-aware contracts with introspection
 4. **Multi-party Contracts**: HTLC, threshold oracles, multi-signature schemes
-5. **Protocol Development**: Design and test new Arkade Script opcodes and patterns
+5. **Cross-chain Messaging**: LayerZero / USDT0-style contracts that verify DVN-attested packets on chain via packet introspection
+6. **Protocol Development**: Design and test new Arkade Script opcodes and patterns
 
 ## Project Structure
 
@@ -98,7 +104,7 @@ compiler/
 │   ├── lib.rs                  # Library entry point (compile fn)
 │   ├── parser/
 │   │   ├── mod.rs              # AST builder from pest pairs (incl. tapscript decls)
-│   │   ├── grammar.pest        # PEG grammar (611 lines)
+│   │   ├── grammar.pest        # PEG grammar (752 lines)
 │   │   └── debug.rs            # Debug utilities
 │   ├── models/
 │   │   └── mod.rs              # AST + unified ABI types (Contract.tapscripts,
@@ -118,10 +124,15 @@ compiler/
 │   ├── options/            # Rysk-faithful single-locked physical options (no oracle)
 │   │   ├── covered_call.ark
 │   │   └── cash_secured_put.ark
-│   └── bonds/              # Fixed-maturity bond market with margin call + phased lifecycle
-│       ├── repayment_pool.ark
-│       └── bond_mint.ark
-├── tests/                  # 32 integration test files (shared helpers in tests/common/mod.rs),
+│   ├── bonds/              # Fixed-maturity bond market with margin call + phased lifecycle
+│   │   ├── repayment_pool.ark
+│   │   └── bond_mint.ark
+│   └── layerzero/          # LayerZero / USDT0 cross-chain suite (packet-native introspection)
+│       ├── endpoint.ark    # Endpoint state, 2-of-2 DVN attestation, receive/send markers
+│       ├── oapp.ark        # USDT0 OApp state, mint/burn, marker consume/emit
+│       ├── receive_marker.ark
+│       └── send_marker.ark
+├── tests/                  # 35 integration test files (shared helpers in tests/common/mod.rs),
 │                          # incl. tapscript_abi/golden/parse/validation tests
 └── docs/                   # Internal documentation (specs, opcodes, tapscript-leaves-spec.md,
                             # stability.md, options.md, bonds.md design docs)

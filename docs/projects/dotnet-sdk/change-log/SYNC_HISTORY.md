@@ -1,5 +1,23 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-07 - CPFP package-broadcast `maxburnamount` fix for P2A anchors + E2E coverage wave 2 (PRs #117, #157)
+**From**: `303eaf6589dcf68432ff37e60ea6c58b6b4a4f6c`
+**To**: `be6ae626edd610d66b23596f8125db43aa9b4728`
+**Synced By**: update-project skill
+**Status**: Updated (one production broadcast fix; remainder is E2E test coverage — internal)
+
+**Commits Analysed**: 2 squash-merge PRs (no merges).
+- **#117 `Chore/e2e coverage`** — 8 files (~1009 insertions). Predominantly new/expanded End2End coverage: unilateral-exit (Wave 2), Subdust Rejection (`SubdustRejectionTests.cs`, new), Boltz 404 safety net (`BoltzSwapProvider404SafetyNetTests.cs`, new — unit), double-spend note tests, two-wallets-settle-into-same-batch, collab-exit-with-boarding-input rejection, cross-sign BTC claim + `verifyChainSwap` address-match rejection. **The one production change** is in `NArk.Core/Blockchain/NBXplorerBlockchain.cs`: `BroadcastPackageAsync` now passes `maxfeerate=0` (unlimited) + `maxburnamount=21_000_000` to `submitpackage` so Ark P2A anchor outputs (non-zero value, non-standard SegWit v1 script) are not rejected by Bitcoin Core's default `maxburnamount=0` burn-output check; the sequential fallback switches the CPFP parent broadcast from NBXplorer's HTTP API (no `maxburnamount` param) to a new direct-RPC `BroadcastRpcAsync` (`sendrawtransaction` with the same `maxburnamount` override). Test-infra fixes: `CheckpointSpyTransport` migrated to arkd's new `OpenSubscriptionStreamAsync`/`UpdateSubscriptionScriptsAsync` subscription API; `CollabExit_WithBoardingInput_IsRejected` switched from `DockerHelper.Exec -rpcwallet=` to `BitcoinCli`; `SubdustVtxo_SpendOffchain_IsRejected` rewritten to mine a block + retry so the `VTXO_RECOVERABLE` window clears before the dust-rejection assertion. Two unilateral-exit tests (`ProgressExits_WorksForOffchainFundedVtxo`, `ProgressExits_WorksForPreconfirmedVtxo`) and their exclusive helpers were moved to a `fix/` branch pending an SDK production change (VtxoChainAutoFetchService caches the unsigned branch and never refreshes the co-signed tree-tx signature).
+- **#157 `fix(e2e): add missing import`** — 1 file (`SubdustRejectionTests.cs`, +1 line). Compile fix for the new E2E test file.
+
+**Changes Made**:
+- `docs/projects/dotnet-sdk/system/architecture.md` — Blockchain bullet extended with the `NBXplorerBlockchain.BroadcastPackageAsync` `maxfeerate=0`/`maxburnamount=21e6` `submitpackage` args and the new direct-RPC `BroadcastRpcAsync` sequential-fallback parent broadcast (PR #117).
+- `docs/INDEX.md` — `IBitcoinBlockchain` Key Capability bullet extended with the `NBXplorerBlockchain` maxburnamount detail; added tags (`maxburnamount`, `submitpackage-maxburnamount`, `p2a-anchor-broadcast`, `broadcast-rpc-async`, `cpfp-parent-rpc-broadcast`, `subdust-rejection-tests`, `e2e-coverage-wave2`) and ask/develop/debug triggers.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `be6ae62`.
+- No dependency / package / dependency-graph changes. E2E-only additions (SubdustRejection, Boltz-404 safety net, double-spend, batch, chain-swap, onchain, unilateral-exit tests) not separately documented — internal test coverage of already-documented behaviour.
+
+---
+
 ## 2026-07-05 - LUD-06-compliant reverse-swap invoice amounts + configurable fee payer (PR #138)
 **From**: `aa152eccc678523d5c77eb4c314555a2f30367c7`
 **To**: `303eaf6589dcf68432ff37e60ea6c58b6b4a4f6c`

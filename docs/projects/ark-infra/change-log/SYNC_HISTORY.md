@@ -1,5 +1,30 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-07 - Documentation Update
+**Commit**: `0a02408c18e0dcca09708544fc8b85ec9de18c7b`
+**Previous Sync**: `e24aa73ad1157cb381dab06973ebefd656d1d725`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (prod compose release bump)
+
+**Highlights**:
+- 📦 **arkd release to v0.9.12** (#106, `0a02408`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arkade-os/arkd:v0.9.12` and `ghcr.io/arkade-os/arkd-wallet:v0.9.12`
+  (previously `v0.9.10`).
+- 📊 **ark-metrics bumped to v0.2.0** (#106): `ghcr.io/arklabshq/ark-metrics:v0.1.0` →
+  `v0.2.0`, gaining two new env vars to scrape arkd's gRPC channelz introspection —
+  `ARK_METRICS_CHANNELZ_ENDPOINT=arkd:7071` (admin port) and `ARK_METRICS_CHANNELZ_MAIN_PORT=7070`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: arkd/arkd-wallet `v0.9.10` → `v0.9.12` bumped in #106; ark-metrics `v0.1.0` → `v0.2.0` + channelz env vars)
+- docs/projects/ark-infra/INDEX.md (frontmatter `version` → 1.7.8, `last_sync_commit`, `last_sync_date`; Deployed Services arkd/arkd-wallet → `v0.9.12` since #106; ark-metrics → `v0.2.0` + channelz env vars)
+- docs/projects/ark-infra/system/project_overview.md (GHCR images `v0.9.10` → `v0.9.12` since #106; ark-metrics entry #7 → `v0.2.0` + channelz env vars)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-03 - Documentation Update
 **Commit**: `e24aa73ad1157cb381dab06973ebefd656d1d725`
 **Previous Sync**: `ef236141d3fbb7b17a580f107bdfc7310c6375d3`

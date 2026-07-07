@@ -121,7 +121,7 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.10`, `ghcr.io/arkade-os/arkd-wallet:v0.9.10` since #96). ECR
+     (`ghcr.io/arkade-os/arkd:v0.9.12`, `ghcr.io/arkade-os/arkd-wallet:v0.9.12` since #106). ECR
      remains used for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -166,10 +166,11 @@ ark-infra/
    - Requires `THREAT_MONITOR_SLACK_WEBHOOK_URL`; `traefik.enable=false`; CloudWatch stream `threat-monitor`
    - `depends_on: nbxplorer` intentionally commented out to reduce NBX restart risk
 
-7. **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.1.0`, production only, since #98)
+7. **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.2.0`, production only, since #98; bumped `v0.1.0` → `v0.2.0` in #106)
    - Collects Ark protocol metrics and exports them to the telemetry stack via OTLP
    - `depends_on: [arkd, otel-agent]`; exports to `otel-agent` at `http://otel-agent:4318` (`ARK_METRICS_OTLP_ENDPOINT`, `ARK_METRICS_OTLP_INSECURE=true`)
    - Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`
+   - **New in #106:** scrapes arkd gRPC channelz introspection via `ARK_METRICS_CHANNELZ_ENDPOINT=arkd:7071` (admin port) and `ARK_METRICS_CHANNELZ_MAIN_PORT=7070`
    - `traefik.enable=false`; CloudWatch stream `ark-metrics`
 
 ### Ingress & Routing

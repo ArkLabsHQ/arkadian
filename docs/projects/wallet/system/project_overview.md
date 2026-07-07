@@ -138,8 +138,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
-- **@arkade-os/sdk** (0.4.41, PR #709) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`; the `DelegateInfo` type used by the delegation flow; also exports `buildVersion` / `sdkVersion` surfaced in the Support screen's Chatwoot attributes)
-- **@arkade-os/boltz-swap** (0.3.46, PR #709) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps; optimistic `waitForSwapFunded` consumed by the live-settlement Lightning send in PR #668, plus `waitFor: 'funded'` + preimage backfill from 0.3.41); its `sdkVersion` is surfaced as the `boltz_swap_version` Chatwoot attribute (PR #691)
+- **@arkade-os/sdk** (0.4.42, PR #714) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`; the `DelegateInfo` type used by the delegation flow; also exports `buildVersion` / `sdkVersion` surfaced in the Support screen's Chatwoot attributes)
+- **@arkade-os/boltz-swap** (0.3.47, PR #714) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps; optimistic `waitForSwapFunded` consumed by the live-settlement Lightning send in PR #668, plus `waitFor: 'funded'` + preimage backfill from 0.3.41); its `sdkVersion` is surfaced as the `boltz_swap_version` Chatwoot attribute (PR #691)
 - **@branta-ops/branta** (3.1.3) for Send-form payment-destination verification (debounced typed-input lookups via `getPayments`); Send form uses the v2 `BrantaService` client with string-literal `baseUrl`/`privacy` config (PR #675)
 - **@tanstack/react-virtual** for virtualized swap list and dev-mode contracts list rendering
 - **Dexie** for IndexedDB storage with React hooks
@@ -235,7 +235,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.41, @arkade-os/boltz-swap 0.3.46, @branta-ops/branta 3.1.3
+**Dependencies**: @arkade-os/sdk 0.4.42, @arkade-os/boltz-swap 0.3.47, @branta-ops/branta 3.1.3
 **Node.js**: >= 24.15.0 (PR #690)
 
 ## Getting Started

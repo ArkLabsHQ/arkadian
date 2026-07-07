@@ -1,5 +1,36 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-07 - Release 0.4.42: stale-subscription error-format fix + boltz-swap invoice timestamp
+**From**: `07991c26736ff27b070a7a22547301403d51ffa3`
+**To**: `848be6a0edd3c427f804bda3e073e920c463101f`
+**Synced By**: update-project skill
+**Status**: Small patch release. `@arkade-os/sdk` 0.4.41 → **0.4.42**, `@arkade-os/boltz-swap` 0.3.46 → **0.3.47**. One ts-sdk correctness fix (`ContractWatcher` stale-subscription detection) and one sibling boltz-swap additive feature (invoice creation `timestamp` on decoded invoices). No architectural change, no breaking change.
+
+**Commits analyzed** (4 non-merge commits + release):
+- `848be6a0` chore: release @arkade-os/sdk@0.4.42, @arkade-os/boltz-swap@0.3.47
+- `e0fac078` fix(sdk): match new arkd stale-subscription error format
+- `ebc3c1d0` docs(boltz-swap): clarify timestamp's 0 fallback is unreachable per BOLT11
+- `e9fd36ad` feat(boltz-swap): surface invoice creation timestamp on decoded invoices
+- `a104fb33` docs(boltz-swap): fix expiry docstring, describe it as relative delta, not a Unix timestamp
+
+**Files changed in repo**:
+- `packages/ts-sdk/src/contracts/contractWatcher.ts` — stale-subscription regex broadened `/subscription\s+\S+\s+not\s+found/i` → `/subscription\b.*\bnot\s+found/i` to match both `"subscription <uuid> not found"` and `"subscription not found: <uuid>"`
+- `packages/ts-sdk/test/contracts/watcher.test.ts` — reworked to cover both stale-error phrasings
+- `packages/boltz-swap/src/utils/decoding.ts` — `decodeInvoice` surfaces the BOLT11 `timestamp` section on `DecodedInvoice.timestamp` (`0` fallback documented as unreachable for a valid invoice)
+- `packages/boltz-swap/src/types.ts` — `DecodedInvoice` + `CreateLightningInvoiceResponse` gain `timestamp`; `expiry` docstring corrected to "seconds from creation until expiry" (relative delta, not a Unix timestamp)
+- `packages/boltz-swap/src/arkade-swaps.ts` — forwards `decodedInvoice.timestamp` onto the `CreateLightningInvoiceResponse`
+- `packages/boltz-swap/test/decoding.test.ts` — asserts the decoded `timestamp`
+- `packages/ts-sdk/package.json`, `packages/boltz-swap/package.json` — version bumps
+
+**Notable source changes**:
+- **ts-sdk (`e0fac078`)**: arkd changed its stale-subscription error wording. `ContractWatcher` clears a stale subscription ID and re-subscribes only when it classifies the error as stale; the old anchored regex missed the new `"subscription not found: <uuid>"` phrasing, so the watcher rethrew instead of transparently re-subscribing. The looser `/subscription\b.*\bnot\s+found/i` matches both phrasings while still rethrowing unrelated errors. Correctness-only, no public API change.
+- **boltz-swap (`e9fd36ad` / `a104fb33` / `ebc3c1d0`)**: `expiry` on decoded invoices is a **relative** delta (seconds from creation until the invoice expires), not an absolute Unix timestamp — the old docstring was wrong. The new `timestamp` field (BOLT11 creation time, Unix seconds) is surfaced so callers can compute the absolute expiry as `timestamp + expiry`. Additive; per BOLT11 a valid invoice always carries a timestamp, so the type-checker `0` fallback is documented as unreachable in practice.
+
+**Docs updated**:
+- `docs/INDEX.md` — added 0.4.42 changelog bullets (stale-subscription fix, invoice-timestamp feature, release entry) + new tags
+- `docs/projects/ts-sdk/INDEX.md` — version table 0.4.41/0.3.46 → 0.4.42/0.3.47, Version field rewritten, two capability entries added
+- `docs/projects/ts-sdk/system/project_overview.md` — version references bumped to 0.4.42 / 0.3.47
+
 ## 2026-07-03 - Sibling boltz-swap: exact claim-fee sizing for chain-swap arkToBtc (#595)
 **From**: `8741a646cac68d3c2012ca6ff56a74f3085a7a9c`
 **To**: `07991c26736ff27b070a7a22547301403d51ffa3`

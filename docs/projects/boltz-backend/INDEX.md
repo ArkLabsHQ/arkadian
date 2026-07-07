@@ -219,7 +219,7 @@ npm run dev
 
 **Rust Components** (`boltzr/`, `boltz-core/`):
 - `boltzr`: High-performance Lightning sidecar (CLN integration, swap logic)
-- `boltz-core`: Core cryptographic operations (Taproot, HTLCs)
+- `boltz-core`: Core cryptographic operations (Taproot, HTLCs) — standalone **MIT-licensed** crate (reusable by third parties), distinct from the workspace's `AGPL-3.0-only`
 - `boltzr-cli`: Command-line interface for boltzr
 
 ### Service Flow

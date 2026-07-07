@@ -15,11 +15,11 @@
 
 ### Stage 1: Parsing (`src/parser/`)
 
-The parser uses [pest](https://pest.rs/), a PEG (Parsing Expression Grammar) parser generator for Rust. The grammar is defined in `grammar.pest` (611 lines) and covers:
+The parser uses [pest](https://pest.rs/), a PEG (Parsing Expression Grammar) parser generator for Rust. The grammar is defined in `grammar.pest` (752 lines) and covers:
 
 - Contract structure: `import`s, `contract Name(params) { functions }`, and `function … tapscript { }` L1 leaf declarations (the `options {}` block was removed)
 - Statements: `require`, `let`, `if/else`, `for`, variable assignments
-- Expressions: signatures, hashes, comparisons, introspection, asset lookups, arithmetic
+- Expressions: signatures, hashes, comparisons, introspection, asset lookups, arithmetic, byte-slicing (`substr`/`cat`/`bin2num`/`num2bin`/`size`), and packet introspection (`tx.packet(...)`, `tx.inputs[i].packet(...)`)
 - Terminals: identifiers, number literals, string literals
 
 **Key design**: Ordered choice in PEG ensures unambiguous parsing. Longer alternatives (e.g., `bytes32` before `bytes`) are ordered first to prevent partial matches.
@@ -35,7 +35,7 @@ The AST is a fully typed Rust representation:
 | `NamedTapscript` | A `tapscript` leaf declaration: name, witness `inputs`, ordered `items` (`TapItem`: `Hash`, `Older`, `After`, `Sig`) |
 | `KeyExpr` / `HashFn` | Tapscript key operand (`Ident` role or `Tweak { func }`) and condition hash (`Sha256`/`Hash160`/`Hash256`/`Ripemd160`) |
 | `Statement` | Enum: Require, LetBinding, VarAssign, IfElse, ForIn |
-| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, AssetHas, GroupFind, GroupHas, GroupControlIs, CurrentInput, introspection, crypto ops, `Concat { left, right, coerce_left, coerce_right }`, one-shot `Sha256 { data }`. Asset ID constructs (`AssetLookup`/`AssetHas`/`GroupFind`/`GroupHas`/`GroupControlIs`) carry `asset_txid` + `asset_gidx` boxed sub-expressions (canonical `(txid, gidx)` pair) |
+| `Expression` | 30+ variants: Variable, Literal, BinaryOp, AssetLookup, AssetHas, GroupFind, GroupHas, GroupControlIs, CurrentInput, introspection, crypto ops, `Concat { left, right, coerce_left, coerce_right }`, one-shot `Sha256 { data }`. Byte/packet primitives: `Substr`, `Cat`, `Bin2Num`, `Num2Bin`, `SizeOf` (→ `OP_SUBSTR`/`OP_CAT`/`OP_BIN2NUM`/`OP_NUM2BIN`/`OP_SIZE OP_NIP`), and packet introspection `PacketInspect`/`InputPacketInspect` (→ `OP_INSPECTPACKET`/`OP_INSPECTINPUTPACKET`). Asset ID constructs (`AssetLookup`/`AssetHas`/`GroupFind`/`GroupHas`/`GroupControlIs`) carry `asset_txid` + `asset_gidx` boxed sub-expressions (canonical `(txid, gidx)` pair) |
 | `Requirement` | CheckSig, CheckSigFromStack, CheckMultisig (with `threshold`), After, HashEqual (with `HashFn`), Comparison |
 | `AbiFunctionGroup` | Output ABI spend group: `name`, optional `arkade: ArkadeCovenant { inputs, asm }`, `leaves: Vec<AbiLeaf { name, witness, asm }>` |
 
@@ -73,7 +73,7 @@ After compilation, `validate_output()` runs structural invariant checks on the e
 - `functions` array non-empty.
 - Every spend group has at least one leaf (`leaves` non-empty).
 - Every present `arkade` covenant has non-empty `asm`.
-- Every leaf has non-empty `asm`, and no leaf `asm` carries a signature placeholder (`…Sig>`) — signatures must live in the leaf `witness`.
+- Every leaf has non-empty `asm`, and no leaf `asm` carries a signature placeholder (`…Sig>`, matched case-insensitively so lowercase leaks like `<ownersig>` are also caught) — signatures must live in the leaf `witness`.
 
 ## Key Design Decisions
 
@@ -95,6 +95,8 @@ Canonical Asset IDs are expressed in source as explicit `(txid, gidx)` pairs —
 ### Direct-Emission Properties
 Most `tx.*` / `this.*` properties compile to `<placeholder>` tokens resolved at deploy time. Two exceptions:
 - `this.activeInputIndex` → `OP_PUSHCURRENTINPUTINDEX` (no placeholder). This lets exit tapleaves enforce self-vs-sibling input checks on chain — required for the `StabilityVault.merge` consolidation flow.
+- `this.activeBytecode` → `OP_INPUTBYTECODE` (was a placeholder before) exposes the current input's script.
+- `tx.packet(t)` / `tx.inputs[i].packet(t)` → `OP_INSPECTPACKET` / `OP_INSPECTINPUTPACKET`, and `tx.inputs[i].arkadeScriptHash` / `arkadeWitnessHash` → `OP_INSPECTINPUTARKADESCRIPTHASH` — the packet-native introspection set used by the LayerZero / USDT0 contracts.
 - `tx.offchainTime` → runtime placeholder `<tx.offchainTime>`, distinct from `<tx.time>`; the introspector binds it to the TEE wallclock in unix seconds.
 
 ## Source Structure
@@ -106,7 +108,7 @@ src/
 ├── parser/
 │   ├── mod.rs           # build_ast(), parse_contract(), parse_function(),
 │   │                    # tapscript parsing, parse_complex_expression() + parse_* functions
-│   ├── grammar.pest     # PEG grammar: 611 lines
+│   ├── grammar.pest     # PEG grammar: 752 lines
 │   └── debug.rs         # Debug print utilities
 ├── models/
 │   └── mod.rs           # AST types: Contract (+ tapscripts), Function, Statement,
@@ -130,11 +132,12 @@ src/
 
 ## Testing Architecture
 
-32 dedicated integration test files cover individual contract types, language features, tapscript leaves, and compiler self-checks. Shared helpers (`asm_of`, `witness_names`, `opcode_count`, …) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*` (the suite was migrated from the old two-variant helpers to the unified group/leaf ABI).
+35 dedicated integration test files cover individual contract types, language features, tapscript leaves, and compiler self-checks (full suite: 138 tests). Shared helpers (`asm_of`, `witness_names`, `opcode_count`, …) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*` (the suite was migrated from the old two-variant helpers to the unified group/leaf ABI).
 
 - **Contract compilation**: `bare_vtxo_test`, `htlc_test`, `fuji_safe_test`, `beacon_test`, `controlled_mint_test`, `fee_adapter_test`, `stability_vault_test` (oracle-signed settlement, no-oracle invariants on `transfer`/`split`, OP_CAT + OP_SHA256 message reconstruction), `covered_call_test` / `cash_secured_put_test` (Rysk-faithful single-locked options: exercise/reclaim CLTV windows, transfer pre-expiry guard), `repayment_pool_test` / `bond_mint_test` (fixed-maturity bond market: phased-lifecycle time gates, strict-burn equality, deployment-invariant assertions, ceiling-division origination floor, force-liquidation co-spend regression guards)
 - **Tapscript leaves**: `tapscript_parse_test` (parsing `function … tapscript {}` into `NamedTapscript`), `tapscript_validation_test` (closure-shape / arkd-rule enforcement), `tapscript_abi_test` (unified group/leaf ABI shape, default-leaf synthesis), `tapscript_golden_test` (golden parity of HTLC leaves against arkd closures)
-- **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`
+- **Introspection**: `asset_introspection_test`, `tx_introspection_test`, `io_introspection_test`, `packet_primitives_test` (byte-slicing `substr`/`cat`/`bin2num`/`num2bin`/`size`, packet introspection, `byte_expr_comparison`)
+- **Cross-chain**: `layerzero_test` (LayerZero / USDT0 suite: 2-of-2 DVN attestation via `OP_CHECKSIGFROMSTACKVERIFY`, packet-native receive/send, marker mint/burn via group sums, `arkadeScriptHash` input pinning)
 - **New opcodes**: `new_opcodes_test`, `concat_op_test` (type-dispatched `+`: bytes-vs-int dispatch, OP_SCRIPTNUMTOLE64 coercion, pure int+int stays OP_ADD64)
 - **Asset groups**: `group_properties_test` (`controlIs`/`hasControl` predicates)
 - **Asset IDs**: `asset_id_explicit_test` (explicit `(txid, gidx)` operands; compile-time operand-type/range validation)
