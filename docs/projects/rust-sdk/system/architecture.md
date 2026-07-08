@@ -15,6 +15,8 @@ ark-rs is a Cargo workspace containing 12 crates organized in a layered architec
 │   ark-client                                                 │
 │   - OfflineClient / Client lifecycle (delegator-aware)      │
 │   - send_vtxo, settle / settle_all, balance, history        │
+│   - ContractManager + ContractStore (memory / SQLite)       │
+│   - list_contracts / restore_contracts (annotated VTXOs)    │
 │   - Asset issue / transfer / burn / reissue                 │
 │   - Boltz swap orchestration (incl. chain swaps)            │
 │   - VtxoWatcher (auto-delegate + auto-renew)                │
@@ -33,6 +35,7 @@ ark-rs is a Cargo workspace containing 12 crates organized in a layered architec
 │                   Core Layer                                 │
 │   ark-core                                                   │
 │   - ArkAddress, Vtxo, BoardingOutput, ArkNote               │
+│   - Contract model (ContractType, spend selections)         │
 │   - Delegator (3-of-3) VTXO scripts and intents             │
 │   - Split forfeit / unilateral-exit keys on Vtxo            │
 │   - MuSig2 nonce generation and signing                     │
@@ -119,7 +122,7 @@ ARK ↔ on-chain BTC swaps via Boltz are persisted in a new `chain_swaps` SQLite
 Every request from `ark-grpc` and `ark-rest` carries an `x-build-version` header set to the calling crate's `CARGO_PKG_VERSION`. In gRPC this is enforced by a `VersionInterceptor` wrapping the shared `tonic::transport::Channel` so both `ArkServiceClient` and `IndexerServiceClient` carry the header; in REST the header is plumbed in as a `reqwest::Client` default header (which makes `ark_rest::Client::new` fallible — it now returns `Result<Self, Error>`). Servers may reject too-old SDKs by returning gRPC `FailedPrecondition: BUILD_VERSION_TOO_OLD` (or surfacing the same marker in REST error bodies); both crates expose `Error::is_version_mismatch()` so callers can branch on it without parsing source strings. Requests additionally carry `x-digest` (the current `/info` digest, used by the guard below) and `x-sdk-version` (`SDK_VERSION` = `"rust-sdk/<CARGO_PKG_VERSION>"`). `ark-core::server` defines `TARGET_ARKD_VERSION = "0.9.9"` and `SDK_VERSION`.
 
 ### Guarded RPC Clients & Digest-Mismatch Refresh
-`arkd` rejects RPCs whose cached `/info` digest is stale. Both transports wrap every non-`GetInfo` RPC in a guard that, on a digest mismatch (`DIGEST_MISMATCH` / `invalid digest header`), fetches fresh `/info`, runs a refresh hook to update the higher-level client state, commits the new digest header **only after** the hook succeeds, and returns `Error::server_info_changed` — the original operation is **not** retried automatically. In `ark-grpc` this is realized with wrapper newtypes `guarded::Ark` and `guarded::Indexer` that keep the raw generated tonic clients private and expose a single `request(...)` escape hatch routing through shared guard state; `GetInfo` bootstrap/refresh is the only unguarded path. This makes it hard to add a new RPC that accidentally skips the guard (full rationale in the repo's `docs/guarded-grpc-client-design.md`). `ark-rest` mirrors the same behaviour. Both `ark_grpc::Error` and `ark_rest::Error` expose a public `is_server_info_changed()` (with an internal `is_digest_mismatch()` driving the guard).
+`arkd` rejects RPCs whose cached `/info` digest is stale. Both transports wrap every non-`GetInfo` RPC in a guard that, on a digest mismatch (`DIGEST_MISMATCH` / `invalid digest header`), fetches fresh `/info`, runs a refresh hook to update the higher-level client state, commits the new digest header **only after** the hook succeeds, and returns `Error::server_info_changed` — the original operation is **not** retried automatically. In `ark-grpc` this is realized with wrapper newtypes `guarded::Ark` and `guarded::Indexer` that keep the raw generated tonic clients private and expose a single `request(...)` escape hatch routing through shared guard state; `GetInfo` bootstrap/refresh is the only unguarded path. This makes it hard to add a new RPC that accidentally skips the guard. `ark-rest` mirrors the same behaviour. (The in-repo `docs/guarded-grpc-client-design.md` design note was removed in the 0.10.x cleanup along with the contract-manager design sketches.) Both `ark_grpc::Error` and `ark_rest::Error` expose a public `is_server_info_changed()` (with an internal `is_digest_mismatch()` driving the guard).
 
 ### settle vs settle_all
 `Client::settle()` renews only the VTXOs the server reports as recoverable plus any confirmed/pre-confirmed VTXOs the client sees as expired, and always includes confirmed boarding outputs so freshly funded coins enter the Ark. Healthy (unexpired) VTXOs are left untouched, keeping periodic renewals cheap. `Client::settle_all()` is the renamed full-renewal path (rolls _all_ prior VTXOs and boarding outputs into the next batch). Isolated sub-dust recoverable VTXOs cannot be rescued by `settle()` unless their combined value clears the server dust threshold (otherwise the batch rejects with `cannot settle into sub-dust VTXO`); callers should fall back to `settle_all()` to roll them in alongside a healthy carrier VTXO.
@@ -129,6 +132,13 @@ Every request from `ark-grpc` and `ark-rest` carries an `x-build-version` header
 
 ### Boltz Referral ID
 The Boltz referral ID is configured via the `BoltzReferralId` enum on `OfflineClientConfig` (`Default` → `DEFAULT_BOLTZ_REFERRAL_ID` = `"arkade-rs-SDK"`, `Disabled` → no `referralId` field sent, `Custom(String)` → a caller-supplied value). The resolved value is serialized as `referralId` on submarine, reverse, and chain swap creation requests (omitted when `Disabled`). This replaces the previous `boltz_referral_id: Option<String>` constructor argument and the `OfflineClient::with_boltz_referral_id` builder.
+
+### Contract Manager
+The 0.10.x line introduces a **Contract Manager** that unifies how the client tracks every spendable output. Rather than special-casing VTXOs vs boarding outputs (the standalone `BoardingWallet` was removed), each output is modelled as a typed *contract*. `ark-core::contract` holds the transport-agnostic model — `ContractType` (`default` / `delegate` / `boarding` / `vhtlc`), the `ContractSpec` trait, `StoredContract`, prefixed vHTLC spend-path kinds, and **contract spend selections** (`SpendSelection` / `SpendPathKind`, each bundling the spend control block). Centralizing spend selections lets `send`/unilateral-exit code pass a resolved selection into spend inputs instead of re-deriving script-spend info, and `vtxo_list` reuses the same status predicates.
+
+`ark-client::contract` layers the client machinery on top: `ContractManager` wraps a pluggable `ContractStore` trait — `MemoryContractStore` for ephemeral use or `SqliteContractStore` (with migrations, `new_default()`) for persistence — and a `ContractRegistry` of registered builtins (`register_builtins`). It exposes annotation helpers (`annotate_vtxos`, `annotated_boarding_outputs`, `spendable_selections`) that produce `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList`, each pairing an output with its stored contract and its resolved spend selections, tapscripts, `server_pk`, `owner_pk`, and `exit_delay`. Boarding and default contracts are coalesced, and the `VtxoWatcher`, offchain-send, and settlement paths all operate on annotated contract VTXOs.
+
+Two public `Client` APIs sit on the manager: `list_contracts() -> Vec<ContractInfo>` returns wallet-facing views (derived `address` + `ContractAddressKind`, decoded `server_pk`, per-contract `ServerSignerStatus`), and `restore_contracts(gap_limit) -> ContractRestoreReport` runs a contract-centric HD restore — scanning derived key indexes up to the gap limit, recording per-key offchain-VTXO and boarding activity, counting inserted-vs-known contracts, and suggesting the next receive index. On `connect()`, `hydrate_persisted_contract_keys()` reloads HD keys from persisted contracts **without advancing the receive index**, using the split-out `DiscoverableKeyProvider` trait (`OfflineClient::with_discoverable_key_provider`). Malformed builtin contract rows surface as errors instead of being silently dropped.
 
 ### Arkade Script & Introspector
 `ark-script` lives outside `ark-core` so non-arkade consumers don't pay for its dependencies. It defines the 47 Arkade extension opcodes (aliasing the `OP_NOP4` / `OP_RETURN_196..=243` slots so they round-trip through `bitcoin::script::Builder`), arkade-aware ASM helpers, BIP-340 tagged hashes (`ArkadeScriptHash` / `ArkadeWitnessHash`) and `compute_arkade_script_public_key` (`P' = P + H(script)*G`, even-Y enforced to match the Go introspector). `ArkadeTapscript` encodes the `Multisig` / `CsvMultisig` leaves used by arkade flows, and `ArkadeVtxoScript::new` mixes plain taproot leaves with `ArkadeLeaf`s, derives tweaked introspector keys, and emits a flat script list ready for `TaprootBuilder` plus a leaf-index → arkade-script map for downstream PSBT signing.
@@ -149,10 +159,13 @@ rust-sdk/
 │   ├── coin_select.rs       # Coin selection algorithms
 │   ├── intent.rs            # Payment intents
 │   ├── vhtlc.rs             # Virtual HTLCs
+│   ├── contract.rs          # Contract model, spend selections
 │   ├── unilateral_exit.rs   # Exit without server
 │   └── server.rs            # Round protocol types
 ├── ark-client/src/          # Client library
-│   ├── lib.rs               # Client, OfflineClient
+│   ├── lib.rs               # Client, OfflineClient, list/restore contracts
+│   ├── contract.rs          # ContractManager, ContractStore, AnnotatedVtxo
+│   ├── key_provider.rs      # KeyProvider / DiscoverableKeyProvider
 │   ├── batch.rs             # Round batching
 │   ├── send_vtxo.rs         # VTXO send logic
 │   ├── boltz.rs             # Boltz swap integration

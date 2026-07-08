@@ -1,5 +1,36 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-08 - Documentation Update
+**Commit**: `7eb67fca34e32e8f3a6a9fbd745f0023818418a8`
+**Previous Sync**: `0a02408c18e0dcca09708544fc8b85ec9de18c7b`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 3 commits (prod release bump + ALB hostname/cert migration)
+
+**Highlights**:
+- 📦 **arkd release to v0.9.13** (#107, `7eb67fc`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arkade-os/arkd:v0.9.13` and `ghcr.io/arkade-os/arkd-wallet:v0.9.13`
+  (previously `v0.9.12`).
+- 🌐 **Prod ALB hostname migration to `arkade.computer`** (#104 + `9412064`): `apps/ark/prod/ark.tf`
+  changes `arkd_hosts` from `["prod.arkade.sh", "prod-cf.arkade.sh"]` to
+  `["arkade.computer", "prod.arkade.sh"]` and points the primary ALB cert at a new dedicated
+  `arkade.computer` ACM certificate (`f80fd08a-7566-47d2-ad17-8a8ccbbc685d`, provisioned in #104).
+- 🔐 **Temporary extra listener cert**: the prior `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh`
+  cert (`57e4dfc4-2a6f-4b20-aa60-c2617e9e4bd2`) is retained via a new
+  `aws_lb_listener_certificate.tmp` resource (marked with a TODO to remove once the ALB deployment
+  is stabilized) attached to the new `module.ark.alb_https_listener_arn` output added in
+  `modules/ark/outputs.tf`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: arkd/arkd-wallet `v0.9.12` → `v0.9.13` bumped in #107; prod endpoint/cert migration to `arkade.computer`, `arkd_hosts`, tmp listener cert + `alb_https_listener_arn` output)
+- docs/projects/ark-infra/INDEX.md (frontmatter `version` → 1.7.9, `last_sync_commit`, `last_sync_date`; Deployed Services arkd/arkd-wallet → `v0.9.13` since #107; prod ALB endpoints/cert migration)
+- docs/projects/ark-infra/system/project_overview.md (GHCR images `v0.9.12` → `v0.9.13` since #107; prod endpoints/cert migration)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-07 - Documentation Update
 **Commit**: `0a02408c18e0dcca09708544fc8b85ec9de18c7b`
 **Previous Sync**: `e24aa73ad1157cb381dab06973ebefd656d1d725`

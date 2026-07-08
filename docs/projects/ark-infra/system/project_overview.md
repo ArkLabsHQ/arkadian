@@ -121,7 +121,7 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.12`, `ghcr.io/arkade-os/arkd-wallet:v0.9.12` since #106). ECR
+     (`ghcr.io/arkade-os/arkd:v0.9.13`, `ghcr.io/arkade-os/arkd-wallet:v0.9.13` since #107). ECR
      remains used for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -193,7 +193,7 @@ ark-infra/
    - HTTP/1.1 default (`arkd_http1_support = true`); idle timeout 180s (exceeds arkd 60s heartbeat + Cloudflare 120s edge)
    - Access + connection logs to `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`)
    - Staging endpoints: `staging.arkade.sh` (direct A record), `staging-cf.arkade.sh` (Cloudflare proxied, TLS Full Strict)
-   - Prod endpoints: `prod.arkade.sh` (direct A record), `prod-cf.arkade.sh` (Cloudflare proxied); Grafana at `telemetry.prod.arkade.sh`; ACM cert SANs `*.prod.arkade.sh`, `prod-cf.arkade.sh`; `alb_log_retention_days = 30`
+   - Prod endpoints: `arkade.computer` (primary since #104/#107), `prod.arkade.sh` (direct A record); Grafana at `telemetry.prod.arkade.sh`; `alb_log_retention_days = 30`. Primary ALB cert is the dedicated `arkade.computer` ACM cert (`f80fd08a-…`); the old `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp` on `module.ark.alb_https_listener_arn`, TODO to remove once stabilized)
 
 ### Telemetry Stack
 

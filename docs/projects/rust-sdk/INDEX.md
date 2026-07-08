@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.4.2
-last_sync_commit: 4e8b696007594614f48f9bd1086ef6c24cb5d5c2
+version: 1.4.3
+last_sync_commit: bab46b4200a225aed4262da190583d44ad4ec96e
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -62,22 +62,23 @@ Feature specifications and implementation tracking.
 ## Key Concepts
 
 ### Workspace Crates
-All publishable crates aligned at **v0.9.3** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish. A pair of GitHub Actions workflows now drives the crates.io release flow (`draft_release_crates.yml` → `create_release_crates.yml`, the latter idempotent against already-published versions).
+All publishable crates aligned at **v0.10.1** with crates.io metadata (`keywords = ["ark", "arkade", "bitcoin", "wallet"]`, `categories = ["cryptography::cryptocurrencies"]`) and per-crate `README.md` ready for publish. A pair of GitHub Actions workflows now drives the crates.io release flow (`draft_release_crates.yml` → `create_release_crates.yml`, the latter idempotent against already-published versions). The 0.10.x line lands the **Contract Manager** (see Protocol Features) and removes the in-repo design docs (`docs/guarded-grpc-client-design.md` and the contract-manager design sketches).
 
-- **ark-core** (v0.9.3): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit
-- **ark-client** (v0.9.3): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps
-- **ark-grpc** (v0.9.3): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
-- **ark-rest** (v0.9.3): REST transport for arkd (reqwest-based, WASM-compatible)
-- **ark-bdk-wallet** (v0.9.3): BDK integration for on-chain wallet operations
-- **ark-fees** (v0.9.3): Fee estimation utilities
-- **ark-delegator** (v0.9.3): REST client for Ark delegator services (auto-renewal of VTXOs)
-- **ark-script** (v0.9.3): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
-- **ark-introspector-client** (v0.9.3): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
-- **ark-rs** (v0.9.3): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
+- **ark-core** (v0.10.1): Core types — ArkAddress, VTXO, boarding outputs, coin selection, MuSig2, vHTLC, unilateral exit; adds the `contract` module (`ContractType`, `ContractSpec`, contract spend selections `SpendSelection` / `SpendPathKind`, prefixed vHTLC spend-path kinds)
+- **ark-client** (v0.10.1): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps; adds the `contract` module (`ContractManager`, `ContractStore` / `MemoryContractStore` / `SqliteContractStore`, `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList`) and `list_contracts` / `restore_contracts` APIs (boarding outputs live in the contract manager; `BoardingWallet` removed)
+- **ark-grpc** (v0.10.1): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
+- **ark-rest** (v0.10.1): REST transport for arkd (reqwest-based, WASM-compatible)
+- **ark-bdk-wallet** (v0.10.1): BDK integration for on-chain wallet operations
+- **ark-fees** (v0.10.1): Fee estimation utilities
+- **ark-delegator** (v0.10.1): REST client for Ark delegator services (auto-renewal of VTXOs)
+- **ark-script** (v0.10.1): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)
+- **ark-introspector-client** (v0.10.1): HTTP client for the Go introspector co-signer service (preserves error response bodies, per-request timeout)
+- **ark-rs** (v0.10.1): Umbrella re-export crate (single dependency for SDK consumers; feature flags `client`, `grpc`, `sqlite`, `tls-native-roots`, `tls-webpki-roots`)
 - **ark-client-sample**: Example client application (with `watch-delegated` command) — not published
 - **e2e-tests**: End-to-end test suite against live arkd (incl. `e2e_arkade_script` against a dockerized introspector) — not published
 
 ### Protocol Features
+- **Contract Manager** (0.10.x): every spendable output is modelled as a typed, persisted *contract* rather than being tracked ad hoc. `ark-core::contract` defines the shared model — `ContractType` (`default` / `delegate` / `boarding` / `vhtlc`), the `ContractSpec` trait, `StoredContract`, prefixed vHTLC spend-path kinds, and **contract spend selections** (`SpendSelection` / `SpendPathKind`, each carrying the required spend control block so spend inputs no longer need raw script-spend-info lookups). `ark-client::contract` adds the client-side machinery: `ContractManager` over a pluggable `ContractStore` trait (`MemoryContractStore` or SQLite-backed `SqliteContractStore` with `new_default()` + migrations), a `ContractRegistry` of registered builtins (`register_builtins`), and annotation types (`AnnotatedVtxo`, `AnnotatedBoardingOutput`, `AnnotatedVtxoList`) that pair a VTXO/boarding output with its stored contract and expose resolved spend selections, tapscripts, `server_pk`, `owner_pk`, and `exit_delay`. **Boarding outputs were moved into the contract manager and the standalone `BoardingWallet` was removed**; the `VtxoWatcher` and offchain-send flows now operate on annotated contract VTXOs, and boarding + default contracts are coalesced. New client APIs: `Client::list_contracts() -> Vec<ContractInfo>` (wallet-facing views with derived `address` + `address_kind`, decoded `server_pk`, and per-contract `signer_status`) and `Client::restore_contracts(gap_limit) -> ContractRestoreReport` (contract-centric HD restore that scans derived keys up to the gap limit, records discovered/inserted/known contracts and per-key VTXO/boarding activity, and suggests the next receive index). Persisted contracts hydrate HD keys on connect via `hydrate_persisted_contract_keys` (without advancing the receive index) through the split-out `DiscoverableKeyProvider` (`OfflineClient::with_discoverable_key_provider`); malformed builtin contract rows are surfaced as errors instead of being silently dropped. The `ark-client-sample` gains `list-contracts` / `restore-contracts` commands and a configurable memory-or-SQLite contract-store backend (SQLite by default)
 - **Config-driven client construction** (**breaking**): build clients from an `OfflineClientConfig` struct via `OfflineClient::with_keypair` / `with_bip32` / `with_key_provider` (replaces positional `new` / `new_with_keypair` / `new_with_bip32`; drops the `K` key-provider generic and `name` field). `BoltzReferralId` enum replaces the old `Option<String>` + `with_boltz_referral_id`. `Client::server_info()` is async and refreshes the cached `/info` once the configurable `server_info_ttl` (default 15 min) expires
 - Off-chain VTXO payments (send, receive, settle) — unified offchain-send builder for VTXO and asset sends
 - **Smart settlement**: `settle()` renews only expired/recoverable VTXOs plus confirmed boarding outputs (healthy VTXOs untouched, cheap periodic renewal); full-renewal path renamed to `settle_all()`. Isolated sub-dust recoverable VTXOs need `settle_all()` (carrier value) since the batch rejects sub-dust-only settlements below the server dust threshold
@@ -152,7 +153,7 @@ just clippy        # Lint with clippy
 |---------|-------|-------------|
 | `tls-native-roots` | ark-client | Use native TLS roots (default) |
 | `tls-webpki-roots` | ark-client | Use webpki TLS roots |
-| `sqlite` | ark-client | SQLite-backed swap storage |
+| `sqlite` | ark-client | SQLite-backed swap storage and contract store (`SqliteContractStore`) |
 | `test-utils` | ark-client | Test utility functions |
 
 ---
@@ -244,7 +245,7 @@ ark-client (Client / OfflineClient)
 - **REST API**: `GET /v1/delegator/info`, `POST /v1/delegate`
 - **Reference implementation**: fulmine
 - **Client**: `ark-delegator` crate
-- **Background watcher**: `client.start_vtxo_watcher(delegator)` — auto-delegates new VTXOs and self-renews near-expiry ones
+- **Background watcher**: `client.start_vtxo_watcher(delegator)` — auto-delegates new VTXOs and self-renews near-expiry ones (also renews server-recoverable VTXOs; operates on annotated contract VTXOs and preserves the swept flag for delegated VTXOs)
 
 ### Introspector Service
 - **HTTP client**: `ark-introspector-client` (preserves error response bodies, configurable per-request timeout)

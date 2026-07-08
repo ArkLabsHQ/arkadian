@@ -14,6 +14,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Recent Additions
 
+- **Contract Manager — unified typed-contract model for all spendable outputs (0.10.0 / 0.10.1)** — the SDK now tracks every spendable output (default VTXOs, delegate VTXOs, boarding outputs, vHTLCs) as a typed, persisted *contract* through a single component, replacing the ad-hoc boarding/VTXO bookkeeping and the standalone `BoardingWallet` (removed). **`ark-core::contract`** defines the shared model: a `ContractType` newtype with builtins (`default` / `delegate` / `boarding` / `vhtlc`), the `ContractSpec` trait, `StoredContract`, prefixed vHTLC spend-path kinds, and centralized **contract spend selections** — `SpendSelection` / `SpendPathKind` values that each carry the required spend control block, so `send`/exit code passes spend selections into spend inputs instead of doing raw script-spend-info lookups (`vtxo_list` shares the resolved status predicates). **`ark-client::contract`** adds the client machinery: a `ContractManager` over a pluggable `ContractStore` trait — `MemoryContractStore` or the SQLite-backed `SqliteContractStore` (`new(db_path)` / `new_default()`, with migrations) — a `ContractRegistry` of registered builtins (`register_builtins`), and annotation types `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList` that pair each output with its stored contract and expose resolved `spend_selections()`, `tapscripts()`, `server_pk()`, `owner_pk()`, and `exit_delay()`. Boarding outputs now live inside the contract manager (boarding + default contracts are coalesced), and the `VtxoWatcher`, offchain-send, and settlement flows all operate on annotated contract VTXOs. New public `Client` APIs: `list_contracts() -> Vec<ContractInfo>` (wallet-facing view with derived `address` + `ContractAddressKind`, decoded `server_pk`, and per-contract `ServerSignerStatus`) and `restore_contracts(gap_limit) -> ContractRestoreReport` (contract-centric HD restore — scans derived keys up to the gap limit, reports scanned/discovered key indexes, per-key offchain VTXO and boarding activity via `ContractRestoreEntry` / `ContractRestoreDiscovery`, counts of inserted-vs-known contracts, and the suggested next receive index). On connect the client hydrates HD keys from persisted contracts via `hydrate_persisted_contract_keys()` **without advancing the receive index**, using the newly split-out `DiscoverableKeyProvider` trait (`OfflineClient::with_discoverable_key_provider`); malformed builtin contract rows are surfaced as errors rather than silently dropped. The `ark-client-sample` gains `list-contracts` and `restore-contracts` commands plus a configurable memory-or-SQLite contract-store backend (SQLite by default). Ships across the **0.10.0** release, with **0.10.1** adding a watcher fix that renews server-recoverable VTXOs and constraining vHTLC spend selections in `ark-core`.
 - **`OfflineClientConfig` builder + TTL-based server-info refresh (BREAKING)** — client construction was reworked around a single `OfflineClientConfig` struct, replacing the long positional constructors. `OfflineClient::new` / `new_with_keypair` / `new_with_bip32` are gone; the new entry points are `OfflineClient::with_key_provider(config, key_provider, blockchain, wallet, swap_storage)`, `with_keypair(config, kp, …)`, and `with_bip32(config, xpriv, path, …)`. `OfflineClientConfig` (`#[derive(Default)]`, defaults targeting mainnet) carries `ark_server_url`, `boltz_url`, `timeout`, `server_info_ttl`, `boltz_referral_id`, `delegator_pk`, and `historical_delegator_pks`, so callers set only the fields they care about via `..Default::default()`. The `K` key-provider generic was dropped — `OfflineClient<B, W, S, K>` / `Client<B, W, S, K>` are now `OfflineClient<B, W, S>` / `Client<B, W, S>` (the key provider is stored as `Arc<dyn KeyProvider>`), and the `name` field/identifier argument was removed. The Boltz referral ID is now a `BoltzReferralId` enum (`Default` / `Disabled` / `Custom(String)`) on the config instead of an `Option<String>` argument + `with_boltz_referral_id` builder; `boltz_url` is normalized (trailing `/` trimmed) at construction. New public constants: `ARKADE_MAINNET_URL` (`https://arkade.computer`), `ARKADE_MUTINYNET_URL`, `BOLTZ_MAINNET_URL` (`https://api.boltz.exchange`), `BOLTZ_MUTINYNET_URL`, `DEFAULT_TIMEOUT` (30s), `DEFAULT_SERVER_INFO_TTL` (15 min). Alongside the config, `Client::server_info()` is now **async** and refreshes the cached `/info` snapshot once `server_info_ttl` elapses (single-flight behind an async mutex with a lock-free fast path; set `server_info_ttl` to `Duration::ZERO` to refresh on every access) — the previous hard-coded `SERVER_INFO_TTL` const is gone. Follow-up fixes keep the batch loop's server-info snapshot consistent across a round and reuse the cached info in the exit-delay check. **Breaking** for all direct constructor callers (the sample app and e2e harness were migrated to the new builders).
 - **Arkade server signer key rotation (0.9.3)** — the SDK now handles Arkade server signer-key rotation end-to-end. When `arkd` advertises a *deprecated* signer alongside a cooperative-sign cutoff date, holders of VTXOs/boarding outputs minted under the old key can migrate off it (settle into the current signer) while cooperation is still available. `ark-core::server` adds two status models: `DeprecatedSignerStatus` — `Migratable` (`cutoff_date > now`), `DueNow` (`cutoff_date == 0`, rotate immediately but the operator still co-signs), `Expired` (cutoff passed) — with `from_cutoff`, `seconds_until_cutoff`, and `is_cooperatively_migratable`; and `ServerSignerStatus` — `Current` / `Deprecated(DeprecatedSignerStatus)` / `Unknown` — with `requires_recovery` (deprecated **and** cooperative window closed) and `is_pre_cutoff_deprecated`. `Info` gains `all_server_keys()`, `signer_status_at(pk, now)`, `deprecated_signer_status_at(..)`, `signer_requires_recovery_at(..)`, and `is_signer_past_cutoff_at(..)`. A new `ark-client::migration` module exposes `Client::migrate_deprecated_signer_vtxos(blockchain)`, which runs **two symmetric, independent legs** — a VTXO leg and a boarding leg, never combined into one intent. Each leg owns its own sizing pipeline: inputs above the server's per-output ceiling (`vtxo_max_amount`) are split out as `oversized` (must exit unilaterally), the remainder is selected highest-value-first bounded by `MAX_VTXOS_PER_SETTLEMENT = 50` and a running aggregate within the ceiling (overflow → `deferred` for a later cycle), and a below-dust selection is `skipped` (`MigrationSkipReason::BelowDust` / `OversizedOnly` / `NothingMigratable`). A leg failure backs off and never suppresses the other leg; results come back as `DeprecatedSignerMigrationReport { vtxo, boarding }` with `failed()`, `rotated()`, and `settle_txids()` helpers (per-leg `MigrationLegReport` carries `settle_txid`, `migrated`, `deferred`, `oversized`, `skipped`, `error`). Companion read APIs: `Client::deprecated_signer_status()` returns per-signer `DeprecatedSignerReport` (status, cutoff, `seconds_until_cutoff`, spendable `vtxo_count` and total amount), and new `Client::pending_recovery()` / `Client::refresh_server_info()`. Supporting fixes in the release: signer cutoff is enforced when selecting VTXOs for ordinary settles, Unix-time retrieval is now fallible and tolerates negative timestamps, and time/exit-delay helpers were extracted into `ark-client::utils`. New `e2e_signer_rotation` integration test. Ships as the **0.9.3** release across all publishable crates.
 - **Guarded gRPC/REST clients + digest-mismatch refresh + new request headers** — both transports now route every non-`GetInfo` RPC through a guard that handles a stale `/info` digest: run the RPC, and if `arkd` rejects it because the cached digest is stale (`DIGEST_MISMATCH` / `invalid digest header`), fetch fresh `/info`, run a refresh hook to update the higher-level client state, commit the new digest header, and return `Error::server_info_changed` **without** retrying the original operation. In `ark-grpc` this is implemented with wrapper newtypes `guarded::Ark` / `guarded::Indexer` that keep the raw generated tonic clients private and expose a single `request(...)` escape hatch, so new RPCs can't accidentally skip the guard (`GetInfo` bootstrap/refresh is the only unguarded path; see `docs/guarded-grpc-client-design.md` in the repo). `ark-rest` mirrors the same digest-mismatch behaviour (`fix(rest): add guarded digest-mismatch parity`). Both `ark_grpc::Error` and `ark_rest::Error` gain a public `is_server_info_changed()` helper. Requests now also carry compatibility/digest/SDK headers: `x-digest` (current `/info` digest), `x-sdk-version` (`SDK_VERSION` = `"rust-sdk/<CARGO_PKG_VERSION>"`), alongside the existing `x-build-version`. `ark-core::server` adds `TARGET_ARKD_VERSION = "0.9.9"` and `SDK_VERSION` constants.
@@ -48,7 +49,7 @@ ark-rs provides everything needed to build an Ark-compatible wallet in Rust:
 
 ## Workspace Crates
 
-### ark-core (v0.9.3)
+### ark-core (v0.10.1)
 Core types and protocol primitives:
 - `ArkAddress`: Ark address encoding/decoding (bech32)
 - `Vtxo`, `VtxoList`: Virtual transaction output management — including delegator (3-of-3) VTXOs and split forfeit / unilateral-exit keys
@@ -62,11 +63,14 @@ Core types and protocol primitives:
 - Transaction graph construction
 - **Asset support** (Arkade Asset V1): `AssetId`, `Packet`/`AssetGroup` OP_RETURN encoding, asset issuance / reissuance / burn transaction builders, settlement asset preservation
 - **Introspector packet builder** (`introspector::packet`): strict-validating packet construction for the introspector co-signer; appended via the new `extension` module as Ark extensions
+- **Contract model** (`contract`): `ContractType` (`default` / `delegate` / `boarding` / `vhtlc`), `ContractSpec` trait, `StoredContract`, prefixed vHTLC spend-path kinds, and centralized **contract spend selections** (`SpendSelection` / `SpendPathKind`, each with its required spend control block) shared by send/exit code and the `vtxo_list` status predicates
 - **Server signer rotation models** (`server`): `DeprecatedSignerStatus` / `ServerSignerStatus` enums and `Info` accessors (`all_server_keys`, `signer_status_at`, `deprecated_signer_status_at`, `signer_requires_recovery_at`, `is_signer_past_cutoff_at`) for classifying server signer keys against their advertised cooperative-sign cutoff
 
-### ark-client (v0.9.3)
+### ark-client (v0.10.1)
 High-level client API:
-- `OfflineClient` → `Client` connection lifecycle, constructed from an `OfflineClientConfig` via `with_keypair` / `with_bip32` / `with_key_provider` (server/Boltz URLs, timeout, `server_info_ttl`, `BoltzReferralId`, delegator pubkey + historical pubkeys all configured on the config)
+- `OfflineClient` → `Client` connection lifecycle, constructed from an `OfflineClientConfig` via `with_keypair` / `with_bip32` / `with_key_provider` / `with_discoverable_key_provider` (server/Boltz URLs, timeout, `server_info_ttl`, `BoltzReferralId`, delegator pubkey + historical pubkeys all configured on the config)
+- **Contract manager** (`contract` module): `ContractManager` over a pluggable `ContractStore` (`MemoryContractStore` / `SqliteContractStore`), `ContractRegistry` builtins, and `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList` (stored contract + resolved spend selections/tapscripts/keys). Boarding outputs live here (`BoardingWallet` removed)
+- `list_contracts()`: wallet-facing `Vec<ContractInfo>` (derived address, decoded `server_pk`, per-contract signer-rotation status); `restore_contracts(gap_limit)`: contract-centric HD restore returning a `ContractRestoreReport`; HD keys hydrate from persisted contracts on connect without advancing the receive index
 - `send_vtxo()`: Send off-chain payments (now backed by a generic offchain transaction builder shared with asset sends)
 - `submit_offchain_tx()` / `finalize_offchain_tx()` / `finalize_pending_offchain_tx(ark_txid)`: granular control over the submit-then-finalize lifecycle (resume one specific pending tx by `Txid`, useful when an external DB tracks individual pending funding attempts)
 - `offchain_balance()`: Query balances
@@ -86,7 +90,7 @@ High-level client API:
 - Boltz submarine and reverse submarine swaps — incl. `get_ln_invoice_for_address(amount, recipient_address, expiry_secs, description)` to receive Lightning into another Arkade user's address (recipient validated to share the same arkd signer via `ArkAddress::server()`)
 - Swap storage (in-memory or SQLite) — `chain_swaps` table; `reverse_swaps` row now persists optional `claim_address`
 
-### ark-grpc (v0.9.3)
+### ark-grpc (v0.10.1)
 gRPC transport layer (default):
 - tonic-based gRPC client
 - Protobuf message types (prost)
@@ -94,22 +98,22 @@ gRPC transport layer (default):
 - Test utilities
 - **Guarded RPC wrappers** (`guarded::Ark` / `guarded::Indexer`): every non-`GetInfo` RPC goes through a digest-mismatch guard; raw generated clients stay private. `Error::is_server_info_changed()` signals a digest refresh occurred
 
-### ark-rest (v0.9.3)
+### ark-rest (v0.10.1)
 REST transport layer:
 - reqwest-based HTTP client
 - WASM-compatible (browser builds)
 - OpenAPI-generated client types
 - Digest-mismatch parity with `ark-grpc`; `Error::is_server_info_changed()` helper
 
-### ark-bdk-wallet (v0.9.3)
+### ark-bdk-wallet (v0.10.1)
 Bitcoin Development Kit integration:
 - On-chain wallet operations
 - BDK wallet wrapper for Ark boarding/exit
 
-### ark-fees (v0.9.3)
+### ark-fees (v0.10.1)
 Fee estimation for Ark transactions.
 
-### ark-delegator (v0.9.3)
+### ark-delegator (v0.10.1)
 REST client for Ark delegator services. A delegator is a third-party service (e.g. fulmine) that automatically renews VTXOs before they expire, allowing wallets to stay offline without losing funds.
 - `DelegatorClient::info()` — fetch delegator pubkey, fee, on-chain address (`GET /v1/delegator/info`)
 - `DelegatorClient::delegate()` — submit signed intent + forfeit PSBTs (`POST /v1/delegate`)
@@ -168,7 +172,7 @@ Reference implementation for understanding Ark protocol internals (round signing
 
 ## Project Status
 
-Active development, version 0.9.3 across all publishable crates (0.9.x release line, crates.io metadata aligned). Automated crates.io release pipeline via GitHub Actions (`draft_release_crates.yml` + `create_release_crates.yml`). MIT licensed.
+Active development, version 0.10.1 across all publishable crates (0.10.x release line, crates.io metadata aligned). Automated crates.io release pipeline via GitHub Actions (`draft_release_crates.yml` + `create_release_crates.yml`). MIT licensed.
 
 **Repository**: https://github.com/arkade-os/rust-sdk
 **MSRV**: Rust 1.86

@@ -1,5 +1,39 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-08 - Documentation Sync
+**Commit**: `1e0a082b01157861bf03ac2d5416330c429e0f7a`
+**Previous Sync**: `04d919510a1890ac859d8e77ae5e6084c9299469`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 non-merge commits
+- `1e0a082b` fix(meta): update Arkade link preview image (#718)
+- `10b606f5` fix header (#717)
+- `2f3f5645` update regtest commit (#716)
+- `d9f48df6` fix tx-list height (#715)
+- `830b0bfd` feat(wallet): redesign home and settings entry points (#627)
+
+**Features Added/Modified**:
+- Home & settings redesign (PR #627 squash, bundling #628/#629/#630/#645/#646/#652/#653/#663/#664): bitcoin-only wallet home rebuilt (new HomeHeader/PortfolioHero/HomeQuickActions/AssetsSection/UpsellsSection/RecentActivitySection + redesigned Activity page and receipt-style tx detail), shared `animations.ts` / `haptics.ts` helpers, bottom nav hidden for home-launched flows.
+- Bitcoin detail page (PR #630, `BitcoinDetail.tsx`) with Liveline price chart backed by new `src/lib/marketData.ts` (CoinGecko/Coinbase data, graph worker, per-fiat/range cache, one-week default).
+- Advanced tools moved into Settings (PR #652): root Apps surface removed; Boltz + Arkade Mint under Settings → Advanced; main group renamed Display.
+- Bitcoin currency units (PR #653): BTC selectable currency; BTC / sats / BIP-177 unit options across totals/transactions/send/receive/portfolio/detail; fiat-like asset balances converted to selected-currency totals.
+- `config.fiat` → `config.currency`; `currencyDisplay` removed; `Fiats` type → `Currencies` (PR #713).
+- Currency icons on the picker (PR #663); Contracts screen polish (PR #664).
+- Minor: Arkade OG preview image swap (#718), header fix (#717), tx-list height fix (#715), regtest submodule pointer bump (#716); `.env.regtest` `AUTOMINE_INTERVAL` added.
+
+**Files Updated**:
+- docs/INDEX.md (new Key Capabilities entries + tags)
+- docs/projects/wallet/INDEX.md (Home & Settings Redesign feature section; pill navbar note)
+- docs/projects/wallet/system/project_overview.md (UI/UX Refresh redesign entry; pill navbar note; frontmatter last_sync_commit)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+**Notes**:
+- The #627 squash commit bundles many older PRs (#556–#713); most (mnemonic keys #677, sdk/boltz bumps, delegation #708, outdated-client #670, etc.) were already documented from prior syncs — only the home/settings redesign, currency units, and settings reorganization were genuinely new here.
+
+---
+
 ## 2026-07-07 - Documentation Sync
 **Commit**: `04d919510a1890ac859d8e77ae5e6084c9299469`
 **Previous Sync**: `341bf560854fb412611e257b9fafc900ef841b21`

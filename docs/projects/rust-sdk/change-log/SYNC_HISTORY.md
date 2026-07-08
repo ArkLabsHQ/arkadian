@@ -1,5 +1,37 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-07-08 - Contract Manager (0.10.0 / 0.10.1)
+**From**: `4e8b696007594614f48f9bd1086ef6c24cb5d5c2`
+**To**: `bab46b4200a225aed4262da190583d44ad4ec96e`
+**Synced By**: update-project skill
+**Commits analyzed**: 54 (no merges)
+
+**Summary**: The headline change is a unified **Contract Manager** — every spendable output (default/delegate VTXOs, boarding outputs, vHTLCs) is now modelled as a typed, persisted *contract*, replacing ad-hoc boarding/VTXO bookkeeping and the removed standalone `BoardingWallet`. Ships across the **0.10.0** release (all publishable crates bumped `0.9.3` → `0.10.0`), with **0.10.1** adding a watcher fix (renew server-recoverable VTXOs) and vHTLC spend-selection constraints. In-repo design docs (`docs/guarded-grpc-client-design.md` + contract-manager sketches) were removed.
+
+**Changes** (grouped):
+- **ark-core contract model**: `feat: add contract model and client manager` (`e670b7a`), `feat(core): add contract spend selections` (`bce8c62`), `refactor(core): centralize spend selection resolution` (`d192917`), `refactor(core): require contract spend control blocks` (`2bac32f`), `refactor(core): prefix vhtlc spend path kinds` (`242c05d`), `refactor(core): share vtxo status predicates` (`817054f`), `fix(core): constrain vhtlc spend selections` (`8b50324`). Adds `ark-core::contract` (`ContractType`, `ContractSpec`, `StoredContract`, `SpendSelection` / `SpendPathKind`).
+- **ark-client contract manager**: `feat: move boarding outputs into contract manager` (`c464c77`), `refactor(client): remove BoardingWallet` (`8c1a46d`), `feat(client): add sqlite contract store` (`5112646`), `feat(sample): support sqlite contract store` (`67113fd`), `feat(client): annotate vtxos through contract manager` (`f301f92`), `refactor(client): use annotated contract vtxos` (`25012a9`), `refactor(client): make watcher use active contracts` (`61647c3`), `feat(client): make contract restore contract-centric` (`ea7bd91`), `feat(client): expose wallet contract list` (`1438b3c`), `refactor(client): split discoverable key provider` (`f4bba80`), `refactor(client): require explicit key hydration` (`f633051`).
+- **Fixes**: `fix(client): renew recoverable vtxos in watcher` (`db6accc`, 0.10.1), `fix(client): surface malformed builtin contract rows` (`d40cd88`), `fix(client): preserve swept flag for delegated vtxos` (`bb158da`), `fix(client): hydrate persisted keys without advancing receive index` (`bd993c1`), `fix(client): hydrate HD keys from persisted contracts` (`03aa727`), `fix(client): include compatible boarding watch rows` (`ef9bef1`), `fix(client): coalesce boarding and default contracts` (`cf65eb1`).
+- **Releases**: `chore: prepare 0.10.0 release` (`247d4c0`), `chore: prepare 0.10.1 release` (`d01ede6`); `docs: Remove design docs` (`9dd5cde`).
+- **Sample / e2e**: sqlite contract-store config + `list-contracts` recipe (`1d4ed6b`, `60c72cf`, `358e8b1`), non-interactive boltz swaps and other e2e hardening.
+
+**New public API**:
+- `ark-core::contract`: `ContractType`, `ContractSpec`, `StoredContract`, `SpendSelection`, `SpendPathKind`.
+- `ark-client`: `ContractManager`, `ContractStore` (`MemoryContractStore` / `SqliteContractStore`), `ContractRegistry`, `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList`, `ContractInfo` / `ContractAddressKind`, `ContractRestoreReport` (+ `ContractRestoreEntry` / `ContractRestoreDiscovery`), `DiscoverableKeyProvider`; `Client::list_contracts()`, `Client::restore_contracts(gap_limit)`; `OfflineClient::with_discoverable_key_provider`, `OfflineClient::with_contract_store`.
+
+**Breaking / removals**:
+- Standalone `BoardingWallet` removed (boarding outputs now flow through the contract manager); raw spend-info / script-spend helpers removed from contract outputs; boarding compatibility API hidden.
+- All publishable crates bumped `0.9.3` → `0.10.1`.
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` + `version`; crate versions → v0.10.1; new Contract Manager Protocol Feature; feature-flag + watcher notes; contract-manager tags/triggers)
+- `docs/projects/rust-sdk/system/project_overview.md` (new Recent Additions entry; crate versions → v0.10.1; ark-core `contract` + ark-client contract-manager bullets; project status → 0.10.1)
+- `docs/projects/rust-sdk/system/architecture.md` (new Contract Manager section; client/core layer + source-structure diagrams; removed guarded-design-doc reference)
+- `docs/INDEX.md` (rust-sdk description → v0.10.1 + Contract Manager; new Key Capability; watcher note; tags/triggers; correlation matrix SDK 0.10.1)
+- `docs/projects/rust-sdk/change-log/last-sync.txt`
+
+---
+
 ## 2026-06-26 - `OfflineClientConfig` builder + TTL-based server-info refresh
 **From**: `677b1c2d1ef68ac6e19b68048c8810e27001acf7`
 **To**: `4e8b696007594614f48f9bd1086ef6c24cb5d5c2`

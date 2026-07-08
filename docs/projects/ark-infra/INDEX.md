@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.8
-last_sync_commit: 0a02408c18e0dcca09708544fc8b85ec9de18c7b
-last_sync_date: 2026-07-07T00:00:00Z
+version: 1.7.9
+last_sync_commit: 7eb67fca34e32e8f3a6a9fbd745f0023818418a8
+last_sync_date: 2026-07-08T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -220,8 +220,8 @@ make clean-local-state ENV=prod
 ## Deployed Services
 
 ### Core Services
-- **arkd** (7070, `v0.9.12` since #106) — Main Ark daemon (REST + gRPC API)
-- **arkd-wallet** (6060, `v0.9.12` since #106) — Wallet sidecar (auto-unlocked)
+- **arkd** (7070, `v0.9.13` since #107) — Main Ark daemon (REST + gRPC API)
+- **arkd-wallet** (6060, `v0.9.13` since #107) — Wallet sidecar (auto-unlocked)
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
 - **nbxplorer** (prod `2.6.8`, regtest `2.6.7-curl`) — Bitcoin blockchain indexer (automatic). **Prod (since #97)** runs the stock `nicolasdorier/nbxplorer:2.6.8` image directly — the `compose/Dockerfile.nbxplorer` curl-override hack was removed and the file deleted. **Regtest** still builds `ark-infra/nbxplorer:2.6.7-curl` from `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`). JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, probing for `"result"`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
@@ -245,7 +245,7 @@ make clean-local-state ENV=prod
   - ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge)
   - Access + connection logs to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30 days, staging 7)
   - Spot-check: `scripts/alb-spot-check.sh <host>` exercises gRPC, REST `/v1/info`, and SSE streams over HTTP/1.1 and HTTP/2
-  - **Endpoints** — staging: `staging.arkade.sh` / `staging-cf.arkade.sh`, Grafana `telemetry.staging.arkade.sh`. Prod (live since 2026-05-26, `apps/ark/prod/`): `prod.arkade.sh` / `prod-cf.arkade.sh`, Grafana `telemetry.prod.arkade.sh`; app instance `i-0f3d436aad5dbf55e`, `alb_log_retention_days = 30`, ACM cert SANs `*.prod.arkade.sh` + `prod-cf.arkade.sh`
+  - **Endpoints** — staging: `staging.arkade.sh` / `staging-cf.arkade.sh`, Grafana `telemetry.staging.arkade.sh`. Prod (live since 2026-05-26, `apps/ark/prod/`): **`arkade.computer`** (primary since #104/#107) + `prod.arkade.sh`, Grafana `telemetry.prod.arkade.sh`; app instance `i-0f3d436aad5dbf55e`, `alb_log_retention_days = 30`. `arkd_hosts = ["arkade.computer", "prod.arkade.sh"]`; primary ALB cert is now the dedicated `arkade.computer` ACM cert (`f80fd08a-…`, provisioned in #104). The prior `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is retained as a **temporary extra listener cert** via `aws_lb_listener_certificate.tmp` (marked with a TODO to remove after the ALB deployment stabilizes) — it uses the new `module.ark.alb_https_listener_arn` output (`modules/ark/outputs.tf`)
 
 ### Data Stores
 - **PostgreSQL** (RDS) — projection, event, nbxplorer databases

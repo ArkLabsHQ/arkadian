@@ -1,5 +1,28 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-08 - Documentation Update
+**Commit**: `db93f3d6` (arkd repository)
+**Previous Sync**: `0718d54b`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `db93f3d6` indexer: Restore not-found message and add SUBSCRIPTION_NOT_FOUND code (#1140)
+
+**gRPC Surface Change (PR #1140 — structured indexer not-found error)**:
+- Added a structured `SUBSCRIPTION_NOT_FOUND` error `Code` (`pkg/errors/errors.go`, gRPC `NotFound`) carrying `SubscriptionMetadata{subscription_id}`, letting clients detect a stale subscription via the `ErrorDetails` code/name instead of parsing the error message.
+- Every indexer subscription path (`GetSubscription`, `UpdateSubscription`, `SubscribeForScripts` reconnect, `UnsubscribeForScripts`) is now routed through a single `subscriptionErr(id, err)` mapper in `internal/interface/grpc/handlers/indexer.go`; the previously-unclassified `SubscribeForScripts` reconnect path (which returned `codes.Internal` with no structured code) is now included.
+- The not-found message is restored to the legacy `subscription <id> not found` phrasing — PR #1074 had changed it to `subscription not found: <id>`, breaking SDKs that string-match the message (see ts-sdk#600). Any non-not-found broker error still maps to `Internal`.
+
+**Files Updated**:
+- docs/INDEX.md (Key Capabilities entry, Tags, debug triggers)
+- docs/projects/arkd/system/application_core.md (subscription not-found handling)
+- docs/projects/arkd/INDEX.md (version bump, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-06 - Documentation Update
 **Commit**: `0718d54b` (arkd repository)
 **Previous Sync**: `ae56672f`

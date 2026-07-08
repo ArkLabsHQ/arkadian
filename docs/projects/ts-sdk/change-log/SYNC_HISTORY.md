@@ -1,5 +1,34 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-08 - Post-0.4.42 unreleased: cel-js 8 Snap/SES bump, regtest arkd v0.9.11 pin, DIGEST_MISMATCH e2e
+**From**: `848be6a0edd3c427f804bda3e073e920c463101f`
+**To**: `e023e1db2f9dcb42badf9c24923f28b8c17bf761`
+**Synced By**: update-project skill
+**Status**: Three small post-release commits, **no version bump** (`@arkade-os/sdk` stays `0.4.42`, `@arkade-os/boltz-swap` stays `0.3.47`). One dependency bump (`@marcbachmann/cel-js` → 8.0.0 for MetaMask Snap / SES compatibility), one regtest-fixture pin (arkd image → v0.9.11), and one e2e test addition (DIGEST_MISMATCH signer-rotation round-trip). No SDK `src/` behaviour or public API change.
+
+**Commits analyzed** (3 non-merge commits):
+- `e023e1db` test(e2e): verify X-Digest/DIGEST_MISMATCH round-trip across a real signer rotation (#605)
+- `618f055a` chore(regtest): pin submodule to arkade-regtest master (arkd v0.9.11) (#604)
+- `6f98fe02` fix(sdk): bump @marcbachmann/cel-js to 8.0.0 for MetaMask Snap (SES) compatibility (#602)
+
+**Files changed in repo**:
+- `packages/ts-sdk/package.json` — `@marcbachmann/cel-js` `7.x` → `8.0.0`
+- `pnpm-lock.yaml` — cel-js 8.0.0 resolution
+- `packages/ts-sdk/test/fee.test.ts` — guard test asserting the resolved cel-js ships no bare `eval(` token
+- `packages/ts-sdk/.env.regtest` — `ARKD_IMAGE` / `ARKD_WALLET_IMAGE` `v0.9.9-rc.0` → `v0.9.11`
+- `regtest` (submodule) — fast-forwarded to arkade-regtest `master` (arkd v0.9.11)
+- `packages/ts-sdk/test/e2e/digestMismatch.test.ts` — new e2e (228 lines) exercising the digest-guard against a live server-signer rotation
+
+**Notable source changes**:
+- **cel-js 8.0.0 (`6f98fe02`, #602, closes #580)**: cel-js `< 8` shipped an interpreter method literally named `eval`, which the `arkfee` `Estimator` pulls into every consumer bundle; SES (run by `mm-snap build`) rejects any bare `eval(` token, so the SDK could not bundle inside a MetaMask Snap even after `Estimator.eval()` → `.evaluate()` (#581). 8.0.0 is the lowest cel-js release that renames its own method (7.6.1 still ships the bare token); the API surface the `Estimator` uses is unchanged so `estimator.ts` needs no edits, and 8.0.0's `node >=20.19.0` engine is already satisfied. A regression-guard test locks in the no-bare-`eval(` invariant.
+- **regtest arkd v0.9.11 (`618f055a`, #604)**: submodule fast-forward + `.env.regtest` image pins; regtest/CI fixtures only, no SDK code.
+- **DIGEST_MISMATCH e2e (`e023e1db`, #605)**: end-to-end coverage that the `X-Digest` / `DigestMismatchError` guard fires on a real arkd signer rotation and re-derives via `onServerInfoChanged` rather than silently retrying — strengthens the 0.4.35 (#554) server-signer-rotation feature. Test-only.
+
+**Docs updated**:
+- `docs/INDEX.md` — added three post-0.4.42 changelog bullets (cel-js 8 bump, arkd v0.9.11 pin, DIGEST_MISMATCH e2e) + new tags
+- `docs/projects/ts-sdk/INDEX.md` — three capability entries appended, Version-table cell notes the unreleased post-`848be6a0` work
+- `docs/projects/ts-sdk/system/project_overview.md` — cel-js dependency annotated `8.0.0` + SES rationale; arkade-regtest arkd version updated to the v0.9.11 `.env.regtest` pin
+
 ## 2026-07-07 - Release 0.4.42: stale-subscription error-format fix + boltz-swap invoice timestamp
 **From**: `07991c26736ff27b070a7a22547301403d51ffa3`
 **To**: `848be6a0edd3c427f804bda3e073e920c463101f`
