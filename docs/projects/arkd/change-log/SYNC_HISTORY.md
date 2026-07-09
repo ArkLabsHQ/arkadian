@@ -1,5 +1,45 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-09 - Documentation Update
+**Commit**: `0cb5f8e9` (arkd repository)
+**Previous Sync**: `db93f3d6`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits
+- `0cb5f8e9` Add structured TX_FILTERS_LIMIT_EXCEEDED and INVALID_TX_FILTER errors (#1141)
+- `89ddbf61` Hotfix: pass vtxoTreeExpiry in txbuilder.BuildCommitmentTx instead of constructor (#1145)
+- `b2647c02` Drop unused report service (#1137)
+- `5c56d54c` indexer: handle subscription displacement, add keepAlive gRPC option
+
+**gRPC Surface Change (PR #1141 — structured tx-filter errors)**:
+- Added two structured error `Code`s in `pkg/errors/errors.go` (both gRPC `InvalidArgument`): `TX_FILTERS_LIMIT_EXCEEDED` (code 51, `TxFiltersLimitMetadata{subscription_id, max_tx_filters, got_tx_filters}`) and `INVALID_TX_FILTER` (code 52, `TxFilterMetadata{expression}`).
+- Threaded through the broker/indexer handlers so an over-cap CEL `expressions` list or an un-parseable tx-filter expression surfaces a structured code/name in `ErrorDetails` instead of an opaque error.
+
+**Refactor (PR #1145 — vtxoTreeExpiry per-call)**:
+- `ports.TxBuilder.BuildCommitmentTx` now takes a trailing `vtxoTreeExpiry arklib.RelativeLocktime` argument; `txbuilder.NewTxBuilder(wallet, signer, network)` drops the `vtxoTreeExpiry` / `boardingExitDelay` constructor args. The commitment-tx build now reads the current (DB-persisted, admin-updatable) expiry per call instead of a value captured at construction. **Interface change** for external `TxBuilder` implementers/callers.
+
+**Removal (PR #1137 — drop unused round-report service)**:
+- Removed `RoundReportService`, the `RoundReportServiceEnabled` config field / `ARKD_ROUND_REPORT_ENABLED` env var / `defaultRoundReportServiceEnabled`, the `RoundReportLogExporter` OTel wiring (`InitOtelSDK` no longer takes an `application.RoundReportService`), and the `internal/core/application/round_report.go` + `internal/telemetry/round_stats.go` sources plus related smoke-test helpers.
+- No replacement — round telemetry continues via standard OTel metrics/traces and the AlertManager batch-stats pipeline. Only externally-visible change: removed `ARKD_ROUND_REPORT_ENABLED` (default was `false`).
+
+**Behavior Change (commit #5c56d54c — subscription displacement + gRPC keepalive)**:
+- Each `GetSubscription` stream is now the listener's sole consumer via a new broker `attach()`/`release()` pair (and `attachment` type): attaching cancels any pending removal timeout and closes the previously attached stream's `displaced` channel, forcing the old stream to exit so it cannot consume events meant for its replacement. `release()` keeps the listener for the reconnect window only if scripts or tx filters remain; inline/new subscriptions attach with a zero reconnect window. The dispatch loop uses two intentional selects (non-blocking then blocking) so a pending exit is handled before draining `listener.ch`.
+- The gRPC server now sets `keepalive.ServerParameters{Time: 30s, Timeout: 20s}` to ping idle clients and reap dead connections.
+
+**Breaking Changes**: `ports.TxBuilder.BuildCommitmentTx` / `NewTxBuilder` signatures (PR #1145); removed `ARKD_ROUND_REPORT_ENABLED` env var (PR #1137).
+
+**Files Updated**:
+- docs/INDEX.md (4 new Key Capability bullets; new tags; develop/debug triggers)
+- docs/projects/arkd/system/application_core.md (subscription displacement; structured tx-filter errors)
+- docs/projects/arkd/system/configuration.md (ARKD_ROUND_REPORT_ENABLED removed; gRPC server keepalive)
+- docs/projects/arkd/system/project_overview.md (indexer subscription displacement / keepalive / tx-filter errors)
+- docs/projects/arkd/INDEX.md (version 1.3.20 → 1.3.21, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-08 - Documentation Update
 **Commit**: `db93f3d6` (arkd repository)
 **Previous Sync**: `0718d54b`

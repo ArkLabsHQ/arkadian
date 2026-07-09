@@ -133,11 +133,13 @@ These variables are read by the **arkd-wallet** service (env prefix `ARKD_WALLET
 ### gRPC Gateway / Streaming
 - `ARKD_MAX_CONCURRENT_STREAMS` (default: 1000) - HTTP/2 `MAX_CONCURRENT_STREAMS` budget advertised per gateway connection
 - `ARKD_STREAM_CONN_POOL_SIZE` (default: 4, max: 64) - Number of pooled `grpc.ClientConn`s the gateway uses for streaming RPCs. Each connection carries an independent stream budget, so the effective concurrent-stream capacity is `MAX_CONCURRENT_STREAMS * STREAM_CONN_POOL_SIZE`. `splitConn` round-robins `NewStream` calls across the pool; values are clamped to `[1, 64]`. Set to `1` to restore the previous single-connection behavior.
+- **gRPC server keepalive (commit #5c56d54c, not configurable):** the gRPC server now sets `keepalive.ServerParameters{Time: 30s, Timeout: 20s}`, pinging idle clients every 30s and closing a connection when no ping-ack arrives within 20s. This detects and reaps dead client connections (e.g. silently-dropped indexer subscription streams) so their listeners are released promptly.
 
 ### Observability & Monitoring
 - `ARKD_OTEL_COLLECTOR_ENDPOINT` - OpenTelemetry collector endpoint
 - `ARKD_OTEL_PUSH_INTERVAL` (default: 10) - Push interval in seconds
 - `ARKD_PYROSCOPE_SERVER_URL` - Pyroscope profiling server URL
+- `ARKD_ROUND_REPORT_ENABLED` **[REMOVED]** (PR #1137) - The unused round-report service was dropped. The env var, the `RoundReportServiceEnabled` config field / `RoundReportService()` accessor, the `RoundReportLogExporter` OTel wiring (`InitOtelSDK` no longer takes a `RoundReportService`), and the `round_report.go` / `round_stats.go` sources are all gone. No replacement — round telemetry continues through the standard OTel metrics/traces and the AlertManager batch-stats pipeline.
 - `ARKD_ALERT_MANAGER_URL` - AlertManager URL for alerts integration
 - `ARKD_ENABLE_PPROF` (default: false) - Enable pprof profiling endpoint
 - `ARKD_ENABLE_CHANNELZ` (default: false) - Expose gRPC channelz introspection on the admin port; query via `grpc_cli`. The channelz RPCs (`GetTopChannels`, `GetServers`, `GetServer`, `GetServerSockets`, `GetChannel`, `GetSubchannel`, `GetSocket`) are macaroon-whitelisted (auth-free) since they are already restricted to the admin port (PR #1133)

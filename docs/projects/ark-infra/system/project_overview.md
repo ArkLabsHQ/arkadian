@@ -166,7 +166,7 @@ ark-infra/
    - Requires `THREAT_MONITOR_SLACK_WEBHOOK_URL`; `traefik.enable=false`; CloudWatch stream `threat-monitor`
    - `depends_on: nbxplorer` intentionally commented out to reduce NBX restart risk
 
-7. **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.2.0`, production only, since #98; bumped `v0.1.0` → `v0.2.0` in #106)
+7. **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.3.0`, production only, since #98; bumped `v0.1.0` → `v0.2.0` in #106, `v0.2.0` → `v0.3.0` in `20f2650`)
    - Collects Ark protocol metrics and exports them to the telemetry stack via OTLP
    - `depends_on: [arkd, otel-agent]`; exports to `otel-agent` at `http://otel-agent:4318` (`ARK_METRICS_OTLP_ENDPOINT`, `ARK_METRICS_OTLP_INSECURE=true`)
    - Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`

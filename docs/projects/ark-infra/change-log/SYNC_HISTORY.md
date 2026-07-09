@@ -1,5 +1,27 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-09 - Documentation Update
+**Commit**: `20f26501d03a937a513f38e01607ed6b43ff5f78`
+**Previous Sync**: `7eb67fca34e32e8f3a6a9fbd745f0023818418a8`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (prod compose image bump)
+
+**Highlights**:
+- 📊 **ark-metrics bumped to v0.3.0** (`20f2650`): `compose/docker-compose.ark.prod.yaml`
+  pins `ghcr.io/arklabshq/ark-metrics:v0.3.0` (previously `v0.2.0`). No config/env changes —
+  `depends_on`, OTLP export, projection DB / Ark info reads, and channelz scraping are unchanged.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: ark-metrics `v0.2.0` → `v0.3.0` in `20f2650`)
+- docs/projects/ark-infra/INDEX.md (frontmatter `version` → 1.7.10, `last_sync_commit`, `last_sync_date`; ark-metrics service entry → `v0.3.0`)
+- docs/projects/ark-infra/system/project_overview.md (ark-metrics entry #7 → `v0.3.0`)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-08 - Documentation Update
 **Commit**: `7eb67fca34e32e8f3a6a9fbd745f0023818418a8`
 **Previous Sync**: `0a02408c18e0dcca09708544fc8b85ec9de18c7b`

@@ -91,7 +91,7 @@ Swap states:
 - **ElementsClient**: single-node Elements RPC (the `ElementsWrapper` dual-node/lowball failover was removed in PR #1417)
 
 Supports:
-- Bitcoin Core **v31.0** (bitcoind)
+- Bitcoin Core **v31.1** (bitcoind — bumped from `v31.0` in PR #1460; `VersionCheck` `maximal` raised `310000 → 310100`)
 - btcd
 - Liquid daemon (elementsd **v23.3.3**)
 
@@ -141,6 +141,7 @@ High-performance Lightning sidecar written in Rust. Provides:
 - Swap coordination with Core Lightning
 - Performance-critical swap operations
 - Lightning-gossip aggregation via `GraphLightningInfo` — `update_cache` now returns `Result<bool>` and emits the "Updated <symbol> lightning gossip" log only when at least one source actually fired; currencies with no Lightning clients configured return `Ok(false)` silently, eliminating the previous per-tick noise (fix `e1e6c445`).
+- **Hardened WebHook caller** (SSRF guard, PR #1461, `boltzr/src/webhook/`): the reqwest client used to deliver swap webhooks is wired with a custom `SsrfGuardResolver` DNS resolver and a `build_redirect_policy` redirect policy (new `resolver.rs` module). `is_blocked_ip` rejects loopback, link-local, multicast, broadcast, private, unspecified, shared (`100.64/10`) and reserved (`240/4`) IPv4 — plus IPv4-mapped IPv6 and IPv6 loopback/multicast/link-local/unique-local/unspecified — so a webhook URL (or any redirect hop / hostname that resolves to such an address) cannot be used to reach internal services. The redirect policy also enforces a per-host `block_list` and caps redirects at `MAX_REDIRECTS = 10`. All checks are gated by `allow_insecure`: when set, the guard is bypassed for local/dev use; blocked hosts surface `UrlError::InvalidHost` (resolver) or `UrlError::Blocked` (redirect).
 
 **Why Rust?**
 - CLN plugins require native code

@@ -1,5 +1,23 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-09 - Documentation Update
+**Commit**: `36729e33` (boltz-backend repository)
+**Previous Sync**: `c220f078`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Refactors / Hardening**:
+- refactor: WebHook hardening (#1461) (`36729e33`) — the reqwest client that delivers swap webhooks (`boltzr/src/webhook/caller.rs`) is now fitted with an **SSRF guard**. A new `boltzr/src/webhook/resolver.rs` module adds `SsrfGuardResolver` (a custom reqwest DNS resolver) and `build_redirect_policy` (a custom redirect policy). `is_blocked_ip` rejects loopback, link-local, multicast, broadcast, private, unspecified, shared (`100.64/10`) and reserved (`240/4`) IPv4 addresses — plus IPv4-mapped IPv6 and IPv6 loopback/multicast/link-local/unique-local/unspecified — so a webhook URL, any redirect hop, or a hostname that resolves to an internal address can no longer be used to reach internal services. The redirect policy additionally enforces a per-host `block_list` and caps redirects at `MAX_REDIRECTS = 10` (matching reqwest's default). All checks are gated by the per-caller `allow_insecure` flag (bypassed for local/dev); blocked destinations surface `UrlError::InvalidHost` (resolver) or `UrlError::Blocked` (redirect). Extensive Rust tests cover redirect-to-private-IP, redirect-to-private-hostname, and IPv4-mapped-IPv6 handling. `boltzr/src/webhook/mod.rs` registers the new module.
+
+**Dependency Bumps / Chores**:
+- chore: bump Bitcoin Core to v31.1 (#1460) (`620f51e4`) — `docker/build.py` `BITCOIN_VERSION` `31.0 → 31.1` and `lib/VersionCheck.ts` `ChainClient` `maximal` `310000 → 310100`. No API, schema, config, or runtime-behaviour change beyond the accepted bitcoind version range.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend — new **SSRF-hardened webhook delivery** Key Capability, Bitcoin Core version updated to v31.1 in the LND/CLN/nodes bullet, new `webhook-ssrf-guard` tag), `INDEX.md` (new **WebHook Delivery** subsection documenting the SSRF guard, **Bitcoin / Liquid Nodes** version bumped to v31.1), `system/architecture.md` (boltzr **Hardened WebHook caller** bullet, Chain Integration Bitcoin Core version bumped to v31.1).
+
 ## 2026-07-07 - Documentation Update
 **Commit**: `c220f078` (boltz-backend repository)
 **Previous Sync**: `74de3691`

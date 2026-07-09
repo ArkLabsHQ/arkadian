@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.9
-last_sync_commit: 7eb67fca34e32e8f3a6a9fbd745f0023818418a8
-last_sync_date: 2026-07-08T00:00:00Z
+version: 1.7.10
+last_sync_commit: 20f26501d03a937a513f38e01607ed6b43ff5f78
+last_sync_date: 2026-07-09T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -233,7 +233,7 @@ make clean-local-state ENV=prod
 - **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.5`, prod only, since #92) — Watches on-chain and mempool activity for threats and alerts to Slack. Sources: `nbxplorer` on-chain provider (`THREAT_MONITOR_NBXPLORER_URL=http://nbxplorer:32838`, `THREAT_MONITOR_ONCHAIN_PROVIDER=nbxplorer`), Ark indexer (`https://${ARKD_DOMAIN}`), Ark explorer (`https://arkade.space`), and mempool.space explorer. Tuning: `THREAT_MONITOR_MEMPOOL_SCAN_INTERVAL=300s`, `THREAT_MONITOR_BLOCK_RECONCILE_INTERVAL=0s` (disabled), `THREAT_MONITOR_START_HEIGHT=952900`. State persisted to a named `threat-monitor` volume (`/data/threat-monitor.badger`); `traefik.enable=false`; logs to CloudWatch stream `threat-monitor`. New required env var `THREAT_MONITOR_SLACK_WEBHOOK_URL`. `depends_on: { nbxplorer }` is commented out to reduce the risk of NBX restarts.
 
 ### Metrics
-- **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.2.0`, prod only, since #98; bumped `v0.1.0` → `v0.2.0` in #106) — Collects Ark protocol metrics and exports them to the telemetry stack over OTLP. `depends_on: [arkd, otel-agent]`; exports to `otel-agent` (`ARK_METRICS_OTLP_ENDPOINT=http://otel-agent:4318`, `ARK_METRICS_OTLP_INSECURE=true`). Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`. **New in #106:** scrapes arkd gRPC channelz introspection via `ARK_METRICS_CHANNELZ_ENDPOINT=arkd:7071` (admin port) and `ARK_METRICS_CHANNELZ_MAIN_PORT=7070`. `traefik.enable=false`; logs to CloudWatch stream `ark-metrics`.
+- **ark-metrics** (`ghcr.io/arklabshq/ark-metrics:v0.3.0`, prod only, since #98; bumped `v0.1.0` → `v0.2.0` in #106, `v0.2.0` → `v0.3.0` in `20f2650`) — Collects Ark protocol metrics and exports them to the telemetry stack over OTLP. `depends_on: [arkd, otel-agent]`; exports to `otel-agent` (`ARK_METRICS_OTLP_ENDPOINT=http://otel-agent:4318`, `ARK_METRICS_OTLP_INSECURE=true`). Reads the arkd projection DB (`ARK_METRICS_DATABASE_URL=${ARKD_PG_DB_URL}`) and Ark info API (`ARK_METRICS_ARK_INFO_URL=https://${ARKD_DOMAIN}`); `ARK_METRICS_LOG_LEVEL=debug`. **New in #106:** scrapes arkd gRPC channelz introspection via `ARK_METRICS_CHANNELZ_ENDPOINT=arkd:7071` (admin port) and `ARK_METRICS_CHANNELZ_MAIN_PORT=7070`. `traefik.enable=false`; logs to CloudWatch stream `ark-metrics`.
 
 ### Ingress & Routing
 - **cloudflared** — Cloudflare Tunnel for secure ingress (legacy path; still used on prod)

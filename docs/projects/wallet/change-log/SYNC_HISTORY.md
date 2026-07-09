@@ -1,5 +1,43 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-09 - Documentation Sync
+**Commit**: `c00b820dbfd56ffa0209cd8281d88911ed710e43`
+**Previous Sync**: `1e0a082b01157861bf03ac2d5416330c429e0f7a`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 6 non-merge commits
+- `c00b820d` fix absent delegate url (#731)
+- `f448cf6f` fix amount auto fill in send form (#730)
+- `a2c9983d` Upgrade ts-sdk 0.4.43 - boltz-swap 0.3.48 (#729)
+- `32e56991` fix(wallet): smooth home action load animation (#723)
+- `0086ebf6` update regtest commit (#728)
+- `22e27720` fix(settings): order menu by product priority (#719)
+
+**Features Added/Modified**:
+- Absent-delegate-URL handling (PR #731, `src/lib/constants.ts` / `src/providers/wallet.tsx` / `src/screens/Settings/Delegates.tsx`): networks with no default delegate (`DELEGATE_URL[network] === null`, e.g. testnet) previously threw `Delegate URL not found for network`. `getDelegateUrlForNetwork` now returns `string | undefined` (was throwing) and a new `getDelegateForNetwork` returns `Delegate | undefined`; Settings → Delegates renders a "No delegate found for this network." `WarningBox` (hiding the toggle/warning/card) when none is configured, `testConnection` resolves `undefined`, and `DelegateCard` renders nothing until a delegate is confirmed; `WalletProvider` init passes the URL-or-undefined straight through as `delegatorUrl`.
+
+**Configuration / Dependency Changes**:
+- **@arkade-os/sdk** bumped 0.4.42 → 0.4.43 (PR #729).
+- **@arkade-os/boltz-swap** bumped 0.3.47 → 0.3.48 (PR #729). Routine version bump with no new API surface.
+
+**Minor / Internal (SYNC_HISTORY-only, no doc surface)**:
+- Send-form amount auto-fill fix (PR #730, `src/screens/Wallet/Send/Form.tsx`).
+- Smooth home quick-action load animation (PR #723): moved into a single CSS keyframe with backwards fill mode; `WalletLoadIn.tsx`, `index.css`, `animations.ts`, `HomeQuickActions.tsx`, lockfiles.
+- Settings menu reordered by product priority (PR #719, `src/providers/options.tsx`) + new `menu.test.tsx`.
+- regtest submodule pointer bump (PR #728).
+
+**Documentation Impact**: Minor — one delegation behavior fix plus a routine SDK/boltz-swap version bump; the remaining commits are UI polish / bug fixes with no doc surface. Bumped all `@arkade-os/sdk` / `@arkade-os/boltz-swap` version references (also correcting the master INDEX Dependencies line, which had drifted to 0.4.41 / 0.3.46) and added an absent-delegate-URL bullet to the master registry and project index.
+
+**Files Updated**:
+- docs/INDEX.md (wallet SDK/boltz-swap version capability line + Dependencies line; new absent-delegate-URL capability bullet)
+- docs/projects/wallet/INDEX.md (frontmatter `version` 1.2.31 → 1.2.32 + `last_sync_commit`; SDK/boltz-swap version lines; new absent-delegate-URL bullet in delegation section)
+- docs/projects/wallet/system/project_overview.md (Technology Stack SDK/boltz-swap versions; Dependencies line)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-08 - Documentation Sync
 **Commit**: `1e0a082b01157861bf03ac2d5416330c429e0f7a`
 **Previous Sync**: `04d919510a1890ac859d8e77ae5e6084c9299469`

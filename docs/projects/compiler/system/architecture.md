@@ -80,6 +80,9 @@ After compilation, `validate_output()` runs structural invariant checks on the e
 ### Unified Spend-Group ABI
 The output is a single `functions[]` of `AbiFunctionGroup`s. The legacy two-variant (`serverVariant=true/false`) shape, `witnessSchema`, automatic N-of-N exit generation, `function_uses_introspection`, and the tx-signing/data-signing pubkey classification have all been **removed**. Cooperative signing, exit, and renewal are now expressed through tapleaves and constructor params, not synthesized variants.
 
+### Comparison Emission Order (`generate_comparison_asm`)
+Comparisons compile to Bitcoin Script postfix (RPN) order: **both operands are pushed before the operator** — `<left> <right> OP_EQUAL` / `<left> <right> OP_GREATERTHANOREQUAL` — across every `Variable`/`Literal`/`Property` operand combination, including the property-vs-property (`Property … Property`) cases. (`this`-property literal comparisons still lower to their dedicated introspection opcodes.) Earlier revisions emitted the operator between the operands (`<left> OP <right>`), which is not valid stack order; the order-dependent ASM test that asserted the old shape was removed.
+
 ### Tapscript Closures (`src/compiler/tapscript.rs`)
 Each `tapscript` leaf assembles to one of arkd's 5 closure shapes — `Multisig`, `CsvMultisig`, `CltvMultisig`, `ConditionMultisig`, `ConditionCsvMultisig` — with source order `condition? · timelock? · multisig`. Multisig is always N-of-N. Forfeit closures (`Multisig`/`CltvMultisig`/`ConditionMultisig`) must include the `server` role; exit closures use CSV (`older(...)`). `ClosureClass::is_forfeit` / `is_exit` classify the shape. Reserved roles lower to `<SERVER_KEY>` and `<EMULATOR_KEY:fn>`; signatures are emitted into the leaf witness, keeping leaf ASM signature-free.
 

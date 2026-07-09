@@ -174,7 +174,7 @@ Admin RPCs for analyzing expiring and recoverable liquidity, plus manual sweep c
 Automatic database creation when using PostgreSQL backend, eliminating manual DB provisioning steps.
 
 ### CEL-Based Indexer Subscription Filters
-The indexer's `GetSubscription` / `UpdateSubscription` streaming APIs now accept CEL (Common Expression Language) tx filter expressions alongside script filters. A subscription receives a tx event when any of its CEL expressions matches the transaction (e.g. on its ARK OP_RETURN extension packets) or when the event carries a watched script. The redesigned `SubscriptionFilter` combines both filter types in a single call instead of being mutually exclusive.
+The indexer's `GetSubscription` / `UpdateSubscription` streaming APIs now accept CEL (Common Expression Language) tx filter expressions alongside script filters. A subscription receives a tx event when any of its CEL expressions matches the transaction (e.g. on its ARK OP_RETURN extension packets) or when the event carries a watched script. The redesigned `SubscriptionFilter` combines both filter types in a single call instead of being mutually exclusive. Each subscription stream is now the listener's **sole consumer** — a new stream displaces (force-closes) any prior stream on the same `subscription_id` so events are never split across two connections (commit #5c56d54c), and a gRPC server keepalive (30s ping / 20s timeout) reaps dead client connections. Invalid or over-cap tx filters return structured `INVALID_TX_FILTER` / `TX_FILTERS_LIMIT_EXCEEDED` errors (PR #1141).
 
 ## Current Status
 

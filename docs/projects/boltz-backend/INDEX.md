@@ -155,7 +155,7 @@ npm run dev
 - **BOLT12**: Support for offers and blinded paths (hardened)
 
 ### Bitcoin / Liquid Nodes
-- **Bitcoin Core**: **v31.0**
+- **Bitcoin Core**: **v31.1** (bumped from `v31.0` in PR #1460; `docker/build.py` `BITCOIN_VERSION` and `VersionCheck` `maximal` `310000 → 310100`)
 - **Elements (Liquid)**: **v23.3.3**
 - **Lowball backup node removed**: the `[liquid.chain.lowball]` configuration section and the `ElementsWrapper` dual-node code path have been deleted; `liquid.chain` now configures a single Elements RPC endpoint (see PR #1417).
 - **Liquid 0-conf observation API** (`[liquid.chain.zeroConfTool]` in `boltz.conf`, optional): when configured, lockup transactions are only considered 0-conf-safe once the bridge observation quorum is reached. Transport is selected by URL scheme — `http(s)://…` uses REST polling (`interval` ms, default `100`; `max_retries`, default `60`), `ws(s)://…` uses WebSocket with a per-tx `deadline_secs` wall-time (default `6`) and optional `rotation_interval_secs` (default `3300`, `0` disables) for **preemptive WebSocket reconnects** before the server-side TTL drops the connection. Falls back to the elementsd mempool check when not configured.
@@ -200,6 +200,10 @@ npm run dev
 - **OpenTelemetry**: Distributed tracing — now includes per-lock spans for every instrumented `acquire` (see above).
 - **Grafana**: Visualization (via Loki integration)
 - **Claim-failure alerts** (PR #1445): `SwapNursery` emits a `claim.failure` event (`{ swap, symbol, error }`) when a swap claim fails; `EventHandler` re-emits it and `NotificationProvider` posts a 🚨 alert to the configured notification channel with per-symbol basic swap info and the error truncated to 200 chars.
+
+### WebHook Delivery
+- **SSRF-hardened webhook caller** (PR #1461, `boltzr/src/webhook/`): outbound swap webhooks are delivered by a reqwest client fitted with a custom `SsrfGuardResolver` DNS resolver and a `build_redirect_policy` redirect policy (new `resolver.rs`). `is_blocked_ip` rejects loopback, link-local, multicast, broadcast, private, unspecified, shared (`100.64/10`) and reserved (`240/4`) IPv4 addresses — plus IPv4-mapped IPv6 and IPv6 loopback/multicast/link-local/unique-local/unspecified — so a webhook URL, a redirect hop, or a hostname that resolves to an internal address cannot be used to reach internal services.
+- The redirect policy additionally enforces a per-host `block_list` and caps redirects at `MAX_REDIRECTS = 10`. All checks are gated by the per-caller `allow_insecure` flag (bypassed for local/dev use); blocked destinations surface `UrlError::InvalidHost` (from the resolver) or `UrlError::Blocked` (from the redirect policy).
 
 ---
 

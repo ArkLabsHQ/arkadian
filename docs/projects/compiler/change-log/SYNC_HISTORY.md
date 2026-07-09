@@ -1,5 +1,27 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-07-09 — Comparison codegen emits in Bitcoin Script (postfix) order
+**Commit Range**: `e1a768df` → `de0a9cc9`
+**Synced By**: /update-project compiler
+**Status**: Bug fix — comparison ASM emission order corrected (no grammar/capability/ABI change)
+
+**Commits Analyzed** (3):
+- `0f29524` Compile comparison logic in Bitcoin Script order
+- `6184c19` Fix property-property comparison
+- `c842930` rm comparison order asm test
+
+**Changes**:
+- `generate_comparison_asm` (`src/compiler/mod.rs`) now pushes **both operands before the operator** (`<left> <right> OP_EQUAL` / `OP_GREATERTHANOREQUAL`) for every `Variable`/`Literal`/`Property` combination, matching Bitcoin Script's postfix/RPN stack order. Prior code emitted the operator between operands (`<left> OP <right>`), which is not valid stack order.
+- Includes the previously-missing property-vs-property cases (`Property == Property`, `Property >= Property`). `this`-property literal comparisons still lower to their dedicated introspection opcodes (unchanged).
+- Removed the order-dependent ASM test that asserted the old (invalid) operand order.
+- Scope: 1 file, 16 insertions / 16 deletions. No grammar, `Expression`-variant, validator, or ABI changes.
+
+**Documentation Updates**:
+- `system/architecture.md` — new "Comparison Emission Order (`generate_comparison_asm`)" note under Key Design Decisions
+- `change-log/last-sync.txt` — bumped to `de0a9cc953e60b23cf7a6548386db8df8c4912d6`
+
+---
+
 ## 2026-07-07 — Native introspector primitives + LayerZero / USDT0 suite
 **Commit Range**: `cf5a52dd` → `e1a768df`
 **Synced By**: /update-project compiler

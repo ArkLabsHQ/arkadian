@@ -1,5 +1,41 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-09 - Release 0.4.43: opt-in Intent + VirtualTx repository layer, typed FetchError
+**From**: `e023e1db2f9dcb42badf9c24923f28b8c17bf761`
+**To**: `6f1a8e77afa738db2b5d0bc3ae6943d4403661c3`
+**Synced By**: update-project skill
+**Status**: Substantial feature landing cut as `@arkade-os/sdk` 0.4.43 / `@arkade-os/boltz-swap` 0.3.48. Adds an **opt-in** Intent + VirtualTx repository layer (event-sourced settlement-intent persistence + crash-recovery reconciliation + intent-locked-balance exclusion), a typed transport-level `FetchError`, the `ChainedTxType` public export, and a best-effort virtual-tx cache for unilateral exit (`VirtualTxRepository`, **experimental/inert**). Off by default: absent the new `StorageConfig.intentRepository?` / `virtualTxRepository?` fields, wallet behaviour is byte-for-byte unchanged. This release also publishes the three previously-unreleased post-0.4.42 changes (cel-js 8 SES bump #602, regtest arkd v0.9.11 pin #604, DIGEST_MISMATCH e2e #605).
+
+**Commits analyzed** (46 non-merge commits, `0e4888fa` → `6f1a8e77`):
+- `6f1a8e77` chore: release @arkade-os/sdk@0.4.43, @arkade-os/boltz-swap@0.3.48
+- Intent/VirtualTx repository domain types + interfaces (`0e4888fa`) and all four backends: in-memory (`fca16145`, `0693da81`), SQLite (`21cb427f`, `dddcebbc` + `transaction.ts` serialization `9540a551`), IndexedDB (`46ac59c7`, `f8e72bed`, `a0a15e05` — schema v4/v5, `73184652` unique intentId migration), Realm (`4a1b15f3`, `822805d8`, `3b25f93e` — schema v3); cross-backend conformance suites (`9966a381`)
+- Wallet intent wiring: `IntentStateReducer` (`b09b30e2`), opt-in intent/virtualtx injection + locked-outpoint balance exclusion (`e8a9c336`), persist intents through `settle()` via event-sourced state (`18a5cf69`), crash-recovery reconciliation, offline balance safety (`09d4f2ef`)
+- VirtualTxRepository features: chain→branch/virtualtx mapping + `virtualTxMode` config (`55791243`), repo-first unilateral-exit resolution (`1bed00bd`), automated prune-on-spend during sync (`6ccc5bb8`, `fad8093e`) — then the nark-persistence branch made **inert** (no auto-migration, `44132e30`) and `virtualTxRepository` marked experimental/inert (`c4ea735d`); sqlite/realm repos kept behind subpath exports (`57011e24`)
+- `8b879cfa` typed `FetchError` wrapping transport-level fetch failures
+- `99ea6856` export `ChainedTxType` from public entrypoints; `412a69ec` rename `VirtualTx.hex` → `psbt` (base64); `5b1b574b` don't downgrade a known VirtualTx type on upsert; `0b12f6e9` fold duplicate txids in IndexedDB `upsertVirtualTxs`
+- `e13fbd36` refresh deprecated-signer cache on migration so custom renewal loops survive rotation
+- Hardening: intentId uniqueness across backends (`5b249be8`), migration hardening + serialized intent clear (`e54ce02c`), locked-balance accounting + intent/repo write-path hardening (`58a9dd43`), batch_in_progress VTXO-locking divergence pin (`d3a6f164`), unused-intent-index drop + virtualtx N+1 collapse (`3605dadf`), stable intent ordering + public repo exports + drop root `wallet.ts` (`3c3fd620`)
+- Doc/comment trims (`03cff961`, `d209c7d2`, `80910d95`, `3c45f07e`)
+
+**Notable source changes**:
+- **Intent repository** (`src/repositories/intentRepository.ts`): `IntentRepository` (`version: 1`) keyed by `intentTxId`; `ArkIntent` / `ArkIntentState` (`waiting_to_submit` / `waiting_for_batch` / `batch_in_progress` / `batch_failed` / `batch_succeeded` / `cancelled`) / `IntentFilter`; `INTENT_TERMINAL_STATES` / `isTerminalIntentState` / `ALL_INTENT_STATES`; backend-agnostic `assertIntentIdUnique` / `intentMatchesFilter` / `intentPageBounds`. `getLockedVtxoOutpoints()` returns non-terminal-intent outpoints (deliberate divergence from NArk — TS wallet is offline-first single-source-of-coin-locking, so it also holds `batch_in_progress`).
+- **VirtualTx repository** (`src/repositories/virtualTxRepository.ts`): `VirtualTxRepository` (`version: 1`) with `VirtualTx` (`psbt: base64 | null`), `VtxoBranch`, `ChainedTxType` enum + `mergeChainedTxType`. `pruneForSpentVtxo` drops branch rows then deletes orphaned virtual-tx rows.
+- **Event-sourced persistence**: `intentStateReducer.ts` (pure/monotonic — only the three batch-boundary events move state, terminal sticky), `intentPersistenceHandler.ts` (`wrapHandlerWithIntentPersistence` — terminal write from the awaited batch hooks, ordered before `Batch.join` returns), `intentReconciliation.ts` (`reconcileIntents` — conservative crash-recovery on the online sync path; freshness guard avoids overwriting a concurrent `settle()`). `Wallet.settle` writes `waiting_to_submit` → `waiting_for_batch` → terminal snapshots; a post-commit failure re-persists `batch_succeeded` (never deletes a committed intent), a pre-commit failure records `cancelled`.
+- **Balance**: `WalletBalance.available` redefined as `settled + preconfirmed` over VTXOs not locked by a non-terminal intent; new `excludeLockedOutpoints` / `spendableVtxosExcludingLocked` (offline-first, fails open on store read error). `settled`/`preconfirmed`/`total` still count locked VTXOs.
+- **FetchError** (`src/utils/fetch.ts`): `baseFetch` wraps transport-level rejections in `FetchError` (`{ url?, method? }`, `Error.cause` preserved); input widened to `RequestInfo | URL`; re-exported from the package root.
+- **IndexedDB schema**: shared wallet DB pinned at `DB_VERSION = 3`; intent/virtualtx stores at `INTENT_DB_VERSION = 5` (v5 makes `intentId` unique) on a dedicated DB name reachable only via the opt-in repos — upgrading the SDK never migrates an existing user's DB. Realm schema v3; SQLite `transaction.ts` serializes writes per shared connection.
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — six new ts-sdk capability entries (intent+virtualtx repo layer, event-sourced persistence + crash-recovery, intent-locked balance, repo-first unilateral exit, FetchError, 0.4.43 release) + ~23 new tags
+- `docs/projects/ts-sdk/INDEX.md` — version table + Quick-Reference Version cell bumped to 0.4.43 / 0.3.48 with the 0.4.43 publish note; seven new Key Concepts entries
+- `docs/projects/ts-sdk/system/architecture.md` — repository module tree extended with intent/virtualtx modules across all backends; wallet section gains `intentStateReducer` / `intentPersistenceHandler` / `intentReconciliation`; `fetch.ts` (FetchError) and `unroll.ts` (repo-first) annotated
+- `docs/projects/ts-sdk/system/project_overview.md` — version bumped to 0.4.43 / 0.3.48; two new Core Features rows (Intent + VirtualTx repositories, Typed transport FetchError)
+- `change-log/last-sync.txt` → `6f1a8e77`
+
+**Notes**:
+- The whole intent/virtualtx layer is **opt-in**. The `virtualTxRepository` is **experimental/inert** this release — only `Unroll.Session.create(..., virtualTxRepository?)` reads/writes it as a best-effort raw-tx cache; `ContractManager` is never given it and normal sync never populates/prunes it. The `virtualTxMode` config added mid-range (`55791243`) was made inert before the release cut and is not part of the public surface.
+- No public-API break: default wallet behaviour (no repos configured) is byte-for-byte unchanged; all new surface is additive.
+
 ## 2026-07-08 - Post-0.4.42 unreleased: cel-js 8 Snap/SES bump, regtest arkd v0.9.11 pin, DIGEST_MISMATCH e2e
 **From**: `848be6a0edd3c427f804bda3e073e920c463101f`
 **To**: `e023e1db2f9dcb42badf9c24923f28b8c17bf761`
