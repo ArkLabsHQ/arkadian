@@ -63,8 +63,9 @@
 ## Ark/Bitcoin Libraries
 
 ### @arkade-os/sdk
-- **Version**: ^0.4.0-next.7
+- **Version**: 0.4.43
 - **Purpose**: Arkade protocol SDK for API client, type definitions, and indexer access
+- **Note**: As of 0.4.43 the SDK models asset amounts/supply as `bigint` (previously `number`). The explorer adapts at the boundary — display helpers (`formatAssetAmount`, `AssetAmountDisplay`) accept `number | bigint`, while aggregation (`aggregateAssetBalances`) and cached asset supply are normalised to `number` via `Number(...)` (sessionStorage JSON cannot serialise bigint)
 
 ### @scure/btc-signer
 - **Version**: 2.0.1
@@ -114,7 +115,7 @@
 | Styling | tailwindcss | 4.1.17 | CSS framework |
 | Virtualization | @tanstack/react-virtual | ^3.14.3 | Windowed long-list rendering |
 | Icons | lucide-react | 0.554.0 | Icons |
-| Ark SDK | @arkade-os/sdk | ^0.4.0-next.7 | Ark protocol |
+| Ark SDK | @arkade-os/sdk | 0.4.43 | Ark protocol |
 | Bitcoin | @scure/btc-signer | 2.0.1 | TX parsing |
 | Bitcoin | @scure/base | 2.0.0 | Encoding |
 | Build | vite | 5.1.0 | Bundler |

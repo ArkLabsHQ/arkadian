@@ -1,5 +1,37 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-10 - Documentation Sync
+**Commit**: `90cf483285ad7302b7a81cd37ac0d685276ea7a9`
+**Previous Sync**: `c00b820dbfd56ffa0209cd8281d88911ed710e43`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 non-merge commits
+- `90cf4832` fix(wallet): preserve home card borders on first load (#747)
+- `41510a87` fix delegate unit tests (#737)
+- `ca4f173b` fix deduct from amount warning (#738)
+- `3e5df150` fix(wallet): keep bitcoin price independent from chart range (#733)
+
+**Features Added/Modified**:
+- Bitcoin-detail price independence (PR #733, `src/screens/Wallet/BitcoinDetail.tsx`): the headline price and portfolio fiat value now derive from the always-current spot price (`currentUnitPrice` — latest tick or the 1-unit fallback) instead of the last point of the selected chart range, so switching the chart window (1D/1W/…) no longer changes the displayed price or balance. Only the chart line / Liveline uses the range's last value (renamed `unitPrice` → `chartUnitPrice`). New coverage in `src/test/screens/wallet/bitcoin-detail.test.tsx`.
+
+**Minor / Internal (SYNC_HISTORY-only, low doc surface)**:
+- Deduct-from-amount warning fix (PR #738, `src/screens/Wallet/Send/Form.tsx`): the Send form forces `deductFromAmount = false` for Ark-address sends, so the "deduct fees from amount" warning no longer fires on off-chain payments.
+- Delegate unit-test fix (PR #737, `src/screens/Settings/Delegates.tsx` / `src/providers/navigation.tsx`): `DelegateCard` splits delegate population from connection-testing into two effects — populate `getDelegateForNetwork(aspInfo.network)`, then `testConnection` once `delegate.url` + `aspInfo.signerPubkey` exist. `navigate()` now early-returns when already on the target root page with an empty back stack (no redundant self-navigation). New tests in `src/test/providers/navigation.test.tsx` and `src/test/screens/settings/delegates.test.tsx`.
+- Home card border fix (PR #747, `src/components/WalletLoadIn.tsx`): `WalletStaggerContainer`/`WalletStaggerChild` drop `paint` from their `contain` style (`layout style paint` → `layout style`) so home card borders are no longer clipped during the first-load stagger animation.
+
+**Configuration / Dependency Changes**: None.
+
+**Documentation Impact**: Minor — all four commits are bug fixes. Added one consolidated fixes bullet to the master registry and project index; no capability, dependency, or architecture changes.
+
+**Files Updated**:
+- docs/INDEX.md (new Bitcoin-detail price-independence + Send/navigation fixes capability bullet)
+- docs/projects/wallet/INDEX.md (frontmatter `version` 1.2.32 → 1.2.33 + `last_sync_commit`)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-09 - Documentation Sync
 **Commit**: `c00b820dbfd56ffa0209cd8281d88911ed710e43`
 **Previous Sync**: `1e0a082b01157861bf03ac2d5416330c429e0f7a`

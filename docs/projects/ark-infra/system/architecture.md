@@ -186,8 +186,17 @@ for gRPC, and path patterns (`arkd_sse_streaming_endpoint_paths`) for SSE. ALB
 Cloudflare's 120s edge idle. ALB access + connection logs ship to
 `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`, default 30,
 staging 7). Grafana listener rule was deprioritized to 100 so it remains the fallback.
-Staging: A-record `staging.arkade.sh` → ALB (Route53 zone in `aws/dev-438465126741/route53.tf`)
-plus `staging-cf.arkade.sh` (Cloudflare-proxied, TLS Full Strict via ACM SANs).
+Staging (since #110): primary host is now `btcstaging.arkade.sh` (A-record → ALB), with
+`staging.arkade.sh` retained in `arkd_hosts`; the ALB cert switched to a new
+`btcstaging.arkade.sh` ACM cert (SANs `btcstaging.arkade.sh` + `*.btcstaging.arkade.sh`) while
+the old `staging.arkade.sh`/`staging-cf.arkade.sh` cert stays as a temporary extra listener cert
+(`aws_lb_listener_certificate.tmp`, TODO removal).
+
+**ALB-fronted emulator (2026-07, #109):** the shared ALB also fronts the `emulator` service via
+`modules/ark/emulator.tf` — a gRPC target group (`emulg-*`, priority 30) and a REST target group
+(`emulr-*`, priority 35) on `emulator_port` (staging `7073`), routed by `emulator_hosts`
+(staging `emulator.staging.arkade.sh`, A-record → ALB), with an `app_sg`←`alb_sg` ingress rule
+on that port.
 
 ### 4. Data Flow Architecture
 
@@ -441,6 +450,8 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
 - **CloudWatch Logs (primary)**: All container stdout/stderr is shipped via the Docker
   `awslogs` driver to log group `/ark/${ARK_ENVIRONMENT}` (14-day retention) — one stream
   per service. ⚠️ `docker logs` no longer prints output on the host; query CloudWatch instead.
+- **Per-service log groups (since #109)**: selected services get a dedicated Terraform-managed
+  log group + retention — first is `/ark/${env}/emulator` (`modules/ark/emulator.tf`).
 - **Loki**: Log aggregation for telemetry stack (Grafana Explore)
 - **CloudWatch Logs**: SSM session logs (`/aws/ssm/sessions/{env}`)
 
@@ -448,8 +459,15 @@ OpenTofu State → S3 (versioned) + DynamoDB (locking)
 - **Jaeger**: Distributed tracing for request flows
 
 ### Alerting
-- **Alertmanager**: Alert routing and grouping
+- **Alertmanager**: Alert routing and grouping (telemetry stack)
 - **Slack Integration**: Real-time notifications to channels
+- **AWS-native alerting spine (since #109, `modules/alerting/`)**: CloudWatch alarms publish to
+  an account-level `ark-alerts-${env}` SNS topic, which an **AWS Chatbot (Amazon Q)** Slack
+  channel configuration renders into Slack. Chatbot's control plane is **us-east-1 only** (module
+  takes an `aws.us_east_1` provider alias; SNS topic subscribed cross-region). A read-only
+  `ark-chatbot-${env}` IAM role backs alarm click-through; `guardrail_policy_arns` (default
+  `ReadOnlyAccess`) caps Slack-run commands. Wired on staging (`aws/dev-438465126741`); the
+  emulator error alarm is the first producer.
 
 ## Cost Optimization
 

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.10
-last_sync_commit: 20f26501d03a937a513f38e01607ed6b43ff5f78
-last_sync_date: 2026-07-09T00:00:00Z
+version: 1.7.11
+last_sync_commit: 13002809c75d69518605ea80f46999bb5cfeb54b
+last_sync_date: 2026-07-10T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:
@@ -117,6 +117,7 @@ Analysis and summaries of pull requests.
 All container stdout/stderr is shipped directly to CloudWatch via the Docker `awslogs` driver:
 - Log group: `/ark/${ARK_ENVIRONMENT}` (14-day retention, created by OpenTofu)
 - Per-service streams: `traefik`, `arkd`, `arkd-wallet`, `kms-unlocker`, `nbxplorer`, `bitcoind`, `cloudflared`, `threat-monitor`, `ark-metrics`
+- **Per-service log groups (new since #109):** a new pattern gives selected services their **own** log group for better segmentation/alerting — first adopted by `emulator` (`/ark/${env}/emulator`, provisioned in `modules/ark/emulator.tf` with `log_retention_days`, error metric filter + CloudWatch alarm). Expect more services to migrate off the shared group over time
 - ⚠️ `docker logs` no longer works on the host — use the CloudWatch UI / `aws logs tail`
 - Manual deploys must export `ARK_ENVIRONMENT` in `.env.ark`
 
@@ -225,6 +226,7 @@ make clean-local-state ENV=prod
 - **kms-unlocker** — Automatic wallet unlock with AWS KMS
 - **nbxplorer** (prod `2.6.8`, regtest `2.6.7-curl`) — Bitcoin blockchain indexer (automatic). **Prod (since #97)** runs the stock `nicolasdorier/nbxplorer:2.6.8` image directly — the `compose/Dockerfile.nbxplorer` curl-override hack was removed and the file deleted. **Regtest** still builds `ark-infra/nbxplorer:2.6.7-curl` from `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`). JSON-RPC health check (`POST /v1/cryptos/BTC/rpc` with `getblockchaininfo`, probing for `"result"`, 60 retries × 5s); `arkd-wallet` `depends_on: { nbxplorer: { condition: service_healthy } }` (prod + regtest)
 - **bitcoind** (8333, 8332) — Full Bitcoin node [prod only]
+- **emulator** (`ghcr.io/arkade-os/emulator:v0.0.4`, prod only, since #109) — Emulator daemon with multiplexed REST + gRPC on `:7073`. `depends_on: arkd`, `EMULATOR_ARKD_URL=http://arkd:7070`. Fronted by the shared ALB (`modules/ark/emulator.tf`) via a gRPC target group (`emulg-*`, priority 30, `/grpc.health.v1.Health/Check`) and a REST target group (`emulr-*`, priority 35, `/healthz`), routed by `emulator_hosts` with an ALB→app ingress rule on the emulator port. Ships logs to a **dedicated** CloudWatch log group `/ark/${env}/emulator` (stream `ark-app`, `awslogs` non-blocking, multiline pattern for Go panics/`time=` lines) — the first use of the per-service-log-group pattern. Error alerting: metric filter `EmulatorErrorCount` (namespace `Ark/${title(env)}`, matches `level=error`/`level=fatal`/`panic:`) drives the `EmulatorErrors-${env}` alarm, which publishes to the account-level SNS alerting topic when `alerts_sns_topic_arn` is set (empty = alarm created for console visibility but notifies nobody). Staging: `emulator_hosts = ["emulator.staging.arkade.sh"]` (Route53 A-alias to ALB), `emulator_port = 7073`
 
 ### Administration
 - **ark-admin-app** — Go-based web application for managing AWS Ark infrastructure via SSM commands and port forwarding. Provides web UI for service deployment, port forwarding management, infrastructure overview, and health monitoring.
@@ -245,7 +247,7 @@ make clean-local-state ENV=prod
   - ALB `idle_timeout = 180s` (exceeds arkd 60s SSE heartbeat + Cloudflare 120s edge)
   - Access + connection logs to `ark-logs-${env}-${account_id}` S3 bucket (lifecycle by `alb_log_retention_days`, default 30 days, staging 7)
   - Spot-check: `scripts/alb-spot-check.sh <host>` exercises gRPC, REST `/v1/info`, and SSE streams over HTTP/1.1 and HTTP/2
-  - **Endpoints** — staging: `staging.arkade.sh` / `staging-cf.arkade.sh`, Grafana `telemetry.staging.arkade.sh`. Prod (live since 2026-05-26, `apps/ark/prod/`): **`arkade.computer`** (primary since #104/#107) + `prod.arkade.sh`, Grafana `telemetry.prod.arkade.sh`; app instance `i-0f3d436aad5dbf55e`, `alb_log_retention_days = 30`. `arkd_hosts = ["arkade.computer", "prod.arkade.sh"]`; primary ALB cert is now the dedicated `arkade.computer` ACM cert (`f80fd08a-…`, provisioned in #104). The prior `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is retained as a **temporary extra listener cert** via `aws_lb_listener_certificate.tmp` (marked with a TODO to remove after the ALB deployment stabilizes) — it uses the new `module.ark.alb_https_listener_arn` output (`modules/ark/outputs.tf`)
+  - **Endpoints** — staging (since #110): **`btcstaging.arkade.sh`** (primary ALB host) + `staging.arkade.sh`, Grafana `telemetry.staging.arkade.sh`, emulator `emulator.staging.arkade.sh`. `arkd_hosts = ["btcstaging.arkade.sh", "staging.arkade.sh"]` (dropped `staging-cf.arkade.sh` from the primary set); primary ALB cert is now the dedicated `btcstaging.arkade.sh` ACM cert (`b4977685-…`, SANs `btcstaging.arkade.sh` + `*.btcstaging.arkade.sh`). The prior `staging.arkade.sh`/`*.staging.arkade.sh`/`staging-cf.arkade.sh` cert (`7b9a0e38-…`) is retained as a **temporary extra listener cert** via `aws_lb_listener_certificate.tmp` (TODO to remove after the ALB deployment stabilizes), attached using `module.ark.alb_https_listener_arn`. Prod (live since 2026-05-26, `apps/ark/prod/`): **`arkade.computer`** (primary since #104/#107) + `prod.arkade.sh`, Grafana `telemetry.prod.arkade.sh`; app instance `i-0f3d436aad5dbf55e`, `alb_log_retention_days = 30`. `arkd_hosts = ["arkade.computer", "prod.arkade.sh"]`; primary ALB cert is now the dedicated `arkade.computer` ACM cert (`f80fd08a-…`, provisioned in #104). The prior `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is retained as a **temporary extra listener cert** via `aws_lb_listener_certificate.tmp` (marked with a TODO to remove after the ALB deployment stabilizes) — it uses the new `module.ark.alb_https_listener_arn` output (`modules/ark/outputs.tf`)
 
 ### Data Stores
 - **PostgreSQL** (RDS) — projection, event, nbxplorer databases
@@ -347,7 +349,8 @@ Defined in `aws/{prod-982590065524,dev-438465126741}/`, built from reusable modu
 ### Modules
 - `modules/vpc/` — Shared VPC module (since #86, 2026-06): VPC, public/private subnets across 3 AZs (keyed by AZ suffix), IGW, NAT gateway(s) controlled by `nat_per_az` (default `true`, HA), private route tables, egress-only `vpc_endpoints_sg` (callers add their own ingress rules), six interface VPC endpoints + S3 gateway endpoint. Subnets are tagged `Tier = "public"`/`"private"` for cleaner data-source lookups. Not yet consumed by `apps/ark/*` — invocation in `docker-compose/opentofu/main.tf` is commented out pending migration.
 - `modules/foundation/` — Foundation module (since #99, 2026-07): **long-lived** resources that survive app-stack destroy/recreate cycles. Creates the master KMS key (`alias/ark-master-{env}`, multi-region symmetric, not shared cross-account), the data KMS key (`alias/ark-data-{env}`, multi-region symmetric, optionally shared cross-account via `data_key_cross_account_ids`), and the arkd wallet signer-key Secrets Manager secret (`ark/${env}/arkd-wallet-signer-key`, encrypted with the master key). Both keys have rotation enabled; the module creates **containers only** — secret/SSM values are set outside Terraform to keep them out of state. Vars: `env`, `kms_key_deletion_window_in_days` (default 30, 7–30), `data_key_cross_account_ids` (default `[]`). Wired into `aws/dev-438465126741/main.tf` (env=`staging`, deletion window 7, data key shared with prod account `982590065524`).
-- `modules/ark/` — Shared Ark app + telemetry module (ALB, arkd target groups, telemetry ASG, Cloud Map, Ansible provisioning, S3 buckets)
+- `modules/alerting/` — Account-level alerting spine (since #109, 2026-07): an `ark-alerts-${env}` SNS topic (CloudWatch alarms publish to it, restricted to same-account `cloudwatch.amazonaws.com`) wired into an **AWS Chatbot (Amazon Q) Slack channel configuration** that renders alarm cards in Slack. Chatbot's control plane is **us-east-1 only**, so the channel config uses an `aws.us_east_1` provider alias while the SNS topic lives in the default region (subscribed cross-region). A read-only `ark-chatbot-${env}` IAM role (`CloudWatchReadOnlyAccess` + `CloudWatchLogsReadOnlyAccess`) enables alarm click-through; `guardrail_policy_arns` (default `ReadOnlyAccess`) caps commands run from Slack; `logging_level = ERROR`. Vars: `env`, `slack_channel_id`, `slack_team_id`, `guardrail_policy_arns`. Outputs: `sns_topic_arn`, `chatbot_configuration_arn`. Wired into `aws/dev-438465126741/main.tf` (env=`staging`), which adds the `aws.us_east_1` provider and bumps `hashicorp/aws` to `~> 5.61` (required for `aws_chatbot_slack_channel_configuration`)
+- `modules/ark/` — Shared Ark app + telemetry module (ALB, arkd + emulator target groups, telemetry ASG, Cloud Map, Ansible provisioning, S3 buckets, per-service log groups + error alarms)
 - `modules/ark-iam-roles/` — SAML-federated IAM roles + guardrail policies (per account)
 - `modules/ark-gws-sync/` — Lambda syncing Google Workspace group membership to AWS role attribute
 

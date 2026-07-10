@@ -192,8 +192,13 @@ ark-infra/
    - Listener rules route by host header (`arkd_hosts`), `content-type: application/grpc*`, and SSE path patterns
    - HTTP/1.1 default (`arkd_http1_support = true`); idle timeout 180s (exceeds arkd 60s heartbeat + Cloudflare 120s edge)
    - Access + connection logs to `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`)
-   - Staging endpoints: `staging.arkade.sh` (direct A record), `staging-cf.arkade.sh` (Cloudflare proxied, TLS Full Strict)
+   - Staging endpoints (since #110): `btcstaging.arkade.sh` (primary A record), `staging.arkade.sh` (retained in `arkd_hosts`); primary ALB cert switched to the new `btcstaging.arkade.sh` ACM cert (`b4977685-…`, SANs `btcstaging.arkade.sh` + `*.btcstaging.arkade.sh`); the old `staging.arkade.sh`/`*.staging.arkade.sh`/`staging-cf.arkade.sh` cert (`7b9a0e38-…`) kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp`, TODO to remove once stabilized)
    - Prod endpoints: `arkade.computer` (primary since #104/#107), `prod.arkade.sh` (direct A record); Grafana at `telemetry.prod.arkade.sh`; `alb_log_retention_days = 30`. Primary ALB cert is the dedicated `arkade.computer` ACM cert (`f80fd08a-…`); the old `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp` on `module.ark.alb_https_listener_arn`, TODO to remove once stabilized)
+
+4. **Shared ALB → emulator** (prod service, staging routing, new in #109)
+   - Two target groups on `emulator_port` (staging `7073`): `emulg-*` (gRPC, priority 30), `emulr-*` (REST, priority 35), routed by `emulator_hosts` (`modules/ark/emulator.tf`)
+   - Staging endpoint: `emulator.staging.arkade.sh` (direct A record → ALB)
+   - Dedicated log group `/ark/${env}/emulator` + error alarm publishing to the account-level SNS alerting topic
 
 ### Telemetry Stack
 

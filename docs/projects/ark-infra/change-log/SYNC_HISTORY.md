@@ -1,5 +1,41 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-10 - Documentation Update
+**Commit**: `13002809c75d69518605ea80f46999bb5cfeb54b`
+**Previous Sync**: `20f26501d03a937a513f38e01607ed6b43ff5f78`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (#109 emulator + alerting, #110 btcstaging ALB)
+
+**Highlights**:
+- 🖥️ **Emulator deployed as Compose service (#109)**: new `emulator` service
+  (`ghcr.io/arkade-os/emulator:v0.0.4`, prod only) on `:7073` (multiplexed REST + gRPC),
+  `depends_on: arkd`, `EMULATOR_ARKD_URL=http://arkd:7070`. `modules/ark/emulator.tf` provisions
+  a **dedicated CloudWatch log group** `/ark/${env}/emulator` (first use of the per-service
+  log-group pattern), an error metric filter + `EmulatorErrors-${env}` alarm, ALB gRPC/REST target
+  groups (`emulg-*` priority 30, `emulr-*` priority 35) and an ALB→app ingress rule.
+- 🔔 **Alerting spine (#109)**: new `modules/alerting/` — `ark-alerts-${env}` SNS topic →
+  **AWS Chatbot (Amazon Q)** Slack channel configuration (Chatbot control plane is us-east-1 only;
+  module takes an `aws.us_east_1` provider alias). Read-only `ark-chatbot-${env}` IAM role;
+  `guardrail_policy_arns` default `ReadOnlyAccess`. Wired into `aws/dev-438465126741/main.tf`
+  (env=`staging`), which also bumps `hashicorp/aws` to `~> 5.61`.
+- 🌐 **Staging ALB → `btcstaging.arkade.sh` (#110)**: `arkd_hosts` now
+  `["btcstaging.arkade.sh", "staging.arkade.sh"]` (drops `staging-cf.arkade.sh`); new
+  `btcstaging.arkade.sh` ACM cert (`b4977685-…`) becomes primary, old `7b9a0e38-…` cert retained
+  as a temporary extra listener cert. Emulator gets `emulator.staging.arkade.sh` A-record.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities: staging btcstaging migration, emulator service, alerting module; Tags)
+- docs/projects/ark-infra/INDEX.md (frontmatter → 1.7.11 / new commit / date; emulator service entry; staging endpoints; `modules/alerting/` + `modules/ark/` module notes; per-service log group note)
+- docs/projects/ark-infra/system/architecture.md (ALB-fronted emulator, staging btcstaging hosts, per-service log group, AWS-native alerting spine)
+- docs/projects/ark-infra/system/aws-infrastructure.md (ALB listener rule table + emulator target groups, per-service log groups section)
+- docs/projects/ark-infra/system/project_overview.md (staging endpoints, Shared ALB → emulator)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-09 - Documentation Update
 **Commit**: `20f26501d03a937a513f38e01607ed6b43ff5f78`
 **Previous Sync**: `7eb67fca34e32e8f3a6a9fbd745f0023818418a8`

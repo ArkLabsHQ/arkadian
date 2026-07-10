@@ -261,10 +261,14 @@ A single internet-facing ALB (`ark-{env}`) hosts both the telemetry Grafana UI a
 |----------|-----------------|--------------|---------|
 | 10 | `host_header ∈ arkd_hosts` + `content-type: application/grpc*` | `arkdg-*` (HTTP/GRPC) | arkd gRPC |
 | 15 | `host_header ∈ arkd_hosts` + `path ∈ arkd_sse_streaming_endpoint_paths` | `arkds-*` (HTTP1) | arkd SSE streams |
+| 30 | `host_header ∈ emulator_hosts` + `content-type: application/grpc*` | `emulg-*` (HTTP/GRPC, port `emulator_port`) | emulator gRPC |
+| 35 | `host_header ∈ emulator_hosts` | `emulr-*` (HTTP1, port `emulator_port`) | emulator REST |
 | (default for host) | `host_header ∈ arkd_hosts` | `arkdr-*` (HTTP1) | arkd REST |
 | 100 | `host_header = telemetry_grafana_host` | grafana TG (port 3000) | Grafana UI |
 
-Target groups all attach the single `app_instance_id`, port 7070. Health checks: gRPC uses
+arkd target groups attach the single `app_instance_id` on port 7070; emulator target groups
+(`modules/ark/emulator.tf`, since #109) attach it on `emulator_port` (staging `7073`) with an
+`app_sg`←`alb_sg` ingress rule on that port. Health checks: gRPC uses
 `/grpc.health.v1.Health/Check` (matcher `0`); REST/SSE use `/healthz` (matcher `200`).
 
 **Behavior**:
@@ -296,6 +300,10 @@ and SSE `/v1/batch/events` over both HTTP/1.1 and HTTP/2 and reports per-protoco
   Go panics / dated lines / nbxplorer ANSI escapes)
 - Required env: `ARK_ENVIRONMENT` and `AWS_REGION` in `.env.ark`
 - ⚠️ `docker logs <container>` no longer prints output on the host — query CloudWatch instead
+
+**Per-service log groups** (since #109) — new pattern: selected services get their own log
+group + retention (via Terraform) for cleaner segmentation and per-service alerting:
+- `/ark/${env}/emulator` (`modules/ark/emulator.tf`, retention `log_retention_days`, stream `ark-app`) — carries a metric filter `EmulatorErrorCount` (namespace `Ark/${title(env)}`) → `EmulatorErrors-${env}` alarm that notifies the account-level SNS topic when `alerts_sns_topic_arn` is set
 
 **SSM Session Logs**:
 - Log group: `/aws/ssm/sessions/{env}`

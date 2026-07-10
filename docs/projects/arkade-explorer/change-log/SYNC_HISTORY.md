@@ -1,5 +1,25 @@
 # Arkade Explorer -- Sync History
 
+## 2026-07-10 -- Incremental Documentation Sync
+**Commit**: `31410bfab3604c31d4dec27784f9b17940bb79f7`
+**Previous Sync**: `34295ba46a65e84f4b0ff1992445cf4c1f70807e`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `31410bf` chore(deps): bump @arkade-os/sdk to 0.4.43 (bigint asset amounts) (#32)
+
+**Changes**:
+- SDK bumped 0.4.13 → 0.4.43; asset amount/supply moved from `number` to `bigint`
+- Explorer adapts at the boundary: `formatAssetAmount`/`AssetAmountDisplay` accept `number | bigint`; `aggregateAssetBalances` and cached asset supply normalise via `Number(...)`
+- No new features, endpoints, or breaking changes to explorer behaviour (internal type adaptation only)
+
+**Files Updated**:
+- docs/projects/arkade-explorer/system/tech-stack.md (SDK version 0.4.43 + bigint note)
+- docs/INDEX.md (SDK dependency version + bigint note)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
 ## 2026-06-26 -- Incremental Documentation Sync
 **Commit**: `34295ba46a65e84f4b0ff1992445cf4c1f70807e`
 **Previous Sync**: `cbdeba228b741868438ca4ce22fd11246dd255a4`

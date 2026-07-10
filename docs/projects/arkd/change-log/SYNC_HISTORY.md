@@ -1,5 +1,31 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-10 - Documentation Update
+**Commit**: `ac3b5634` (arkd repository)
+**Previous Sync**: `0cb5f8e9`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `ac3b5634` indexer: Snapshot listener topics in dispatch loop to avoid map race (#1144)
+
+**Bug Fix (PR #1144 — indexer dispatch-loop map race)**:
+- `listenToTxEvents` (`internal/interface/grpc/handlers/indexer.go`) ranged `l.topics` directly without the listener lock while the `Subscribe`/`Update`/`Unsubscribe` RPCs mutate it under the lock via `addTopics`/`removeTopics`/`overwriteTopics`. A concurrent map iteration and write is a fatal, unrecoverable Go runtime error that crashes the whole process.
+- The dispatch loop now iterates a locked snapshot from `l.getTopics()`, which copies the map keys under the lock (the same pattern `matchesTx` already uses for filters).
+- A new `-race` regression test drives the dispatch loop against concurrent topic updates.
+
+**Surface Change**: None — internal-only fix. No proto / gRPC method / env-var / migration change.
+
+**Breaking Changes**: None.
+
+**Files Updated**:
+- docs/INDEX.md (recent-changes bullet, tags, debug triggers)
+- docs/projects/arkd/INDEX.md (version bump 1.3.21 → 1.3.22, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-09 - Documentation Update
 **Commit**: `0cb5f8e9` (arkd repository)
 **Previous Sync**: `db93f3d6`
