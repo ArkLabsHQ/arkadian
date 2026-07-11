@@ -1,5 +1,32 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-11 - Documentation Update
+**Commit**: `557f7c5c` (arkd repository)
+**Previous Sync**: `ac3b5634`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `557f7c5c` Fix retry accepting an already requested but failed offchain tx (#1147)
+
+**Bug Fix (PR #1147 — offchain-tx retry-after-fail replay)**:
+- `OffchainTx.on` (`internal/core/domain/offchain_tx.go`) dropped a replayed `OffchainTxRequested` event when the aggregate was past the undefined stage **or** in any failed state (`s.Stage.Code != OffchainTxUndefinedStage || s.Stage.Failed`), so a tx that failed while still in the `Requested` stage could never be re-requested and retried to finalization.
+- The guard is now `s.Stage.Code != OffchainTxUndefinedStage && !canRetry`, where `canRetry = s.Stage.Failed && s.Stage.Code == OffchainTxRequestedStage`. On a valid retry it resets `Stage.Failed = false` and `FailReason = ""` before re-entering the requested stage.
+- An `Accepted` tx that later failed already spent its input VTXOs and is deliberately left untouched — a new request must never reset it.
+- Covered by two new `offchain_tx` replay unit tests ("request retry after fail" finalizes; "request retry after accepted tx failed" is a no-op leaving the tx at `Accepted`/`Failed` with the original `FailReason`) plus a new e2e post-state assertion in `TestSendToCLTVMultisigClosure`.
+
+**Surface Change**: None — internal-only domain state-machine fix. No proto / gRPC method / env-var / migration change.
+
+**Breaking Changes**: None.
+
+**Files Updated**:
+- docs/INDEX.md (recent-changes bullet, tags, develop/debug triggers)
+- docs/projects/arkd/INDEX.md (version bump 1.3.22 → 1.3.23, sync commit/date)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-10 - Documentation Update
 **Commit**: `ac3b5634` (arkd repository)
 **Previous Sync**: `0cb5f8e9`

@@ -31,9 +31,11 @@ ark-infra/
 │   ├── dev-438465126741/              # Dev account (ArkDev* roles + organizations.tf for developer sandbox sub-accounts)
 │   └── prod-982590065524/             # Prod account (ArkProd* roles)
 ├── apps/                              # Per-app, per-env OpenTofu entry points
-│   └── ark/
-│       ├── staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
-│       └── prod/                      # Prod stack (since 2026-05) — composes `modules/ark` (env=prod); S3 backend `ark-prod-terraform-state`, Route53 aliases for prod.arkade.sh + telemetry.prod.arkade.sh
+│   ├── ark/
+│   │   ├── staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
+│   │   └── prod/                      # Prod stack (since 2026-05) — composes `modules/ark` (env=prod); S3 backend `ark-prod-terraform-state`, Route53 aliases for prod.arkade.sh + telemetry.prod.arkade.sh
+│   └── bitcoin/                       # Standalone Bitcoin node stacks (since 2026-07, #105)
+│       └── staging/                   # Deploys `modules/bitcoin-node` (AZ-a, t4g.medium, fixed IP 10.10.101.10) via `modules/vpc-lookup`; self-owned Route53 private zone bitcoin.ark-staging.internal
 ├── modules/                           # Reusable OpenTofu modules
 │   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning
 │   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert, 180s idle, access+conn logs)
@@ -47,11 +49,13 @@ ark-infra/
 │   │   ├── ansible/telemetry-playbook.yml # Telemetry instance provisioning (Docker, EBS data volume mount, ark-telemetry clone, systemd; renamed 2026-06, #80)
 │   │   └── agent/otel-agent-config.yaml # Local OTLP collector config used on app hosts
 │   ├── vpc/                           # Shared VPC module (since 2026-06, #86) — VPC, 3-AZ public/private subnets (tagged Tier=public|private), IGW, NAT (`nat_per_az` toggle), egress-only `vpc_endpoints_sg`, 6 interface endpoints + S3 gateway. Provider `aws ~> 5.0`. Not yet wired into apps/ark/*; migration via `scripts/migrate-vpc-state.sh`.
-│   ├── foundation/                    # Long-lived resources (since 2026-07, #99) — master + data KMS keys (aliases ark-{master,data}-{env}, multi-region, rotation on) and arkd wallet signer-key secret (ark/${env}/arkd-wallet-signer-key). Containers only; values set outside Terraform. Wired into aws/dev-438465126741/main.tf.
+│   ├── foundation/                    # Long-lived resources (since 2026-07, #99) — master + data KMS keys (aliases ark-{master,data}-{env}, multi-region, rotation on), arkd wallet signer-key secret (ark/${env}/arkd-wallet-signer-key), and (since #105) the bitcoin-node RPC password SecureString /ark/${env}/bitcoin-node/secure/rpc-password. Containers only; values set outside Terraform. Wired into aws/dev-438465126741/main.tf.
+│   ├── bitcoin-node/                  # Standalone Bitcoin node (since 2026-07, #105) — single-node ASG pinned to an AZ, re-attachable gp3 data volume (snapshot-seedable), SG (RPC/P2P/ZMQ), KMS-decrypt IAM, per-node CloudWatch log group. Config via per-instance SSM params; fixed secondary-ENI private IP; enabled toggle scales ASG to zero
+│   ├── vpc-lookup/                    # Read-only VPC discovery (since 2026-07, #105) — mirrors modules/vpc outputs by data-source lookup so app stacks reference a VPC without owning it
 │   ├── ark-iam-roles/                 # SAML-federated IAM roles + guardrail policies
 │   └── ark-gws-sync/                  # Lambda syncing GWS group → AWS role attribute
-├── packer/                            # Base AMI build (since 2026-07, #102) — base.pkr.hcl (amazon-ebs arm64 + ansible-local + manifest), variables.pkr.hcl. Produces ark-base-ubuntu-26.04-arm64-<ts> (Ubuntu 26.04, Graviton-only, eu-central-1)
-├── ansible/                           # Base-image playbook (since 2026-07, #102) — site.yml (connection-agnostic, hosts: all) + roles baseline/awscli/ssm_agent/cloudwatch_agent/ansible_runtime/deprovision. Runs at Packer build and idempotently on live hosts via /opt/ark/ansible
+├── packer/                            # AMI builds (base since #102; restructured into subdirs + bitcoin-node in #105) — packer/base/ (base.pkr.hcl → ark-base-ubuntu-26.04-arm64-<ts>, Graviton-only), packer/bitcoin-node/ (Bitcoin Core 29.0 on base → ark-bitcoin-node-<ver>-…), packer/Makefile (make ami-base / ami-bitcoin-node)
+├── ansible/                           # Playbooks + roles (since 2026-07) — site.yml (base image: baseline/awscli/ssm_agent/cloudwatch_agent/ansible_runtime/deprovision) and bitcoin-node.yml + roles/bitcoind (Bitcoin Core: SSM config, fixed-IP netplan, systemd converge/snapshot/peer-discovery units). Runs at Packer build and idempotently on live hosts via /opt/ark/ansible
 ├── scripts/                           # Repo-level scripts
 │   └── migrate-vpc-state.sh           # VPC state migration: docker-compose/opentofu → aws/{dev,prod}/ (`--dry-run` supported; backs up state, imports into `module.vpc_{env}.*`, prints `state rm` commands)
 └── docker-compose/                    # Docker Compose + OpenTofu automation
@@ -152,11 +156,12 @@ ark-infra/
    - Health check posts a JSON-RPC `getblockchaininfo` to `/v1/cryptos/BTC/rpc` probing for `"result"` (60 retries × 5s)
    - `arkd-wallet` now declares `depends_on: { nbxplorer: { condition: service_healthy } }` in both prod and regtest compose files
 
-5. **bitcoind** (Production only)
+5. **bitcoind** (Production only — Docker Compose container)
    - Full Bitcoin mainnet node
    - Fast sync via AssumeUTXO (~20 minutes)
    - P2P port 8333, RPC port 8332
    - Storage on EBS volume
+   - **Note:** a separate, **standalone Bitcoin node on its own EC2 instance** was added in #105 (2026-07) — see `modules/bitcoin-node/` + `apps/bitcoin/staging/`. Built from a dedicated Packer AMI (Bitcoin Core 29.0), Ansible-provisioned from SSM config, single-node ASG pinned to an AZ with a re-attachable data volume, a fixed private IP, and systemd converge/snapshot/peer-discovery units. Currently deployed to **staging** (`bitcoin.ark-staging.internal`), independent of the Compose stack above
 
 6. **threat-monitor** (`ghcr.io/arklabshq/threat-monitor:v0.2.5`, production only, since #92)
    - Monitors on-chain + mempool activity for threats and alerts to Slack

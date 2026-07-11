@@ -74,7 +74,7 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Pill navbar overlay**: Framer Motion spring-animated bottom nav. Since the redesign it is hidden for home-launched wallet flows (PR #627), and PR #652 removed the root **Apps** page it used to target.
 - **Receive v2**: Redesigned receive flow with styled QR, tap-to-copy QR, share button, safe-area padding
 - **Send redesign**: Pill Paste/Scan QR buttons, Max-tap confirmation, animated Scanner/Keyboard overlays, prefers-reduced-motion support
-- **Fiat symbol prefix**: Amounts render with Unicode symbols (`$100.00`, `€50.00`, `¥1,000`); CHF/CNY keep trailing-code form
+- **Fiat symbol prefix**: Amounts render with Unicode symbols (`$100.00`, `€50.00`, `¥1,000`, `R$100.00`); CHF/CNY keep trailing-code form. Supported fiat currencies: USD, EUR, GBP, JPY, CHF, CNY, and BRL (Brazilian Real, PR #743) — selectable in **Settings → Currency** alongside the BTC/sats/BIP-177 bitcoin units
 - **Asset-aware tx history**: Top-aligned rows when assets present; max 2 coins shown on right side
 - **PWA safe-area handling**: Top safe-area offset restored after the Ionic migration so installed iOS PWAs no longer render beneath the status bar; pill-navbar clearance and scroll-fade applied to the plain CSS scroll container; legacy `::part(scroll)` selectors removed
 - **Scrollbar hidden**: Cross-browser scrollbar removal moved off the (legacy Ionic) `::part(scroll)` shadow part onto `.content` directly

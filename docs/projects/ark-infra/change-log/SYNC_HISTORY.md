@@ -1,5 +1,47 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-11 - Documentation Update
+**Commit**: `8c335de6fc36cbcc65e0ccfc3db5bce14c5c6496`
+**Previous Sync**: `13002809c75d69518605ea80f46999bb5cfeb54b`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (#105 Bitcoin node on EC2, + fixed-IP OS registration fix)
+
+**Highlights**:
+- ₿ **Standalone Bitcoin node on EC2 (#105)**: a full Bitcoin Core node deployed as its
+  **own EC2 instance**, separate from the Docker-Compose `bitcoind` container. Four new pieces:
+  - **Packer restructured into subdirs** (`packer/base/`, `packer/bitcoin-node/`) + `packer/Makefile`
+    (`make ami-base` / `ami-bitcoin-node`). `packer/bitcoin-node/bitcoin-node.pkr.hcl` layers
+    **Bitcoin Core 29.0** on the latest base AMI (`data "amazon-ami"` on `tag:BaseImage=true`),
+    producing `ark-bitcoin-node-<ver>-ubuntu-26.04-arm64-<ts>`; ships `ansible/roles/bitcoind`
+    (+ `ansible/bitcoin-node.yml`) and systemd oneshot units `ark-bitcoin-node-ansible-converge`,
+    `-snapshot`, and `-peer-discovery.timer` (every 5 min).
+  - **`modules/bitcoin-node/`**: single-node ASG pinned to `subnet_id` (AZ-matched, re-attachable
+    `gp3` data volume, `data_volume_snapshot_id`-seedable), SG (RPC 8332 / P2P 8333 / optional ZMQ
+    28334-28336), KMS-decrypt IAM, per-node CloudWatch log group. All bitcoind config via per-instance
+    SSM params (`${ssm_prefix}/bitcoin-node/${name}/*`); RPC password container from `modules/foundation/`.
+    Vars: `enabled` (ASG→0 without destroying the volume), `instance_type` (`t4g.large`), `fixed_private_ip`
+    (secondary ENI IP that survives replacement), `rpc_consumer_sg_ids`/`p2p_cidr_blocks`/`vpc_endpoint_sg_ids`.
+  - **`modules/vpc-lookup/`**: read-only VPC discovery mirroring `modules/vpc`'s output interface via
+    data-source lookups (app stacks reference the VPC without owning its lifecycle).
+  - **`apps/bitcoin/staging/`**: deploys `bitcoin_node_az_a` to **staging** (AMI `ami-08cec5f57650e5b66`,
+    `t4g.medium`, AZ-a, fixed IP `10.10.101.10`, ZMQ on, whitelist = VPC CIDR) behind a self-owned
+    Route53 private zone `bitcoin.ark-staging.internal`. RPC/ZMQ ingress closed until a consumer is deployed.
+- 🩹 **Fixed-IP OS registration fix (tip)**: `ec2_eni` binds the secondary IP only at the EC2-API level;
+  Ubuntu doesn't auto-configure it, so the role now `ip addr add`s it on the primary NIC and writes a
+  `/etc/netplan/99-ark-fixed-ip.yaml` drop-in for reboot persistence — otherwise the host silently drops
+  packets to the fixed IP (RPC/P2P time out).
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Key Capabilities + Tags)
+- docs/projects/ark-infra/INDEX.md (frontmatter, AMI/Packer section, Modules, foundation entry)
+- docs/projects/ark-infra/system/project_overview.md (repo structure, bitcoind service note)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-10 - Documentation Update
 **Commit**: `13002809c75d69518605ea80f46999bb5cfeb54b`
 **Previous Sync**: `20f26501d03a937a513f38e01607ed6b43ff5f78`

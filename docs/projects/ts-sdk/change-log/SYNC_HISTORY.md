@@ -1,5 +1,38 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-11 - Unreleased on top of 0.4.43: pre-signed unilateral exit packages, offline exit-data capture, offline-first wallet
+**From**: `6f1a8e77afa738db2b5d0bc3ae6943d4403661c3`
+**To**: `fbad6ca2cd343ac361d2514f601e9e24317275b6`
+**Synced By**: update-project skill
+**Status**: Three feature landings on top of the 0.4.43 cut — **no version bump** (`package.json` still `@arkade-os/sdk` 0.4.43 / `@arkade-os/boltz-swap` 0.3.48; these are unreleased changes on `master`). (1) **Pre-signed unilateral exit packages** — a new `src/wallet/exit/` subsystem that pre-signs the entire unroll + sweep of a VTXO into a versioned JSON `ExitPackage` executable keylessly against any Esplora endpoint. (2) **Offline exit-data capture** — a `virtualTxRepository` + `StorageConfig.exitDataCapture` (Lite/Full + provider `sources`) that captures each received VTXO's exit branch locally and resolves exit data local-first, activating the 0.4.43 experimental/inert `VirtualTxRepository`. (3) **Offline-first wallet** — typed `ProviderUnavailableError` retryable-vs-terminal classification, cached-server-info boot when the operator is unreachable, `ContractManager` degrade-to-repository, and `ServerInfoSource` / `ContractSyncState` / `ProviderConnectionState` diagnostics surfaced across the service-worker + Expo boundaries. All additive — default wallet behaviour (no `exitDataCapture` / no unreachable provider) is unchanged.
+
+**Commits analyzed** (38 non-merge commits, `aeb5fa1c` → `fbad6ca2`):
+- **Unilateral exit packages**: exit package types + versioned JSON codec (`aeb5fa1c`), shared `finalizeVirtualTx` (`e62df4f5`), pure `buildAnchorChild` / `bumpP2A` w/ dust guard (`46e8e181`), pre-signable CSV sweep builder (`02633d9b`), handler-driven exit path resolution + `completeUnroll` migration (`db96d78f`), exit DAG assembly + `estimate()` quote (`009e3f34`), `prepare()` pre-signed exit packages via splitter broadcast (`0bfe512e`), keyless idempotent executor (`639525bf`), export `UnilateralExit` namespace + docs (`2c2f7f0c`), executor sweep retry for non-BIP68-final rejections (`01c4bbde`), explicit-outpoint exits incl. VHTLC condition witness (`21c2dc6f`), estimate() counts deposit UTXO as splitter input (`36f4a6a7`), graph-mode packages / deferred funding / ephemeral fee wallet (`cc61d33c`), physical-input ordering for deep offchain chains (`6371361a`), sweep-to-`sweepAddress` doc clarification (`c71023e9`), paginate exit indexer fetches + BTC-only doc (`1bc4c830`), harden exit deserialization + splitter fee guard (`fd6a9633`), CI-flake test scoping (`453df5f7`, `fc99aaab`)
+- **Exit-data capture**: ordered exit-data resolver seam (`f9741882`), indexer-backed source (`7408e48d`), repository-backed source (`046f124c`), resolve via resolver seam (`53c912f9`), capture-on-receive + prune-on-spend helpers (`b35bea7b`), capture branches on receive + prune on spend (`2cabf70b`), e2e for capture/offline-exit/prune (`1922b513`), configurable capture + provider source slot (`9605e18a`), default capture to Lite / Full opt-in (`3771ff51`), document offline exit-data availability (`28e8b5c2`)
+- **Offline-first wallet**: cached server-info fallback for offline boot (`a447dfcb`), offline-first wallet — typed provider errors, best-effort sync, diagnostics (`53ec42a2`), surface sync/connection state across the service-worker boundary (`53d91b27`), expose provider-connection state from ExpoWallet foreground (`36899749`), close degraded-state gaps in offline diagnostics (`98d64b15`), don't misclassify structured 5xx as provider-unavailable (`7a7913b9`), poll post-migration deprecated-signer status (`5bb18bd5`), drop unused `kind` field from `ProviderUnavailableError` (`da20b732`), e2e for offline wallet create + cached reads (`010d6fb2`)
+
+**Notable source changes**:
+- **`src/wallet/exit/`** (new subsystem): `types.ts` (`ExitPackage` v1, `ExitStep` union `Broadcast`/`Package`/`Bump`/`Sweep`, `ExitMode` `funded`/`graph`, `ExitQuote`/`ExitTotals`/`ExitVtxoInfo`, `serialize`/`deserializeExitPackage`), `estimate.ts`, `prepare.ts`, `executor.ts` (idempotent async-iterable `Executor` + `ExecutorEvent` + `ExitFeeWallet`), `path.ts` (`resolveUnilateralPath` / `ExitPathError`), `chain.ts`, `sweep.ts`, `finalizeVirtualTx.ts`, `capture.ts` (`captureExitBranch`, `ExitCaptureMode`, `DEFAULT_MIN_EXIT_WORTH_SATS = 1000`), `resolver.ts` (`createExitChainResolver` / `ExitChainResolver` / `ExitDataSource`), `indexerSource.ts`, `repositorySource.ts`, `index.ts` (`UnilateralExit` namespace). BTC-value only; contract-aware; sweeps embed the condition witness.
+- **`src/providers/errors.ts`**: `ProviderUnavailableError` (`retryable = true`, cause preserved), `ProviderKind = "arkade" | "indexer"` (not a structured field — postMessage), `throwIfHttpUnavailable` (429/5xx → typed, but a structured-arkd-error body stays terminal), `toProviderUnavailable`.
+- **`src/providers/availability.ts`** (new): `isRetryableProviderError(err)`.
+- **`src/wallet/arkInfoSnapshot.ts`** (new): `StoredArkInfoSnapshot` v1 (`ARK_INFO_SNAPSHOT_KEY`, bigints as strings, `serviceStatus` not cached), `serialize`/`deserialize`, `MalformedArkInfoSnapshotError`, `ServerInfoSource = "live" | "cache"`.
+- **`src/wallet/wallet.ts`**: cached-snapshot boot (repos init before `getInfo`), `_serverInfoSource` / `_serverInfoLastOnlineAt`, `getProviderConnectionState(): ProviderConnectionState`, non-initializing `getContractSyncState()`.
+- **`src/contracts/contractManager.ts`**: degrade-to-repository on retryable failure, `getSyncState(): ContractSyncState`, `ContractManagerConfig.intentRepository?`.
+- **Service worker / Expo**: `GET_CONTRACT_SYNC_STATE` message + `GET_STATUS` carrying `ProviderConnectionState` (page-side proxy starts degraded/unknown, only preserves state after a successful probe); `ExpoWallet.getProviderConnectionState()` delegates to the wrapped `Wallet`.
+- **`src/index.ts`**: root-exports `UnilateralExit` / `serializeExitPackage` / `deserializeExitPackage` / `createExitChainResolver`, `ProviderUnavailableError` / `isRetryableProviderError`, and the exit + offline-first types.
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — three new ts-sdk Key Capability bullets (unilateral exit packages, offline exit-data capture, offline-first wallet) + ~28 new tags + ask_question / debug triggers
+- `docs/projects/ts-sdk/INDEX.md` — Quick-Reference Version cell notes HEAD `fbad6ca2` carries three unreleased feature landings on top of 0.4.43; three new Key Concepts entries
+- `docs/projects/ts-sdk/system/project_overview.md` — three new Core Features rows
+- `docs/projects/ts-sdk/system/architecture.md` — new `wallet/exit/` subtree + `wallet/arkInfoSnapshot.ts`; `providers/errors.ts` + new `providers/availability.ts` annotated; `wallet.ts` / `contractManager.ts` / `unroll.ts` / `index.ts` offline-first + capture annotations
+- `change-log/last-sync.txt` → `fbad6ca2`
+
+**Notes**:
+- **No version bump** — HEAD is unreleased work on top of the published 0.4.43 cut. When these land in a release, add the version note here.
+- The unilateral exit is **BTC value only** (never represents a VTXO's assets); asset-bearing VTXOs must not be passed to `estimate` / `prepare`.
+- Exit-data capture flips the `VirtualTxRepository` from the 0.4.43 experimental/inert state into an actively-captured store, but only when `StorageConfig.exitDataCapture` is configured; absent it, behaviour is unchanged.
+
 ## 2026-07-09 - Release 0.4.43: opt-in Intent + VirtualTx repository layer, typed FetchError
 **From**: `e023e1db2f9dcb42badf9c24923f28b8c17bf761`
 **To**: `6f1a8e77afa738db2b5d0bc3ae6943d4403661c3`

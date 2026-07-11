@@ -1,5 +1,34 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-11 - Documentation Sync
+**Commit**: `590cff5dd98c2310386f026ac7653689d74e28c5`
+**Previous Sync**: `90cf483285ad7302b7a81cd37ac0d685276ea7a9`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `590cff5d` fix unlock splash (#752)
+- `c57d1a91` Add Brazilian Real (BRL) fiat currency support (#743)
+
+**Features Added/Modified**:
+- Brazilian Real (BRL) fiat currency support (PR #743): `Currencies.BRL` added to `src/lib/types.ts` and threaded through the fiat pipeline — `FiatPrices` (`src/lib/fiat.ts`) gains a `brl` field, `getPriceFeed` reads `json.BRL?.last`, `FiatProvider` (`src/providers/fiat.tsx`) adds `fromBRL`/`toBRL` conversions plus BRL branches in `fromFiatAmount`/`toFiatAmount`, and `FIAT_SYMBOLS` maps BRL to the `R$` prefix. **Settings → Currency** (`src/screens/Settings/Fiat.tsx`) now lists BRL alongside BTC/CHF/CNY/EUR/GBP/JPY/USD. Touches `src/lib/format.ts` and `src/wallet-service-worker.ts`. Covered by `src/test/screens/settings/fiat.test.tsx`.
+
+**Minor / Internal (SYNC_HISTORY-only, low doc surface)**:
+- Unlock-splash / service-worker registration fix (PR #752, `src/index.tsx` / `src/wallet-service-worker.ts`): `index.tsx` was drastically slimmed (−82 lines net) — the dev-only reset helpers (`resetDevWalletStorage`, `resetControlledDevServiceWorker`, `reloadAfterUnregisteringServiceWorkers`, `getDevWalletStorageResetKey`) and the manual `navigator.serviceWorker.register()` + `controllerchange` reload dance were removed in favour of a single `updatefound` listener on the existing registration that reloads the page when a new worker is found, fixing unlock-splash race conditions on service-worker updates. `wallet-service-worker.ts` cleaned up alongside.
+
+**Configuration / Dependency Changes**: None.
+
+**Documentation Impact**: Minor — one new fiat currency (BRL) plus a service-worker registration cleanup. Added a BRL capability bullet to the master registry and project index, updated the fiat symbol-prefix lines (added `R$` / the supported-currency list) in the master registry and `system/project_overview.md`, and added a `fiat-currency` / `brl` tag.
+
+**Files Updated**:
+- docs/INDEX.md (BRL + unlock-splash capability bullets, fiat symbol-prefix line, `fiat-currency`/`brl` tags)
+- docs/projects/wallet/INDEX.md (frontmatter `version` 1.2.33 → 1.2.34 + `last_sync_commit`, BRL + unlock-splash capability bullets)
+- docs/projects/wallet/system/project_overview.md (fiat symbol-prefix line — added `R$` + supported-currency list)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-10 - Documentation Sync
 **Commit**: `90cf483285ad7302b7a81cd37ac0d685276ea7a9`
 **Previous Sync**: `c00b820dbfd56ffa0209cd8281d88911ed710e43`
