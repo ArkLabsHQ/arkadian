@@ -1,5 +1,24 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-12 - Release 0.4.44 + 0.4.45 (publish the three feature landings that were unreleased on 0.4.43)
+**From**: `fbad6ca2cd343ac361d2514f601e9e24317275b6`
+**To**: `8f45350d3345966cc5fe83e522e6728386bc6792`
+**Synced By**: update-project skill
+**Status**: Two release-only patch bumps (`@arkade-os/sdk` 0.4.43 → 0.4.44 → 0.4.45, `@arkade-os/boltz-swap` 0.3.48 → 0.3.49 → 0.3.50), each touching only the two `packages/*/package.json` version fields — **no `packages/*/src/` change between `fbad6ca2` and `8f45350d`**. Together they **publish** the three feature landings previously documented (2026-07-11 sync) as unreleased on top of the 0.4.43 cut: (1) pre-signed unilateral exit packages (`UnilateralExit`), (2) offline exit-data capture (`exitDataCapture` + active `virtualTxRepository`), (3) offline-first wallet (typed `ProviderUnavailableError` / cached `StoredArkInfoSnapshot` boot / sync diagnostics). No new source or public-API surface relative to `fbad6ca2`.
+
+**Commits analyzed** (2 non-merge commits):
+- `f56ce31b` chore: release @arkade-os/sdk@0.4.44, @arkade-os/boltz-swap@0.3.49 (Pietro Grandi, 2026-07-11)
+- `8f45350d` chore: release @arkade-os/sdk@0.4.45, @arkade-os/boltz-swap@0.3.50 (Pietro Grandi, 2026-07-11)
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — reworded the three ts-sdk Key Capability bullets from "unreleased on top of 0.4.43" to "released in the 0.4.44/0.4.45 cut"; added a "0.4.44 + 0.4.45 releases" bullet recording the current published version `@arkade-os/sdk@0.4.45` / `@arkade-os/boltz-swap@0.3.50`
+- `docs/projects/ts-sdk/INDEX.md` — bumped the workspace package version table (0.4.43 → 0.4.45, 0.3.48 → 0.3.50) and reworked the Quick-Reference Version cell to note the two release bumps published the three feature landings
+- `docs/projects/ts-sdk/system/project_overview.md` — bumped the workspace version table + `**Version**` field (0.4.43 → 0.4.45, 0.3.48 → 0.3.50); reworded the three "Unreleased on top of 0.4.43" Core Features rows to "Released in the 0.4.44/0.4.45 cut"
+- `change-log/last-sync.txt` → `8f45350d`
+
+**Notes**:
+- Architecture, module layout, and public API are byte-identical to the 2026-07-11 (`fbad6ca2`) sync — only the published version numbers changed. `system/architecture.md` needed no update (no source moved/added).
+
 ## 2026-07-11 - Unreleased on top of 0.4.43: pre-signed unilateral exit packages, offline exit-data capture, offline-first wallet
 **From**: `6f1a8e77afa738db2b5d0bc3ae6943d4403661c3`
 **To**: `fbad6ca2cd343ac361d2514f601e9e24317275b6`
