@@ -1,5 +1,30 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-14 - Documentation Update
+**Commit**: `a7dba3ebae643bd8069882120c6afc0ddb60b064`
+**Previous Sync**: `8c335de6fc36cbcc65e0ccfc3db5bce14c5c6496`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (comment-only hardening, no module/compose/logic changes)
+
+**Highlights**:
+- 🔐 **Ansible token removed from netplan drop-in comment** (`a7dba3e`): in
+  `ansible/roles/bitcoind/tasks/main.yml`, the `/etc/netplan/99-ark-fixed-ip.yaml`
+  drop-in's header comment changes from `# Managed by Ansible ({{ ansible_managed }})`
+  to a static `# Managed by Ansible (ark bitcoind role)`. This keeps template-origin
+  metadata (path/host/user that `ansible_managed` can expand to) out of the on-disk
+  system config. No behavioral, module, variable, or compose change — the fixed-IP
+  `ip addr add` + netplan reboot-persistence logic is otherwise untouched.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra Standalone Bitcoin node bullet: fixed-IP netplan drop-in now notes the static `Managed by Ansible (ark bitcoind role)` comment label in place of the `{{ ansible_managed }}` token, `a7dba3e`)
+- docs/projects/ark-infra/INDEX.md (frontmatter: `version` → 1.7.13, `last_sync_commit`, `last_sync_date`)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `a7dba3ebae643bd8069882120c6afc0ddb60b064`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
+---
+
 ## 2026-07-11 - Documentation Update
 **Commit**: `8c335de6fc36cbcc65e0ccfc3db5bce14c5c6496`
 **Previous Sync**: `13002809c75d69518605ea80f46999bb5cfeb54b`

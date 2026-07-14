@@ -63,9 +63,10 @@
 ## Ark/Bitcoin Libraries
 
 ### @arkade-os/sdk
-- **Version**: 0.4.43
-- **Purpose**: Arkade protocol SDK for API client, type definitions, and indexer access
+- **Version**: 0.4.45
+- **Purpose**: Arkade protocol SDK for API client, type definitions, indexer access, and the unilateral-exit primitives
 - **Note**: As of 0.4.43 the SDK models asset amounts/supply as `bigint` (previously `number`). The explorer adapts at the boundary — display helpers (`formatAssetAmount`, `AssetAmountDisplay`) accept `number | bigint`, while aggregation (`aggregateAssetBalances`) and cached asset supply are normalised to `number` via `Number(...)` (sessionStorage JSON cannot serialise bigint)
+- **Unilateral exit**: the `/unilateral-exit` executor uses the SDK's `UnilateralExit`, `deserializeExitPackage`, `EsploraProvider`, `OnchainWallet`, `SingleKey`, `ESPLORA_URL`, and the `ExitPackage`/`ExecutorEvent`/`ExitStep` types (`src/lib/exit/`, `src/components/exit/`). `pnpm-workspace.yaml` pins the SDK build via `onlyBuiltDependencies` and excludes `0.4.45` from the minimum-release-age gate
 
 ### @scure/btc-signer
 - **Version**: 2.0.1
@@ -88,7 +89,7 @@
 
 ### Vitest
 - **Version**: ^4.1.9
-- **Purpose**: Unit test runner (configured in `vitest.config.ts`, node environment, runs `src/**/*.test.ts`). Scripts: `pnpm test` (run once) and `pnpm test:watch`. Covers the `src/lib/` utility modules (`vtxo-aggregation`, `cap-list`, `debounce`)
+- **Purpose**: Unit test runner (configured in `vitest.config.ts`, node environment, runs `src/**/*.test.ts`). Scripts: `pnpm test` (run once) and `pnpm test:watch`. Covers the `src/lib/` utility modules (`vtxo-aggregation`, `cap-list`, `debounce`) and the exit executor (`lib/exit/package` decoder — raw/base64url/gzip, version reject, URL-param precedence; `components/exit/step-meta` phase mapping)
 
 ## Deployment
 
@@ -115,7 +116,7 @@
 | Styling | tailwindcss | 4.1.17 | CSS framework |
 | Virtualization | @tanstack/react-virtual | ^3.14.3 | Windowed long-list rendering |
 | Icons | lucide-react | 0.554.0 | Icons |
-| Ark SDK | @arkade-os/sdk | 0.4.43 | Ark protocol |
+| Ark SDK | @arkade-os/sdk | 0.4.45 | Ark protocol + unilateral exit |
 | Bitcoin | @scure/btc-signer | 2.0.1 | TX parsing |
 | Bitcoin | @scure/base | 2.0.0 | Encoding |
 | Build | vite | 5.1.0 | Bundler |

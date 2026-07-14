@@ -1,5 +1,54 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-14 - Documentation Update
+**Commit**: `eb75b6ba` (arkd repository)
+**Previous Sync**: `557f7c5c`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 commits
+- `eb75b6ba` Scale the DAG (#908)
+- `f8344a56` Fix stream log interceptor (#1153)
+- `695cb53a` indexer: Add renewableOnly filter to GetVtxos (#1149)
+- `37faa97e` DFS-depth taptree encode (#1150)
+- `c17eab0f` Bump go@1.26.5 (#1151)
+
+**Major Feature (PR #908 — VTXO marker DAG)**:
+- The VTXO chain is now indexed by a **marker DAG** so the server can traverse and sweep deep chains in near-constant depth instead of walking every VTXO.
+- New `domain.Marker` (`{ID, Depth, ParentMarkerIDs}`) checkpoints are created at regular depth intervals (`MarkerInterval = 100`); an append-only `SweptMarker` (`{MarkerID, SweptAt}`) records sweeps.
+- New `MarkerRepository` added to `RepoManager` as `Markers()` (badger/postgres/sqlite impls): `AddMarker`, `GetMarker`, `GetMarkersByDepthRange`, `GetMarkersByIds`, `BulkSweepMarkers`, `IsMarkerSwept`, `GetSweptMarkers`, `UpdateVtxoMarkers`, `GetVtxosByMarker`, `CreateRootMarkersForVtxos`, `SweepVtxoOutpoints`, `GetVtxosByDepthRange`, `GetVtxosByArkTxid`, `GetVtxoChainByMarkers`.
+- Postgres uses a **recursive CTE** for descendant markers; sweeper restore prefetches VTXOs by marker (`prefetchVtxosByMarkers` / `getVtxosFromCacheOrDB`).
+- **Schema:** the `vtxo.swept` boolean column was **removed** (sweep state now derives from markers), `marker_ids` becomes JSONB/TEXT holding ≥1 marker per VTXO, and `IndexerVtxo` exposes each VTXO's `depth` (proto field 15). Migration `20260701000000_add_vtxo_marker_dag` (sqlite + postgres) plus a `markerbackfill` package guaranteeing every existing VTXO has ≥1 marker; dust VTXOs bulk-swept on migration. Validated with chains up to 20k depth.
+- **Interface change:** `RepoManager` gains `Markers()` — external implementers must add it.
+
+**API Feature (PR #1149 — renewableOnly filter)**:
+- `GetVtxosRequest` gains a `renewable_only` filter (proto field 10) returning the union of spendable + recoverable VTXOs; mutually exclusive with the other filters and applied only when querying by `scripts`.
+- `IndexerVtxo` now carries the VTXO `depth` (field 15).
+
+**Library Change (PR #1150 — DFS-depth taptree encode)**:
+- `txutils.TapTree.Encode` now writes each leaf's depth as a DFS-ordered left caterpillar (`depth = min(i+1, size-1)`) so the encoded sequence forms a valid binary tree, replacing the hardcoded depth-`1`-per-leaf encoding.
+
+**Toolchain (PR #1151 — Go 1.26.5)**:
+- Go toolchain bumped 1.26.4 → 1.26.5 across all modules and Dockerfiles.
+
+**Bug Fix (PR #1153 — stream log interceptor)**:
+- Corrects the gRPC stream logging interceptor (`internal/interface/grpc/interceptors/logger.go`). Internal-only.
+
+**Surface Changes**: `RepoManager.Markers()` interface addition; `vtxo.swept` column removed + new `add_vtxo_marker_dag` migration; new indexer `renewable_only` filter + `IndexerVtxo.depth` proto field.
+
+**Breaking Changes**: `RepoManager` interface gains `Markers()` (external implementers must add it).
+
+**Files Updated**:
+- docs/INDEX.md (Go version 1.26.4 → 1.26.5, marker-DAG / renewableOnly / DFS-taptree / stream-log recent-changes bullets, tags, ask_question/develop triggers)
+- docs/projects/arkd/INDEX.md (version bump 1.3.23 → 1.4.0, sync commit/date)
+- docs/projects/arkd/system/project_overview.md (Go 1.26.3+ → 1.26.5+, marker-DAG + renewableOnly Major Features)
+- docs/projects/arkd/system/tech_stack.md (Go 1.26.4 → 1.26.5)
+- docs/projects/arkd/system/repo_manager.md (Markers() in RepoManager, new MarkerRepository section, vtxo.swept removal note, latest-migration note)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-11 - Documentation Update
 **Commit**: `557f7c5c` (arkd repository)
 **Previous Sync**: `ac3b5634`

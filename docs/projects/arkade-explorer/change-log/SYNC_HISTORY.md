@@ -1,5 +1,45 @@
 # Arkade Explorer -- Sync History
 
+## 2026-07-14 -- Incremental Documentation Sync
+**Commit**: `90752ba9d32e78c9a26df38c29c101894d64baa3`
+**Previous Sync**: `31410bfab3604c31d4dec27784f9b17940bb79f7`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 9 commits
+- `57f65df` Use official 0.4.45 SDK version
+- `a703cbf` fix(unilateral-exit): harden executor lifecycle, input validation, and error surfacing
+- `cd680fd` fix(unilateral-exit): don't show a branch-failed step as confirmed
+- `1e2c35d` feat(unilateral-exit): reassure that a running exit is safe to close and resume
+- `3bd061e` fix(unilateral-exit): make bundle export download work in Firefox
+- `ef0d5b6` fix(unilateral-exit): address UX review feedback
+- `d69fa9c` test: unit tests for the exit-package decoder (raw/base64url/gzip, version reject, URL param precedence)
+- `7f2b7b0` feat: keyless unilateral-exit executor at /unilateral-exit (unlinked)
+- `d05d5f3` chore(deps): bump @arkade-os/sdk 0.4.13 -> 0.4.43; adapt to bigint asset amounts
+
+**Changes**:
+- **New feature — keyless unilateral-exit executor (`/unilateral-exit`)**: A self-contained tool, deliberately **unlinked** from the rest of the explorer, that imports a pre-signed exit package produced by `@arkade-os/sdk`'s `UnilateralExit.prepare()` and drives it onchain against an Esplora endpoint. Added as a new route in `src/App.tsx`.
+  - **Import** (file drop / pasted JSON / URL param): accepts raw JSON, base64url(JSON), and base64url(gzip(JSON)) share-link forms; prefers the `#pkg=` fragment (never hits server logs) over `?pkg=`; validation delegated to the SDK's `deserializeExitPackage`, plus an `assertRenderable` guard over `totals`/`vtxos` fields the SDK only casts (`src/lib/exit/package.ts`, `src/components/exit/import-screen.tsx`).
+  - **Review**: renders VTXOs/totals/CSV timelocks and a rough end-to-end duration estimate (~10-min blocks) (`src/components/exit/review-screen.tsx`).
+  - **Execute**: drives fund-splitter / unroll / fee-bump (CPFP) / sweep via `UnilateralExit` + `EsploraProvider`, mapping live `ExecutorEvent`s to display phases via `step-meta.ts` (a `skipped` **with a reason** is a failed upstream branch — rendered as skipped, not confirmed) (`src/components/exit/run-screen.tsx`, `src/components/exit/step-meta.ts`, `src/components/exit/funding-gate.tsx`).
+  - **Keyless fee handling**: an ephemeral, fee-only key generated in-browser and persisted to `localStorage` (`arkade-exit:fee-key`) — holds only CPFP sats, never VTXO value — so a reload resumes the same funded address; the exit is idempotent and re-fundable (`src/lib/exit/fee-wallet.ts`).
+  - **Self-executable bundle export**: `encodeExitBundle` emits a `{arkadeExitBundle}` envelope embedding the ephemeral fee key so a recipient can run it standalone with no key and no re-funding (flagged sensitive); Firefox download fix.
+  - **Esplora endpoint**: resolved from `VITE_ESPLORA_URL` or the SDK per-network default keyed off `serverInfo.network` (`src/lib/exit/esplora.ts`). New `.env.example` var `VITE_ESPLORA_URL`.
+  - **Robustness**: per-screen `ScreenErrorBoundary` in `src/pages/unilateral-exit.tsx` so a hostile/truncated package surfaces as an import error instead of blanking the app; UX-review hardening of executor lifecycle, input validation, and error surfacing; a resume-safe "safe to close" reassurance.
+  - **Tests**: `src/lib/exit/package.test.ts` (decoder: raw/base64url/gzip, version reject, URL-param precedence) and `src/components/exit/step-meta.test.ts` (phase mapping).
+- **SDK bump 0.4.43 → 0.4.45** (`57f65df` / `d05d5f3`): official 0.4.45 release; `pnpm-workspace.yaml` adds `onlyBuiltDependencies` for the SDK and a `minimumReleaseAgeExclude` for `@arkade-os/sdk@0.4.45`. (The `d05d5f3` bigint-asset-amount adaptation was already documented in the 2026-07-10 sync; it reappears here only because the range was re-based.)
+
+**Files Updated**:
+- docs/projects/arkade-explorer/INDEX.md (frontmatter: last_sync_commit + version 1.1.4; Routes table `/unilateral-exit`; Key Features #11; Configuration `VITE_ESPLORA_URL`; architecture tree: components/exit, lib/exit, pages/unilateral-exit)
+- docs/projects/arkade-explorer/system/project_overview.md (new feature #8 Unilateral Exit Executor + security consideration)
+- docs/projects/arkade-explorer/system/tech-stack.md (SDK 0.4.43 → 0.4.45 + unilateral-exit note; Vitest exit coverage; dependency-summary row)
+- docs/projects/arkade-explorer/system/components.md (UnilateralExitPage; new "Exit Executor Components" section for components/exit + lib/exit)
+- docs/INDEX.md (arkade-explorer Key Capabilities: unilateral-exit executor + SDK 0.4.45)
+- docs/projects/arkade-explorer/change-log/last-sync.txt
+- docs/projects/arkade-explorer/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-10 -- Incremental Documentation Sync
 **Commit**: `31410bfab3604c31d4dec27784f9b17940bb79f7`
 **Previous Sync**: `34295ba46a65e84f4b0ff1992445cf4c1f70807e`

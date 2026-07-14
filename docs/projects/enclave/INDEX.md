@@ -70,9 +70,10 @@ Analysis and summaries of pull requests.
 | Build System | Nix (reproducible, byte-identical EIF) inside pinned Docker container |
 | Target Hardware | AWS Nitro Enclaves (m6i.xlarge, Amazon Linux 2023) |
 | Networking | gvproxy (vsock:1024), viproxy (IMDS via vsock CID 3:8002) |
-| Attestation | NSM COSE Sign1 + BIP-340 Schnorr response signing (gRPC clients pin TLS cert fingerprint to attestation `tlsKeyHash` instead) |
-| Encryption | AWS KMS (PCR0-locked) + AES-256-GCM (S3 storage DEK) |
-| PCR0 Signing | Dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`); signature surfaced as `pcr0_signature` on `GET /v1/enclave-info` (omitempty when not provisioned) |
+| Attestation | NSM COSE Sign1 + BIP-340 Schnorr response signing. **All** clients (HTTP, `enclave verify`, `enclave curl`, gRPC) pin the live TLS leaf cert to attestation `tlsKeyHash` (#129); `signingKeyHash` (renamed from `appKeyHash`) binds the response-signing pubkey |
+| Encryption | AWS KMS (PCR0-locked) + AES-256-GCM (K/V values + storage DEK). K/V AAD binds `{deployment, app, key, version, chunk}`; storage AAD binds `deployment/app/data/<key>` (Tier 0) |
+| Confidential K/V store | Redis/RESP (`redcon`) over DynamoDB on a loopback TLS listener (`ENCLAVE_KV_RESP_PORT`, default `:6379`, `AUTH` = runtime token). Rollback-resistant via S3 Object-Lock anchor (issue #134); `ENCLAVE_ANCHOR_WINDOW` non-overridable. Replaced the S3 `/v1/storage` HTTP API + dynamic secrets |
+| State origin | Verify-before-decrypt receipts (`state_origin.go`, issue #131) — NSM-signed `state_root` over runtime-owned SSM artifacts; every boot recomputes + verifies before decrypting or fails closed. `kms_key_locked` on `/v1/enclave-info`. (Runtime-served `pcr0_signature` / `signature.go` **removed**) |
 | Telemetry ingest | `POST /v1/{metrics,traces,logs}` (OTLP/HTTP); JSON snapshots at `GET /v1/enclave-{metrics,traces,logs}` |
 | Transports | HTTP/1.1 + HTTP/2 + native gRPC + gRPC-Web (issue #85) |
 | TLS Cert Source | **Deploy-time** — `enclave.yaml`'s `tls:` block (fqdn / provider / email) is published by Tofu to SSM as `/{dep}/{app}/env/ENCLAVE_NITRIDING_*`; runtime resolves it via `loadDeployTLSConfig` on `Init`. `self-signed` (default, trust via attestation `tlsKeyHash`) or ACME `letsencrypt` / `letsencrypt-staging` (TLS-ALPN-01, autocert) — cert persisted in the encrypted S3 storage subsystem under the reserved `acme/` namespace via `acmeStorageCache`, so reboots and migrations reuse it instead of re-issuing (avoids the Let's Encrypt rate limit). Changing the domain is a redeploy, **not an EIF rebuild**. |
@@ -119,19 +120,20 @@ EC2 Instance (Amazon Linux 2023, Nitro)
  └── Nitro Enclave (EIF) — single runtime.Runtime process (nitriding.Enclave folded in @ v0.0.76)
      ├── pubSrv (TLS :443, ALPN h2 / http/1.1)
      │   ├── /enclave/* attestation handlers
-     │   ├── /v1/enclave-info — incl. pcr0_signature (Tofu-provisioned, omitempty) + upstream_app {exited,error}
-     │   ├── /v1/* admin handlers (storage, secrets, migration)
+     │   ├── /v1/enclave-info — incl. kms_key_locked + upstream_app {exited,error}
+     │   ├── /v1/* admin handlers (migration, attestation)
      │   ├── /v1/{metrics,traces,logs} OTLP-spec ingest (POST) + /v1/enclave-{metrics,traces,logs} JSON snapshots (GET)
      │   ├── Schnorr response signing (BIP-340) — bypassed for application/grpc* + application/grpc-web*
      │   └── catch-all revProxy (h2c, FlushInterval=-1) → user app :7074
      ├── privSrv (127.0.0.1:8080) — same chi mux for user-app loopback callbacks
      │   • KMS Decrypt with attestation (PCR0-bound)
+     │   • State-origin verify-before-decrypt (state_origin.go, #131)
      │   • PCR16+ extension with SHA256(secret_pubkey)
-     │   • Encrypted storage (AES-256-GCM + S3 + KMS DEK)
-     │   • Dynamic secrets API
      │   • Locked-key migration (POST /v1/start-migration — atomic KMSKeyID flip)
+     ├── K/V RESP listener (127.0.0.1:6379, TLS) — Redis-compatible confidential
+     │   store over DynamoDB; AES-256-GCM sealed; S3 Object-Lock rollback anchor (#134)
      └── Your App (plain HTTP/2-or-1.1 :7074 — Go / Node.js / .NET)
-                  receives ENCLAVE_PROXY_PORT=8080 + ENCLAVE_RUNTIME_TOKEN
+                  receives ENCLAVE_PROXY_PORT=8080 + ENCLAVE_RUNTIME_TOKEN + ENCLAVE_KV_RESP_PORT
 ```
 
 ## CLI Commands (lifecycle)

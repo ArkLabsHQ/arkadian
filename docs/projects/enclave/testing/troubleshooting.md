@@ -44,11 +44,11 @@
 
 **Fix:** the supervisor automatically rolls back — restores the EIF backup, restarts the old enclave (`stepWaitOutcome` emits `rollback` / `rollback-complete` events). Confirm the old enclave returns to healthy, correct the EIF inputs (app name, target PCR0), and re-run `POST /migrate`. The atomic `KMSKeyID` flip means an unsuccessful migration leaves primary state untouched — no manual SSM cleanup. A deferred `ScheduleKeyDeletion` inside `handleStartMigration` cleans up the migration key on failure.
 
-### `secret value too large (N bytes, max 65536)`
+### K/V value rejected as too large
 
-**Cause:** dynamic secret value exceeds the 64 KB limit.
+**Cause:** a K/V value exceeds `ENCLAVE_KV_MAX_VALUE_BYTES` (`kvDefaultMaxValue` cap in `kvstore.go`).
 
-**Fix:** for larger blobs use the storage API (`PUT /v1/storage/{key}`, supports up to 10 MB).
+**Fix:** raise `ENCLAVE_KV_MAX_VALUE_BYTES`, or chunk the value. (The old S3 `/v1/storage` HTTP API and the `/v1/secrets` dynamic-secrets API were removed and replaced by the confidential Redis/RESP K/V store — connect over `ENCLAVE_KV_RESP_PORT` with `AUTH = ENCLAVE_RUNTIME_TOKEN`.)
 
 ### `enclave verify` fails with PCR0 mismatch
 

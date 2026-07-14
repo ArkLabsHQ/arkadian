@@ -1,5 +1,21 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-14 - Documentation Update
+**Commit**: `d851b3c5` (boltz-backend repository)
+**Previous Sync**: `36729e33`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Bug Fixes**:
+- fix: skip claiming already settled swaps (#1463) (`d851b3c5`) — `SwapNursery.attemptSettleSwap` now re-fetches the swap from `SwapRepository` / `ChainSwapRepository` (new `fetchSwapForSettlement` helper) before claiming, so a duplicate claim event (chain reorgs, rescan overlaps) that arrives with a stale swap object no longer double-claims. If the re-fetched swap is missing it warns and returns; if its status is `transaction.claim.pending` or any `SuccessSwapUpdateEvents` value it logs "already settled" and skips. The reverse-swap invoice-settlement path gains the same guard: it re-fetches the `ReverseSwap` and returns early if the status is already `invoice.settled`. Unit + integration tests added (`test/{unit,integration}/swap/SwapNursery.spec.ts`).
+- fix: confirm vHTLC refunds via RefundWatcher (#1462) (`d0be9294`) — `RefundWatcher` now confirms pending refunds through a new atomic compare-and-set `RefundTransactionRepository.setStatusConfirmedIfPending(swapId)` (`UPDATE … SET status = Confirmed WHERE swapId = ? AND status = Pending`, returns whether a row changed) and only emits `refund.confirmed` when the CAS actually flipped a `Pending` row — preventing duplicate confirmations when the periodic sweep re-checks the same transaction. The per-transaction check was extracted into a public `RefundWatcher.checkTransaction(tx, swap)`. Ships alongside a new **`boltzr-cli ark decode <transaction>`** command (`boltzr-cli/src/ark/decode.rs`, wired via `boltzr-cli/src/ark/mod.rs` + `main.rs`) that decodes an ARK virtual transaction (base64 PSBT or path to a file) into pretty-printed JSON — inputs/outputs, witness UTXOs, tap leaf scripts (with a `looks_like` heuristic), tap script sigs, and the Ark VTXO script tree parsed from the proprietary `taptree` PSBT field. Minor touches: `mrh_watcher.rs`, `mattermost.rs`, `utxo_nursery.rs`, `Cargo.lock`, `boltzr-cli/Cargo.toml`.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend — new **Idempotent swap settlement** (#1463) and **Idempotent vHTLC/refund confirmation** (#1462, incl. `boltzr-cli ark decode`) Key Capabilities; new `idempotent-settlement`, `refund-confirmation`, `ark-tx-decode` tags), `INDEX.md` (new **Swap Settlement Robustness** subsection covering both fixes, plus a `boltzr-cli ark decode` bullet under Fulmine Integration).
+
 ## 2026-07-09 - Documentation Update
 **Commit**: `36729e33` (boltz-backend repository)
 **Previous Sync**: `c220f078`

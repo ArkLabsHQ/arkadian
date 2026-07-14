@@ -70,6 +70,15 @@ The explorer connects to the Arkade Indexer API (default: `https://indexer.arkad
 - Explorer automatically detects OP_RETURN format and extracts the taproot key
 - Correctly constructs Arkade addresses from both P2TR and OP_RETURN scripts (using the operator pubkey from `serverInfo.signerPubkey`; default network `bitcoin`)
 
+### 8. Unilateral Exit Executor (`/unilateral-exit`)
+- A **self-contained, keyless** tool for driving a pre-signed unilateral exit onchain. Deliberately **unlinked** from the rest of the explorer (no nav entry, reachable only at `/unilateral-exit`)
+- Imports a pre-signed exit package produced by `@arkade-os/sdk`'s `UnilateralExit.prepare()` — via file drop, pasted JSON, or a URL param (prefers the `#pkg=…` fragment, which never reaches server logs, over `?pkg=…`). Accepts raw JSON, base64url(JSON), and base64url(gzip(JSON)) compact share-link forms; validation is delegated to the SDK's `deserializeExitPackage` (`src/lib/exit/package.ts`)
+- Three-screen flow: **Import → Review → Execute**. Review estimates end-to-end duration from CSV timelocks (~10-min blocks); Execute drives the steps (fund splitter, unroll, fee-bump/CPFP, sweep) via `UnilateralExit` against an Esplora endpoint (`src/components/exit/run-screen.tsx`)
+- **Keyless fee handling**: an ephemeral, throwaway fee-only key is generated in-browser and persisted to `localStorage` (`arkade-exit:fee-key`). It only ever holds sats to cover CPFP fees — never VTXO value — so a reload resumes the same funded address rather than stranding the deposit; the exit itself is idempotent and re-fundable (`src/lib/exit/fee-wallet.ts`)
+- **Self-executable bundle export**: a graph-mode exit can be exported as a `{arkadeExitBundle}` envelope embedding the ephemeral fee key, so a recipient can run it standalone against the already-funded fee address with no key of their own and no re-funding (`encodeExitBundle`). The embedded key is fee-only but still sensitive — treat the exported file accordingly
+- **Esplora endpoint** resolves from `VITE_ESPLORA_URL` if set, else the SDK's per-network default keyed off `serverInfo.network` (`src/lib/exit/esplora.ts`)
+- **Defense-in-depth rendering**: a per-screen React error boundary plus a render-safety validator (`assertRenderable` checks `totals`/`vtxos` fields the SDK only casts) ensure a hostile or truncated package surfaces as an import error instead of blanking the app
+
 ## Use Cases
 
 ### For Users
@@ -114,3 +123,4 @@ Build with `pnpm build` and serve the `dist/` directory with any static file ser
 - Environment variables for API URL and verified assets URL configuration
 - HTTPS recommended for production deployments
 - Asset icon approval protects against icon spoofing for unverified assets
+- **Unilateral exit executor** (`/unilateral-exit`): package payloads are preferred in the URL fragment (`#pkg=`) so they never reach server logs; imported packages pass a render-safety validator and a per-screen error boundary; the in-browser fee key is ephemeral and fee-only (never holds VTXO value), and exported self-executable bundles that embed it are flagged as sensitive

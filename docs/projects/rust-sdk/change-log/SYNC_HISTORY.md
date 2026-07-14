@@ -1,5 +1,26 @@
 # Documentation Sync History - Arkade Rust SDK
 
+## 2026-07-14 - BIP86 Taproot on-chain descriptors
+**From**: `bab46b4200a225aed4262da190583d44ad4ec96e`
+**To**: `d8feefa6621c748839f20820406a913d7a97d2df`
+**Synced By**: update-project skill
+**Commits analyzed**: 1 (no merges)
+
+**Summary**: A single functional commit — `feat: add Bip86 wallet descriptor` (`421259d`) — switches the `ark-bdk-wallet` on-chain wallet from BIP84 to BIP86 descriptors. In `Wallet::new_from_xpriv`, the external and change descriptors are now built from the `bdk_wallet::template::Bip86` template (P2TR Taproot, `bc1p…` addresses) instead of `Bip84` (P2WPKH native SegWit, `bc1q…`). No API-surface change; the derived on-chain address set for a given `Xpriv` changes accordingly.
+
+**Changes** (grouped):
+- **ark-bdk-wallet**: `feat: add Bip86 wallet descriptor` (`421259d`) — `ark-bdk-wallet/src/lib.rs`, 2 lines changed (Bip84 → Bip86 for external + change keychains).
+
+**New public API**: none.
+
+**Breaking / removals**: no signature changes. Behavioural note: on-chain addresses derived from an existing `Xpriv` are now Taproot (`bc1p…`) rather than native SegWit (`bc1q…`).
+
+**Docs files updated**:
+- `docs/projects/rust-sdk/INDEX.md` (frontmatter `last_sync_commit` → `d8feefa…`, `version` → 1.4.4; ark-bdk-wallet crate note → BIP86 Taproot descriptors)
+- `docs/projects/rust-sdk/system/project_overview.md` (new Recent Additions entry; ark-bdk-wallet section BIP86 bullet)
+- `docs/INDEX.md` (rust-sdk BDK Key Capability → BIP86 Taproot; tags `bip86` / `taproot-descriptor`)
+- `docs/projects/rust-sdk/change-log/last-sync.txt` (→ `d8feefa…`)
+
 ## 2026-07-08 - Contract Manager (0.10.0 / 0.10.1)
 **From**: `4e8b696007594614f48f9bd1086ef6c24cb5d5c2`
 **To**: `bab46b4200a225aed4262da190583d44ad4ec96e`

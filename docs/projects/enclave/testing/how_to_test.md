@@ -1,6 +1,6 @@
 # How to Test
 
-Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + the combined `awsmocks` binary, which bundles kms-proxy and mock-imds in one container), then runs 35 integration tests followed by a full locked-key migration with post-migration verification. The HTTP/2 + gRPC tail (29 – 33, issue #85) covers end-to-end HTTP/2 (ALPN h2 negotiation, HTTP/1.1 backward compat) and gRPC (unary `Health/Check`, server-streaming `Health/Watch`, middleware bypass). Tests 34 – 35 (added with the PCR0-signing feature) confirm that `pcr0_signature` is exposed on `/v1/enclave-info` and that `openssl pkeyutl -verify` validates the signature against the embedded public key.
+Simple Enclave's local test harness boots a real EIF inside QEMU's `nitro-enclave` machine type with mocked AWS services (LocalStack + the combined `awsmocks` binary, which bundles kms-proxy and mock-imds in one container), then runs 28 integration tests followed by a full locked-key migration with post-migration verification. The suite now includes the confidential **K/V store** driven by a real Redis client (round-trip, data types, transactions, SCAN, pub/sub over a v1→v2 migration on QEMU + LocalStack). The HTTP/2 + gRPC tail (issue #85) covers end-to-end HTTP/2 (ALPN h2 negotiation, HTTP/1.1 backward compat) and gRPC (unary `Health/Check`, server-streaming `Health/Watch`, middleware bypass). The old PCR0-signature tests were removed with that feature; a state-origin tamper → fail-closed step was added (issue #131).
 
 > **Upstream-app testing (image-based).** As of v0.0.76, upstream apps don't build the test rig from source. The CLI ships an `enclave test` subcommand suite (`build` / `init` / `start` / `down`) that scaffolds `enclave/test/docker-compose.yml`, pulls the prebuilt GHCR images (`ghcr.io/arklabshq/enclave-awsmocks:<rev>` and `ghcr.io/arklabshq/enclave-test-runner:<rev>` where `<rev>` matches `cli/runtime-hashes.json::rev` with the leading `v` stripped), and brings the stack up. See **Upstream-app workflow** below. The framework's own self-test (this page) still builds everything from source.
 
@@ -50,7 +50,7 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 
 ## What Gets Tested
 
-35 integration tests run after enclave boot (`test/integration-test.sh`), grouped roughly as: core (1–17), telemetry (20–28), runtime metrics (29), final attestation stability (30), HTTP/2 + gRPC (29–33 — note: numbering restarts within the gRPC block per the script's own comments), and PCR0 signing (34–35):
+28 integration tests run after enclave boot (`test/integration-test.sh`, labelled `[N/28]`), plus a separate HTTP/2 + gRPC block and the migration flow. The PCR0-signing checks (old `[34/35]`) were **removed** with the feature; the storage/dynamic-secrets tests are now K/V-store tests. Core tests:
 
 | # | Test |
 |---|------|
@@ -59,39 +59,33 @@ After the build, all three EIFs and PCR JSON files are copied into `test/app/.en
 | 3 | Init completed without errors |
 | 4 | BIP-340 Schnorr signature verification (end-to-end inside enclave) |
 | 5 | Runtime version present |
-| 6 | App endpoint responds through the nitriding-fronted catch-all proxy |
-| 7 | KMS secrets loaded (SIGNING_KEY decrypted, correct length) |
-| 8 | Encrypted storage round-trip (PUT/GET/DELETE via S3+KMS) |
+| 6 | App endpoint responds through the catch-all proxy |
+| 7 | KMS static secrets loaded (SIGNING_KEY decrypted, correct length) |
+| 8 | K/V store round-trip via a real Redis client (SET/GET/DEL over `/test/storage`) |
+| 8b | Redis data types + transactions + pub/sub (hash/list/set/zset/stream, MULTI/EXEC, SCAN, pub/sub) via `/test/redis-types` |
 | 9 | `previous_pcr0 == "genesis"` on first boot |
-| 10 | Dynamic secrets round-trip (PUT/GET/LIST/DELETE) |
 | 11 | PCR16 extended with SHA256(compressed secp256k1 pubkey) per configured secret |
 | 12 | Full attestation document structure verification |
-| 13 | Storage persistence write (for migration verification) |
-| 14 | Dynamic secret persistence write (for migration verification) |
+| 13 | K/V persistence write (for migration verification) |
 | 15 | Attestation persistence write (pubkey + PCR16 hash) |
 | 16 | Pre-migration Schnorr signature baseline |
-| 17 | Attestation binding (pubkey → `appKeyHash` in attestation doc UserData) |
-| 20–23 | Log POST (app → supervisor) + GET, level filtering, auth-token requirement, CloudWatch history |
-| 24–26 | Tracing: trigger app spans → query `/enclave-traces`; supervisor init spans; shared buffer |
-| 27–29 | Metric snapshot via supervisor, supervisor counters, runtime metrics (goroutines, heap) |
-| 30 | Final attestation works after the full suite (NSM stability) |
-| 29 (HTTP/2) | HTTP/2 negotiated end-to-end via ALPN |
-| 30 (HTTP/2) | HTTP/1.1 still works (backward compatibility) |
-| 31 | gRPC unary — `grpc.health.v1.Health/Check` returns `SERVING` |
-| 32 | gRPC server-streaming — `grpc.health.v1.Health/Watch` yields ≥ 1 message |
-| 33 | gRPC bypasses response-signing middleware (no `X-Attestation-*` headers, trailers preserved) |
-| 34 | `pcr0_signature` is present on `/v1/enclave-info` (Tofu provisioned the signing block) and carries non-empty `pubkey_pem` / `pcr0_hex` / `signature_b64` |
-| 35 | ECDSA-P384 PCR0 signature verifies via `openssl pkeyutl -verify` against the embedded public key + raw PCR0 bytes |
+| 17 | Attestation binding (pubkey → `signingKeyHash` in attestation doc UserData) |
+| 18–21 | Log POST (app → supervisor) + GET, level filtering, auth-token requirement, CloudWatch history |
+| 22–24 | Tracing: trigger app spans → query `/enclave-traces`; supervisor init spans; shared buffer |
+| 25–28 | Metric snapshot via supervisor, supervisor counters, runtime metrics (goroutines, heap), NSM stability |
+| HTTP/2 | HTTP/2 negotiated end-to-end via ALPN; HTTP/1.1 backward compat |
+| gRPC | unary `Health/Check` → `SERVING`; server-streaming `Health/Watch` ≥ 1 msg; middleware-bypass (no `X-Attestation-*`, trailers preserved) |
+
+A separate state-origin **tamper → fail-closed** step and a `kms_key_locked` assertion were added with issue #131.
 
 **Upstream-app crash resilience** (`run.sh` step `[5.5/9]`, issue #122) runs between the integration tests and the migration flow. It `POST`s `/test/crash` on the test app (which exits the process ~100 ms after responding), waits for the runtime to observe the child exit, then asserts the runtime survived: `/health` still returns `200`, `/v1/enclave-info` reports `upstream_app.exited == true`, and a route proxied to the now-dead app returns `502`. The app stays dead until the migration step replaces the EIF, so the intervening cooldown step only touches `/v1/*` runtime endpoints.
 
 **Migration verification** then runs a full locked-key migration and confirms:
 
-- Secrets decrypted from the new KMS key
-- Persistent storage survived
-- Dynamic secrets preserved
+- Static secrets decrypted from the new KMS key
+- K/V data survived (DEK re-imported)
 - Attestation key (`SIGNING_KEY`) unchanged across migration
-- PCR0 attestation chain intact
+- PCR0 attestation chain intact (predecessor attestation verified) + state-origin receipt adopted
 
 ## Test Infrastructure
 

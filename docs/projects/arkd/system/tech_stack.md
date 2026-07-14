@@ -2,12 +2,12 @@
 
 ## Overview
 
-arkd is built with Go 1.26.4+ using modern Bitcoin libraries and infrastructure components. The stack emphasizes reliability, testability, and maintainability through clean architecture patterns.
+arkd is built with Go 1.26.5+ using modern Bitcoin libraries and infrastructure components. The stack emphasizes reliability, testability, and maintainability through clean architecture patterns.
 
 ## Core Technologies
 
 ### Programming Language
-**Go 1.26.4+** - Compiled, statically-typed language with excellent concurrency primitives for managing rounds and background services. Strong Bitcoin development ecosystem with cross-platform compilation support. The toolchain is pinned to `go 1.26.4` in every module (`go.mod`, `api-spec/go.mod`, `pkg/ark-cli/go.mod`, `pkg/ark-lib/go.mod`, `pkg/arkd-wallet/go.mod`, `pkg/client-lib/go.mod`, `pkg/errors/go.mod`, `pkg/kvdb/go.mod`, `pkg/macaroons/go.mod`) and in the CI workflows (`.github/workflows/{unit,integration,artifacts,release}.yaml`) and Docker builds (`Dockerfile`, `arkdwallet.Dockerfile`, `arkdwallet.btcwallet.Dockerfile`).
+**Go 1.26.5+** - Compiled, statically-typed language with excellent concurrency primitives for managing rounds and background services. Strong Bitcoin development ecosystem with cross-platform compilation support. The toolchain is pinned to `go 1.26.5` in every module (bumped from `1.26.4` in PR #1151) (`go.mod`, `api-spec/go.mod`, `pkg/ark-cli/go.mod`, `pkg/ark-lib/go.mod`, `pkg/arkd-wallet/go.mod`, `pkg/client-lib/go.mod`, `pkg/errors/go.mod`, `pkg/kvdb/go.mod`, `pkg/macaroons/go.mod`) and in the CI workflows (`.github/workflows/{unit,integration,artifacts,release}.yaml`) and Docker builds (`Dockerfile`, `arkdwallet.Dockerfile`, `arkdwallet.btcwallet.Dockerfile`).
 
 ### Bitcoin Libraries
 

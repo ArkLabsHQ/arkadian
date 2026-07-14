@@ -86,7 +86,7 @@ internal/
 ## Technology Stack
 
 ### Core Technologies
-- **Go 1.26.3+** - Primary language
+- **Go 1.26.5+** - Primary language
 - **Protocol Buffers** - API definition and serialization
 - **gRPC** - Inter-service communication
 - **Taproot / MuSig2** - Bitcoin transaction signing
@@ -148,6 +148,12 @@ Client SDK for building wallets and applications in Go.
 - Unilateral redemptions
 
 ## Major Features (Recent)
+
+### VTXO Marker DAG for Scalable Chain Traversal & Sweeping (PR #908)
+The VTXO chain is now indexed by a **marker DAG** that lets the server traverse and sweep deep chains in near-constant depth instead of walking every VTXO. A `domain.Marker` is a DAG-traversal checkpoint created at regular depth intervals (`MarkerInterval = 100`; VTXOs at depth 0, 100, 200, … open a new marker), each carrying `{ID, Depth, ParentMarkerIDs}`. A new `MarkerRepository` (added to `RepoManager` as `Markers()`, implemented for badger/postgres/sqlite) manages markers, records sweeps in an append-only `SweptMarker` table via `BulkSweepMarkers`, and drives `GetVtxoChain` traversal (`GetVtxosByDepthRange`, `GetVtxoChainByMarkers`, `GetVtxosByArkTxid`). Postgres uses a **recursive CTE** to fetch descendant markers; sweeper restore prefetches VTXOs by marker. New offchain-tx VTXOs inherit their parents' marker IDs (or open a new one at a boundary), and batch VTXOs get root markers via `CreateRootMarkersForVtxos`. The `vtxo` table's `swept` boolean column was **removed** in favor of marker-based sweep state, its `marker_ids` column is now JSONB holding ≥1 marker per VTXO, and the indexer `IndexerVtxo` exposes each VTXO's `depth` (proto field 15). Backed by the `20260701000000_add_vtxo_marker_dag` migration (sqlite + postgres) plus a `markerbackfill` package that guarantees every existing VTXO has at least one marker; validated with tests up to a 20k-depth chain. Checkpoint sweeps use `SweepVtxoOutpoints` to avoid over-reaching across independent subtrees that share inherited markers.
+
+### Indexer `renewableOnly` VTXO Filter (PR #1149)
+The indexer `GetVtxos` RPC gains a `renewable_only` filter (proto field 10) that returns the **union** of spendable and recoverable VTXOs. Like `spendable_only` / `spent_only` / `recoverable_only` / `pending_only`, it is mutually exclusive with the others and only applies when querying by `scripts` (ignored when querying by `outpoints`). `IndexerVtxo` also now carries the VTXO `depth` (field 15) from the marker DAG.
 
 ### DB-Persisted Settings with Admin CRUD API (PR #939)
 Operational settings (exit delays, amount limits, round participants, ban config, tx weight limits, fees, scheduled session) now live in a single database row (`domain.Settings`) — the source of truth at runtime. `ARKD_*` settings env vars are used **only on the first boot** to seed the row; afterwards they are ignored and settings are managed via `GET`/`POST /v1/admin/settings` (partial updates with server-side validation and a returned change log). Legacy `intent_fees`/`scheduled_session` table contents are migrated into the settings row on first boot. `ARKD_SCHEDULER_TYPE` and `ARKD_ALLOW_CSV_BLOCK_TYPE` were removed; the scheduler is derived from the `vtxo_tree_expiry` locktime type.

@@ -1,8 +1,8 @@
 ---
 project_id: ark-infra
-version: 1.7.12
-last_sync_commit: 8c335de6fc36cbcc65e0ccfc3db5bce14c5c6496
-last_sync_date: 2026-07-11T00:00:00Z
+version: 1.7.13
+last_sync_commit: a7dba3ebae643bd8069882120c6afc0ddb60b064
+last_sync_date: 2026-07-14T00:00:00Z
 repository_path: ${ARK_INFRA_REPO}
 documentation_path: ${ARKADIAN_DOCS}/projects/ark-infra
 default_sections_by_intent:

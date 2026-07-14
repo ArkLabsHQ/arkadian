@@ -1,7 +1,7 @@
 ---
 project_id: arkade-explorer
-version: 1.1.3
-last_sync_commit: 34295ba46a65e84f4b0ff1992445cf4c1f70807e
+version: 1.1.4
+last_sync_commit: 90752ba9d32e78c9a26df38c29c101894d64baa3
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -75,6 +75,7 @@ Documentation sync history and tracking:
 | `/commitment-tx/:txid` | Batch commitment transaction details with batch list, VTXO tree, mempool.space link, and cross-links to Arkade transactions |
 | `/address/:address` | Address VTXO list and stats |
 | `/asset/:assetId` | Asset details page |
+| `/unilateral-exit` | Keyless unilateral-exit executor (self-contained, **unlinked** from the rest of the app) |
 | `/*` | 404 Not Found page |
 
 ### Key Features
@@ -89,12 +90,15 @@ Documentation sync history and tracking:
 8. **Money Display** -- Toggle between sats and BTC display via MoneyDisplayContext
 9. **Asset Verification** -- Verified asset icon approval system via AssetIconApprovalContext
 10. **Retro UI** -- Space Invaders-inspired design with purple/orange/black theme and particle effects
+11. **Unilateral Exit Executor** (`/unilateral-exit`) -- Self-contained, keyless tool that imports a pre-signed exit package (`@arkade-os/sdk` `UnilateralExit.prepare()`) and drives it onchain against an Esplora endpoint. Import → Review → Execute flow; ephemeral fee-only key persisted in-browser; self-executable `{arkadeExitBundle}` export. Intentionally unlinked from the rest of the explorer
 
 ### Configuration
 
 ```env
 VITE_INDEXER_URL=https://indexer.arkadeos.com
 VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.json
+# Optional — Esplora REST endpoint for the /unilateral-exit executor (defaults to the SDK per-network value)
+VITE_ESPLORA_URL=https://mempool.arkade.sh/api
 ```
 
 ### API Integration
@@ -117,6 +121,8 @@ arkade-explorer/
 │   │   ├── Layout/           # Header, Footer, Layout, SearchHeader
 │   │   ├── NotFound/         # NotFoundPage
 │   │   ├── Transaction/      # TransactionDetails, BatchList, TransactionHex, TreeViewer, VtxoTreeViewer
+│   │   ├── exit/             # Unilateral-exit executor UI: ImportScreen, ReviewScreen, RunScreen,
+│   │   │                     # FundingGate, step-meta.ts, ui.tsx (+ *.test.ts)
 │   │   └── UI/               # Card, Badge, CopyButton, LoadingSpinner, SearchBar, Pagination,
 │   │                         # Tooltip, Tabs, ThemeToggle, ParticleRain, MoneyDisplay,
 │   │                         # MoneyUnitToggle, AssetAmountDisplay, AssetBadge, ImageLightbox
@@ -139,12 +145,15 @@ arkade-explorer/
 │   │   ├── constants.ts      # App constants
 │   │   ├── debounce.ts       # Trailing-edge debounce with cancel() (tested)
 │   │   ├── decode.ts         # Bitcoin decoding utilities
+│   │   ├── exit/             # Unilateral-exit executor: package.ts (decode/encode + validate, tested),
+│   │   │                     # fee-wallet.ts (ephemeral fee key), esplora.ts (endpoint resolver)
 │   │   ├── formatters.ts     # Additional formatters
 │   │   ├── utils.ts          # Core utilities (cn, formatSats, truncateHash)
 │   │   ├── validation.ts     # Input validation
 │   │   ├── vtxo-aggregation.ts  # VTXO active/total sums, per-asset balances, page-drain predicate (tested)
 │   │   └── vtxo-display.ts   # deriveExpiryKind()/expiryKindLabel(): terminal Settled/Spent vs live countdown (tested)
-│   ├── pages/                # HomePage, TransactionPage, CommitmentTxPage, AddressPage, AssetPage
+│   ├── pages/                # HomePage, TransactionPage, CommitmentTxPage, AddressPage, AssetPage,
+│   │                         # UnilateralExitPage (unilateral-exit.tsx)
 │   ├── types/                # TypeScript interfaces (Vtxo, Batch, CommitmentTx, PageResponse)
 │   ├── App.tsx               # Main app with routing and context providers
 │   ├── index.css             # Global styles and theme

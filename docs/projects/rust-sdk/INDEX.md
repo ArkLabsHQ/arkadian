@@ -1,7 +1,7 @@
 ---
 project_id: rust-sdk
-version: 1.4.3
-last_sync_commit: bab46b4200a225aed4262da190583d44ad4ec96e
+version: 1.4.4
+last_sync_commit: d8feefa6621c748839f20820406a913d7a97d2df
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -68,7 +68,7 @@ All publishable crates aligned at **v0.10.1** with crates.io metadata (`keywords
 - **ark-client** (v0.10.1): High-level client — connect to arkd, send VTXOs, settle rounds, transaction history, Boltz swaps; adds the `contract` module (`ContractManager`, `ContractStore` / `MemoryContractStore` / `SqliteContractStore`, `AnnotatedVtxo` / `AnnotatedBoardingOutput` / `AnnotatedVtxoList`) and `list_contracts` / `restore_contracts` APIs (boarding outputs live in the contract manager; `BoardingWallet` removed)
 - **ark-grpc** (v0.10.1): gRPC transport for arkd communication (tonic-based); `Client::connect` now applies the workspace `ClientTlsConfig` (webpki or native roots, per feature flag) to the manually constructed `Endpoint` so TLS-enabled URLs work without relying on tonic's pre-`0.14` automatic TLS inference
 - **ark-rest** (v0.10.1): REST transport for arkd (reqwest-based, WASM-compatible)
-- **ark-bdk-wallet** (v0.10.1): BDK integration for on-chain wallet operations
+- **ark-bdk-wallet** (v0.10.1): BDK integration for on-chain wallet operations; `Wallet::new_from_xpriv` derives **BIP86 Taproot** (P2TR, `bc1p…`) external/change descriptors (was BIP84 native SegWit)
 - **ark-fees** (v0.10.1): Fee estimation utilities
 - **ark-delegator** (v0.10.1): REST client for Ark delegator services (auto-renewal of VTXOs)
 - **ark-script** (v0.10.1): Arkade scripting extension — extension opcodes, ASM helpers, script key tweaking, `ArkadeTapscript` / `ArkadeVtxoScript` for Multisig / CsvMultisig leaves (kept out of `ark-core` so non-arkade consumers don't pay the cost)

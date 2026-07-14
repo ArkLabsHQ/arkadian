@@ -139,6 +139,37 @@ Address VTXO explorer with statistics dashboard and paginated VTXO list.
 ### AssetPage
 Asset details page. Uses useAssetDetails hook to fetch asset data by ID.
 
+### UnilateralExitPage (`pages/unilateral-exit.tsx`)
+Self-contained, keyless unilateral-exit executor, **unlinked** from the rest of the app (reachable only at `/unilateral-exit`). Orchestrates the Import → Review → Execute screens, holds the loaded package + ephemeral fee key + Esplora URL state, and wraps each screen in a `ScreenErrorBoundary` so a malformed package cannot blank the app (the header with "Start over" lives outside the boundary for recovery).
+
+## Exit Executor Components (`components/exit/`, `lib/exit/`)
+
+Back the `/unilateral-exit` page; all consume `@arkade-os/sdk` exit primitives.
+
+### ImportScreen
+Loads an exit package via file drop, pasted JSON, or URL param — decodes with `decodePackageBlob` and surfaces decode errors inline.
+
+### ReviewScreen
+Renders the decoded package (VTXOs, totals, CSV timelocks) and a rough end-to-end duration estimate (`delaySeconds` treats blocks as ~10 min).
+
+### RunScreen
+Drives the exit onchain via the SDK's `UnilateralExit` + `EsploraProvider`, using a `FeeWalletHandle`; maps live `ExecutorEvent`s to display phases via `step-meta`. Gates on funding via `FundingGate`.
+
+### FundingGate
+Shows the fee address, a funding progress bar, and (for graph-mode) a self-executable bundle export (`encodeExitBundle`).
+
+### step-meta.ts
+`phaseFor()` maps executor status → display phase (a `skipped` with a reason means a failed upstream branch — rendered as skipped, **not** confirmed); `KIND_LABEL` and `PHASE_STYLE` provide labels/colours. Unit-tested.
+
+### lib/exit/package.ts
+Decode/validate/encode the transport format: `decodePackageBlob` (raw JSON / base64url / gzip), `parsePackageJson`, `encodeExitBundle` (`{arkadeExitBundle}` envelope with embedded fee key), `packageParamFromUrl` (prefers `#pkg=` fragment), and `assertRenderable` (guards `totals`/`vtxos` fields the SDK only casts). Unit-tested.
+
+### lib/exit/fee-wallet.ts
+`loadOrCreateFeeKey` / `makeFeeWallet` — an ephemeral, fee-only key persisted to `localStorage` (`arkade-exit:fee-key`) so a reload resumes the same funded address.
+
+### lib/exit/esplora.ts
+`esploraUrlFor(network)` — resolves the Esplora REST endpoint from `VITE_ESPLORA_URL` or the SDK's per-network default.
+
 ## Context Providers (`contexts/`)
 
 ### ThemeContext

@@ -1,6 +1,8 @@
 # API Reference
 
-Two API surfaces: the **enclave-facing API** (HTTPS `:443`, terminated by nitriding) and the **host-side management API** (`127.0.0.1:8443`, plain HTTP, loopback only — access via SSM Session Manager).
+Three API surfaces: the **enclave-facing HTTP API** (HTTPS `:443`, terminated by `runtime.Runtime`), the **confidential K/V store** (Redis/RESP over a loopback TLS listener inside the enclave, default `:6379` — see below), and the **host-side management API** (`127.0.0.1:8443`, plain HTTP, loopback only — access via SSM Session Manager).
+
+> **Removed in this release:** the S3-backed `PUT/GET/DELETE/LIST /v1/storage/{key}` HTTP API and the `PUT/GET/DELETE/LIST /v1/secrets` dynamic-secrets API are **gone** — both are replaced by the Redis-compatible K/V store. The `POST /enclave/hash` handler and the runtime-served `pcr0_signature` block on `/v1/enclave-info` (with `runtime/signature.go`) were also removed.
 
 ## Authentication
 
@@ -13,7 +15,7 @@ Every response from the enclave-facing API includes:
 - `X-Attestation-Signature` — BIP-340 Schnorr signature over `SHA256(response_body)`.
 - `X-Attestation-Pubkey` — compressed secp256k1 ephemeral attestation pubkey.
 
-Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyHash` field in the attestation document's `UserData`.
+Clients verify the signature, then confirm `SHA256(pubkey)` matches the `signingKeyHash` field in the attestation document's `UserData` (renamed from `appKeyHash` in #129).
 
 ### gRPC / gRPC-Web bypass
 
@@ -36,7 +38,7 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Supervisor health (`ready` / `degraded`) |
-| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `metrics`, an `upstream_app: { exited, error }` object reporting whether the user app process has exited (see below), and — when the Tofu module's PCR0-signing block was applied — a `pcr0_signature: { pubkey_pem, pcr0_hex, signature_b64 }` sub-object (`omitempty`; absent on deployments where signing isn't provisioned). |
+| `GET` | `/v1/enclave-info` | Build + runtime metadata: `version`, `attestation_pubkey`, `previous_pcr0` (`"genesis"` on first boot — read from SSM via `readSSMParamOptional`, so a missing parameter is non-fatal), `previous_pcr0_attestation` (also optional), `kms_key_locked` (bool — the deployment's KMS lock posture, from `kmsKeyLocked()`), `metrics`, and an `upstream_app: { exited, error }` object reporting whether the user app process has exited (see below). The former `pcr0_signature` sub-object was removed. |
 | `GET` | `/enclave/attestation` | NSM attestation document (served by nitriding, COSE Sign1) |
 | `*` | `/*` | All other requests reverse-proxied to user app on `:7074`. After the user app has exited, these return **502** via the reverse proxy's `ErrorHandler` while `/v1/*` and `/enclave/*` runtime routes keep responding. |
 
@@ -52,50 +54,6 @@ Clients verify the signature, then confirm `SHA256(pubkey)` matches the `appKeyH
 While Init is still running the runtime returns HTTP 503 with body `{version, previous_pcr0, initializing: true}` regardless of the underlying cause.
 
 The `migration` outcome block has been **removed** — migration is now committed atomically by the `KMSKeyID` SSM flip, so there is no separate commit/abort state to surface. The supervisor instead polls `/health` until the new enclave is ready, and rolls back if it never becomes healthy within the timeout.
-
-### Encrypted Storage (Token)
-
-Backed by S3 + KMS-protected DEK + AES-256-GCM. Up to 10 MB per object.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `PUT` | `/v1/storage/{key}` | Encrypt + upload data |
-| `GET` | `/v1/storage/{key}` | Download + decrypt |
-| `DELETE` | `/v1/storage/{key}` | Delete object |
-| `GET` | `/v1/storage?prefix={p}` | List keys matching prefix |
-
-```sh
-curl -X PUT https://your-enclave/v1/storage/my/key \
-  -H "Authorization: Bearer $ENCLAVE_RUNTIME_TOKEN" \
-  --data-binary @file.bin
-
-curl https://your-enclave/v1/storage/my/key \
-  -H "Authorization: Bearer $ENCLAVE_RUNTIME_TOKEN"
-
-curl "https://your-enclave/v1/storage?prefix=my/" \
-  -H "Authorization: Bearer $ENCLAVE_RUNTIME_TOKEN"
-
-curl -X DELETE https://your-enclave/v1/storage/my/key \
-  -H "Authorization: Bearer $ENCLAVE_RUNTIME_TOKEN"
-```
-
-### Dynamic Secrets (Token)
-
-Runtime-mutable secrets persisted encrypted in S3 (reuses storage DEK). Optional `env_var` binding injects on boot. Conflicts with static KMS secrets are rejected. Max value size 64 KB.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `PUT` | `/v1/secrets/{name}` | Create/update a secret (body: `{"env_var":"X","value":"..."}`) |
-| `GET` | `/v1/secrets/{name}` | Retrieve a secret value |
-| `DELETE` | `/v1/secrets/{name}` | Delete a secret |
-| `GET` | `/v1/secrets` | List secrets (metadata only — no values) |
-
-```sh
-curl -X PUT https://your-enclave/v1/secrets/api-token \
-  -H "Authorization: Bearer $ENCLAVE_RUNTIME_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"env_var": "API_TOKEN", "value": "sk-..."}'
-```
 
 ### Internal (not exposed externally)
 
@@ -118,34 +76,28 @@ POST routes follow the OTLP/HTTP spec so that a standard OTEL SDK exporter can t
 
 The supervisor's `:8443/metrics` Prometheus exposition is still the textfile that scrapers should consume from outside the enclave — it proxies the runtime's JSON snapshot.
 
-### PCR0 Signing (Tofu-provisioned, served via `/v1/enclave-info`)
+---
 
-When `enclave tofu init` has scaffolded the module and `tofu apply` runs, the module mints a dedicated `aws_kms_key.pcr0_signing` (`ECC_NIST_P384` / `SIGN_VERIFY`), runs a local-exec at apply time that signs the live PCR0 with `ECDSA_SHA_384` via `aws kms sign`, and writes three SSM parameters under `/{dep}/{app}/Signing/`:
+## Confidential K/V Store (Redis / RESP, enclave-internal)
 
-| SSM Parameter | Content |
-|---------------|---------|
-| `/{dep}/{app}/Signing/PubkeyPEM` | ECC NIST P-384 public key in PEM form (`openssl ec -pubin -inform DER -outform PEM`) |
-| `/{dep}/{app}/Signing/PCR0` | The signed PCR0 hex string |
-| `/{dep}/{app}/Signing/Signature` | Base64-encoded raw signature bytes from `aws kms sign --signing-algorithm ECDSA_SHA_384` |
+Replaces the old S3-backed `/v1/storage` HTTP API and dynamic-secrets API. A **rollback-resistant, confidential key/value store** that speaks the **Redis (RESP) protocol**, backed by DynamoDB.
 
-The runtime's `Signature.Load` reads those three parameters during `Init` (non-fatal — missing parameters just log a warning), and `Signature.Snapshot` surfaces them as the `pcr0_signature` sub-object on `GET /v1/enclave-info` (`omitempty` — entirely absent for deployments that didn't provision signing). There is **no dedicated endpoint** (an earlier draft mounted `GET /enclave/signature`, but it was folded into `/v1/enclave-info` so all attestation metadata travels in one round-trip).
+- **Transport** — a TLS listener bound to loopback **inside** the enclave (default `:6379`, override `ENCLAVE_KV_RESP_PORT`). It is *not* exposed to the network; the trust anchor is the attestation-bound TLS channel and clients `AUTH` with the runtime token (`ENCLAVE_RUNTIME_TOKEN`).
+- **Confidential** — every value is AES-256-GCM sealed under the in-enclave KMS-issued DEK *before* it reaches DynamoDB; AAD binds `{deployment, app, key, version, chunk}`. Collections (hash/list/set/zset/stream) are stored as one sealed CBOR blob.
+- **Rollback-resistant (issue #134)** — every committed write is anchored to a compliance-locked, DEK-sealed **S3 Object-Lock** object (`anchor.go`). A boot gate fails closed if the live store is already rolled back; a lazy per-read version-floor check sets a halt flag (`/health` → **503**, RESP refused) on regression. `ENCLAVE_ANCHOR_WINDOW` (retain-until, ~10y default) is non-overridable so the operator can't wait out the Object Lock.
 
-Verification recipe (the integration test's `[35/35]` check):
+Connect from the user app (Go, `github.com/redis/go-redis/v9`):
 
-```sh
-# Pull the three fields
-curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.pubkey_pem' > pubkey.pem
-curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.pcr0_hex'    \
-  | python3 -c "import sys,binascii; sys.stdout.buffer.write(binascii.unhexlify(sys.stdin.read().strip()))" > pcr0.bin
-curl -sk https://<enclave>/v1/enclave-info | jq -r '.pcr0_signature.signature_b64' \
-  | base64 -d > sig.bin
-
-# Verify with OpenSSL
-openssl pkeyutl -verify -pubin -inkey pubkey.pem -in pcr0.bin -sigfile sig.bin
-# → Signature Verified Successfully
+```go
+rdb := redis.NewClient(&redis.Options{
+    Addr:      "127.0.0.1:" + os.Getenv("ENCLAVE_KV_RESP_PORT"), // default 6379
+    Password:  os.Getenv("ENCLAVE_RUNTIME_TOKEN"),               // AUTH token
+    TLSConfig: &tls.Config{InsecureSkipVerify: true},            // loopback, self-cert
+})
+rdb.Set(ctx, "k", "v", 0)
 ```
 
-There is no `signing:` field in `enclave.yaml` — provisioning is entirely a property of the Tofu module. The Tofu output `pcr0_signing_key_arn` lets you grant `kms:Sign` + `kms:GetPublicKey` to the identity running `tofu apply`.
+**Supported command groups:** strings/keys, hashes, lists, sets, sorted sets, streams; `SCAN` (cursor + MATCH/COUNT/TYPE), `INFO`, `CONFIG GET/SET`; `MULTI/EXEC/DISCARD/WATCH/UNWATCH` (sequential, optimistic CAS — not Redis-grade isolation); `SUBSCRIBE/PSUBSCRIBE/PUBLISH`, `HELLO`(+`AUTH`). **Out of scope:** Lua scripting (`EVAL`), blocking ops (`BLPOP`/`WAIT` — DynamoDB has no wait-for-change), multi-DB (`SELECT`/`FLUSHDB`), and non-core module families (RedisJSON, bitmaps, HyperLogLog, Geo). See `KV.md` / `ROLLBACK.md` in the repo for the full matrix. `ENCLAVE_KV_MAX_VALUE_BYTES` caps a single value. Reserved `acme/` namespace still backs the ACME cert cache (see below), the only remaining user of the S3 storage subsystem.
 
 ---
 
@@ -185,11 +137,12 @@ The supervisor steps are: `0=stepCooldown`, `1=stepReadCurrentKey`, `2=stepStart
 | `http_errors` | Requests returning 4xx/5xx |
 | `kms_operations` | KMS Decrypt calls (DEK decryption) |
 | `kms_errors` | Failed KMS Decrypt calls |
-| `storage_reads` / `storage_writes` / `storage_deletes` / `storage_errors` | S3 storage operations |
-| `secret_reads` / `secret_writes` / `secret_deletes` | Dynamic secret operations |
+
+The former per-op `storage_*` / `secret_*` counters were dropped when the S3 storage HTTP API and dynamic secrets were replaced by the K/V store.
 
 ## Verified Clients
 
-- **Go (HTTP)** — `client/` package (`client.New(...)` or `client.NewFromManifest(...)`). Verifies attestation chain on first call, then verifies Schnorr signatures on every response.
-- **Go (gRPC)** — `client.GRPCConn(ctx, ...grpc.DialOption)` returns a `*grpc.ClientConn` whose TLS handshake pins the leaf-cert SHA-256 fingerprint to the attestation document's `tlsKeyHash` (decoded from `UserData` bytes `7:39`; `appKeyHash` is bytes `47:79`). The attestation chain (PCR0, optional secret PCRs, attestation-key binding) is verified before dialling and the result is cached for `CacheTTL`. Native gRPC bypasses response signing — trust is established at handshake, so a wrong PCR0 or a TLS cert that doesn't match `tlsKeyHash` makes the handshake fail.
+- **Go (HTTP)** — `client/` package (`client.New(...)` or `client.NewFromManifest(...)`). **Attested-TLS binding now enforced (#129):** `verify()` fetches the attestation over an unpinned bootstrap client (only `GET /enclave/attestation`), then pins the live TLS leaf cert to the attested `tlsKeyHash` and runs PCR0 + key-binding checks over the **pinned** client, so a cert mismatch fails before any app request — closing a MITM gap where the HTTP path previously skipped TLS verification. `Options.StrictTLS` adds public-CA/hostname validation on top of the pin; `Options.SkipKeyBinding` keeps PCR0 + pin but skips the signing-key check; `PinnedHTTPClient(tlsKeyHashHex, strict)` is exported. Then verifies Schnorr signatures on every response.
+- **Go (gRPC)** — `client.GRPCConn(ctx, ...grpc.DialOption)` returns a `*grpc.ClientConn` whose TLS handshake pins the leaf-cert SHA-256 fingerprint to the attestation document's `tlsKeyHash` (decoded from `UserData` bytes `7:39`; `signingKeyHash` — renamed from `appKeyHash` — is bytes `47:79`). Both transports share `verifyLeafCertPin`, which rejects empty/all-zero hashes (fail closed). Native gRPC bypasses response signing — trust is established at handshake, so a wrong PCR0 or a TLS cert that doesn't match `tlsKeyHash` makes the handshake fail.
+- **CLI** — `enclave curl <path>` calls an endpoint on the deployed enclave attestation-verified by default (`--expected-pcr0`), routing over the pinned connection; `--insecure` opts out (warns on stderr), `--strict-tls` adds PKI validation (mutually exclusive with `--insecure`). `enclave verify` pins the live cert to the attested fingerprint after the unpinned bootstrap.
 - **Rust** — `client-rs/` Cargo workspace member.

@@ -11,6 +11,7 @@ type RepoManager interface {
     Events() domain.EventRepository
     Rounds() domain.RoundRepository
     Vtxos() domain.VtxoRepository
+    Markers() domain.MarkerRepository
     OffchainTxs() domain.OffchainTxRepository
     Convictions() domain.ConvictionRepository
     Assets() domain.AssetRepository
@@ -65,6 +66,24 @@ Manages Virtual Transaction Outputs and their lifecycle.
 - `GetVtxoPubKeysByCommitmentTxids(ctx, commitmentTxids, withMinimumAmount)` - **Bulk** variant: returns the deduped union of pubkeys across all supplied commitment txids in a single roundtrip. Implemented across all three backends (sqlite uses `sqlc.slice` with internal param-limit batching; postgres uses `ANY($1::text[])`; badger iterates). Used by sweeper restore/stop paths to collapse the previous N+1 loop into a constant 2 DB calls regardless of the number of sweepable rounds (benchmarked >1000× faster at 1000 rounds on sqlite). The `withMinimumAmount` predicate is inclusive (`>= min_amount`).
 
 **State Transitions:** Created � Spent (SettleVtxos or SpendVtxos) � Swept, or Created � Unrolled
+
+> **PR #908:** the `vtxo` table's `swept` boolean column was **removed** — sweep state is now derived from the marker DAG (see `MarkerRepository`). The `marker_ids` column is JSONB/TEXT holding ≥1 marker per VTXO, and each VTXO exposes its chain `depth` (surfaced on the indexer `IndexerVtxo`, proto field 15).
+
+### MarkerRepository (PR #908)
+Manages the **VTXO marker DAG** — traversal checkpoints created at regular depth intervals (`domain.MarkerInterval = 100`) that let the server traverse and sweep deep VTXO chains in near-constant depth instead of walking every VTXO. A `Marker` carries `{ID, Depth, ParentMarkerIDs}`; a `SweptMarker` (append-only) records `{MarkerID, SweptAt}`.
+
+**Key Methods:**
+- `AddMarker(ctx, marker)` / `GetMarker(ctx, id)` - Create/update and fetch a single marker
+- `GetMarkersByDepthRange(ctx, minDepth, maxDepth)` / `GetMarkersByIds(ctx, ids)` - Range/bulk marker lookups
+- `BulkSweepMarkers(ctx, markerIDs, sweptAt)` - Marks many markers swept in one operation (append-only `SweptMarker`)
+- `IsMarkerSwept(ctx, markerID)` / `GetSweptMarkers(ctx, markerIDs)` - Sweep-state queries
+- `UpdateVtxoMarkers(ctx, outpoint, markerIDs)` / `GetVtxosByMarker(ctx, markerID)` - VTXO ↔ marker association
+- `CreateRootMarkersForVtxos(ctx, vtxos)` - Creates root markers for batch VTXOs (marker ID = VTXO outpoint) in a single transaction
+- `SweepVtxoOutpoints(ctx, outpoints, sweptAt)` - Sweeps specific outpoints via the `swept_vtxo` table; used by checkpoint sweeps where marker-based sweeping would over-reach across independent subtrees sharing inherited markers
+- `GetVtxosByDepthRange` / `GetVtxosByArkTxid` / `GetVtxoChainByMarkers` - Chain-traversal methods backing the `GetVtxoChain` indexer optimization
+- `Close()` - Cleanup
+
+**Schema:** New `marker` + `swept_marker` tables and a JSONB/TEXT `marker_ids` column on `vtxo`, added by migration `20260701000000_add_vtxo_marker_dag` (sqlite + postgres). PostgreSQL uses a **recursive CTE** to fetch descendant markers; badger iterates in-memory. A `markerbackfill` package guarantees every pre-existing VTXO has at least one marker on migration. Validated with chains up to 20k depth.
 
 ### OffchainTxRepository
 Manages offchain (collaborative) transactions and checkpoint transactions.
@@ -165,7 +184,7 @@ Distinguish between "not found" and actual errors - not found should return nil,
 - Uses sqlc for type-safe query generation
 - Complex views with string_agg for aggregations
 - JSONB for tree structures
-- golang-migrate for schema migrations (latest: `20260609120126_add_settings` creates the unified settings table; before that `20260527150000_vtxo_commitment_txid_index` adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk-pubkey join used by sweeper restore stays fast as the sweepable-round set grows)
+- golang-migrate for schema migrations (latest: `20260701000000_add_vtxo_marker_dag` adds the marker DAG tables and drops the `vtxo.swept` column; before that `20260609120126_add_settings` creates the unified settings table, and `20260527150000_vtxo_commitment_txid_index` adds a btree index on `vtxo_commitment_txid(commitment_txid)` so the bulk-pubkey join used by sweeper restore stays fast as the sweepable-round set grows)
 - Watermill for event streaming
 
 ### SQLite
