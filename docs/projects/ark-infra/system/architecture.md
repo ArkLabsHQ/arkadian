@@ -198,6 +198,21 @@ the old `staging.arkade.sh`/`staging-cf.arkade.sh` cert stays as a temporary ext
 (staging `emulator.staging.arkade.sh`, A-record → ALB), with an `app_sg`←`alb_sg` ingress rule
 on that port.
 
+**ECS cluster substrate (2026-07, #111):** the shared module now also provisions an
+**ECS-on-EC2** cluster (`modules/ark/ecs.tf`, `ark-${env}`) alongside the Compose app host —
+the first workload that does *not* run in Docker Compose. Container hosts use the stock
+ECS-optimized **AL2023 arm64** AMI (SSM-resolved, pinnable via `ecs_ami_id`) and are pure cattle:
+`scripts/user-data-ecs.sh` only registers them to the cluster, with **no custom AMI and no
+Ansible** — all app config lives in ECS task definitions. Enhanced container insights + ECS-Exec
+logging (`/ark/${env}/ecs-exec`) are enabled. First service is **NBXplorer** (`nbxplorer.tf`):
+a stateless task (image `nicolasdorier/nbxplorer:2.6.8` arm64, port 32838) that tracks UTXOs for
+arkd-wallet, reaching the **standalone bitcoind pet** (`modules/bitcoin-node/`) over RPC 8332 +
+P2P 8333 and persisting to the reused RDS Postgres via a SecureString DSN (decrypted with
+`kms_key_arn`). It registers into Cloud Map and carries `nbxplorer_down` / `errors` / `memory`
+CloudWatch alarms; cross-stack ingress rules are added onto the bitcoind and RDS SGs from the
+consumer side. Wired on **staging** — replacing the Compose `nbxplorer` container there, while
+prod/regtest keep the Compose container.
+
 ### 4. Data Flow Architecture
 
 #### Client Request Flow

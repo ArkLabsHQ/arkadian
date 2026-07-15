@@ -1,5 +1,37 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-15 - Documentation Sync
+**Commit**: `ee30182e1410fd8425b59cf415107e294ef69335`
+**Previous Sync**: `590cff5dd98c2310386f026ac7653689d74e28c5`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 non-merge commits
+- `ee30182e` update regtest commit (#779)
+- `7df5ab4a` fix flaky send onchain test (#780)
+- `e414ce52` Polish transaction detail receipt (#726)
+- `7630bc4a` Fix bitcoin chart hover label (#766)
+
+**Features Added/Modified**:
+- Transaction-detail receipt polish (PR #726, `src/components/Table.tsx`): the `receipt` table variant was generalized — the receipt row classes were renamed from `details-row*` to `table-row*`, a `table table--receipt` wrapper class was added, and the leading icon slot now only renders when an icon is present. The `receipt` variant is now applied to **Settings → About** (`src/screens/Settings/About.tsx`) and the transaction-detail `Details` (`src/screens/Wallet/Transaction.tsx`), with supporting styling in `src/index.css`.
+- Bitcoin chart hover label (PR #766): new `prettyChartDateTime` formatter in `src/lib/format.ts` (an `Intl.DateTimeFormat` of day/month/year + hour/minute, empty string on falsy timestamp) is wired into the Bitcoin detail chart (`src/screens/Wallet/BitcoinDetail.tsx`) as the `formatTime` prop, with `tooltipY={-18}` and increased top padding (`top: 8 → 28`) so the hover date/time label clears the price line. Covered by `src/test/lib/format.test.ts` and `src/test/screens/wallet/bitcoin-detail.test.tsx`.
+
+**Minor / Internal (SYNC_HISTORY-only, low doc surface)**:
+- `regtest` submodule pointer bump (PR #779, `78ed732d` → `795c4801`).
+- Flaky send-onchain E2E test stabilised (PR #780, `src/test/e2e/receive.test.ts`).
+
+**Configuration / Dependency Changes**: None.
+
+**Documentation Impact**: Minor — UI polish (receipt-variant table markup, chart hover date/time label) plus a submodule bump and a test fix; no new dependencies, env vars, or architecture changes. Added one consolidated capability bullet to the master registry and project index and bumped the project frontmatter version.
+
+**Files Updated**:
+- docs/INDEX.md (transaction-detail receipt + chart hover label capability bullet)
+- docs/projects/wallet/INDEX.md (frontmatter `version` 1.2.34 → 1.2.35 + `last_sync_commit`, receipt/chart + regtest/flaky-test capability bullets)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-11 - Documentation Sync
 **Commit**: `590cff5dd98c2310386f026ac7653689d74e28c5`
 **Previous Sync**: `90cf483285ad7302b7a81cd37ac0d685276ea7a9`

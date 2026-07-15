@@ -35,11 +35,15 @@ ark-infra/
 │   │   ├── staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
 │   │   └── prod/                      # Prod stack (since 2026-05) — composes `modules/ark` (env=prod); S3 backend `ark-prod-terraform-state`, Route53 aliases for prod.arkade.sh + telemetry.prod.arkade.sh
 │   └── bitcoin/                       # Standalone Bitcoin node stacks (since 2026-07, #105)
-│       └── staging/                   # Deploys `modules/bitcoin-node` (AZ-a, t4g.medium, fixed IP 10.10.101.10) via `modules/vpc-lookup`; self-owned Route53 private zone bitcoin.ark-staging.internal
+│       └── staging/                   # Deploys `modules/bitcoin-node` (AZ-a, t4g.medium, fixed IP 10.10.101.10) via `modules/vpc-lookup`; self-owned Route53 private zone bitcoin.ark-staging.internal. Since #111 `outputs.tf` publishes node_security_group_id / node_dns_name / node_fixed_private_ip for the ark stack's NBXplorer ECS service (consumer-depends-on-producer)
 ├── modules/                           # Reusable OpenTofu modules
-│   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning
+│   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning, ECS cluster
 │   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert, 180s idle, access+conn logs)
 │   │   ├── arkd.tf                    # arkd target groups (gRPC/REST/SSE) + listener rules (since 2026-05)
+│   │   ├── ecs.tf                     # ECS cluster substrate on EC2 capacity provider (since #111) — ark-${env} cluster, AL2023 arm64, container-instance IAM/SG, ECS-Exec logging
+│   │   ├── nbxplorer.tf               # NBXplorer ECS service (since #111) — first cluster workload; RDS Postgres, bitcoind pet RPC/P2P, Cloud Map, CloudWatch alarms
+│   │   ├── data.tf                    # Shared data sources + ec2_assume/ecs_tasks_assume trust policies (extracted #111)
+│   │   ├── variables_ecs.tf / variables_nbxplorer.tf # ECS + NBXplorer vars (since #111)
 │   │   ├── s3.tf                      # ALB log bucket (ark-logs-${env}-${account_id}) + ark-tmp-${env} (7d expiry)
 │   │   ├── locals.tf                  # account_id / region from data sources
 │   │   ├── outputs.tf                 # alb_dns_name, alb_zone_id (consumed by Route53 aliases)
@@ -125,7 +129,8 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.13`, `ghcr.io/arkade-os/arkd-wallet:v0.9.13` since #107). ECR
+     (`ghcr.io/arkade-os/arkd:v0.9.14`, `ghcr.io/arkade-os/arkd-wallet:v0.9.14`, bumped from
+     `v0.9.13` in #114; `v0.9.13` since #107). ECR
      remains used for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -155,6 +160,7 @@ ark-infra/
    - **Regtest:** still builds `ark-infra/nbxplorer:2.6.7-curl` from `Dockerfile.nbxplorer` (FROM `nicolasdorier/nbxplorer:2.6.7` + `apt-get install curl`)
    - Health check posts a JSON-RPC `getblockchaininfo` to `/v1/cryptos/BTC/rpc` probing for `"result"` (60 retries × 5s)
    - `arkd-wallet` now declares `depends_on: { nbxplorer: { condition: service_healthy } }` in both prod and regtest compose files
+   - **Staging (since #111):** NBXplorer no longer runs as a Compose container — it is deployed as an **ECS service** on the new `ark-${env}` cluster (`modules/ark/ecs.tf` + `nbxplorer.tf`). It points at the standalone bitcoind pet (`modules/bitcoin-node/`) over RPC 8332 + P2P 8333 (no ZMQ), keeps state in the reused RDS Postgres (stateless task, `NBXPLORER_NOAUTH=1`, no volume), exposes port 32838, uses a `curl /health` container health check, and is reachable via Cloud Map service discovery. Toggle via `nbxplorer_enabled` (desired_count 1↔0 while bitcoind syncs)
 
 5. **bitcoind** (Production only — Docker Compose container)
    - Full Bitcoin mainnet node

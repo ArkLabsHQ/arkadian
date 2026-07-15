@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.34
-last_sync_commit: 590cff5dd98c2310386f026ac7653689d74e28c5
+version: 1.2.35
+last_sync_commit: ee30182e1410fd8425b59cf415107e294ef69335
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -344,6 +344,8 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **Currency icons (PR #663)**: The settings `Select` component gains reusable leading-content support; the currency picker shows a circular bitcoin or country currency mark per option via an extended `TokenLogo` (`src/components/TokenLogo.tsx`).
 - **Contracts screen polish (PR #664)**: The dev-mode Contracts screen gets a full-width summary, clearer contract cards, copyable code fields, and subtle motion feedback (on top of the PR #670 rebuild documented above).
 - **Marketing/asset & minor UI fixes**: Arkade OG link-preview image swapped (PR #718, `public/arkade-og-image.png` — `index.html` metadata unchanged); header fix (PR #717); transaction-list height fix (PR #715); `regtest` submodule pointer bumped (PR #716); `.env.regtest` gains an `AUTOMINE_INTERVAL` auto-miner knob.
+- **Transaction-detail receipt polish & chart hover label (PRs #726, #766)**: the `Table` component's receipt variant was generalized (PR #726) — `src/components/Table.tsx` renames the receipt row classes from `details-row*` to `table-row*`, adds a `table table--receipt` wrapper class, and only renders the leading icon slot when an icon is present; the `receipt` variant is now applied to **Settings → About** (`src/screens/Settings/About.tsx`) and the transaction-detail `Details` (`src/screens/Wallet/Transaction.tsx`), with supporting `src/index.css` styling. The Bitcoin detail chart (`src/screens/Wallet/BitcoinDetail.tsx`) gains a hover date/time label from a new `prettyChartDateTime` formatter (`src/lib/format.ts`, an `Intl.DateTimeFormat` of day/month/year + hour/minute) wired as the chart's `formatTime`, with `tooltipY={-18}` and increased top padding so the label clears the price line (PR #766). Covered by `src/test/lib/format.test.ts` and `src/test/screens/wallet/bitcoin-detail.test.tsx`.
+- **regtest bump & flaky-test fix (PRs #779, #780)**: `regtest` submodule pointer bumped (PR #779); a flaky send-onchain E2E test (`src/test/e2e/receive.test.ts`) stabilised (PR #780).
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning via SwapManager

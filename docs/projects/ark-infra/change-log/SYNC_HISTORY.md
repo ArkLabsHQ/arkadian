@@ -1,5 +1,44 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-15 - Documentation Update
+**Commit**: `7f4239a6f998864983579a58416a4457ecc9b522`
+**Previous Sync**: `a7dba3ebae643bd8069882120c6afc0ddb60b064`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (#111 ECS cluster + NBXplorer on ECS, #114 arkd release v0.9.14)
+
+**Highlights**:
+- 🐳 **ECS cluster + NBXplorer on ECS (#111)** — first non-Compose workload. New reusable
+  ECS-on-EC2 substrate `modules/ark/ecs.tf` (`ark-${env}` cluster, EC2 capacity provider, stock
+  ECS-optimized AL2023 arm64 AMI via SSM param / pinnable `ecs_ami_id`, container-instance IAM +
+  SG, enhanced container insights, ECS-Exec logging to `/ark/${env}/ecs-exec`, `user-data-ecs.sh`
+  bootstrap with **no custom AMI / no Ansible**; vars `variables_ecs.tf`). First service is
+  **NBXplorer** (`modules/ark/nbxplorer.tf`, `nicolasdorier/nbxplorer:2.6.8` arm64, port 32838,
+  cpu 512 / mem 1024): stateless task on the reused RDS Postgres (SecureString DSN
+  `/ark/${env}/nbxplorer/secure/postgres-dsn`, `NBXPLORER_NOAUTH=1`), reaching the standalone
+  bitcoind pet over RPC 8332 + P2P 8333, Cloud Map service discovery, `nbxplorer_down` / `errors` /
+  `memory` CloudWatch alarms, cross-stack ingress rules added onto bitcoind + RDS SGs; vars
+  `variables_nbxplorer.tf`, `nbxplorer_enabled` toggles desired_count 1↔0. Shared data sources +
+  `ec2_assume`/`ecs_tasks_assume` trust policies extracted to `modules/ark/data.tf`; new required
+  `kms_key_arn` var; new outputs `ecs_cluster_name`, `ecs_instance_security_group_id`,
+  `nbxplorer_security_group_id`, `nbxplorer_service_discovery_name`. Wired on **staging**
+  (`apps/ark/staging/ark.tf`), and `apps/bitcoin/staging/outputs.tf` now publishes
+  `node_security_group_id` / `node_dns_name` / `node_fixed_private_ip` for the consumer stack.
+  Distinct from the Compose `nbxplorer` container still used in prod/regtest.
+- ⬆️ **arkd released to v0.9.14 (#114)** — `compose/docker-compose.ark.prod.yaml` bumps both
+  `ghcr.io/arkade-os/arkd` and `ghcr.io/arkade-os/arkd-wallet` from `v0.9.13` → `v0.9.14`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra: arkd/arkd-wallet Key Capability → `v0.9.14` #114; new "ECS cluster + NBXplorer on ECS (#111)" capability bullet)
+- docs/projects/ark-infra/INDEX.md (frontmatter `version` → 1.8.0, `last_sync_commit`, `last_sync_date`; Deployed Services arkd/arkd-wallet → `v0.9.14`, nbxplorer ECS/staging note; `modules/ark/` ECS substrate note)
+- docs/projects/ark-infra/system/project_overview.md (ECR arkd version note → v0.9.14; nbxplorer staging-ECS note; repository structure `modules/ark` ecs.tf/nbxplorer.tf/data.tf/vars + `apps/bitcoin/staging` outputs.tf)
+- docs/projects/ark-infra/system/architecture.md (new ECS cluster substrate subsection under Application Layer)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `7f4239a6f998864983579a58416a4457ecc9b522`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
+---
+
 ## 2026-07-14 - Documentation Update
 **Commit**: `a7dba3ebae643bd8069882120c6afc0ddb60b064`
 **Previous Sync**: `8c335de6fc36cbcc65e0ccfc3db5bce14c5c6496`
