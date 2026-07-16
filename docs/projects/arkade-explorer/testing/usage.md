@@ -3,7 +3,7 @@
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ and pnpm
+- Node.js `>=24.15.0 <25` (see `.nvmrc`) and pnpm `10.29.2` (via corepack)
 - Access to Arkade Indexer API (default: https://indexer.arkadeos.com)
 
 ### Installation

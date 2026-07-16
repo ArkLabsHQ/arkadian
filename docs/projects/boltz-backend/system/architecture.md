@@ -87,7 +87,7 @@ Swap states:
 - **ChainTipRepository**: Track chain state
 - **UTXOManager**: Manage unspent outputs
 - **FeeEstimator**: Estimate on-chain fees (Bitcoin estimations rounded to one decimal for stability)
-- **MempoolClient**: Hardened mempool.space integration with deduplicated instances
+- **MempoolClient**: Hardened mempool.space integration with deduplicated instances; the fee WebSocket reconnects on stale or never-received fees (each ping tick checks fee staleness since connection start and force-closes if stale/missing, since pong replies alone kept the read timeout alive) — PR #1465
 - **ElementsClient**: single-node Elements RPC (the `ElementsWrapper` dual-node/lowball failover was removed in PR #1417)
 
 Supports:

@@ -122,7 +122,7 @@ Data Sources (provisioned automatically):
 Environment Variables:
 - **GF_SERVER_ROOT_URL**: External URL for proper link generation
 - **GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH**: Default dashboard
-- **GF_INSTALL_PLUGINS**: Loki Explore app for enhanced log analysis
+- **GF_INSTALL_PLUGINS**: `grafana-lokiexplore-app,grafana-pyroscope-app` — installed from the Grafana catalog (version-matched to the pinned Grafana image). The Loki Explore app is no longer side-loaded from the `integration-artifacts` zip, whose old React-18 build (1.0.14) fails to load under Grafana 13's React 19 (`Cannot read properties of undefined (ReactCurrentOwner)`).
 
 ### Storage
 

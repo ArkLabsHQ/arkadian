@@ -5,8 +5,8 @@
 Arkade Explorer uses unit tests, linting, type checking, and manual testing. The primary quality mechanisms are:
 
 1. **Vitest Unit Tests** -- Pure-logic unit tests for `src/lib/` utility modules
-2. **TypeScript Type Checking** -- Compile-time type safety (strict mode)
-3. **ESLint** -- Code quality and style enforcement
+2. **TypeScript Type Checking** -- Compile-time type safety (strict mode, `pnpm typecheck`)
+3. **Prettier** -- Formatting check as the lint gate (`pnpm lint`); ESLint was removed in the ts-sdk toolchain alignment
 4. **Manual Testing** -- UI/UX verification against live or local indexer
 
 ---
@@ -26,38 +26,38 @@ Configured in `vitest.config.ts`: `node` environment, `@` aliased to `src/`, and
 - `src/lib/cap-list.test.ts` -- list capping + hidden-count logic
 - `src/lib/debounce.test.ts` -- trailing-edge debounce and `cancel()`
 
-### Linting
+### Formatting (lint gate)
 
 ```bash
-pnpm lint
+pnpm lint      # prettier --check .
+pnpm format    # prettier --write .
 ```
 
-Runs ESLint with TypeScript-aware rules, React hooks rules, React Refresh rules, and zero warnings tolerance (`--max-warnings 0`).
+`pnpm lint` runs `prettier --check .` and fails CI if any file is unformatted.
 
 ### Type Checking
 
 ```bash
-pnpm exec tsc --noEmit   # Standalone type check
-pnpm build               # Also runs tsc before vite build
+pnpm typecheck   # Standalone type check (tsc --noEmit)
+pnpm build       # Also runs tsc before vite build
 ```
 
 ### Full Validation
 
 ```bash
-pnpm lint && pnpm test && pnpm exec tsc --noEmit && pnpm build
+pnpm lint && pnpm typecheck && pnpm build && pnpm test
 ```
 
 ---
 
-## ESLint Configuration
+## Formatting Configuration
 
-Config file: `.eslintrc.cjs`
+Config files: `.prettierrc`, `.prettierignore`, `.editorconfig`
 
-Key rules enforced:
-- TypeScript strict mode (no implicit any, strict null checks)
-- React hooks exhaustive deps and rules of hooks
-- React refresh HMR-compatible exports
-- No unused variables
+- Prettier 3.6.2 enforces formatting (4-space indentation) across the codebase
+- `pnpm lint` = `prettier --check .` is the CI lint gate; `pnpm format` = `prettier --write .` auto-fixes
+- TypeScript strictness (no implicit any, strict null checks, unused-var checks) is enforced separately via `pnpm typecheck` (`tsc --noEmit`)
+- ESLint (`.eslintrc.cjs`, `@typescript-eslint`, react-hooks/react-refresh plugins) was removed in the ts-sdk toolchain alignment
 
 ---
 
@@ -152,25 +152,37 @@ describe('capList', () => {
 
 ---
 
-## CI Example
+## CI
+
+The repo ships `.github/workflows/ci.yml`, which runs on `workflow_dispatch`,
+pushes to `master`, and **all** pull requests (so stacked PRs onto feature
+branches also get checks). It pins pnpm `10.29.2` and reads the Node version
+from `.nvmrc` (`24.15.0`), then runs a single `check` job in order:
 
 ```yaml
 name: CI
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+  pull_request:
 jobs:
-  validate:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10.29.2
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
+      - run: pnpm run lint        # prettier --check .
+      - run: pnpm run typecheck    # tsc --noEmit
+      - run: pnpm run build
+      - run: pnpm run test
 ```
+
+A separate `.github/workflows/docker.yml` publishes the multi-arch GHCR image.

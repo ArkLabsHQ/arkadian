@@ -1,7 +1,7 @@
 ---
 project_id: wallet
-version: 1.2.35
-last_sync_commit: ee30182e1410fd8425b59cf415107e294ef69335
+version: 1.2.36
+last_sync_commit: 3d4d736ab8918fd7a727a83f2b2f4e16541642a2
 default_sections_by_intent:
   qna:        ["system/project_overview.md", "testing/usage.md"]
   qa:         ["testing/usage.md", "testing/how_to_test.md"]
@@ -346,6 +346,8 @@ User Action → Component → Provider (Context) → Ark SDK → arkd Server
 - **Marketing/asset & minor UI fixes**: Arkade OG link-preview image swapped (PR #718, `public/arkade-og-image.png` — `index.html` metadata unchanged); header fix (PR #717); transaction-list height fix (PR #715); `regtest` submodule pointer bumped (PR #716); `.env.regtest` gains an `AUTOMINE_INTERVAL` auto-miner knob.
 - **Transaction-detail receipt polish & chart hover label (PRs #726, #766)**: the `Table` component's receipt variant was generalized (PR #726) — `src/components/Table.tsx` renames the receipt row classes from `details-row*` to `table-row*`, adds a `table table--receipt` wrapper class, and only renders the leading icon slot when an icon is present; the `receipt` variant is now applied to **Settings → About** (`src/screens/Settings/About.tsx`) and the transaction-detail `Details` (`src/screens/Wallet/Transaction.tsx`), with supporting `src/index.css` styling. The Bitcoin detail chart (`src/screens/Wallet/BitcoinDetail.tsx`) gains a hover date/time label from a new `prettyChartDateTime` formatter (`src/lib/format.ts`, an `Intl.DateTimeFormat` of day/month/year + hour/minute) wired as the chart's `formatTime`, with `tooltipY={-18}` and increased top padding so the label clears the price line (PR #766). Covered by `src/test/lib/format.test.ts` and `src/test/screens/wallet/bitcoin-detail.test.tsx`.
 - **regtest bump & flaky-test fix (PRs #779, #780)**: `regtest` submodule pointer bumped (PR #779); a flaky send-onchain E2E test (`src/test/e2e/receive.test.ts`) stabilised (PR #780).
+- **BTC amounts shown to 8 decimals (PR #777, `src/lib/format.ts` / `src/components/InputAmount.tsx`)**: `prettyAmount`'s ≥100 BTC and ≥1 BTC satoshi branches now format via `prettyNumber(fromSatoshis(sats), 8, true, 8)` (full 8-decimal min/max padding) instead of 0 / 3 fraction digits — `prettyAmount(150000000)` → `1.50000000 BTC` (was `1.5 BTC`). `formatBitcoinUnitAmountParts` defaults both min/max fraction digits to `amount === 0 ? 0 : 8`, so a zero balance renders `0 BTC` while any non-zero value pads to 8 decimals (`prettyBitcoinAmount(2100, Unit.BTC)` → `0.00002100 BTC`). `InputAmount`'s fiat-mode BTC "other value" likewise pads to 8 decimals via `prettyNumber(btcValue, decimals, true, decimals)`. Covered by `src/test/lib/format.test.ts`.
+- **Tabs concept removed from navigation (PR #782, `src/providers/navigation.tsx`)**: the `Tabs` enum and the `pageTab` page→tab mapping were deleted, along with the `tab`/`setTab` state and the `tab` field on `NavigationContext` (consumers no longer receive it). Navigation-animation direction now derives solely from `ROOT_PAGES` membership (`isFromRoot`) rather than a same-tab comparison, and `isInitialLoad` simplifies to `screen === Pages.Wallet`.
 
 ### Lightning Integration
 - **Submarine swaps**: On-chain → Lightning via SwapManager

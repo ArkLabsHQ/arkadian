@@ -78,10 +78,17 @@
 
 ## Development Tools
 
-### ESLint
-- **Version**: 8.56.0
-- **Plugins**: @typescript-eslint (6.21.0), react-hooks, react-refresh
-- **Configuration**: Zero warnings tolerance (`--max-warnings 0`)
+### Prettier
+- **Version**: 3.6.2
+- **Purpose**: Code formatting and lint gate (replaced ESLint as of the ts-sdk toolchain alignment)
+- **Configuration**: `.prettierrc` + `.prettierignore` (4-space indentation); `.editorconfig` for editor consistency
+- **Scripts**: `pnpm lint` runs `prettier --check .` (CI gate); `pnpm format` runs `prettier --write .`
+- **Note**: ESLint (`.eslintrc.cjs`, `@typescript-eslint`, react-hooks/react-refresh plugins) was removed in favor of Prettier + `tsc --noEmit` typechecking
+
+### Toolchain / Package Manager
+- **Node.js**: `>=24.15.0 <25` (pinned via `.nvmrc` = `24.15.0` and `package.json` `engines`)
+- **pnpm**: `10.29.2` (pinned via `packageManager` field and `engines`; `.npmrc` for install config)
+- **Typecheck**: `pnpm typecheck` runs `tsc --noEmit`
 
 ### Vite React Plugin
 - **Version**: @vitejs/plugin-react 4.2.1
@@ -94,8 +101,8 @@
 ## Deployment
 
 ### Docker
-- **Base**: Node 22 Alpine (build) + nginx Alpine (serve)
-- **Package Manager**: pnpm
+- **Base**: Node 24 Alpine (build) + nginx Alpine (serve)
+- **Package Manager**: pnpm 10.29.2 (via corepack)
 - **Pre-built Image**: `ghcr.io/arklabshq/arkade-explorer:latest`
 
 ### Vercel

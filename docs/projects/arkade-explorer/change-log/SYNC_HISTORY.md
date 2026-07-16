@@ -1,5 +1,33 @@
 # Arkade Explorer -- Sync History
 
+## 2026-07-16 -- Incremental Documentation Sync
+**Commit**: `920a0cb15c0ba82b5434a4203a749e66df979ca7`
+**Previous Sync**: `90752ba9d32e78c9a26df38c29c101894d64baa3`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `fb32733` chore: align toolchain & formatting with ts-sdk standards
+
+**Changes** (toolchain/formatting alignment only — no functional/UI changes):
+- **Linter swap: ESLint → Prettier.** `.eslintrc.cjs` and all `@typescript-eslint`/react-hooks/react-refresh dev deps removed; `prettier@3.6.2` added. `pnpm lint` now runs `prettier --check .`, and a new `pnpm format` runs `prettier --write .`. New config: `.prettierrc`, `.prettierignore`, `.editorconfig`. The bulk of the diff (~106 files) is Prettier reflow (4-space indentation) with no behavior change.
+- **New `pnpm typecheck` script** (`tsc --noEmit`), replacing ad-hoc `pnpm exec tsc --noEmit`.
+- **Package manager / Node pinned.** `package.json` gains `packageManager: pnpm@10.29.2` and `engines` (`node >=24.15.0 <25`, `pnpm >=10.29.2 <11`). Added `.nvmrc` (`24.15.0`) and `.npmrc`. `package-lock.json` deleted (fully on pnpm).
+- **Docker build Node bump** `node:22-alpine` → `node:24-alpine`.
+- **New CI workflow** `.github/workflows/ci.yml`: runs on `workflow_dispatch`, push to `master`, and all PRs; installs pnpm 10.29.2 + `.nvmrc` Node, then Lint (prettier) → Type-check → Build → Unit tests. (`docker.yml` still handles GHCR image publishing.)
+- **Added** `AGENTS.md` and `CLAUDE.md` contributor/agent guidance files.
+- No dependency changes to app libraries; `@arkade-os/sdk` stays at `0.4.45`.
+
+**Docs Updated**:
+- `docs/INDEX.md` (added `prettier` tag)
+- `system/tech-stack.md` (Prettier + toolchain section, Docker Node 24)
+- `system/architecture.md` (Docker Node 24)
+- `sop/development-workflow.md` (prerequisites, dev loop, code style, CI, PR checklist)
+- `INDEX.md` (typecheck/format scripts, Dockerfile Node 24)
+- `testing/how_to_run.md`, `testing/how_to_test.md`, `testing/troubleshooting.md`, `testing/usage.md`
+
+---
+
 ## 2026-07-14 -- Incremental Documentation Sync
 **Commit**: `90752ba9d32e78c9a26df38c29c101894d64baa3`
 **Previous Sync**: `31410bfab3604c31d4dec27784f9b17940bb79f7`

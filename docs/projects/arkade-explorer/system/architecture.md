@@ -130,7 +130,7 @@ Component -> useQuery(queryKey, queryFn) -> @arkade-os/sdk client -> Indexer RES
 
 ## Build Architecture
 
-Vite bundles TypeScript/React source into optimized production assets. The build injects the current git commit hash via `vite.config.ts` using `execSync('git rev-parse --short HEAD')`. Docker builds use a multi-stage process: Node 22 Alpine for building, nginx Alpine for serving, with SPA routing configured via `nginx.conf`. CI publishes multi-arch images (`linux/amd64` and `linux/arm64`) to GHCR via `docker/setup-qemu-action` + `docker/setup-buildx-action`.
+Vite bundles TypeScript/React source into optimized production assets. The build injects the current git commit hash via `vite.config.ts` using `execSync('git rev-parse --short HEAD')`. Docker builds use a multi-stage process: Node 24 Alpine for building, nginx Alpine for serving, with SPA routing configured via `nginx.conf`. CI publishes multi-arch images (`linux/amd64` and `linux/arm64`) to GHCR via `docker/setup-qemu-action` + `docker/setup-buildx-action`.
 
 ## State Management
 

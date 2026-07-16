@@ -4,7 +4,7 @@
 
 ### TypeScript Errors
 
-**Diagnosis**: `pnpm exec tsc --noEmit`
+**Diagnosis**: `pnpm typecheck` (`tsc --noEmit`)
 
 **Common causes**: Missing type definitions, incorrect import paths, type mismatches.
 
@@ -14,11 +14,11 @@ pnpm add -D @types/react @types/react-dom
 # Verify tsconfig.json "include": ["src"]
 ```
 
-### ESLint Errors
+### Formatting Errors
 
-**Diagnosis**: `pnpm lint -- --debug`
+**Diagnosis**: `pnpm lint` (`prettier --check .`) reports unformatted files.
 
-**Common fixes**: Add missing hook dependencies, remove unused variables, ensure exports are HMR-compatible (react-refresh rule).
+**Fix**: Run `pnpm format` (`prettier --write .`) to auto-format, then commit. Formatting is a CI gate. (ESLint was removed in the ts-sdk toolchain alignment.)
 
 ### Module Not Found
 

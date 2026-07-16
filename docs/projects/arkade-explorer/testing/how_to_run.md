@@ -18,7 +18,9 @@ The development server starts at `http://localhost:5173` with HMR, fast refresh,
 | `pnpm dev` | Start dev server (port 5173) |
 | `pnpm build` | TypeScript check + Vite production build |
 | `pnpm preview` | Preview production build (port 4173) |
-| `pnpm lint` | Run ESLint |
+| `pnpm lint` | Check formatting (`prettier --check .`) |
+| `pnpm format` | Auto-format (`prettier --write .`) |
+| `pnpm typecheck` | Type check (`tsc --noEmit`) |
 
 ---
 
@@ -86,7 +88,7 @@ docker build -t arkade-explorer .
 docker run -p 8080:80 arkade-explorer
 ```
 
-The Dockerfile uses a multi-stage build: Node 22 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html). pnpm is pinned to `10.29.2` (via `corepack prepare pnpm@10.29.2`) to match the committed `pnpm-lock.yaml`; `esbuild` is listed under `onlyBuiltDependencies` in `pnpm-workspace.yaml` so its postinstall runs.
+The Dockerfile uses a multi-stage build: Node 24 Alpine with pnpm for building, nginx Alpine for serving. The nginx config handles SPA routing (all paths fallback to index.html). pnpm is pinned to `10.29.2` (via `corepack prepare pnpm@10.29.2`) to match the committed `pnpm-lock.yaml`; `esbuild` is listed under `onlyBuiltDependencies` in `pnpm-workspace.yaml` so its postinstall runs.
 
 The published GHCR image (`ghcr.io/arklabshq/arkade-explorer:latest`) is multi-arch (`linux/amd64` and `linux/arm64`); `docker run` will pull the variant matching your host automatically.
 
@@ -95,7 +97,7 @@ The published GHCR image (`ghcr.io/arklabshq/arkade-explorer:latest`) is multi-a
 ## IDE Setup
 
 ### VS Code Extensions
-- ESLint
+- Prettier - Code formatter
 - Tailwind CSS IntelliSense
 - TypeScript (built-in)
 
@@ -127,8 +129,8 @@ pnpm install
 
 ### Build Fails
 ```bash
-pnpm exec tsc --noEmit    # Check TypeScript errors
-pnpm lint                 # Check lint errors
+pnpm typecheck            # Check TypeScript errors (tsc --noEmit)
+pnpm lint                 # Check formatting (prettier --check)
 ```
 
 ### Build Stats

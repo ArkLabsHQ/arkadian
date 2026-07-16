@@ -1,5 +1,46 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-16 - Documentation Update
+**Commit**: `f7a7663ff292c3da44e9323288ec29c6d85f4cd4`
+**Previous Sync**: `7f4239a6f998864983579a58416a4457ecc9b522`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits (#115 AMI migration to Amazon Linux 2023, #116 bitcoin-node basic alerts)
+
+**Highlights**:
+- 🐧 **Custom AMIs migrated to Amazon Linux 2023 (#115)** — both the Packer base image and the
+  bitcoin-node image moved off Ubuntu 26.04 onto **AL2023**, standardizing on the same OS as the
+  ECS-optimized AL2023 hosts. AL2023 preinstalls the SSM agent + AWS CLI (and ships hardening,
+  chrony, secondary-ENI handling), so the `awscli` and `ssm_agent` Ansible roles were **dropped
+  from `ansible/site.yml`** (leaving `baseline`, `cloudwatch_agent`, `ansible_runtime`,
+  build-only `deprovision`). Packer: source AMI now via `data "amazon-ami"` (`owner=amazon`,
+  `most_recent`, filter `al2023-ami-2023.*-kernel-6.1-arm64` — the public `/aws/service/ami-al2023`
+  SSM params aren't readable here), `ssh_username=ec2-user`, root device `/dev/xvda`, Ansible via
+  `dnf -y install ansible-core`. AMI names → `ark-base-al2023-arm64-…` /
+  `ark-bitcoin-node-<version>-al2023-arm64-…`; new base vars `al2023_ami_owner`,
+  `al2023_ami_name_filter`. Staging bitcoin node repointed to `ami-0c36323cf3acc49e3`.
+- 🚨 **Basic bitcoin-node CloudWatch alarms (#116)** — new `modules/bitcoin-node/alarms.tf` adds
+  five host alarms, all gated on `var.enabled` and keyed on the **`AutoScalingGroupName`**
+  dimension (never `InstanceId`, which churns on replacement): `BitcoinNodeHighMemory`
+  (`CWAgent mem_used_percent`, 10 min, 90%), `BitcoinNodeChainDiskFull`
+  (`CWAgent disk_used_percent path=/mnt/data`, 80%), `BitcoinNodeRootDiskFull` (`path=/`, 85%),
+  `BitcoinNodeHighCPU` (`AWS/EC2 CPUUtilization`, 15 min, 85%), and `BitcoinNodeStatusCheckFailed`
+  (`AWS/EC2 StatusCheckFailed`, 3 min, `treat_missing_data=breaching`). Alarm/OK actions publish to
+  `alerts_sns_topic_arn` (account-level `ark-alerts-<env>` topic → Chatbot → Slack) when set,
+  console-only otherwise. New vars `alerts_sns_topic_arn`, `memory_alarm_threshold`,
+  `data_disk_alarm_threshold`, `root_disk_alarm_threshold`, `cpu_alarm_threshold`; staging wires
+  `ark-alerts-staging`, and disk alerts now include the ASG dimension in `baseline-cwagent.json`.
+
+**Files Updated**:
+- docs/INDEX.md (added #115 AL2023 migration + #116 bitcoin-node alarms capability bullets)
+- docs/projects/ark-infra/INDEX.md (frontmatter → 1.9.0; AMI build section rewritten for AL2023; bitcoin-node module alarms)
+- docs/projects/ark-infra/sop/monitoring-guide.md (new Bitcoin Node Host Alarms section)
+- docs/projects/ark-infra/change-log/last-sync.txt
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-15 - Documentation Update
 **Commit**: `7f4239a6f998864983579a58416a4457ecc9b522`
 **Previous Sync**: `a7dba3ebae643bd8069882120c6afc0ddb60b064`

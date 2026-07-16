@@ -1,5 +1,20 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-16 - Documentation Update
+**Commit**: `b28a2a71` (boltz-backend repository)
+**Previous Sync**: `d851b3c5`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+
+**Bug Fixes**:
+- fix: reconnect mempool.space for stale fees (#1465) (`b28a2a71`) — the mempool.space fee WebSocket client (`boltzr/src/chain/mempool_client.rs`) now reconnects when fees go stale **or are never received at all**. Because the server's pong replies to the client's pings kept resetting the read timeout, a connection that stopped sending (or never sent) fees was never torn down. On each ping tick the client now evaluates staleness since the connection started via the new `stale_or_missing_fees_since(connection_started_at)` → `FeeStaleness::{Stale, Missing}` enum, and if fees are stale/missing it force-closes the socket and returns an error to trigger a reconnect. All WebSocket writes (ping, close) are now wrapped in a new `write_with_timeout` helper that logs (instead of panicking on `unwrap`) and bounds each write by `WEBSOCKET_TIMEOUT_SECONDS`. Refactor: `staleness` now takes an `Instant` rather than a `&CachedFees`; `has_stale_fees` delegates to a new `stale_fees()`. New unit tests `test_stale_fees` and `test_missing_fees_become_stale`.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend — extended the "Hardened mempool.space integration" Key Capability with the stale/missing-fee reconnect behavior), `system/architecture.md` (extended the `MempoolClient` bullet with the same reconnect note).
+
 ## 2026-07-14 - Documentation Update
 **Commit**: `d851b3c5` (boltz-backend repository)
 **Previous Sync**: `36729e33`

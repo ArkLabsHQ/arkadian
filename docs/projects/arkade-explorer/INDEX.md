@@ -18,6 +18,8 @@ scripts:
   dev: "pnpm dev"
   build: "pnpm build"
   lint: "pnpm lint"
+  format: "pnpm format"
+  typecheck: "pnpm typecheck"
   preview: "pnpm preview"
   test: "pnpm test"
 ---
@@ -161,7 +163,7 @@ arkade-explorer/
 ├── public/                   # Static assets
 ├── functions/                # Serverless functions (Netlify)
 ├── .env.example              # Environment variable template
-├── Dockerfile                # Multi-stage Docker build (Node 22 + nginx)
+├── Dockerfile                # Multi-stage Docker build (Node 24 + nginx)
 ├── tailwind.config.js        # Tailwind configuration with custom colors
 ├── vite.config.ts            # Vite configuration with git commit hash injection
 ├── vitest.config.ts          # Vitest config (node env, runs src/**/*.test.ts)

@@ -1,5 +1,25 @@
 # Documentation Sync History - Ark Telemetry
 
+## 2026-07-16 - Pin container images and install Grafana plugins from catalog
+**From**: `d0eb7581fcf8a60d824b1bd2793c54a9a350b45c`
+**To**: `bae4ed65954d7e29aad391bd60345f32a8f2bcaa`
+**Synced By**: Automated update-project skill
+
+**Commits Analyzed**: 1
+- `bae4ed6` fix: Install Grafana Loki plugin from catalog and pin all images
+
+**Changes**:
+- `docker-compose.otel.yaml`: pinned previously-`:latest` service images to explicit versions — `prom/prometheus:v3.13.1`, `grafana/grafana:13.1.0`, `prom/alertmanager:v0.33.1`, `grafana/loki:3.7.3`, `grafana/pyroscope:2.1.1`.
+- `docker-compose.otel.yaml` & `docker-compose.otel.dev.yaml`: `GF_INSTALL_PLUGINS` no longer side-loads `grafana-lokiexplore-app` from the `integration-artifacts` zip; both plugins (`grafana-lokiexplore-app`, `grafana-pyroscope-app`) are now installed from the Grafana catalog (version-matched to the pinned Grafana image). The old zip build (React-18, 1.0.14) failed to load under Grafana 13's React 19 (`Cannot read properties of undefined (ReactCurrentOwner)`).
+
+**Docs updated**:
+- `system/configuration.md` — added prometheus/grafana/alertmanager/loki/pyroscope rows to the Pinned Container Versions table
+- `system/components.md` — expanded the `GF_INSTALL_PLUGINS` env-var description to reflect catalog install and the React-19 rationale
+- `docs/INDEX.md` (master) — extended the Docker Compose stack capability bullet with the pinned image versions and catalog-based plugin install
+
+**Notes**:
+- Config-only, non-breaking change. No capability, dependency, or tag changes. Version pinning stabilizes the upgrade path; catalog install fixes the Loki Explore plugin load failure under Grafana 13.
+
 ## 2026-07-07 - PR #24: Ark Channelz gateway proxy dashboard
 **From**: `71c21a1747b8893a31fc4e4c5a7d61253a36f836`
 **To**: `d0eb7581fcf8a60d824b1bd2793c54a9a350b45c`

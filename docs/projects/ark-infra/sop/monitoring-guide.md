@@ -160,6 +160,28 @@ aws logs filter-log-events \
 
 ## Alerting
 
+### Bitcoin Node Host Alarms (CloudWatch → SNS → Chatbot → Slack)
+
+The standalone Bitcoin node (`modules/bitcoin-node/`, since #116) ships five native
+CloudWatch alarms defined in `alarms.tf`. All are gated on `var.enabled` (a scaled-to-zero
+node does not page) and keyed on the **`AutoScalingGroupName`** dimension rather than
+`InstanceId` — the single-instance ASG's `InstanceId` churns on every replacement, so an
+InstanceId-keyed alarm would go stale. When `alerts_sns_topic_arn` is set (the account-level
+`ark-alerts-<env>` topic), alarm/OK actions notify via **SNS → AWS Chatbot → Slack**;
+otherwise the alarms are created for console visibility only.
+
+| Alarm | Namespace / Metric | Condition | Threshold var (default) |
+|-------|--------------------|-----------|-------------------------|
+| `BitcoinNodeHighMemory-<env>-<name>` | `CWAgent` / `mem_used_percent` | > threshold for 10 min | `memory_alarm_threshold` (90%) |
+| `BitcoinNodeChainDiskFull-<env>-<name>` | `CWAgent` / `disk_used_percent` (`path=/mnt/data`) | > threshold (5-min period) | `data_disk_alarm_threshold` (80%) |
+| `BitcoinNodeRootDiskFull-<env>-<name>` | `CWAgent` / `disk_used_percent` (`path=/`) | > threshold (5-min period) | `root_disk_alarm_threshold` (85%) |
+| `BitcoinNodeHighCPU-<env>-<name>` | `AWS/EC2` / `CPUUtilization` | > threshold for 15 min | `cpu_alarm_threshold` (85%) |
+| `BitcoinNodeStatusCheckFailed-<env>-<name>` | `AWS/EC2` / `StatusCheckFailed` | ≥ 1 for 3 min (`treat_missing_data=breaching`) | fixed |
+
+Notes: the CWAgent mem/disk metrics carry an ASG-keyed aggregation (see
+`baseline-cwagent.json`); the status-check alarm treats missing data as breaching so a
+vanished instance still fires; the CPU window is long because `t4g` is burstable.
+
 ### Alertmanager Configuration
 
 **Location**: `/opt/ark-telemetry/prometheus/alertmanager.yml`

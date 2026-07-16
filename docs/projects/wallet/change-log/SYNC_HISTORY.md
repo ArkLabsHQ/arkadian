@@ -1,5 +1,31 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-16 - Documentation Sync
+**Commit**: `3d4d736ab8918fd7a727a83f2b2f4e16541642a2`
+**Previous Sync**: `ee30182e1410fd8425b59cf415107e294ef69335`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `3d4d736a` Show eight decimals btc (#777)
+- `cc2b7479` removes concept of tabs (#782)
+
+**Features Added/Modified**:
+- BTC amounts shown to 8 decimals (PR #777, `src/lib/format.ts` / `src/components/InputAmount.tsx`): `prettyAmount`'s ≥100 BTC (`>= 100_000_000_000` sats) and ≥1 BTC (`>= 100_000_000` sats) branches now format via `prettyNumber(fromSatoshis(sats), 8, true, 8)` — full 8-decimal min/max padding — instead of 0 and 3 fraction digits respectively, so `prettyAmount(100000000)` → `1.00000000 BTC` and `prettyAmount(150000000)` → `1.50000000 BTC` (were `1 BTC` / `1.5 BTC`). `formatBitcoinUnitAmountParts` now defaults both `maximumFractionDigits` and `minimumFractionDigits` to `amount === 0 ? 0 : 8`, so a zero balance renders `0 BTC` (no decimals) while any non-zero amount pads to 8 decimals (`prettyBitcoinAmount(2100, Unit.BTC)` → `0.00002100 BTC`; `prettyFiatAmount(0.000021, Currencies.BTC, { bitcoinUnit: Unit.BTC })` → `0.00002100 BTC`). `InputAmount`'s fiat-mode BTC "other value" likewise pads to 8 decimals via `prettyNumber(btcValue, decimals, true, decimals)`. Covered by expanded assertions in `src/test/lib/format.test.ts`.
+- Tabs concept removed from navigation (PR #782, `src/providers/navigation.tsx`): the `Tabs` enum and the `pageTab` page→tab mapping were deleted, along with the `tab`/`setTab` state and the `tab` field on `NavigationContext` (context consumers no longer receive `tab`). Navigation-animation direction now derives solely from `ROOT_PAGES` membership (`isFromRoot`) instead of an `isSameTab` comparison, and `isInitialLoad` simplifies from a `pageTab[...] === Tabs.None` check to `screen === Pages.Wallet`. Test mocks/assertions updated (`src/test/App.test.tsx`, `src/test/screens/mocks.ts`, `src/test/screens/wallet/*.test.tsx`).
+
+**Configuration / Dependency Changes**: None.
+
+**Documentation Impact**: Minor — a display-formatting change (BTC amounts padded to 8 decimals) and an internal navigation refactor (removal of the tab concept); no new dependencies, env vars, or architectural components. Added one BTC-decimals and one tabs-removal capability bullet to the master registry and project index, and bumped the project frontmatter version.
+
+**Files Updated**:
+- docs/INDEX.md (BTC 8-decimals + tabs-removal capability bullets)
+- docs/projects/wallet/INDEX.md (frontmatter `version` 1.2.35 → 1.2.36 + `last_sync_commit`, BTC 8-decimals + tabs-removal capability bullets)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-15 - Documentation Sync
 **Commit**: `ee30182e1410fd8425b59cf415107e294ef69335`
 **Previous Sync**: `590cff5dd98c2310386f026ac7653689d74e28c5`

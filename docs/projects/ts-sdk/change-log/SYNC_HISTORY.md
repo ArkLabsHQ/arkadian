@@ -1,5 +1,29 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-16 - Post-0.4.45 unreleased: arkd 0.9.14 alignment, ArkErrorName catalog, isSubdust widening, Dependabot bump
+**From**: `8f45350d3345966cc5fe83e522e6728386bc6792`
+**To**: `6c6e5338590f53bbfa762fc69950484e668792bf`
+**Synced By**: update-project skill
+**Status**: Four small changes on top of the published 0.4.45 cut — **no version bump** (`package.json` still `@arkade-os/sdk` 0.4.45 / `@arkade-os/boltz-swap` 0.3.50). (1) **arkd 0.9.14 indexer/provider alignment** — additive `renewableOnly` `GetVtxosOptions` filter, widened client-side mutual-exclusion guard, regtest `.env.regtest` arkd image `v0.9.11` → `v0.9.14`. (2) **`ArkErrorName` catalog + `isArkError` type guard** — new package-root exports centralizing the structured arkd error `name`s the SDK branches on; call sites replaced their `err.name === "..."` literal comparisons. (3) **`isSubdust` widened** to accept `{ value: number } | bigint`, unifying the wallet/delegate dust guards (which migrated `<= dust` → `< dust`). (4) **Dependabot** — 12 security alerts patched via workspace `overrides` + lockfile regeneration. All additive/refactor — default wallet behaviour is unchanged apart from the new `renewableOnly` filter and the subdust `<=`→`<` boundary.
+
+**Commits analyzed** (5 non-merge commits):
+- `7aa575a2` chore: unify isSubdust function
+- `fb609250` feat: align indexer/provider layer with arkd 0.9.14 (adds `renewableOnly`, `ArkErrorName`/`isArkError` usage, `.env.regtest` v0.9.14 pin)
+- `c59751a9` chore: use isSubdust for sendBitcoin dust check
+- `2cf00046` refactor(sdk): type isArkError name as ArkErrorName (introduces `ArkErrorName` + `isArkError`)
+- `126bea23` fix: patch 12 dependabot alerts (vitest, vite, js-yaml, uuid, and others)
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — added four ts-sdk Key Capability bullets (arkd 0.9.14 alignment, `ArkErrorName`/`isArkError`, `isSubdust` widening, Dependabot bump) + new tags
+- `docs/projects/ts-sdk/INDEX.md` — added four Key Concepts entries; appended a "Post-0.4.45 (unreleased)" clause to the Quick-Reference Version cell
+- `docs/projects/ts-sdk/system/project_overview.md` — bumped the regtest arkd image reference `v0.9.11` → `v0.9.14`
+- `docs/projects/ts-sdk/system/architecture.md` — extended the `errors.ts` module note with the `ArkErrorName` catalog + `isArkError` guard
+- `change-log/last-sync.txt` → `6c6e5338`
+
+**Notes**:
+- No version bump — these land unreleased on top of the published 0.4.45. Module layout is unchanged (no source files moved/added).
+- Files touched: `packages/ts-sdk/src/providers/{errors,indexer,ark}.ts`, `src/wallet/{index,wallet,delegate,vtxo-manager}.ts`, `src/index.ts`, `.env.regtest`; tests; `pnpm-workspace.yaml` / `pnpm-lock.yaml` / `package.json` (dependency bumps).
+
 ## 2026-07-12 - Release 0.4.44 + 0.4.45 (publish the three feature landings that were unreleased on 0.4.43)
 **From**: `fbad6ca2cd343ac361d2514f601e9e24317275b6`
 **To**: `8f45350d3345966cc5fe83e522e6728386bc6792`

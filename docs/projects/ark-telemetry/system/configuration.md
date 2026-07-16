@@ -361,6 +361,11 @@ The previously-required external Docker networks (`nigiri` for dev, `ark` for pr
 | cadvisor       | `ghcr.io/google/cadvisor:0.56.2`                                                            | PR #9     |
 | jaeger         | `jaegertracing/jaeger:2.18.0` (replaces `jaegertracing/all-in-one:latest`)                  | PR #13    |
 | jaeger-init    | `jaegertracing/jaeger:2.18.0` (sidecar that pre-creates `/badger/{key,data}`)               | PR #13    |
+| prometheus     | `prom/prometheus:v3.13.1` (was `:latest`)                                                    | `bae4ed6` |
+| grafana        | `grafana/grafana:13.1.0` (was `:latest`)                                                     | `bae4ed6` |
+| alertmanager   | `prom/alertmanager:v0.33.1` (was `:latest`)                                                  | `bae4ed6` |
+| loki           | `grafana/loki:3.7.3` (was `:latest`)                                                         | `bae4ed6` |
+| pyroscope      | `grafana/pyroscope:2.1.1` (was `:latest`)                                                    | `bae4ed6` |
 
 Example customization (change Grafana port):
 ```yaml
