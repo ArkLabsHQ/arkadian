@@ -1,5 +1,23 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-17 - Documentation Update
+**Commit**: `1d39be96` (boltz-backend repository)
+**Previous Sync**: `b28a2a71`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Features Added**:
+- feat: add generic failure hook (#1464) (`1d39be96`) — new streaming gRPC hook `FailureHook (stream FailureHookResponse) returns (stream FailureHookRequest)` on `boltzrpc.Boltz` (`proto/boltzrpc.proto`) that pushes swap-failure events to an external listener. Fire-and-forget: `FailureHookResponse` only carries the event `id` and `FailureHook.parseGrpcAction` is a no-op (60s timeout). The first `failure` variant is `ClaimFailure { ClaimFailureType type; string symbol; oneof details { swap_id | batch_size } }` with `ClaimFailureType` = `CLAIM_FAILURE_UNSPECIFIED/IMMEDIATE/BATCH`. New `lib/swap/hooks/FailureHook.ts` (extends `Hook`) exposes `claim({type: Immediate, symbol, swapId})` / `claim({type: Batch, symbol, batchSize})`. `Service` owns the hook and wires it from two existing events: `EventHandler`'s `claim.failure` → Immediate, and `DeferredClaimer`'s `batch.claim.failure` → Batch. `DeferredClaimer` now also emits `batchSize` (the claim chunk length) on `batch.claim.failure`. Exposed on the gRPC server via `GrpcService.failureHook` → `Service.failureHook.connectToStream(call)` (registered in `GrpcServer`). Complements the `NotificationProvider` claim-failure alert (PR #1445) with a machine-consumable stream. Unit + integration tests added (`test/{unit,integration}/service/Service.spec.ts`, `test/integration/service/cooperative/DeferredClaimer.spec.ts`, `test/unit/grpc/GrpcService.spec.ts`, `test/unit/swap/hooks/FailureHook.spec.ts`).
+
+**Dependency Bumps / Chores**:
+- chore: bump serde_with from 3.16.1 to 3.21.0 (#1466) (`ca3b15c6`) — `Cargo.lock`-only dependency bump. No API, schema, config, or runtime-behaviour change.
+
+**Database Migrations**: none.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend — new **Generic failure hook** (#1464) Key Capability; new `failure-hook` tag), `INDEX.md` (new `FailureHook` bullet under the **Swap Hooks** subsection).
+
 ## 2026-07-16 - Documentation Update
 **Commit**: `b28a2a71` (boltz-backend repository)
 **Previous Sync**: `d851b3c5`

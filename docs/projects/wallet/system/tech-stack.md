@@ -45,7 +45,7 @@ const WalletComponent = () => {
 - Safer refactoring
 - Self-documenting code
 
-### Vite 7.1.3
+### Vite 7.3.6
 **Purpose**: Build tool and development server
 
 **Features**:
@@ -438,7 +438,7 @@ npx husky add .husky/pre-commit "pnpm run lint"
 
 ## Testing
 
-### Vitest 3.2.4
+### Vitest 3.2.7
 **Purpose**: Unit testing framework (Vite-native)
 
 **Features**:

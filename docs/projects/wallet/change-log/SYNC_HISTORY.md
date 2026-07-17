@@ -1,5 +1,33 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-17 - Documentation Sync
+**Commit**: `82403d36c53b566a00709f01a935952cdaa372b8`
+**Previous Sync**: `3d4d736ab8918fd7a727a83f2b2f4e16541642a2`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `82403d36` fix: copy pnpm-workspace.yaml in Docker build (#787)
+- `910c7cca` fix: patch dependabot alerts in vitest, vite, js-yaml, picomatch, babel/core (#783)
+
+**Change Type**: Internal maintenance only (build fix + dependency security patches) — no runtime feature, API, env-var, or component changes.
+
+**Dependency / Security Updates** (PR #783):
+- `vite` ^7.1.3 → ^7.3.6, `vitest` ^3.2.4 → ^3.2.7 (`package.json`)
+- New pnpm `overrides` in `pnpm-workspace.yaml` patching dependabot-alerted transitive deps: `js-yaml` (`<4` → `>=3.15.0 <4`, `>=4` → `>=4.2.0 <5`), `picomatch` (`<4` → `>=2.3.2 <4`, `>=4` → `>=4.0.4`), `@babel/core` (`>=7.29.6 <8`)
+
+**Build Fix** (PR #787):
+- `Dockerfile` builder stage now copies `pnpm-workspace.yaml` alongside `package.json`/`pnpm-lock.yaml` so the workspace `overrides`/`onlyBuiltDependencies` are available to `pnpm install --frozen-lockfile`
+
+**Files Updated**:
+- docs/INDEX.md (added two maintenance capability notes under wallet; bumped Last Updated → 2026-07-17, version → 1.6.8)
+- docs/projects/wallet/INDEX.md (frontmatter `last_sync_commit`)
+- docs/projects/wallet/system/tech-stack.md (Vite 7.1.3 → 7.3.6, Vitest 3.2.4 → 3.2.7 version headers)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-16 - Documentation Sync
 **Commit**: `3d4d736ab8918fd7a727a83f2b2f4e16541642a2`
 **Previous Sync**: `ee30182e1410fd8425b59cf415107e294ef69335`

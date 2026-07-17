@@ -153,7 +153,7 @@ VPC: 10.10.0.0/16 (65,536 IPs)
 │    otel-agent (0.151.0) + cadvisor (v0.56.2)                │
 │        │ OTLP gRPC :4317 (resolved via AWS Cloud Map)       │
 │        ▼                                                     │
-│  Telemetry EC2 (ASG, t3.medium, IMDSv2):                    │
+│  Telemetry EC2 (ASG, t4g.small AL2023 arm64, IMDSv2):       │
 │    otel-collector → prometheus, loki, jaeger,               │
 │    alertmanager, pyroscope                                  │
 │    grafana :3000 ◀── ALB (HTTPS, ACM, Google SSO)           │
@@ -164,11 +164,14 @@ VPC: 10.10.0.0/16 (65,536 IPs)
 - App and telemetry are deployed on **separate EC2 instances**. App hosts run only the
   local `otel-agent` and `cadvisor` (bundled in the Ark Docker Compose stack); all
   telemetry storage and UI runs on a dedicated telemetry instance in an Auto Scaling
-  Group provisioned by `modules/ark/telemetry.tf` and bootstrapped via
-  `modules/ark/ansible/playbook.yml`.
+  Group provisioned by `modules/ark/telemetry.tf` and bootstrapped via the
+  top-level `ansible/telemetry.yml` playbook (since #117; runs on a Graviton/AL2023
+  custom AMI, default `t4g.small`).
 - App ↔ telemetry routing uses **AWS Cloud Map** (`modules/ark/service_discovery.tf`).
-  The telemetry instance registers itself on boot; the app instance dials
-  `${ARK_TELEMETRY_COLLECTOR_ENDPOINT}` (e.g. `telemetry.ark-staging.internal:4317`).
+  Since #117 the registration is **static** (`aws_service_discovery_instance`) pointed
+  at a reserved fixed private IP (`telemetry_fixed_private_ip`, bound as a secondary IP
+  on the primary ENI at boot) rather than the old boot-time self-registration; the app
+  instance dials `${ARK_TELEMETRY_COLLECTOR_ENDPOINT}` (e.g. `telemetry.ark-staging.internal:4317`).
 - A **shared internet-facing ALB** (`modules/ark/alb.tf`) terminates HTTPS with an ACM
   certificate (`alb_certificate_arn`, `ELBSecurityPolicy-TLS13-1-2-2021-06`) and routes
   to Grafana's target group on port 3000 (health check `/api/health`). Grafana auth is

@@ -1,5 +1,30 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-17 - Release 0.4.46 / 0.3.51: FORFEIT_CLOSURE_LOCKED error + deferred CLTV-immature boltz refunds
+**From**: `6c6e5338590f53bbfa762fc69950484e668792bf`
+**To**: `1b0aa1061266ab9501878b18a2ab9dfe5b19db5f`
+**Synced By**: update-project skill
+**Status**: The `0.4.46` / `0.3.51` release (`1b0aa106`, 2026-07-16, Pietro Grandi) that **publishes** the four previously-unreleased-on-0.4.45 landings (arkd 0.9.14 alignment, `ArkErrorName`/`isArkError` catalog, `isSubdust` value-or-bigint widening, 12-alert Dependabot bump) **plus** new CLTV-immature refund-deferral work. **New ts-sdk source change**: `ArkErrorName.FORFEIT_CLOSURE_LOCKED` (`src/providers/errors.ts`) — raised only by `submitTx` (never `finalizeTx`) when a CLTV closure is spent before its absolute locktime matures, metadata `{ locktime, current_locktime, type: "height" | "time" }`; self-healing (arkd matures a seconds-CLTV against the chain-tip block's timestamp, so a prompt spend is rejected until a later block lands), so callers defer-and-retry rather than fail. The rest of the deferral/retry/persist logic lives in the **sibling `@arkade-os/boltz-swap` package** (`ArkadeSwaps` / `SwapManager` refund path — a refund rejected as CLTV-immature is deferred, re-armed from a block interval or the locktime, persisted so it survives a restart, and finalized only once the action ran so a retry can't drop a swap mid-sweep); see `docs/projects/boltz-swap/`.
+
+**Commits analyzed** (6 non-merge commits):
+- `1b0aa106` chore: release @arkade-os/sdk@0.4.46, @arkade-os/boltz-swap@0.3.51
+- `ffdc94e6` fix: widen CLTV refund test buffer and disable regtest auto-miner (`.env.regtest`, vhtlc e2e)
+- `e17d438e` Persist deferred refund retries (boltz-swap)
+- `af56f6a8` fix: retry deferred submarine refunds instead of dropping them (boltz-swap)
+- `98e4b043` docs: trim cltv refund deferral comments (boltz-swap; `errors.ts` comment trim; vhtlc e2e)
+- `bd1241bb` feat: defer boltz refunds rejected as CLTV-immature (adds `FORFEIT_CLOSURE_LOCKED` to `src/providers/errors.ts`)
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — retagged the four `post-0.4.45 unreleased` ts-sdk bullets to `0.4.46`; added `FORFEIT_CLOSURE_LOCKED` to the `ArkErrorName` catalog bullet; added a new `FORFEIT_CLOSURE_LOCKED` + deferred-refund capability bullet and a `0.4.46 release` bullet; added tags (`forfeit-closure-locked`, `cltv-immature-spend`, `cltv-refund-deferral`, `deferred-boltz-refund`, `persist-deferred-refund`)
+- `docs/projects/ts-sdk/INDEX.md` — bumped the workspace version table (0.4.45 → 0.4.46, 0.3.50 → 0.3.51); reworked the Quick-Reference Version cell to lead with the 0.4.46 release and the `FORFEIT_CLOSURE_LOCKED`/deferred-refund work, and retagged the tail clause from "unreleased" to "released in 0.4.46"; retagged the four Key Concepts markers to `0.4.46`, extended the `ArkErrorName` entry with `FORFEIT_CLOSURE_LOCKED`, and added a dedicated `FORFEIT_CLOSURE_LOCKED` Key Concept
+- `docs/projects/ts-sdk/system/project_overview.md` — bumped the workspace version table + `**Version**` field (0.4.45 → 0.4.46, 0.3.50 → 0.3.51)
+- `docs/projects/ts-sdk/system/architecture.md` — retagged the `errors.ts` note to `0.4.46` and added the `FORFEIT_CLOSURE_LOCKED` catalog entry + semantics
+- `change-log/last-sync.txt` → `1b0aa106`
+
+**Notes**:
+- The only `packages/ts-sdk/src/` change in this range is the `FORFEIT_CLOSURE_LOCKED` addition (+ a comment trim) in `providers/errors.ts`; the substantive refund-deferral/retry/persist logic is in `packages/boltz-swap/` (`arkade-swaps.ts`, `swap-manager.ts`, `types.ts`) — tracked under `docs/projects/boltz-swap/`.
+- Module layout unchanged (no ts-sdk source files moved/added). Files touched in this range: `packages/ts-sdk/src/providers/errors.ts`, `packages/ts-sdk/.env.regtest`, `packages/ts-sdk/test/e2e/vhtlc.test.ts`, `packages/boltz-swap/src/{arkade-swaps,swap-manager,types}.ts` + tests, and both `package.json` version fields.
+
 ## 2026-07-16 - Post-0.4.45 unreleased: arkd 0.9.14 alignment, ArkErrorName catalog, isSubdust widening, Dependabot bump
 **From**: `8f45350d3345966cc5fe83e522e6728386bc6792`
 **To**: `6c6e5338590f53bbfa762fc69950484e668792bf`

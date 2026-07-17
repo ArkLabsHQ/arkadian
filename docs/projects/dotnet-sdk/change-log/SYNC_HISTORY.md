@@ -1,5 +1,22 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-17 - regtest submodule realigned to `master` branch (no SDK changes)
+**From**: `2294ddd0f0e6672905d75709f002609800ceb8b9`
+**To**: `f3ea7d03b0346b753183fa814e282ed9d0fe5f56`
+**Synced By**: update-project skill
+**Status**: Internal (regtest-submodule-only — no SDK sources, public APIs, NuGet metadata, DI, or config changed)
+
+**Commits Analysed**: 1 squash-merge PR (no merges), 2 files.
+- **#159 `chore: regtest update`** — `.gitmodules` `branch = block-based-config → master` (the block-based-config block-height VTXO-expiry stack landed on the arkade-regtest `master` branch upstream, so a fresh `git submodule update --remote` now tracks the canonical branch again) + `regtest` submodule pointer bump `9dc9d0f6e523d9e936f61f5509f61331337334a7 → 15354f994dbba032f856e9a8e02f33b69b8c0e8a`. No source files, public APIs, DI registrations, `ArkNetworkConfig` presets, `.env.regtest`, build/test scripts, or dependency metadata in the dotnet-sdk repo changed.
+
+**Changes Made**:
+- `docs/projects/dotnet-sdk/system/architecture.md` — E2E Test Infrastructure paragraph: appended the #159 `.gitmodules` `block-based-config → master` realignment + pointer bump, noting it is a regtest-submodule-only update.
+- `docs/INDEX.md` — dotnet-sdk shared-regtest-E2E capability line: noted the submodule now tracks `master` since PR #159 (block-based-config merged upstream) + the pointer bump.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `f3ea7d0`.
+- No `docs/INDEX.md` tags/dependencies/dependency-graph/correlation-matrix changes (arkade-regtest already documented as a submodule dependency; the regtest stack itself is tracked under the `arkade-regtest` project, not here).
+
+---
+
 ## 2026-07-16 - Unilateral-exit rewrite (leaf→root, one-link, preconfirmed, operator-offline) + intent-authenticated `GetVtxoChain` pagination (PRs #154, #158)
 **From**: `be6ae626edd610d66b23596f8125db43aa9b4728`
 **To**: `2294ddd0f0e6672905d75709f002609800ceb8b9`

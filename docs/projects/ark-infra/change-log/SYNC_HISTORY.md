@@ -1,5 +1,58 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-17 - Documentation Update
+**Commit**: `232a5c553378f4361830c10e1afd09e19992e33b`
+**Previous Sync**: `f7a7663ff292c3da44e9323288ec29c6d85f4cd4`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (#117 telemetry Graviton + AL2023 AMI migration)
+
+**Highlights**:
+- 🐧 **Telemetry migrated to Graviton + AL2023 AMI pattern (#117)** — the telemetry instance
+  adopts the standalone-bitcoin-node provisioning pattern, moving off Ubuntu/x86 (`t3.small`)
+  onto **Amazon Linux 2023 arm64 (Graviton)**, default `t4g.small`, root device `/dev/xvda`.
+  New **`packer/telemetry/telemetry.pkr.hcl`** (`make ami-telemetry`) builds
+  `ark-telemetry-al2023-arm64-<ts>` on the latest base AMI (encrypted gp3, IMDSv2-required),
+  baking Docker + the Compose v2 plugin via the new top-level **`ansible/telemetry.yml`** playbook
+  (roles `docker`, `telemetry`, `ansible_runtime`, build-only `deprovision`); the ark-telemetry
+  stack is cloned live at boot at `ark_telemetry_ref` (was `ark_telemetry_branch`), not baked.
+  The monolithic `modules/ark/ansible/telemetry-playbook.yml` (+ `requirements.yml`) is **deleted**.
+- 🧩 **Shared Ansible roles + generic converge unit** — new **shared roles** `ebs_data_volume`
+  (attach/mount `/dev/xvdb`→`/mnt/data`) and `fixed_eni_ip` (bind the reserved secondary IP) are
+  now used by both the bitcoind and telemetry roles; the `docker` role installs Compose plugin
+  `2.29.7` aarch64 (AL2023 omits it). A generic **`ark-converge@` template systemd unit**
+  (`systemctl start ark-converge@telemetry` / `@bitcoin-node`, keyed by the playbook basename,
+  on-demand `Type=oneshot`), installed by the `ansible_runtime` role, replaces the per-AMI converge
+  units — the bitcoin-node's dedicated `ark-bitcoin-node-ansible-converge.service` is deleted.
+- 🌐 **Static Cloud Map registration** — replaces boot-time self-registration: new **required**
+  `telemetry_fixed_private_ip` var + `aws_ec2_subnet_cidr_reservation.telemetry_fixed_ip` reserve a
+  stable in-VPC IP that the `fixed_eni_ip` role binds as a secondary IP on the primary ENI, and a
+  static `aws_service_discovery_instance.telemetry` points Cloud Map at it (the register/deregister
+  bash + `cloudmap-deregister` shutdown unit are gone). `user-data-telemetry.sh` shrinks from ~104
+  to ~29 lines (just writes `/etc/ark/telemetry-bootstrap.yml` + runs the local playbook).
+- 🔐 **IAM rework (telemetry + bitcoin-node)** — telemetry IAM drops
+  `servicediscovery:Register/Deregister/ListInstances` for `ec2:AssignPrivateIpAddresses`/
+  `UnassignPrivateIpAddresses` (scoped by **`ec2:Vpc`**, because launch-template network-interface
+  `tag_specifications` don't reliably tag the primary ENI at ASG launch — an `Environment`-tag
+  condition denies the bind with `UnauthorizedOperation`) + `ec2:DescribeNetworkInterfaces`. The
+  launch template also tags the network-interface. `modules/bitcoin-node/iam.tf` makes the same
+  `ec2:ResourceTag/Environment` → `ec2:Vpc` switch on its `AssignPrivateIpAddresses` condition.
+- 🧹 **CloudWatch drop-in removed** — the telemetry-specific drop-in was deleted; the base image's
+  cloudwatch_agent baseline already covers host metrics + `/mnt/data`, and a second drop-in made the
+  agent's strict multi-file merge fail and crash-loop. `telemetry_ami_id` is now **required**
+  (default removed). Staging: `t4g.small`, `ami-0644e3471d063291b`, fixed IP `10.10.102.12`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra: new #117 Graviton/AL2023 telemetry-migration capability bullet; amended the telemetry IAM line for the `servicediscovery:*` → `ec2:Assign/DescribeNetworkInterfaces` change; tags appended `al2023`, `t4g`, `ark-converge`, `subnet-cidr-reservation`, `docker-compose-plugin`, `static-service-discovery`)
+- docs/projects/ark-infra/INDEX.md (frontmatter → 1.10.0 / new commit / 2026-07-17; new Telemetry Stack migration note; AMI-builds section adds `packer/telemetry/` + `make ami-telemetry`; `modules/ark/` note; bitcoin-node converge unit note → shared `ark-converge@` + `ec2:Vpc` IAM switch)
+- docs/projects/ark-infra/system/project_overview.md (Telemetry Stack: playbook path, static Cloud Map registration, new Graviton/AL2023 migration paragraph; repository-structure `modules/ark` telemetry entries, `packer/`, and `ansible/` lines)
+- docs/projects/ark-infra/system/architecture.md (telemetry ASCII diagram `t3.medium` → `t4g.small AL2023 arm64`; bootstrap playbook path; static Cloud Map registration note)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `232a5c553378f4361830c10e1afd09e19992e33b`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
+---
+
 ## 2026-07-16 - Documentation Update
 **Commit**: `f7a7663ff292c3da44e9323288ec29c6d85f4cd4`
 **Previous Sync**: `7f4239a6f998864983579a58416a4457ecc9b522`
