@@ -16,15 +16,15 @@ cargo install --path .         # Install arkadec binary
 ## Running Tests
 
 ```bash
-# All tests
-cargo test
+# All tests (whole workspace, matching CI)
+cargo test --workspace
 
-# Specific test file
-cargo test --test bare_vtxo_test
-cargo test --test htlc_test
-cargo test --test fuji_safe_test
+# Specific test binary
+cargo test --test examples
+cargo test --test features
 
-# Specific test by name
+# Specific module / test by name
+cargo test --test features bare_vtxo
 cargo test bare_vtxo
 
 # With output
@@ -79,25 +79,25 @@ cargo doc --open
 
 ## Adding a New Contract Example
 
-1. Create `examples/my_contract.ark` with the contract source
-2. Create `tests/my_contract_test.rs` with compilation tests
-3. Compile and save expected output: `cargo run -- examples/my_contract.ark`
-4. Verify: `cargo test --test my_contract_test`
+1. Create `examples/my_contract/my_contract.ark` (each standalone example lives in its own dir; group interdependent contracts like `bonds/`, `stability/`)
+2. Add a test module `tests/examples/my_contract.rs` and register it in `tests/examples.rs` (`#[path = "examples/my_contract.rs"] mod my_contract;`)
+3. Compile to inspect output: `cargo run -- examples/my_contract/my_contract.ark` (compiled JSON is generated on demand, not committed)
+4. Verify: `cargo test --test examples my_contract`
 
 ## Adding a New Language Feature
 
 1. **Update grammar**: Edit `src/parser/grammar.pest` to add new rules
 2. **Update models**: Add new variants to `Expression` or `Statement` in `src/models/mod.rs`
-3. **Update parser**: Add parse functions in `src/parser/mod.rs`
-4. **Update compiler**: Add code generation in `src/compiler/mod.rs`
-5. **Add tests**: Create test cases verifying correct ASM output
+3. **Update parser**: Add parse logic in the relevant `src/parser/` submodule (`expr`, `comparison`, `checksig`, `crypto`, `asset`, `introspection`, `tapscript`)
+4. **Update compiler**: Add code generation in the relevant `src/compiler/` submodule (`expr`, `comparison`, `concat`, `loops`, `asset`, `introspection`, `tapscript`)
+5. **Add tests**: Add a `tests/features/` module verifying correct ASM output
 6. **Update README**: Document the new syntax
 
 ## PR Checklist
 
-- [ ] `cargo build` succeeds
-- [ ] `cargo test` passes (all 27 test files)
-- [ ] `cargo clippy` clean (no warnings)
+- [ ] `cargo build --workspace` succeeds
+- [ ] `cargo test --workspace` passes (both `examples` + `features` binaries and `arkade-bindgen`)
+- [ ] `cargo clippy --workspace` clean (no warnings)
 - [ ] `cargo fmt` applied
 - [ ] New features have test coverage
 - [ ] Example contracts updated if syntax changed

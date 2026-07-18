@@ -1,5 +1,36 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-18 - Documentation Sync
+**Commit**: `e14de0733b325e81cddce2bfeef16e4c416ffe66`
+**Previous Sync**: `82403d36c53b566a00709f01a935952cdaa372b8`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 5 non-merge commits
+- `e14de073` Show asset ID and link outpoints to the Arkade explorer in Virtual Coins (#802)
+- `637bbfdf` Show asset ID alongside ticker in Virtual Coins list (#801)
+- `acc6e5ba` Restrict currency treatment to verified asset IDs (#790)
+- `0c143004` Upgrade ts-sdk 0.4.47 - boltz-swap 0.3.52 (#792)
+- `ce0664b2` fix header glitch (#789)
+
+**Change Type**: Feature + trust hardening + dependency bump + UI fix.
+
+**Features / Changes**:
+- **Currency treatment restricted to verified asset IDs** (PR #790): official token logos, fiat-style formatting (`prettyCurrencyAssetAmount`), and fiat prices are now pinned to the asset **ID** rather than a self-reported ticker. New `WalletContext.isVerifiedAsset(assetId)` (icon-approval list OR on-chain registered set; empty `assetId` = native bitcoin, always trusted), `trustedAssetTickers()` helper in `TokenLogo.tsx`, and new `UnverifiedBadge` component. Wired through `AssetCard`, `TransactionsList`, `Transaction` detail (asset transfers hide the sats Amount/Total rows), `Send/Form` (unverified assets filtered from the picker), and `usePortfolioFiat` (no fiat for unverified IDs). New `AssetCard.test.tsx`.
+- **Virtual Coins asset ID + explorer links** (PRs #801, #802): `Vtxos.tsx` shows each asset's short ID alongside its ticker and links the VTXO outpoint (`getOffchainTxURL`) and asset ID (`getAssetURL`) to the Arkade explorer.
+- **Dependency bump** (PR #792): `@arkade-os/sdk` 0.4.43 → 0.4.47, `@arkade-os/boltz-swap` 0.3.48 → 0.3.52.
+- **UI fix** (PR #789): header glitch (`src/index.css`).
+
+**Files Updated**:
+- docs/INDEX.md (wallet key capabilities, tags, triggers, dependency versions)
+- docs/projects/wallet/INDEX.md (frontmatter: version, last_sync_commit)
+- docs/projects/wallet/system/project_overview.md (new Asset Trust & Verification section, SDK versions)
+- docs/projects/wallet/system/components.md (UnverifiedBadge, AssetCard/TransactionsList notes)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-17 - Documentation Sync
 **Commit**: `82403d36c53b566a00709f01a935952cdaa372b8`
 **Previous Sync**: `3d4d736ab8918fd7a727a83f2b2f4e16541642a2`

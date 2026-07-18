@@ -95,47 +95,43 @@ Exit/renewal timelocks are ordinary `int` constructor parameters referenced by `
 
 ## Project Structure
 
+The repository is a Cargo **workspace** with two members: the compiler (root) and `arkade-bindgen` (a Go/TypeScript client-binding generator). Since the 2026-07 refactor, `parser/` and `compiler/` are split into per-concern submodules, the pipeline modules are crate-internal, each standalone example lives in its own directory, integration tests are grouped under `tests/examples/` and `tests/features/`, and the old top-level `docs/` design folder was removed (per-contract design notes now sit beside their examples).
+
 ```
 compiler/
-├── Cargo.toml                  # Package manifest (v0.1.0)
+├── Cargo.toml                  # Workspace + root package (v0.1.0); members = [".", "arkade-bindgen"]
 ├── README.md                   # Language reference and examples
 ├── src/
 │   ├── main.rs                 # CLI entry point (arkadec)
-│   ├── lib.rs                  # Library entry point (compile fn)
-│   ├── parser/
-│   │   ├── mod.rs              # AST builder from pest pairs (incl. tapscript decls)
-│   │   ├── grammar.pest        # PEG grammar (752 lines)
-│   │   └── debug.rs            # Debug utilities
+│   ├── lib.rs                  # Library entry point (compile fn); re-exports models + opcodes
+│   ├── wasm.rs                 # WASM bindings for the web playground (`wasm` feature)
+│   ├── parser/                 # PEG → AST, split by concern: mod, grammar.pest, expr,
+│   │                          # comparison, checksig, crypto, asset, introspection, tapscript
 │   ├── models/
 │   │   └── mod.rs              # AST + unified ABI types (Contract.tapscripts,
 │   │                          # NamedTapscript, TapItem, KeyExpr, HashFn,
 │   │                          # AbiFunctionGroup, ArkadeCovenant, AbiLeaf)
-│   └── compiler/
-│       ├── mod.rs              # AST → unified ABI compilation
-│       └── tapscript.rs        # L1 tapleaf closure assembly, validation, ASM emission
-├── validator/
-│   └── mod.rs              # AST + output validation passes (ValidationIssue, Severity)
-├── typechecker/            # Type system for AST expressions (ArkType)
-├── opcodes/                # Opcode constants module
-├── examples/               # 12+ .ark contract examples with compiled JSON
-│   ├── stability/          # BTC-collateralised USD position contracts (oracle-signed witness)
-│   │   ├── stability_vault.ark
-│   │   └── stability_offer.ark
-│   ├── options/            # Rysk-faithful single-locked physical options (no oracle)
-│   │   ├── covered_call.ark
-│   │   └── cash_secured_put.ark
-│   ├── bonds/              # Fixed-maturity bond market with margin call + phased lifecycle
-│   │   ├── repayment_pool.ark
-│   │   └── bond_mint.ark
-│   └── layerzero/          # LayerZero / USDT0 cross-chain suite (packet-native introspection)
-│       ├── endpoint.ark    # Endpoint state, 2-of-2 DVN attestation, receive/send markers
-│       ├── oapp.ark        # USDT0 OApp state, mint/burn, marker consume/emit
-│       ├── receive_marker.ark
-│       └── send_marker.ark
-├── tests/                  # 35 integration test files (shared helpers in tests/common/mod.rs),
-│                          # incl. tapscript_abi/golden/parse/validation tests
-└── docs/                   # Internal documentation (specs, opcodes, tapscript-leaves-spec.md,
-                            # stability.md, options.md, bonds.md design docs)
+│   ├── compiler/               # AST → unified ABI, split by concern: mod, expr, comparison,
+│   │                          # concat, loops, asset, introspection, tapscript
+│   ├── validator/              # AST + output validation passes (ValidationIssue, Severity)
+│   ├── typechecker/            # Type system for AST expressions (ArkType, Scope)
+│   └── opcodes/                # Opcode constants module
+├── examples/                   # Each standalone contract in its own dir; systems grouped
+│   ├── single_sig/single_sig.ark, htlc/htlc.ark, fuji_safe/fuji_safe.ark,
+│   ├── nft_mint/, controlled_mint/, fee_adapter/, non_interactive_swap/,
+│   ├── payment_auth/, token_vault/, threshold_oracle/, threshold_multisig_htlc/,
+│   ├── arkade_kitties/         # arkade_kitties.ark + ArkadeKitties.md design note
+│   ├── stability/              # stability_vault.ark, stability_offer.ark + stability.md
+│   ├── options/                # covered_call.ark, cash_secured_put.ark + options.md
+│   ├── bonds/                  # repayment_pool.ark, bond_mint.ark + bonds.md
+│   └── layerzero/              # endpoint.ark, oapp.ark, receive_marker.ark, send_marker.ark
+│                              # (compiled JSON artifacts are generated on demand, not committed)
+├── tests/                      # Two aggregator binaries pulling in per-topic modules:
+│   ├── common/mod.rs          # shared helpers (asm_of, witness_names, opcode_count, …)
+│   ├── examples.rs + examples/ # contract-compilation tests (htlc, fuji_safe, options, bonds, …)
+│   └── features.rs + features/ # language/compiler behaviour tests (tapscript_abi, concat_op, …)
+└── arkade-bindgen/             # Workspace member: Go/TS binding generator over the
+                                # spend-groups/leaves ABI (ir.rs, targets/{go,typescript}.rs)
 ```
 
 ## Security Model

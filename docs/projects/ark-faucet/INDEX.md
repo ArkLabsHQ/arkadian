@@ -84,6 +84,12 @@ Analysis and summaries of pull requests.
 - Admin macaroon optional (used only when arkd enforces it)
 - Refill auto-zeroes arkd's intent fees around the redeem (and restores them), so it funds the wallet whether or not intent fees are enabled
 
+### Wallet & Resilience (go-sdk v0.10)
+- Uses the `sdk.Wallet` API — HD wallet with a BIP-39 mnemonic identity (replaced the old single-key/hex-seed `sdk.ArkClient`)
+- **Breaking:** pre-v0.10 datadirs are not loadable — upgrade with a fresh datadir (new address, refund via `/refill`)
+- VTXO rollover is delegated to the SDK's built-in auto-settle (the old in-service rollover loop was retired)
+- On startup the faucet refreshes its cached checkpoint tapscript from arkd `GetInfo`, so a redeploy recovers from an operator signer/forfeit-key rotation (`CHECKPOINT_MISMATCH`)
+
 ---
 
 ## Quick Reference
@@ -302,7 +308,8 @@ export ARK_FAUCET_SERVER_URL=http://localhost:7070
 - **Admin API**: Mint notes (requires macaroon)
 
 ### Ark SDK
-- **Usage**: Wallet management and operations
+- **Version**: go-sdk v0.10 (`sdk.Wallet` HD wallet API)
+- **Usage**: Wallet management and operations; SDK handles signer-rotation, auto-migration, and auto-settle
 - **Mode**: Offchain-only (no onchain wallet)
 - **Storage**: Persistent wallet data in datadir
 

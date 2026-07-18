@@ -568,10 +568,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: bool
 - **Reminder**, **Warning**: Inline notice/warning banners
 
 ### Data Display
-- **AssetCard**, **Balance**: Balance and asset cards
+- **AssetCard**, **Balance**: Balance and asset cards (AssetCard tags unverified assets with `UnverifiedBadge` and drops currency treatment when `isVerifiedAsset(assetId)` is false, PR #790)
 - **Details**: Key/value detail rows
 - **Table**: Data table
-- **TransactionsList**: Transaction history (top-aligned rows when assets present, max 2 coins on right; "history" label removed; lighter `dark10` dividers, leading asset icon, regular-weight asset text)
+- **TransactionsList**: Transaction history (top-aligned rows when assets present, max 2 coins on right; "history" label removed; lighter `dark10` dividers, leading asset icon, regular-weight asset text; unverified assets shown with `UnverifiedBadge` and no logo/fiat formatting, PR #790)
+- **UnverifiedBadge**: Outline "Unverified" chip (`src/components/UnverifiedBadge.tsx`, PR #790) shown wherever an unverified asset's self-reported metadata is displayed (AssetCard, TransactionsList, Transaction detail, Send form). Trust is decided by `WalletContext.isVerifiedAsset(assetId)` (icon-approval list OR on-chain registered set); the `trustedAssetTickers()` helper in `TokenLogo.tsx` returns `undefined` tickers for untrusted assets so logos and fiat formatting are stripped.
 - **SwapsList**: Swap history (virtualized via `@tanstack/react-virtual` `useVirtualizer` for performant scrolling)
 - **QrCode**: Styled QR with tap-to-copy support
 - **ExpandAddresses**: Collapsible address list

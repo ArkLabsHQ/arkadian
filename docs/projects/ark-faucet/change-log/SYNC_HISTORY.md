@@ -1,5 +1,21 @@
 # Documentation Sync History - Ark Faucet
 
+## 2026-07-18 - go-sdk v0.10 migration + checkpoint-rotation recovery
+**Commit**: `25feb5348fb01b7d65688c4690025390a9d440e1` (from `b7494c2498c657c768ab2b118090cc1c95909106`)
+**Synced By**: update-project skill
+**Status**: Docs updated
+
+**Commits analyzed** (1):
+- `25feb53` fix: recover from arkd signer/checkpoint rotation; migrate to go-sdk v0.10 (#17)
+
+**Changes made**:
+- Migrated `pkg/service.go` from the retired `sdk.ArkClient` to the `sdk.Wallet` API (go-sdk v0.10.1); wallet identity changed single-key/hex-seed → HD/BIP-39 mnemonic. `Init` now uses an empty seed (SDK generates a fresh mnemonic; old hex seed rejected as "invalid mnemonic").
+- **Breaking:** pre-v0.10 datadirs are not loadable/migratable — upgrade requires a fresh datadir (new address, refund via `/refill` or `ARK_FAUCET_NOTES`).
+- Added `refreshCheckpointTapscript`: on every `Start`, re-fetch the operator's checkpoint tapscript via `GetInfo` and overwrite the cached copy when it differs, so a redeploy recovers from an operator signer/forfeit-key rotation that otherwise fails offchain sends with `CHECKPOINT_MISMATCH`. No-ops pre-init; non-fatal when arkd is unreachable.
+- Retired the manual 5-minute VTXO rollover goroutine; rollover is now the SDK's built-in auto-settle (scheduled on unlock).
+- Dependency bumps: go 1.26.5 (+ Dockerfile golang:1.26.5), go-sdk v0.10.1, client-lib 2026-07-14, ark-lib 0429; dropped badger/otel/bip32 indirect deps, added gocron/bip39/cron.
+- Updated: system/{project_overview,architecture,configuration}.md, testing/troubleshooting.md, sop/deployment-guide.md, project INDEX.md, master docs/INDEX.md.
+
 ## 2026-06-19 - intent-fee auto-management + server-side logging
 **Commit**: `b7494c2498c657c768ab2b118090cc1c95909106` (from `0b2382369b321b7a7e30a65ac609955928853b2d`)
 **Synced By**: update-project skill

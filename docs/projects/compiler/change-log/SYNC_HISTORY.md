@@ -1,5 +1,42 @@
 # Documentation Sync History - Arkade Compiler
 
+## 2026-07-18 — Repo refactor: modular pipeline, test/example reorg, bindgen ABI port, workspace CI
+**Commit Range**: `de0a9cc9` → `e81fad6c`
+**Synced By**: /update-project compiler
+**Status**: Structural refactor + tooling — no grammar/language/ABI change to `.ark` or the compiled JSON
+
+**Commits Analyzed** (11):
+- `09f6ae2` refactor: split parser mod.rs into submodules
+- `fc5758c` refactor: split compiler mod.rs into submodules
+- `dea97e4` refactor: make pipeline modules crate-internal; inline parser test
+- `c564a8e` test: group tests into examples/ and features/
+- `2c7f241` chore: reorganize examples, drop artifacts, add clippy to CI
+- `99249db` fix(bindgen): port to spend-groups/leaves ABI; gate whole workspace in CI
+- `14625b4` chore: give each standalone example its own dir
+- `cc4aea0` / `6f640fa` clean up docs / further rm redundant docs
+- `f4a4827` fix ci; `c4c5c30` update stale agent skills; `8b7e85c` scope workflow token
+
+**Changes**:
+- **Modular pipeline internals.** `src/parser/mod.rs` split into per-concern submodules (`expr`, `comparison`, `checksig`, `crypto`, `asset`, `introspection`, `tapscript`); `src/compiler/mod.rs` split into (`expr`, `comparison`, `concat`, `loops`, `asset`, `introspection`, `tapscript`). Pipeline modules (`parser`, `compiler`, `typechecker`, `validator`) are now **crate-internal** (`mod`, not `pub mod`) — only `compile()`, `models`, and `opcodes` are exported; `typechecker::Scope`/`build_scope` dropped from `pub` to `pub(crate)`. `src/parser/debug.rs` removed. No public API change (`compile()` unchanged). Grammar unchanged at 752 lines.
+- **Test reorganization.** The ~35 standalone `tests/*_test.rs` binaries collapsed into two aggregator binaries — `tests/examples.rs` (contract compilation) and `tests/features.rs` (language/compiler behaviour) — each including per-topic modules from `tests/examples/*.rs` / `tests/features/*.rs` (and `tests/common/mod.rs`) via `#[path] mod`. File names dropped their `_test` suffix. The parser-only `tapscript_parse_test` was inlined as a `parser` unit test.
+- **Example reorganization.** Each standalone example now lives in its own directory (`examples/single_sig/single_sig.ark`, `examples/htlc/htlc.ark`, …); interdependent systems stay grouped (`bonds/`, `stability/`, `options/`, `layerzero/`). Committed compiled-JSON / `.hack` artifacts dropped (generated on demand). Per-contract design notes moved beside their examples (`stability.md`, `options.md`, `bonds.md`, `ArkadeKitties.md`); the top-level `docs/` folder (primitives spec, tapscript opcodes, interpreter reference) was removed.
+- **`arkade-bindgen` ABI port.** The workspace-member binding generator was rewritten around `AbiFunctionGroup { arkade, leaves[] }` (replacing the removed `serverVariant`/`witnessSchema` shape): IR + Go/TS emitters emit per-leaf witness types and a `buildWitness(group, leaf, w)` entry point; test fixtures regenerated from the compiler.
+- **CI.** Now `cargo build/clippy/test --workspace` so sub-crates can't silently break; clippy added; workflow token scoped; stale `.codex/` agent skills refreshed.
+
+**Documentation Updates**:
+- `system/architecture.md` — Source Structure rewritten (workspace, per-concern parser/compiler submodules, crate-internal pipeline, `wasm.rs`, `arkade-bindgen/` tree); Stage 1 parser note; `pub`→`pub(crate)` wording for `Scope`/`build_scope`; Testing Architecture rewritten to the two-binary (`tests/examples` / `tests/features`) structure.
+- `system/project_overview.md` — Project Structure tree rewritten (workspace, submodules, per-dir examples, two test binaries, `arkade-bindgen/`; `docs/` removal).
+- `docs/projects/compiler/INDEX.md` — Quick Reference gains a Workspace row; Integration Points gains `arkade-bindgen`.
+- `testing/how_to_test.md` — Test Strategy / Running Tests / Test Modules updated to the two-binary layout and `--workspace`; tapscript table de-suffixed with the inlined-`tapscript_parse` note.
+- `sop/development-workflow.md` — Running Tests, Adding a New Contract Example / Language Feature, and PR Checklist updated to `--workspace`, per-dir examples, and submodule locations.
+- Master `docs/INDEX.md` — compiler description gains the workspace/`arkade-bindgen` + modular-internals clause; two new Key Capabilities (bindgen crate, modular pipeline); tags add `arkade-bindgen`, `bindings`, `go-bindings`, `typescript-bindings`, `codegen`, `cargo-workspace`; ask_question/develop triggers add binding-generator terms.
+
+**Notes**:
+- Pure structural/tooling refactor: `.ark` source syntax, the compiled JSON ABI, and the `arkadec` CLI behaviour are all unchanged. Net diff: 119 files, +5,344 / −15,902 (dominated by dropped committed artifacts).
+- No new language features, opcodes, validators, or example contracts.
+
+---
+
 ## 2026-07-09 — Comparison codegen emits in Bitcoin Script (postfix) order
 **Commit Range**: `e1a768df` → `de0a9cc9`
 **Synced By**: /update-project compiler

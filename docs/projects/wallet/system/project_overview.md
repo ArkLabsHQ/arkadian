@@ -115,6 +115,13 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **BIP21 asset amount validation** (PR #611): `src/lib/bip21.ts` now validates asset amounts against their declared decimals; `encodeBip21Asset` is passed asset decimals so the URI uses the right precision. `unitsToCents` is hardened against empty strings, `parseInt` calls always pass an explicit radix, fractional millisatoshis are guarded against, and `prettyAssetNumber` no longer renders `-0`. New `src/test/e2e/bip21.test.ts` exercises the round-trip.
 - **Mainnet explorer**: `explorers.bitcoin.api` removed — `getRestApiExplorerURL` now returns `string | undefined` and callers fall back to SDK defaults.
 
+### Asset Trust & Verification (PRs #790, #801, #802)
+- **Currency treatment gated on verified asset IDs** (PR #790): an official token logo, fiat-style formatting (`prettyCurrencyAssetAmount`), and any fiat price/rate are "currency treatment" and must be pinned to the asset **ID**, never to a self-reported ticker — anyone can mint an asset advertising `USD`/`USDT`/etc. New `WalletContext.isVerifiedAsset(assetId)` returns true only when the ID is in the icon-approval list (`iconApprovalManager.isVerified`) **or** the on-chain registered set (`AssetsContext.isRegistered`); an empty `assetId` is the native-bitcoin row and is always trusted.
+- **`trustedAssetTickers(ticker, trusted)`** (`src/components/TokenLogo.tsx`): returns `{ accountTicker, trustedTicker }`, both `undefined` when the asset is untrusted, so callers uniformly strip logos and fiat formatting from unverified assets.
+- **`UnverifiedBadge`** (`src/components/UnverifiedBadge.tsx`): an outline "Unverified" chip rendered wherever an unverified asset's self-reported metadata is shown — `AssetCard`, `TransactionsList`, the `Transaction` detail, and the `Send/Form` asset trigger.
+- **Wiring**: `AssetCard`, `TransactionsList`, `usePortfolioFiat` (no fiat price for unverified IDs), and `Transaction` detail (asset transfers also hide the sats Amount/Total rows since `tx.amount` is just dust carrying the asset). `Send/Form` filters unverified assets out of the picker (`verifiedAssetOptions`) though a preselected one from the Assets app detail screen still renders with the badge. Internal-account rows are wallet-defined and stay trusted. New `src/test/components/AssetCard.test.tsx`.
+- **Virtual Coins asset IDs + explorer links** (PRs #801, #802): Settings → Virtual Coins (`src/screens/Settings/Vtxos.tsx`) shows each asset's short ID next to its ticker (`ticker (a1b2c3d4...)`, or just the short ID when untickered) and links both the VTXO outpoint (`getOffchainTxURL`) and the asset ID (`getAssetURL`) to the Arkade explorer via an inline `ExternalLink` icon.
+
 ### HD Address Rotation & Restore Recovery (PR #682)
 - **Wallet mode**: `Config.walletMode` (`ServiceWorkerWalletMode`, default `'static'` in `providers/config.tsx`) is persisted and controls receive-address rotation. `'hd'` derives a fresh address for every incoming payment (HD wallet, better on-chain privacy); `'static'` reuses one address. Only mnemonic wallets are HD-capable — `SingleKey` wallets are forced `'static'`.
 - **`resolveWalletMode`** (`src/lib/walletMode.ts`): pure helper `resolveWalletMode({ hasMnemonic, requested, persisted })` — returns `'static'` when there is no mnemonic, otherwise `requested ?? persisted ?? 'static'` (requested = creation-time choice, persisted = `config.walletMode` at unlock).
@@ -139,8 +146,8 @@ Arkade Wallet is a React-based Progressive Web App that provides a user-friendly
 - **Tailwind CSS v4** (`tailwindcss` ^4.2.2 + `@tailwindcss/vite`) with a token-driven `@theme` config
 - **clsx + tailwind-merge** (via `cn()` in `src/lib/utils.ts`); **class-variance-authority** for variant-driven components
 - **sonner** (^2.0.7) for toast notifications (replaces previous custom Context-based toast)
-- **@arkade-os/sdk** (0.4.43, PR #729) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`; the `DelegateInfo` type used by the delegation flow; also exports `buildVersion` / `sdkVersion` surfaced in the Support screen's Chatwoot attributes)
-- **@arkade-os/boltz-swap** (0.3.48, PR #729) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps; optimistic `waitForSwapFunded` consumed by the live-settlement Lightning send in PR #668, plus `waitFor: 'funded'` + preimage backfill from 0.3.41); its `sdkVersion` is surfaced as the `boltz_swap_version` Chatwoot attribute (PR #691)
+- **@arkade-os/sdk** (0.4.47, PR #792) for Ark protocol operations (incl. ts-sdk PR #554 signer-rotation classification: `signerSetFromInfo`, `classifyAgainstSignerSet`; the `DelegateInfo` type used by the delegation flow; also exports `buildVersion` / `sdkVersion` surfaced in the Support screen's Chatwoot attributes)
+- **@arkade-os/boltz-swap** (0.3.52, PR #792) for Lightning swap integration (incl. submarine recovery API; `arkade-money` referralId on swap provider + arkadeSwaps; optimistic `waitForSwapFunded` consumed by the live-settlement Lightning send in PR #668, plus `waitFor: 'funded'` + preimage backfill from 0.3.41); its `sdkVersion` is surfaced as the `boltz_swap_version` Chatwoot attribute (PR #691)
 - **@branta-ops/branta** (3.1.3) for Send-form payment-destination verification (debounced typed-input lookups via `getPayments`); Send form uses the v2 `BrantaService` client with string-literal `baseUrl`/`privacy` config (PR #675)
 - **@tanstack/react-virtual** for virtualized swap list and dev-mode contracts list rendering
 - **Dexie** for IndexedDB storage with React hooks
@@ -236,7 +243,7 @@ Arkade Wallet is under active development as part of the Arkade ecosystem. It se
 **Version**: 0.1.0
 **License**: MIT
 **Repository**: Part of Arkade ecosystem
-**Dependencies**: @arkade-os/sdk 0.4.43, @arkade-os/boltz-swap 0.3.48, @branta-ops/branta 3.1.3
+**Dependencies**: @arkade-os/sdk 0.4.47, @arkade-os/boltz-swap 0.3.52, @branta-ops/branta 3.1.3
 **Node.js**: >= 24.15.0 (PR #690)
 
 ## Getting Started

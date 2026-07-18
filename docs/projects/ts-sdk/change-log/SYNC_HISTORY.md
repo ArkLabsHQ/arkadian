@@ -1,5 +1,34 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-18 - Release 0.4.47 / 0.3.52 + 0.4.48-rc.0 / 0.3.53-rc.0: Arkade Script support, ArkCash bearer instruments, reusable offchain submit core
+**From**: `1b0aa1061266ab9501878b18a2ab9dfe5b19db5f`
+**To**: `3931e8b3a69118eb6e16ac645351170dfd9e2442`
+**Synced By**: update-project skill
+**Status**: The `0.4.47` / `0.3.52` release (`2ab53158`) plus the `0.4.48-rc.0` / `0.3.53-rc.0` release candidate (`3931e8b3`). Four new landings: (1) **Arkade Script support** (#319) — new `src/arkade/` module (root `arkade` namespace) encoding/decoding Arkade opcodes + PSBT fields, a first-class registered `arkade` contract type (`ArkadeContractHandler`; smoke-dist expected handler types now `arkade,boarding,default,delegate,vhtlc`), the `src/extension/` typed OP_RETURN packets (`asset` + `emulator`), and a `RestEmulatorProvider` covenant co-signer client; (2) **ArkCash bearer instruments** — `src/arkcash/` `ArkCash` bech32m `arkcash1…` note + `Wallet.createCash` / `claimCash` sweep-or-report; (3) the **reusable offchain submit core** (`submitOffchainTx` / `signAndSubmitOffchainTx` / injected `OffchainTxSigner`); and (4) a **checkpoint-count validation** fix guarding both submit paths against a truncated checkpoint set. The rc adds ArkCash hardening (key-buffer copying, recoverable-token `ArkCashCreateError`, 20-input drain chunking) and the arkcash P2TR-only query fix.
+
+**Commits analyzed** (10 non-merge commits):
+- `3931e8b3` chore: release @arkade-os/sdk@0.4.48-rc.0, @arkade-os/boltz-swap@0.3.53-rc.0
+- `e4087e14` fix: release script for rc
+- `f5d1bac1` fix: query arkcash vtxos by P2TR script only (indexer 400s on the OP_RETURN query script)
+- `b3a734b8` fix: harden ArkCash key handling, token recovery, and drain batching
+- `2ab53158` chore: release @arkade-os/sdk@0.4.47, @arkade-os/boltz-swap@0.3.52
+- `c1eb74f4` Arkade script support (#319) — `src/arkade/`, `arkade` contract type, `src/extension/` packets, emulator provider
+- `85debf91` fix: credit a drained pending sweep to the claim that completes it
+- `244d452d` feat: add ArkCash bearer instruments, sweep-or-report
+- `447a6be8` fix: validate checkpoint counts against the built set
+- `9f407f4b` refactor: extract the offchain submit/finalize core
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — added ts-sdk Recent-Notable-Changes bullets for Arkade Script support, ArkCash bearer instruments, the reusable offchain submit core + checkpoint validation, and the `0.4.47` / `0.4.48-rc.0` release notes; extended the Description sentence (Arkade Script + ArkCash), added ask_question triggers, and added tags (`arkade-script`, `arkade-contract-type`, `arkade-contract-handler`, `emulator-provider`, `arkcash`, `create-cash`, `claim-cash`, `offchain-submit-core`, `checkpoint-count-validation`, …)
+- `docs/projects/ts-sdk/INDEX.md` — bumped the workspace version table (0.4.46 → 0.4.48-rc.0, 0.3.51 → 0.3.53-rc.0); reworked the Quick-Reference Version cell to lead with the 0.4.47/0.4.48-rc.0 landings; added three Key Concepts entries (Arkade Script support, ArkCash bearer instruments, reusable offchain submit core + checkpoint validation)
+- `docs/projects/ts-sdk/system/project_overview.md` — bumped the workspace version table + `**Version**` field (0.4.46 → 0.4.48-rc.0, 0.3.51 → 0.3.53-rc.0); added Core-Features rows (Arkade Script Support, Arkade Extension / Asset Packets, Emulator Provider, ArkCash Bearer Instruments, Reusable Offchain Submit Core) and an **Emulator** integration point
+- `docs/projects/ts-sdk/system/architecture.md` — bumped the version footers (0.4.35 → 0.4.48-rc.0, 0.3.40 → 0.3.53-rc.0); added module-tree entries for `arkcash/`, `arkade/`, `extension/`, `providers/emulator.ts`, and `contracts/handlers/arkade.ts`; extended the `wallet/wallet.ts` (ArkCash `createCash`/`claimCash`) and `utils/arkTransaction.ts` (submit core + checkpoint validation) entries; added `EmulatorProvider` to the Provider Pattern list; updated the smoke-dist expected handler types to `{arkade, boarding, default, delegate, vhtlc}`
+- `change-log/last-sync.txt` → `3931e8b3`
+
+**Notes**:
+- Module layout expanded: new top-level `src/arkade/`, `src/arkcash/`, `src/extension/{asset,emulator}` trees, new `src/providers/emulator.ts`, and new `src/contracts/handlers/arkade.ts`. The Arkade `arkade` namespace, `asset` namespace, and emulator packets are re-exported from the package root; ArkCash exposes `ArkCash` (from `src/arkcash/`) plus the `createCash`/`claimCash` wallet API and `ArkCashCreateError` / `ArkCashClaimResult` / `ArkCashUnclaimedReason` / `ArkCashUnclaimedVtxo` types.
+- Feature split across the two releases: 0.4.47 (`2ab53158`) shipped the offchain refactor, checkpoint validation, ArkCash (initial), and Arkade Script support; 0.4.48-rc.0 (`3931e8b3`) added the ArkCash hardening (`b3a734b8`) and the arkcash P2TR-only query fix (`f5d1bac1`).
+
 ## 2026-07-17 - Release 0.4.46 / 0.3.51: FORFEIT_CLOSURE_LOCKED error + deferred CLTV-immature boltz refunds
 **From**: `6c6e5338590f53bbfa762fc69950484e668792bf`
 **To**: `1b0aa1061266ab9501878b18a2ab9dfe5b19db5f`

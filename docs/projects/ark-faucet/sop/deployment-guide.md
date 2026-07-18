@@ -204,6 +204,16 @@ Notes are redeemed automatically on startup.
 
 Requires arkd admin access via mounted datadir.
 
+## Upgrading to go-sdk v0.10
+
+The v0.10 faucet migrates the wallet from single-key to HD (BIP-39 mnemonic). **A datadir created before v0.10 cannot be loaded or migrated** — plan the upgrade as a fresh-wallet deploy:
+
+1. Deploy with a **new, empty** `ARK_FAUCET_DATADIR` (the old volume is not reusable).
+2. The faucet generates a **new address** on first start — publish it / update downstream consumers.
+3. Refund the new wallet via `ARK_FAUCET_NOTES` at startup or the `/refill` endpoint after start.
+
+The faucet also refreshes its cached checkpoint tapscript from arkd's `GetInfo` on every start, so **redeploying/restarting recovers** from an operator signer/forfeit-key rotation (which would otherwise fail offchain `/faucet` sends with `CHECKPOINT_MISMATCH`).
+
 ## Security Hardening
 
 ### Change Default Credentials

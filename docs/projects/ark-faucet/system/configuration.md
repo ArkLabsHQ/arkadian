@@ -8,7 +8,7 @@
 - **Purpose**: Directory for wallet storage and persistent data
 - **Default**: `~/.arkfaucet` (user home directory)
 - **Example**: `/var/lib/arkfaucet` or `/home/user/.arkfaucet`
-- **Notes**: Must be writable by the service process. Contains wallet keys and VTXO data.
+- **Notes**: Must be writable by the service process. Contains wallet keys and VTXO data. **Breaking (go-sdk v0.10):** the wallet format changed from single-key to HD (BIP-39 mnemonic), so a datadir created before v0.10 is no longer loadable. Deploy the v0.10 faucet with a **fresh datadir** — it generates a new address; refund it via `/refill` (or `ARK_FAUCET_NOTES`).
 
 **ARK_FAUCET_PORT**
 - **Purpose**: HTTP server listening port

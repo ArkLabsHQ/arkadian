@@ -13,23 +13,24 @@ The service runs an HTTP server on a configurable port (default 9999) that expos
 The main service implementation in `pkg/service.go` provides the core business logic. It manages the Ark SDK client lifecycle, handles wallet operations, and implements the faucet distribution logic. This layer translates HTTP requests into SDK operations.
 
 **SDK Integration Layer**
-The Ark SDK (`arkade-os/go-sdk`) handles all wallet operations including key management, transaction creation, VTXO management, and server communication. The faucet service uses a single-key wallet type with gRPC client for server connectivity.
+The Ark SDK (`arkade-os/go-sdk` v0.10) handles all wallet operations including key management, transaction creation, VTXO management, and server communication. The faucet uses the `sdk.Wallet` API (loaded via `sdk.LoadWallet` / created via `sdk.NewWallet`), an HD wallet with a BIP-39 mnemonic identity, over a gRPC client. The SDK also handles signer-rotation, auto-migration, and auto-settle internally.
 
 ## Components
 
 ### Main Service (pkg/service.go)
 
 The service struct maintains:
-- Ark SDK client instance
+- Ark SDK `sdk.Wallet` instance
 - Configuration (datadir, server URL, passwords)
 - Optional notes for initialization
 - Arkd datadir path for macaroon access
 
 Key responsibilities:
-- Initialize and manage SDK client lifecycle
+- Initialize and manage the SDK wallet lifecycle
 - Handle wallet unlock/lock operations
+- Refresh the cached checkpoint tapscript on startup (see below)
 - Coordinate refill operations via admin API
-- Run background VTXO rollover service
+- (VTXO rollover is delegated to the SDK's auto-settle; no in-service loop)
 
 ### HTTP Handlers
 
@@ -46,9 +47,9 @@ All success responses return `{"txid": "<id>"}`.
 ### Ark SDK Client
 
 The service configures the SDK with:
-- Single-key wallet type for simplicity
+- `sdk.Wallet` HD wallet (BIP-39 mnemonic identity)
 - gRPC client type for server communication
-- Optional transaction feed disabled (offchain-only)
+- An empty seed at `Init`, so the SDK generates a fresh mnemonic (the old hex-seed identity is rejected as an "invalid mnemonic" by the v0.10 SDK)
 - Explorer URL for onchain operations
 
 ### Note Redemption Logic
@@ -59,9 +60,15 @@ Notes can be provided in two ways:
 
 The service redeems notes by calling `arkSdk.RedeemNotes()`, which handles the full redemption flow including server communication and VTXO creation.
 
-### VTXO Rollover Service
+### VTXO Rollover (SDK auto-settle)
 
-A background goroutine runs every 5 minutes to check for expiring VTXOs. If any VTXO expires within 5 minutes, the service automatically calls `arkSdk.Settle()` to roll over all coins into a new round, preventing expiration.
+VTXO rollover is handled by the go-sdk's built-in auto-settle, scheduled when the wallet unlocks. The faucet's own 5-minute rollover goroutine was retired to avoid double-settling; expiring VTXOs are refreshed by the SDK.
+
+### Checkpoint Tapscript Refresh
+
+arkd rebuilds every offchain send's checkpoint transactions from its own checkpoint tapscript (derived from the operator's forfeit key and checkpoint exit delay) and rejects a mismatch with `CHECKPOINT_MISMATCH`. The wallet caches that tapscript once at init and the SDK never refreshes it (its signer-rotation handler refreshes the signer key but not the checkpoint tapscript), so an operator-side key rotation leaves the faucet unable to send offchain.
+
+On every `Start` — before the wallet loads its config — the service calls `refreshCheckpointTapscript`: it opens the config store, fetches the operator's current checkpoint tapscript via `GetInfo`, and overwrites the cached copy in place when it differs (leaving the wallet key untouched). It no-ops when the wallet isn't initialized yet and treats an unreachable arkd as a non-fatal warning, so a transient outage doesn't block startup. A redeploy is therefore enough to recover from a rotation.
 
 ## Data Flow
 

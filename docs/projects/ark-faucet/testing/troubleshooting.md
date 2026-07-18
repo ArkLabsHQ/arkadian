@@ -165,6 +165,39 @@ ls -la $ARK_FAUCET_SERVER_DATADIR/macaroons/admin.macaroon
 
 ---
 
+### Offchain /faucet Fails with CHECKPOINT_MISMATCH
+**Symptom:** Offchain `/faucet` sends fail; arkd/logs report `CHECKPOINT_MISMATCH`.
+
+**Possible Cause:** The operator rotated its signer/forfeit key, so arkd's checkpoint tapscript changed, but the faucet was still building checkpoint txs from the tapscript cached in its wallet at init.
+
+**Solution:**
+```bash
+# On every Start the faucet re-fetches the operator's checkpoint tapscript from
+# GetInfo and refreshes its cached config, so a redeploy/restart recovers.
+docker restart arkfaucet
+docker logs arkfaucet 2>&1 | grep -i "checkpoint tapscript"
+
+# If arkd was unreachable at startup the refresh is skipped with a warning;
+# confirm ARK_FAUCET_SERVER_URL points at a reachable arkd, then restart again.
+```
+
+---
+
+### Wallet Fails to Load / "invalid mnemonic" After Upgrade
+**Symptom:** After upgrading to the go-sdk v0.10 faucet, the service fails to load the existing wallet or reports `invalid mnemonic`.
+
+**Possible Cause:** The wallet format changed from single-key (hex seed) to HD (BIP-39 mnemonic). A datadir created before v0.10 is not loadable by the new SDK.
+
+**Solution:**
+```bash
+# Deploy with a FRESH datadir (the pre-v0.10 wallet cannot be migrated).
+# The faucet generates a new address; refund it via /refill or ARK_FAUCET_NOTES.
+export ARK_FAUCET_DATADIR=/data/faucet-v0.10   # new, empty directory
+make run
+```
+
+---
+
 ### Refill Endpoint Not Available
 **Symptom:** 404 error on `/refill` endpoint
 

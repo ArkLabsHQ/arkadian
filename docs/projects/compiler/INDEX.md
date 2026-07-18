@@ -64,6 +64,7 @@ Analysis and summaries of pull requests.
 |------|---------|
 | **Binary** | `arkadec` |
 | **Library** | `arkade_compiler` (Rust crate) |
+| **Workspace** | Cargo workspace: root compiler + `arkade-bindgen` (Go/TS binding generator) |
 | **Version** | 0.1.0 |
 | **Rust Edition** | 2021 |
 | **License** | MIT |
@@ -187,3 +188,4 @@ Each `tapscript` leaf must assemble to one of arkd's 5 closure shapes, with sour
 - **introspector**: Validates and co-signs contracts with Arkade Script opcodes inside TEEs
 - **rust-sdk**: Can load compiled JSON artifacts for client-side contract interaction
 - **wallet**: Presents contract parameters to users for signing
+- **arkade-bindgen**: Workspace-member crate (`arkade-bindgen/`) that generates typed **Go** and **TypeScript** client bindings from a compiled contract JSON. Its IR and emitters are built around the unified spend-groups/leaves ABI (`AbiFunctionGroup { arkade, leaves[] }`) — per-leaf witness types and a `buildWitness(group, leaf, w)` entry point. Kept green by the workspace-wide CI (`cargo build/clippy/test --workspace`).

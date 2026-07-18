@@ -2,33 +2,30 @@
 
 ## Test Strategy
 
-The compiler uses Rust's built-in test framework. Tests are organized as integration tests in the `tests/` directory, each covering a specific contract type or language feature.
+The compiler uses Rust's built-in test framework. Integration tests are grouped into **two aggregator binaries** in the `tests/` directory: `tests/examples.rs` (real `.ark` contracts compiled from `examples/`) and `tests/features.rs` (language/compiler behaviour via inline snippets). Each binary pulls in per-topic modules from `tests/examples/*.rs` / `tests/features/*.rs` (and `tests/common/mod.rs`) via `#[path = "..."] mod ...`.
 
 ## Running Tests
 
 ```bash
-# Run all tests
-cargo test
+# Run all tests (whole workspace, matching CI)
+cargo test --workspace
+
+# Run one binary
+cargo test --test examples
+cargo test --test features
 
 # Run with output
 cargo test -- --nocapture
 
-# Run specific test file
-cargo test --test bare_vtxo_test
-cargo test --test htlc_test
-cargo test --test fuji_safe_test
-
-# Run specific test by name
-cargo test bare_vtxo
+# Run a specific module / test by name (filters across binaries)
+cargo test --test features bare_vtxo
 cargo test htlc_claim
-
-# Run tests matching pattern
 cargo test asset_introspection
 ```
 
-## Test Files (32 total)
+## Test Modules
 
-Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are pulled into each test binary via `mod common; use common::*`.
+Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_signatures`) live in `tests/common/mod.rs` and are included into both binaries via `#[path = "common/mod.rs"] mod common; use common::*`. (Since the 2026-07 reorg the file names dropped their `_test` suffix and moved under `examples/` or `features/`; e.g. `bare_vtxo_test.rs` → `tests/features/bare_vtxo.rs`. The old parser-only `tapscript_parse_test` is now an inline `parser` unit test.)
 
 ### Contract Compilation Tests
 | Test File | Covers |
@@ -61,13 +58,14 @@ Shared helpers (`asm_of`, `asm_variant`, `witness_names`, `opcode_count`, `user_
 | `epoch_limiter_test.rs` | Epoch-based contract limiting |
 | `contract_import_instantiation_test.rs` | Cross-contract imports and `new Contract(...)` instantiation |
 
-### Tapscript Leaf Tests
-| Test File | Covers |
+### Tapscript Leaf Tests (`tests/features/`)
+| Test Module | Covers |
 |-----------|--------|
-| `tapscript_parse_test.rs` | Parsing `function … tapscript {}` into `NamedTapscript` (items, key roles, hash fns, thresholds) |
-| `tapscript_validation_test.rs` | Closure-shape rules and arkd 5-closure conformance (opcode safety, key/binding resolution, source ordering) |
-| `tapscript_abi_test.rs` | Unified group/leaf ABI shape, default collaborative-leaf synthesis for covenants without a matching tapscript, witness-only signatures |
-| `tapscript_golden_test.rs` | Golden parity of HTLC leaves against arkd closures |
+| `tapscript_validation.rs` | Closure-shape rules and arkd 5-closure conformance (opcode safety, key/binding resolution, source ordering) |
+| `tapscript_abi.rs` | Unified group/leaf ABI shape, default collaborative-leaf synthesis for covenants without a matching tapscript, witness-only signatures |
+| `tapscript_golden.rs` | Golden parity of HTLC leaves against arkd closures |
+
+> `function … tapscript {}` parsing into `NamedTapscript` is now covered by an inline unit test inside the `parser` module (the old standalone `tapscript_parse_test.rs` was removed).
 
 ### Validation & Structural Tests
 | Test File | Covers |

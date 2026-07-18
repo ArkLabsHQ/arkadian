@@ -31,9 +31,10 @@ The service enables programmatic distribution of Ark coins to both onchain and o
 - **Configurable Credentials**: Customizable admin username/password
 
 ### Storage and Persistence
-- **Persistent Wallet**: Wallet state maintained across restarts
+- **Persistent Wallet**: HD (BIP-39 mnemonic) wallet state maintained across restarts
 - **Note Initialization**: Bootstrap wallet with pre-generated notes
-- **Automatic VTXO Rollover**: Background service refreshes expiring coins
+- **Automatic VTXO Rollover**: Handled by the go-sdk's built-in auto-settle (scheduled on unlock); the faucet no longer runs its own rollover loop
+- **Checkpoint-Rotation Recovery**: On startup the faucet refreshes its cached checkpoint tapscript from arkd's `GetInfo`, so it recovers from an operator signer/forfeit-key rotation (which otherwise fails offchain sends with `CHECKPOINT_MISMATCH`) on the next redeploy
 
 ## Use Cases
 
@@ -67,16 +68,16 @@ The HTTP API is decoupled from `main` so it can be imported and exercised by uni
 
 ## Integration
 
-ARK Faucet integrates with the Ark ecosystem through the go-sdk:
-- Uses `arksdk.ArkClient` for all wallet operations
+ARK Faucet integrates with the Ark ecosystem through the go-sdk (v0.10):
+- Uses the `sdk.Wallet` API for all wallet operations (migrated from the retired `sdk.ArkClient`)
 - Connects to arkd server via gRPC (through SDK)
-- Leverages SDK's single-key wallet implementation
-- Utilizes SDK's automatic transaction building
+- Leverages SDK's HD wallet with a BIP-39 mnemonic identity (replaced the old single-key/hex-seed wallet)
+- Utilizes SDK's automatic transaction building, signer-rotation handling, and auto-settle
 
 ## Technology Stack
 
 - **Language**: Go
 - **HTTP Framework**: Standard library net/http
-- **Wallet SDK**: arkade-os/go-sdk
+- **Wallet SDK**: arkade-os/go-sdk (v0.10, `sdk.Wallet` HD wallet API)
 - **Storage**: File-based (via SDK store package)
 - **Deployment**: Docker-ready with volume mounts
