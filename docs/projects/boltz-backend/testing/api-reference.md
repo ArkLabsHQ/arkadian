@@ -319,8 +319,11 @@ Get Boltz's partial signature for cooperative (Taproot key path) claim.
 ### POST /v2/swap/restore
 
 Restore (rescue) swaps when local state was lost. Search by an XPUB, a single public
-key, multiple public keys, or — since PR #1434 — a single **EVM claim address**. Returns
-full `RestorableSwap` details needed to resume, claim, or refund.
+key, multiple public keys, or — since PR #1434 — a single **EVM address**. Since PR #1468
+the EVM-address search matches **both the claim and refund addresses** of swaps (submarine
+swaps are back-filled with a `refundAddress` from their EVM lockup event), so EVM submarine
+swaps are now restorable this way too. Returns full `RestorableSwap` details needed to
+resume, claim, or refund.
 
 **Request Body (EVM address variant)**:
 ```json
@@ -331,7 +334,8 @@ full `RestorableSwap` details needed to resume, claim, or refund.
 }
 ```
 
-- `address`: EVM address (checksummed or lowercase) to match against the swap claim address.
+- `address`: EVM address (checksummed or lowercase) to match against the swap **claim and
+  refund** addresses (PR #1468).
 - `timestamp`: Unix seconds embedded in the signed message; must be within **60 seconds**
   of server time to limit replay.
 - `signature`: EIP-191 `personal_sign` (65-byte hex) proving ownership of `address`. The
@@ -352,8 +356,36 @@ full `RestorableSwap` details needed to resume, claim, or refund.
   `claimAddress`, optional `EvmTransaction` (`{ id }`), `amount`, `timeoutBlockHeight`. Full
   lockup values can be reconstructed from the contract `Lockup` event filtered by preimage hash.
 
+`refundDetails` is discriminated the same way by its `type` field (PR #1468):
+- `type: "utxo"` → `RestoreRefundDetails`: swap `tree`, `keyIndex`, `lockupAddress`,
+  `serverPublicKey`, `timeoutBlockHeight`.
+- `type: "evm"` → `RestoreEvmRefundDetails`: `contractAddress`, optional `claimAddress`,
+  optional `EvmTransaction`, `amount`, `timeoutBlockHeight` (amount/timeout are informational;
+  the lockup tx and contract `Lockup` event are authoritative for the exact refund parameters).
+
 The lockup `Transaction` object in restore responses now carries `id` + `vout` (output index)
 instead of `id` + `hex`. Invalid/expired signatures return HTTP `400`.
+
+### POST /v2/lightning/{currency}/bolt12/fetch
+
+Fetch a BOLT12 invoice from an offer. As of PR #1469 the `amount` field is **optional**: when
+the offer embeds an amount in the chain's native (bitcoin) unit, the server uses the offer's
+amount, so clients need not decode the offer and echo its amount back. Omitting `amount` for an
+offer that carries no bitcoin-denominated amount is rejected with HTTP `422`.
+
+**Request Body**:
+```json
+{
+  "offer": "lno1...",
+  "amount": 100000,
+  "note": "optional note"
+}
+```
+
+- `offer` *(required)*: A BOLT12 offer.
+- `amount` *(optional)*: Invoice amount in satoshis; required only if the offer does not embed a
+  bitcoin-denominated amount.
+- `note` *(optional)*: Note to include in the invoice request.
 
 ### PATCH /v2/swap/{id}/metadata
 

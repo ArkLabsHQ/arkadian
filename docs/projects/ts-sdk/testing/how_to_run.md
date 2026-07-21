@@ -48,10 +48,18 @@ pnpm test:integration:ts-sdk           # = bash scripts/regtest.sh ts-sdk cycle
 # Or step-by-step
 pnpm regtest:up:ts-sdk                 # bring stack up   = node regtest/regtest.mjs start
 pnpm regtest:setup:ts-sdk              # fund wallets + initial state
-pnpm regtest:test:ts-sdk               # run e2e suite against the stack
+pnpm regtest:test:ts-sdk               # run the whole e2e suite against the stack
 pnpm regtest:down:ts-sdk               # tear down        = node regtest/regtest.mjs stop
 pnpm regtest:reset:ts-sdk              # nuke state       = node regtest/regtest.mjs clean
 ```
+
+Since `38674886` (CI integration split) `regtest:test` accepts **optional test-file paths** to run just a subset against a running stack (a trailing `--` separator is tolerated and stripped, `4046b388`):
+
+```bash
+pnpm regtest:test:ts-sdk test/e2e/asset.test.ts test/e2e/arkcash.test.ts
+```
+
+With no file arguments it runs the package's full `test:integration` suite; with paths it execs `vitest run <files>` directly. CI uses this to fan the ts-sdk e2e suite out across parallel groups (the `integration` matrix in `.github/workflows/ci.yml`) — the same file lists reproduce a single group locally.
 
 CI symlinks the repo-root `regtest/` submodule into each package directory on each run (since `da0698fc`) so per-package e2e suites that invoke `node regtest/regtest.mjs ...` relative to their package cwd resolve the CLI; the symlink is git-ignored.
 

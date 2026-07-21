@@ -1,5 +1,23 @@
 # Documentation Sync History - NArk (.NET Ark SDK)
 
+## 2026-07-21 - CLTV locktime propagated to the ark tx, not just the checkpoint (PR #161)
+**From**: `f3ea7d03b0346b753183fa814e282ed9d0fe5f56`
+**To**: `7c68e660962947dec5f77dca8b5e60845fb58f2d`
+**Synced By**: update-project skill
+**Status**: Updated (behavioural bug fix — internal to `TransactionHelpers.ConstructArkTransaction`; no public API, DI, config, or dependency changes)
+
+**Commits Analysed**: 1 squash-merge PR (no merges), 1 file (`NArk.Core/Helpers/TransactionHelpers.cs`, +35/-1).
+- **#161 `fix(core): propagate CLTV locktime to the ark tx, not just the checkpoint`** — A checkpoint's collaborative leaf preserves the original VTXO leaf's CLTV, so arkd's `offchain.buildArkTx` re-derives the ark tx's `nLockTime` (max absolute locktime across inputs) and a non-final input sequence (`cltvSequence = 0xFFFFFFFE`) from that closure when rebuilding the tx to verify the client's txid. `ConstructArkTransaction` set the locktime on the checkpoint tx but built the ark tx with a plain `AddCoins` (locktime 0, final sequences), so for a CLTV spend the ark tx txid diverged from arkd's rebuild → `ARK_TX_MISMATCH` (checkpoint txids already agreed). The fix mirrors arkd/ts-sdk `buildVirtualTx`: when a checkpoint coin carries a locktime, set the ark tx locktime to the max and its inputs to `0xFFFFFFFE`, and reject a mix of seconds/blocks absolute locktimes. No-op for every non-CLTV spend (the `AddCoins` path is unchanged); the bug only surfaced on the covenant refund path (a hashlock/non-CLTV path was unaffected).
+
+**Changes Made**:
+- `docs/projects/dotnet-sdk/system/architecture.md` — Batch/`TransactionHelpers` bullet: appended the PR #161 ark-tx locktime propagation note alongside the existing forfeit-tx CLTV-sequence note.
+- `docs/projects/dotnet-sdk/testing/troubleshooting.md` — new "`ARK_TX_MISMATCH` on a covenant (CLTV) refund spend" entry under Swap Issues.
+- `docs/INDEX.md` — dotnet-sdk status cell: appended the PR #161 CLTV-locktime fix summary.
+- `docs/projects/dotnet-sdk/change-log/last-sync.txt` — advanced to `7c68e66`.
+- No `docs/INDEX.md` tags/dependencies/dependency-graph/correlation-matrix changes (no new capability, dependency, or integration surface).
+
+---
+
 ## 2026-07-17 - regtest submodule realigned to `master` branch (no SDK changes)
 **From**: `2294ddd0f0e6672905d75709f002609800ceb8b9`
 **To**: `f3ea7d03b0346b753183fa814e282ed9d0fe5f56`

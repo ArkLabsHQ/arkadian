@@ -1,5 +1,22 @@
 # Documentation Sync History - Boltz Backend
 
+## 2026-07-21 - Documentation Update
+**Commit**: `8a4d3c8e` (boltz-backend repository)
+**Previous Sync**: `1d39be96`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 commits
+
+**Features Added**:
+- feat: restore EVM submarine swaps (#1468) (`95c4665b`) — restore-by-EVM-address (`POST /v2/swap/restore`) now matches **both** the claim and refund addresses (previously claim-only), making EVM **submarine** swaps recoverable by the address the client refunds to. New nullable `refundAddress` (`STRING(255)`) column on the `swaps` table plus a partial index `swaps_refundAddress` (`WHERE refundAddress IS NOT NULL`), added in `Swap` model (`lib/db/models/Swap.ts`) and Sequelize migration `case 27` (`lib/db/Migration.ts`); `Migration.latestSchemaVersion` bumped `27 → 28`. `EthereumNursery` back-fills `refundAddress` from the `EtherSwap`/`ERC20Swap` lockup event for submarine swaps via new `SwapRepository.setRefundAddress`. Restore responses discriminate `refundDetails` by a `type` field: `type: "utxo"` → `RestoreRefundDetails` (now with a required `type` discriminator), `type: "evm"` → new `RestoreEvmRefundDetails` (`contractAddress` / optional `claimAddress` / `EvmTransaction` / `amount` / `timeoutBlockHeight`). Rust side (`boltzr/src/service/rescue.rs`, `db/{models/swap,schema}.rs`, `swap/asset_rescue.rs`) indexes submarine swaps on EVM address-based restore. Swagger updated (`swagger-spec.json`). Tests: `test/integration/db/repositories/SwapRepository.spec.ts`, `test/unit/swap/EthereumNursery.spec.ts`.
+- feat: allow omitting amount in BOLT12 fetch (#1469) (`8a4d3c8e`) — `POST /v2/lightning/{currency}/bolt12/fetch` makes `amount` **optional**: when the BOLT12 offer embeds an amount in the chain's native (bitcoin) unit, the server coalesces it from the offer instead of requiring the client to decode and echo it; omitting the amount for an offer without a bitcoin-denominated amount is rejected with `422`. Rust `assert_not_zero` deserializer (`boltzr/src/api/types.rs`) now yields `Option<u64>` (accepts absent/`null`, still rejects `0`); logic in `boltzr/src/api/bolt12.rs` + `lightning/cln/mod.rs`. `required` on the fetch request relaxed from `["offer", "amount"]` to `["offer"]` in `lib/api/v2/routers/LightningRouter.ts` and `swagger-spec.json`.
+
+**Database Migrations**:
+- Sequelize `case 27` (`lib/db/Migration.ts`) — adds `refundAddress` column + partial index `swaps_refundAddress` to the `swaps` table; schema version `27 → 28`.
+
+**Docs Touched**: `docs/INDEX.md` (boltz-backend — new **EVM submarine-swap restore** (#1468) and **Optional amount in BOLT12 fetch** (#1469) Key Capabilities; new `evm-submarine-restore` + `bolt12-optional-amount` tags), `docs/projects/boltz-backend/INDEX.md` (schema-v28 refund-address index note; BOLT12 fetch optional-amount note), `docs/projects/boltz-backend/testing/api-reference.md` (restore refund-detail discrimination + new BOLT12 fetch endpoint entry), `docs/projects/boltz-backend/system/project_overview.md` (BOLT12 fetch optional-amount bullet).
+
 ## 2026-07-17 - Documentation Update
 **Commit**: `1d39be96` (boltz-backend repository)
 **Previous Sync**: `b28a2a71`

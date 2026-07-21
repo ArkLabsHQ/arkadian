@@ -1,5 +1,26 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-21 - Documentation Update
+**Commit**: `2b9328a6d28fbf3da32953b3b7dd5a139c77cf19`
+**Previous Sync**: `232a5c553378f4361830c10e1afd09e19992e33b`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit (`2b9328a` — add KMS data key output to AWS dev account stack)
+
+**Highlights**:
+- 🔑 **Data KMS key ARN now a dev-stack output** (`2b9328a`) — `aws/dev-438465126741/outputs.tf`
+  adds `staging_kms_data_key_arn` (value `module.foundation.kms_data_key_arn`), alongside the
+  existing `staging_kms_master_key_arn`. The `modules/foundation/` data KMS key
+  (`alias/ark-data-{env}`) is now surfaced as a stack output so downstream/cross-account consumers
+  can reference it. The foundation module itself is unchanged (+5 lines, one file).
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra: foundation-module bullet notes the new `staging_kms_data_key_arn` stack output)
+- docs/projects/ark-infra/INDEX.md (foundation-module bullet notes the new `staging_kms_data_key_arn` stack output)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `2b9328a`)
+- docs/projects/ark-infra/change-log/SYNC_HISTORY.md (this entry)
+
 ## 2026-07-17 - Documentation Update
 **Commit**: `232a5c553378f4361830c10e1afd09e19992e33b`
 **Previous Sync**: `f7a7663ff292c3da44e9323288ec29c6d85f4cd4`

@@ -118,6 +118,12 @@ If `swap.expired` fires with no funds locked at the contract, the swap is now ma
 
 **Solution**: The DI helper was renamed to `services.AddArkSwapServices()` (the multi-provider router registration). It internally calls `AddBoltzProvider()` for backward compatibility, so all existing Boltz-only consumers continue to work. Direct callers of `SwapsManagementService` are unchanged — the public API surface (Initiate* / PayExisting* / Restore*) is preserved by router-→-`BoltzSwapProvider` delegation. Non-Boltz providers can register their own implementation as `ISwapProvider` and the router will dispatch routes accordingly.
 
+### `ARK_TX_MISMATCH` on a covenant (CLTV) refund spend
+
+**Symptom**: Submitting a spend of a CLTV-locked VTXO (e.g. the covenant refund path) fails with arkd rejecting the ark tx as `ARK_TX_MISMATCH`, even though the checkpoint txids agree. A hashlock/non-CLTV spend of the same wallet works fine.
+
+**Solution**: Upgrade past PR #161. A checkpoint's collaborative leaf preserves the original VTXO leaf's CLTV, so arkd's `offchain.buildArkTx` re-derives the ark tx's `nLockTime` (max absolute locktime across inputs) and a non-final input sequence (`0xFFFFFFFE`) from that closure when it rebuilds the tx to verify the client's txid. `TransactionHelpers.ConstructArkTransaction` previously set the locktime only on the checkpoint tx and built the ark tx with a plain `AddCoins` (locktime 0, final sequences), so for a CLTV spend the ark tx txid diverged from arkd's rebuild. The fix mirrors arkd/ts-sdk `buildVirtualTx`: when a checkpoint coin carries a locktime, the ark tx's locktime is set to the max and its inputs to `0xFFFFFFFE`, and a mix of seconds/blocks absolute locktimes is rejected (`nLockTime` can't encode both). No-op for every non-CLTV spend.
+
 ## E2E Test Issues
 
 ### "Aspire host failed to start"

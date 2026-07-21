@@ -109,7 +109,7 @@ pnpm lint                           # No lint errors (both packages)
 1. Create feature branch from `main`
 2. Make changes, ensure typecheck + build + tests pass
 3. Push and create PR against `main`
-4. CI runs `pnpm typecheck` → `pnpm build` → `pnpm smoke:dist` → `npm pack --dry-run --ignore-scripts` (publish-shape verification without re-running `prepack`) → tests
+4. CI runs `pnpm typecheck` → `pnpm build` → `pnpm smoke:dist` → `npm pack --dry-run --ignore-scripts` (publish-shape verification without re-running `prepack`) → **integration**. The integration job is a sharded matrix (split in `38674886`, buckets rebalanced in `ae505277`): the ts-sdk e2e suite runs across four parallel groups — **ark-core**, **arkade-assets** (asset / arkcash / liquidation), **settlement-delegation**, and **exit-providers-rotation** — each passing its `test_files` list to `pnpm run regtest:test:ts-sdk`; `boltz-swap` runs as a single group. `.github/workflows/ci.yml` pins `actions/checkout` / `actions/setup-node` / `pnpm/action-setup` at **v6** and reads the Node version from `.nvmrc` (Node 24).
 5. npm package published on merge to `main`
 
 ## Releasing

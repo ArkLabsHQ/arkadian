@@ -50,6 +50,7 @@ The backend exposes a RESTful HTTP API that clients use to create and monitor sw
 - Support for Lightning offers and blinded paths
 - Enhanced privacy for Lightning payments
 - Future-proof Lightning integration
+- The BOLT12 fetch endpoint (`POST /v2/lightning/{currency}/bolt12/fetch`) makes `amount` optional (PR #1469): when the offer embeds a bitcoin-denominated amount, the server coalesces it from the offer; omitting the amount for an offer without one returns `422`
 
 **Magic Routing Hints**
 - Automatic Lightning routing optimization

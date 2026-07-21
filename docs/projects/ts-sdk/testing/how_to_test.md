@@ -74,7 +74,12 @@ pnpm test:integration:ts-sdk          # = bash scripts/regtest.sh ts-sdk cycle
 
 # Both packages
 pnpm test:integration                 # ts-sdk cycle + boltz-swap cycle
+
+# Run a subset of e2e files against an already-running stack (since 38674886)
+pnpm regtest:test:ts-sdk test/e2e/asset.test.ts test/e2e/arkcash.test.ts
 ```
+
+`regtest:test` with no arguments runs the whole `test:integration` suite; with paths it execs `vitest run <files>`. CI fans the ts-sdk e2e suite out across four parallel matrix groups (rebalanced in `ae505277`) — **ark-core**, **arkade-assets** (asset / arkcash / liquidation), **settlement-delegation**, and **exit-providers-rotation** — by passing each group's file list to `regtest:test` (see the `integration` matrix in `.github/workflows/ci.yml`); `boltz-swap` runs as a single group.
 
 ### Integration Tests (Per-package Docker Compose)
 

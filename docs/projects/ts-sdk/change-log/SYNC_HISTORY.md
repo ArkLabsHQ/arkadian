@@ -1,5 +1,33 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-21 - Post-0.4.48-rc.0 unreleased: sharded integration CI + `regtest:test` file selection
+**From**: `3931e8b3a69118eb6e16ac645351170dfd9e2442`
+**To**: `e6a3cc20c510f8ff78567c9d2c74ffe22ac3c2da`
+**Synced By**: update-project skill
+**Status**: **CI/test/tooling only — no `packages/ts-sdk/src/` or public API change, no version bump** (still `@arkade-os/sdk@0.4.48-rc.0` / `@arkade-os/boltz-swap@0.3.53-rc.0`). `scripts/regtest.sh <pkg> test [file...]` now takes optional test-file paths (none ⇒ full `test:integration`; paths ⇒ `vitest run <files>`, with a leading `--` separator tolerated/stripped), surfaced via `pnpm run regtest:test:<pkg> <files>`. The `.github/workflows/ci.yml` `integration` job became a sharded matrix fanning the ts-sdk e2e suite across four parallel groups — **ark-core**, **arkade-assets** (`asset`/`arkcash`/`liquidation`), **settlement-delegation**, **exit-providers-rotation** — each passing its `test_files` list to `regtest:test`; `boltz-swap` runs as one group. GitHub Actions bumped to v6 (`actions/checkout` / `actions/setup-node` / `pnpm/action-setup`) and the workflows to Node 24.
+
+**Commits analyzed** (8 non-merge commits):
+- `50c1e486` Address Coderabbit's comments
+- `cb242829` docs: document per-group `regtest:test` file selection (README + AGENTS)
+- `e7c2acc3` test(indexer): widen commitment-tx wait for loaded regtest stack
+- `50184e38` test(arkcash): wait for indexer before claiming created cash
+- `ae505277` refactor(ci): rebalance integration buckets by extracting asset & arkcash e2e tests
+- `1a5266a7` Update GitHub Actions to Node 24 (+ checkout/setup-node/pnpm actions → v6)
+- `4046b388` fix parsing of `--` in `scripts/regtest.sh`
+- `38674886` Split integration CI (matrix fan-out + `regtest:test` file args)
+
+**Files changed in range**: `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/workflows/tsdoc.yml`, `AGENTS.md`, `README.md`, `scripts/regtest.sh`, `packages/ts-sdk/test/e2e/{ark,arkcash,asset,indexer}.test.ts` (e2e tests split — `asset`/`arkcash` extracted into their own files). No `packages/ts-sdk/src/` change.
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — added a ts-sdk "Sharded integration CI + `regtest:test` file selection" changelog bullet (post-0.4.48-rc.0 unreleased, CI/tooling only); added tags (`sharded-integration-ci`, `regtest-test-file-selection`, `ci-matrix-groups`, `github-actions-v6`)
+- `docs/projects/ts-sdk/testing/how_to_run.md` — documented the optional `regtest:test` test-file paths (subset runs) and the CI parallel-group fan-out
+- `docs/projects/ts-sdk/testing/how_to_test.md` — added the `regtest:test` subset command and the four ts-sdk CI matrix groups to the integration-tests section
+- `docs/projects/ts-sdk/sop/development-workflow.md` — expanded the PR-flow CI step with the sharded integration matrix (four ts-sdk groups + boltz-swap), the `test_files`→`regtest:test` wiring, and the actions-v6 / Node-24 pin
+- `change-log/last-sync.txt` → `e6a3cc20`
+
+**Notes**:
+- No SDK source, public API, dependency, or version change. The version cells in `docs/projects/ts-sdk/INDEX.md` and `system/project_overview.md` were left untouched (still 0.4.48-rc.0 / 0.3.53-rc.0).
+
 ## 2026-07-18 - Release 0.4.47 / 0.3.52 + 0.4.48-rc.0 / 0.3.53-rc.0: Arkade Script support, ArkCash bearer instruments, reusable offchain submit core
 **From**: `1b0aa1061266ab9501878b18a2ab9dfe5b19db5f`
 **To**: `3931e8b3a69118eb6e16ac645351170dfd9e2442`

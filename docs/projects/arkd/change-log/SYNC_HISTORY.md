@@ -1,5 +1,32 @@
 # Documentation Sync History - Arkd
 
+## 2026-07-21 - Documentation Update
+**Commit**: `f444de6c` (arkd repository)
+**Previous Sync**: `eb75b6ba`
+**Synced By**: /update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 1 commit
+- `f444de6c` Propagate sweep tx event on checkpoint sweep (#1155)
+
+**Feature (PR #1155 — checkpoint sweep tx event propagation)**:
+- The sweeper (`internal/core/application/sweeper.go`) gains an `onSweepCheckpoint func(TransactionEvent)` callback, wired to `service.propagateTransactionEvent` in `NewService` (`service.go`).
+- When `createCheckpointSweepTask` builds and broadcasts a checkpoint sweep tx it now captures the `sweepTxid` and emits a `TransactionEvent{Type: SweepTxType, TxData: {Tx, Txid}, SweptVtxos: childrenVtxos}` to clients subscribed via `GetTxEventsChannel` and to the indexer — previously only round-level sweeps emitted sweep events, so checkpoint sweeps were silent to subscribers.
+- E2E coverage added in `internal/test/e2e/e2e_test.go`.
+
+**Surface Changes**: None — no proto / gRPC method / env-var / migration surface changed (internal wiring only).
+
+**Breaking Changes**: None.
+
+**Files Updated**:
+- docs/INDEX.md (arkd Key Capabilities + tags)
+- docs/projects/arkd/INDEX.md (version bump 1.4.0 → 1.4.1, sync commit + date)
+- docs/projects/arkd/system/application_core.md (Sweeper Service — checkpoint sweep event propagation)
+- docs/projects/arkd/change-log/last-sync.txt
+- docs/projects/arkd/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-14 - Documentation Update
 **Commit**: `eb75b6ba` (arkd repository)
 **Previous Sync**: `557f7c5c`

@@ -1,5 +1,29 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-21 - Documentation Sync
+**Commit**: `0a025e83b6eb65fd239ea74159372d1fbe9c87f2`
+**Previous Sync**: `e14de0733b325e81cddce2bfeef16e4c416ffe66`
+**Synced By**: update-project skill
+**Status**: Completed (metadata only)
+
+**Commits Analyzed**: 1 non-merge commit
+- `0a025e83` fix vertical alignment of nsec input (#804)
+
+**Change Type**: Cosmetic UI fix — no documentation-worthy changes.
+
+**Details**:
+- **UI fix** (PR #804): adds `padding: 0.25rem 0` to the nsec/recovery-phrase `<input>` in `src/components/InputNsec.tsx` to correct its vertical alignment. No change to capabilities, dependencies, endpoints, env vars, or components.
+
+**Files Updated**:
+- docs/projects/wallet/INDEX.md (`last_sync_commit` frontmatter only)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+**Notes**:
+- Master `docs/INDEX.md` wallet entry left unchanged — a purely cosmetic alignment fix produces no new capability, tag, or dependency to record.
+
+---
+
 ## 2026-07-18 - Documentation Sync
 **Commit**: `e14de0733b325e81cddce2bfeef16e4c416ffe66`
 **Previous Sync**: `82403d36c53b566a00709f01a935952cdaa372b8`

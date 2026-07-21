@@ -119,6 +119,8 @@ Automatically sweeps expired VTXO tree outputs back to the ASP.
 
 **Algorithm:** Traverses VTXO tree depth-first, checks if transactions are confirmed onchain, calculates expiration based on parent confirmation + CSV delay.
 
+**Checkpoint Sweep Event Propagation (PR #1155):** When `createCheckpointSweepTask` sweeps a checkpoint, it now emits a `TransactionEvent{Type: SweepTxType, SweptVtxos: childrenVtxos}` via the `onSweepCheckpoint` callback (wired to `service.propagateTransactionEvent` in `NewService`). This notifies clients subscribed to the transaction event stream (`GetTxEventsChannel`) and the indexer of the checkpoint sweep tx — previously only round-level sweeps surfaced sweep events, so checkpoint sweeps were silent to subscribers.
+
 **Startup / Shutdown Watch Restore:** `restoreWatchingVtxos` (boot) and the `Stop()` unwatch path both load every sweepable round's VTXO pubkeys in a single bulk repo call (`VtxoRepository.GetVtxoPubKeysByCommitmentTxids`) instead of one query per round. DB calls are now constant (2) regardless of round count, replacing the previous N+1 scan that took ~46s at 1000 rounds on sqlite. Pubkey rows are hex-validated (32-byte x-only) before being lifted to taproot scripts so a single corrupted DB row cannot poison the entire batch. The resulting script list is registered with `arkd-wallet` via `walletclient.WatchScripts`, which chunks the list at `defaultWatchScriptsChunkSize` (2000 scripts ≈ 150 KiB per call) to stay below the default 4 MiB gRPC max-message size at large script counts (`UnwatchScripts` is chunked the same way on shutdown).
 
 ### Fraud Detection Service (`fraud.go`)
