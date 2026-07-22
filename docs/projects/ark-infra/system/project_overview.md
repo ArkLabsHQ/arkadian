@@ -35,7 +35,7 @@ ark-infra/
 │   │   ├── staging/                   # Staging stack — composes `modules/ark` with ACM cert + SSM prefix
 │   │   └── prod/                      # Prod stack (since 2026-05) — composes `modules/ark` (env=prod); S3 backend `ark-prod-terraform-state`, Route53 aliases for prod.arkade.sh + telemetry.prod.arkade.sh
 │   └── bitcoin/                       # Standalone Bitcoin node stacks (since 2026-07, #105)
-│       └── staging/                   # Deploys `modules/bitcoin-node` (AZ-a, t4g.medium, fixed IP 10.10.101.10) via `modules/vpc-lookup`; self-owned Route53 private zone bitcoin.ark-staging.internal. Since #111 `outputs.tf` publishes node_security_group_id / node_dns_name / node_fixed_private_ip for the ark stack's NBXplorer ECS service (consumer-depends-on-producer)
+│       └── staging/                   # Deploys `modules/bitcoin-node` (AZ-a, t4g.small + dbcache 512 since #123, fixed IP 10.10.101.10) via `modules/vpc-lookup`; self-owned Route53 private zone bitcoin.ark-staging.internal. Since #111 `outputs.tf` publishes node_security_group_id / node_dns_name / node_fixed_private_ip for the ark stack's NBXplorer ECS service (consumer-depends-on-producer)
 ├── modules/                           # Reusable OpenTofu modules
 │   ├── ark/                           # Ark app + telemetry: ALB, arkd routing, telemetry ASG, Cloud Map, Ansible provisioning, ECS cluster
 │   │   ├── alb.tf                     # Shared internet-facing ALB (HTTPS listener, ACM cert, 180s idle, access+conn logs)
@@ -129,8 +129,8 @@ ark-infra/
    - `arkd-wallet-{env}`: Wallet service
    - `kms-unlocker-{env}`: Wallet unlock automation
    - **Note**: `compose/docker-compose.ark.prod.yaml` now pulls arkd/arkd-wallet from GHCR
-     (`ghcr.io/arkade-os/arkd:v0.9.14`, `ghcr.io/arkade-os/arkd-wallet:v0.9.14`, bumped from
-     `v0.9.13` in #114; `v0.9.13` since #107). ECR
+     (`ghcr.io/arkade-os/arkd:v0.9.15`, `ghcr.io/arkade-os/arkd-wallet:v0.9.15`, bumped from
+     `v0.9.14` in #126; `v0.9.13` → `v0.9.14` in #114; `v0.9.13` since #107). ECR
      remains used for SSM-driven `Ark-DeployService` deploys (full image URL parameter).
 
 ### Application Services
@@ -204,11 +204,12 @@ ark-infra/
    - HTTP/1.1 default (`arkd_http1_support = true`); idle timeout 180s (exceeds arkd 60s heartbeat + Cloudflare 120s edge)
    - Access + connection logs to `ark-logs-${env}-${account_id}` (lifecycle by `alb_log_retention_days`)
    - Staging endpoints (since #110): `btcstaging.arkade.sh` (primary A record), `staging.arkade.sh` (retained in `arkd_hosts`); primary ALB cert switched to the new `btcstaging.arkade.sh` ACM cert (`b4977685-…`, SANs `btcstaging.arkade.sh` + `*.btcstaging.arkade.sh`); the old `staging.arkade.sh`/`*.staging.arkade.sh`/`staging-cf.arkade.sh` cert (`7b9a0e38-…`) kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp`, TODO to remove once stabilized)
-   - Prod endpoints: `arkade.computer` (primary since #104/#107), `prod.arkade.sh` (direct A record); Grafana at `telemetry.prod.arkade.sh`; `alb_log_retention_days = 30`. Primary ALB cert is the dedicated `arkade.computer` ACM cert (`f80fd08a-…`); the old `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp` on `module.ark.alb_https_listener_arn`, TODO to remove once stabilized)
+   - Prod endpoints: `arkade.computer` (primary since #104/#107), `prod.arkade.sh` (direct A record), emulator `emulator.arkade.computer` / `emulator.prod.arkade.sh` (since #121); Grafana at `telemetry.prod.arkade.sh`; `alb_log_retention_days = 30`. Primary ALB cert is the dedicated `arkade.computer` ACM cert (`2a2298f7-…` since #127, SANs incl. `emulator.arkade.computer`; replaced `f80fd08a-…`); the old `prod.arkade.sh`/`*.prod.arkade.sh`/`prod-cf.arkade.sh` cert (`57e4dfc4-…`) is kept as a temporary extra listener cert (`aws_lb_listener_certificate.tmp` on `module.ark.alb_https_listener_arn`, TODO to remove once stabilized)
 
 4. **Shared ALB → emulator** (prod service, staging routing, new in #109)
    - Two target groups on `emulator_port` (staging `7073`): `emulg-*` (gRPC, priority 30), `emulr-*` (REST, priority 35), routed by `emulator_hosts` (`modules/ark/emulator.tf`)
    - Staging endpoint: `emulator.staging.arkade.sh` (direct A record → ALB)
+   - Prod endpoints (since #121): `emulator.arkade.computer` (in `emulator_hosts`), `emulator.prod.arkade.sh` (A record → ALB); `emulator_port = 7073`; `alerts_sns_topic_arn = ark-alerts-prod`
    - Dedicated log group `/ark/${env}/emulator` + error alarm publishing to the account-level SNS alerting topic
 
 ### Telemetry Stack

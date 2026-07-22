@@ -1,5 +1,49 @@
 # Documentation Sync History - Ark TypeScript SDK (@arkade-os/sdk)
 
+## 2026-07-22 - 0.4.48 release: canonical VTXO facts, origin-scoped rate gate, ArkCash → ArkadeCash rename
+**From**: `e6a3cc20c510f8ff78567c9d2c74ffe22ac3c2da`
+**To**: `e018dc853cc1c622e73ed48dbae7e513ad7dec85`
+**Synced By**: update-project skill
+**Status**: **Feature + fix release** — `@arkade-os/sdk` 0.4.47 → **0.4.48**, `@arkade-os/boltz-swap` 0.3.52 → **0.3.53** (finalizing the earlier `-rc.0` prerelease). Two new `src/` modules (`wallet/vtxo.ts`, `providers/rateGate.ts`), a public-surface rename (ArkCash → ArkadeCash), and new root exports (canonical-VTXO capability predicates + `TimeHeight`, `ArkadeBatchInput` / `ArkadeExtendedVirtualCoin`).
+
+**Commits analyzed** (19 non-merge commits):
+- `e018dc85` chore: release @arkade-os/sdk@0.4.48, @arkade-os/boltz-swap@0.3.53
+- `c116bba2` rename ArkCash to ArkadeCash
+- `ea930aa5` test(vhtlc): base CLTV locktime on core tip, not a lagging indexer
+- `f9fa12a5` fix(providers): close the release/report race and stop replaying indexer POSTs
+- `7939e6d6` fix(providers): fall back to the default cooldown on a negative Retry-After
+- `d796c245` feat(providers): origin-scoped rate gate with Retry-After backoff
+- `4fc1ca5b` fix(restore): treat a failed discovery probe as indeterminate
+- `b0e97c10` test(vhtlc): fit CLTV refund maturation inside batch expiry
+- `c27690e3` docs(sdk): trim redundant comments
+- `4a056d0c` test(indexer): tolerate shared batches in commitment tx assertions
+- `bb64229d` fix(sdk): restore arkade VTXO/boarding discrimination in batch handler
+- `fae97879` refactor(sdk): fail loudly on missing VTXO annotation in settle
+- `c037da31` fix(sdk): partition migration inputs the send path would reject
+- `19dc3db3` fix: build and lint issues
+- `0cc1da80` Pass height to self-send expiry
+- `27a7f7f2` fix(sdk): correct expiry ordering, zero expiry and pending buckets
+- `aff1db2d` test(sdk): cover canonical VTXO facts, expiry round-trip and compat
+- `7c3ad311` feat(sdk): drive wallet behavior from canonical VTXO facts
+- `d380bd5e` feat(sdk): add canonical VTXO facts and normalization boundary
+
+**Key source changes**:
+- **`src/wallet/vtxo.ts` (new)** — canonical VTXO facts + normalization boundary + capability predicates. `convertVtxo` moved here from `indexer.ts`; `VirtualCoin` gains optional `isSwept` / `isPreconfirmed` / `expiresAt` / `expiresAtHeight`; `virtualStatus` projection deprecated. Root-exports `canSpendOffchain` / `canRecoverOnchain` / `hasTerminalSpend` / `isPastExpiry` / `isVirtualCoin` + type `TimeHeight`; `IReadonlyWallet.getVtxos` now returns `NormalizedExtendedVirtualCoin[]`; `getNormalizedVtxos` is the sanctioned indexer read path.
+- **`src/providers/rateGate.ts` (new)** — process-wide origin-scoped `OriginRateGate` / `rateGate` with `Retry-After` backoff. Wired into `RestArkProvider.getInfo` (wait+report) + intent/settlement POST (report-only) and `indexerFetch` (wait+report + bounded GET/HEAD retry ladder; POSTs wait but never replay).
+- **ArkCash → ArkadeCash rename** — `src/arkcash/` → `src/arkadeCash/`; class/error/result types renamed; `createCash` / `claimCash` method names + `arkcash1…` note prefix unchanged.
+- **`src/arkade/batch.ts`** — new `ArkadeBatchInput` union + `isVirtualCoin`-based discrimination; throws on a script-less input instead of silently settling it as boarding.
+
+**Docs updated**:
+- `docs/INDEX.md` (master) — added four ts-sdk changelog bullets (canonical VTXO facts, origin-scoped rate gate, ArkCash→ArkadeCash rename, Arkade batch-input discrimination) + a 0.4.48 release bullet; updated the description (ArkadeCash rename); added ~35 tags and a set of debug triggers
+- `docs/projects/ts-sdk/system/project_overview.md` — bumped version cells to 0.4.48 / 0.3.53; renamed the ArkCash feature row to ArkadeCash; added **Canonical VTXO Facts** and **Origin-Scoped Rate Gate** feature rows; updated the Arkade Script row for the batch-input union
+- `docs/projects/ts-sdk/system/architecture.md` — bumped versions; renamed `src/arkcash/` module entry → `src/arkadeCash/`; added `src/wallet/vtxo.ts` and `src/providers/rateGate.ts` module entries; updated `index.ts`, `providers/ark.ts`, `providers/indexer.ts`, `wallet/wallet.ts`, and `arkade/batch.ts` notes
+- `docs/projects/ts-sdk/INDEX.md` — bumped the workspace version table to 0.4.48 / 0.3.53
+- `change-log/last-sync.txt` → `e018dc85`
+
+**Notes**:
+- No dependency changes. `19dc3db3` (build/lint) and `c27690e3` (comment trim) are non-functional; `4a056d0c` / `ea930aa5` / `b0e97c10` / `aff1db2d` are test-only.
+- The version cells previously left at `-rc.0` (per the prior sync) are now finalized to the released `0.4.48` / `0.3.53`.
+
 ## 2026-07-21 - Post-0.4.48-rc.0 unreleased: sharded integration CI + `regtest:test` file selection
 **From**: `3931e8b3a69118eb6e16ac645351170dfd9e2442`
 **To**: `e6a3cc20c510f8ff78567c9d2c74ffe22ac3c2da`

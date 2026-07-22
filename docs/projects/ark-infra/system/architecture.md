@@ -197,9 +197,9 @@ the old `staging.arkade.sh`/`staging-cf.arkade.sh` cert stays as a temporary ext
 
 **ALB-fronted emulator (2026-07, #109):** the shared ALB also fronts the `emulator` service via
 `modules/ark/emulator.tf` — a gRPC target group (`emulg-*`, priority 30) and a REST target group
-(`emulr-*`, priority 35) on `emulator_port` (staging `7073`), routed by `emulator_hosts`
-(staging `emulator.staging.arkade.sh`, A-record → ALB), with an `app_sg`←`alb_sg` ingress rule
-on that port.
+(`emulr-*`, priority 35) on `emulator_port` (`7073`), routed by `emulator_hosts`
+(staging `emulator.staging.arkade.sh`; prod `emulator.arkade.computer` / `emulator.prod.arkade.sh`
+since #121, both A-record → ALB), with an `app_sg`←`alb_sg` ingress rule on that port.
 
 **ECS cluster substrate (2026-07, #111):** the shared module now also provisions an
 **ECS-on-EC2** cluster (`modules/ark/ecs.tf`, `ark-${env}`) alongside the Compose app host —

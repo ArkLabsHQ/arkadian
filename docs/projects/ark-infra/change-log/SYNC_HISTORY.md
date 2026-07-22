@@ -1,5 +1,40 @@
 # Documentation Sync History - Ark Infra
 
+## 2026-07-22 - Documentation Update
+**Commit**: `5effc9be46b443f1bacd3c25b1ce66684b299bed`
+**Previous Sync**: `2b9328a6d28fbf3da32953b3b7dd5a139c77cf19`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 4 commits (#123 bitcoin-node t4g.medium tune, #127 prod ACM cert, #126 arkd v0.9.15, #121 emulator v0.0.5 to prod)
+
+**Highlights**:
+- ⬆️ **arkd released to v0.9.15 (#126)** — `compose/docker-compose.ark.prod.yaml` bumps both
+  `ghcr.io/arkade-os/arkd` and `ghcr.io/arkade-os/arkd-wallet` from `v0.9.14` → `v0.9.15`.
+- 🖥️ **Emulator v0.0.5 + full prod ALB wiring (#121)** — `emulator` image `v0.0.4` → `v0.0.5`;
+  prod (`apps/ark/prod/ark.tf`) now sets `emulator_hosts = ["emulator.arkade.computer"]`,
+  `emulator_port = 7073`, a `emulator.prod.arkade.sh` Route53 A-alias to the ALB, and
+  `alerts_sns_topic_arn = arn:aws:sns:eu-central-1:982590065524:ark-alerts-prod`. The
+  `modules/alerting/` spine is also wired into `aws/prod-982590065524/main.tf` (env=`prod`,
+  `slack_channel_id = C095LGXKYNA`, `slack_team_id = T07NFFX1CD6`), adding the `aws.us_east_1`
+  provider alias and bumping `hashicorp/aws` to `~> 5.61`.
+- 🔐 **Prod ACM cert rotated (#127)** — the `arkade.computer` primary ALB cert moves from
+  `f80fd08a-…` to `2a2298f7-…`, which adds the `emulator.arkade.computer` SAN.
+- 🪶 **Bitcoin-node right-sized for the chain tip (#123)** — `modules/bitcoin-node` defaults drop
+  `instance_type` `t4g.large` → `t4g.medium` and `bitcoin_dbcache` `4096` → `1024` MB (the Ansible
+  `bitcoind_dbcache` default drops in lockstep, overridden per-node from SSM); snapshot-provisioned
+  nodes run steady-state at the tip where 4 GiB suffices. Staging (`apps/bitcoin/staging/bitcoin.tf`)
+  goes further: `t4g.small` + `bitcoin_dbcache = 512`.
+
+**Files Updated**:
+- docs/INDEX.md (ark-infra: arkd/arkd-wallet → `v0.9.15` #126; emulator → `v0.0.5` + prod endpoints/#121; alerting module wired into prod; prod ACM cert `2a2298f7-…` #127; bitcoin-node `instance_type`/`bitcoin_dbcache` defaults + staging tier #123)
+- docs/projects/ark-infra/INDEX.md (frontmatter `version` → 1.11.0, `last_sync_commit`, `last_sync_date`; arkd/arkd-wallet Deployed Services → `v0.9.15`; emulator entry → `v0.0.5` + prod wiring; prod ALB endpoints/cert; alerting module prod wiring; bitcoin-node vars/staging)
+- docs/projects/ark-infra/system/project_overview.md (ECR arkd version note → v0.9.15; prod ALB emulator endpoints + cert; Shared ALB → emulator prod endpoints; staging bitcoin-node t4g.small/dbcache 512)
+- docs/projects/ark-infra/system/architecture.md (ALB-fronted emulator now lists prod hosts)
+- docs/projects/ark-infra/change-log/last-sync.txt (→ `5effc9b`)
+
+---
+
 ## 2026-07-21 - Documentation Update
 **Commit**: `2b9328a6d28fbf3da32953b3b7dd5a139c77cf19`
 **Previous Sync**: `232a5c553378f4361830c10e1afd09e19992e33b`

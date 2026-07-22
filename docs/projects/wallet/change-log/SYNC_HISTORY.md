@@ -1,5 +1,30 @@
 # Documentation Sync History - Wallet
 
+## 2026-07-22 - Documentation Sync
+**Commit**: `0942056a7a6d20f468ca113217481be2b9cbfff5`
+**Previous Sync**: `0a025e83b6eb65fd239ea74159372d1fbe9c87f2`
+**Synced By**: update-project skill
+**Status**: Completed
+
+**Commits Analyzed**: 2 non-merge commits
+- `0942056a` Upgrade ts-sdk 0.4.48 - boltz-swap 0.3.53 (#813)
+- `1cc9fcd0` Make buy/sell upsell copy explicit about bank transfers via SEPA (#814)
+
+**Change Type**: Dependency bump + UI copy tweak.
+
+**Details**:
+- **Dependency bump** (PR #813): `@arkade-os/sdk` 0.4.47 → 0.4.48 and `@arkade-os/boltz-swap` 0.3.52 → 0.3.53 in `package.json` / `pnpm-lock.yaml`.
+- **Upsell copy** (PR #814, `src/screens/Wallet/UpsellsSection.tsx`): "Buy or sell bitcoin" card description changed from "Convert between bitcoin and your local currency." to "Use a bank transfer in CHF or EUR via SEPA."
+
+**Files Updated**:
+- docs/INDEX.md (wallet Recent Changes bullet + Dependencies versions)
+- docs/projects/wallet/INDEX.md (`last_sync_commit` frontmatter)
+- docs/projects/wallet/system/tech-stack.md (Arkade Integration SDK version headings)
+- docs/projects/wallet/change-log/last-sync.txt
+- docs/projects/wallet/change-log/SYNC_HISTORY.md
+
+---
+
 ## 2026-07-21 - Documentation Sync
 **Commit**: `0a025e83b6eb65fd239ea74159372d1fbe9c87f2`
 **Previous Sync**: `e14de0733b325e81cddce2bfeef16e4c416ffe66`
