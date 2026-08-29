@@ -1,7 +1,7 @@
 # Secrets Management - Standard Operating Procedure
 
 ## Overview
-All sensitive information is stored in AWS Secrets Manager with KMS encryption. Never commit secrets to git.
+Most sensitive information is stored in AWS Secrets Manager with KMS encryption. The wallet signer key is an exception — stored in secrets.<env>.tfvars pending future migration (see Section 3). Never commit secrets to git.
 
 ## Secret Types
 
@@ -46,7 +46,24 @@ aws secretsmanager get-secret-value \
   --query 'SecretString' --output text | jq -r '.seed'
 ```
 
-### 3. Deployment Secrets
+### 3. Arkd Wallet Signer Key
+**Location**: `secrets.<env>.tfvars` (NOT in AWS Secrets Manager)
+**Variable**: `arkd_wallet_signer_key`
+**Purpose**: secp256k1 private key used by arkd-wallet for ASP signing operations. 64-character hex string (32 bytes).
+
+> **Note**: Currently stored as plaintext in tfvars. Future: migrate to AWS Secrets Manager (see deployment-guide.md TODO).
+
+**Generate**:
+```bash
+SIGNER_KEY=$(openssl rand -hex 32)
+echo "arkd_wallet_signer_key = \"$SIGNER_KEY\"" >> secrets.<env>.tfvars
+```
+
+**Storage**:
+- Regtest/dev: hardcoded in `regtest.tfvars` (intentional, not a real secret)
+- Prod/staging: generated per environment, stored in local `secrets.<env>.tfvars` (gitignored), never committed
+
+### 4. Deployment Secrets
 **Location**: Never committed, passed via `-var` flags
 
 **Required Secrets**:
